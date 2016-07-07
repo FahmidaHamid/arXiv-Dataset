@@ -1,0 +1,815 @@
+1
+
+arXiv:1311.6379v2 [q-bio.QM] 20 Jan 2015
+
+A fast and scalable kymograph alignment algorithm for
+nanochannel-based optical DNA mappings
+Charleston Noble1,2,4 , Adam N. Nilsson1 , Camilla Freitag2,3 , Jason P. Beech2 , Jonas O. Tegenfeldt2 ,
+Tobias Ambjörnsson1,∗
+1 Department of Astronomy and Theoretical Physics, Lund University, Lund, Sweden
+2 Division of Solid State Physics, Department of Physics, Lund University, Lund, Sweden
+3 Department of Physics, Gothenburg University, Gothenburg, Sweden
+4 Current address: Department of Systems Biology, Harvard Medical School, Boston, MA
+02115, USA
+∗ E-mail: tobias.ambjornsson@thep.lu.se
+
+Abstract
+Optical mapping by direct visualization of individual DNA molecules, stretched in nanochannels with
+sequence-specific fluorescent labeling, represents a promising tool for disease diagnostics and genomics.
+An important challenge for this technique is thermal motion of the DNA as it undergoes imaging; this
+blurs fluorescent patterns along the DNA and results in information loss. Correcting for this effect
+(a process referred to as kymograph alignment) is a common preprocessing step in nanochannel-based
+optical mapping workflows, and we present here a highly efficient algorithm to accomplish this via pattern
+recognition. We compare our method with the one previous approach, and we find that our method is
+orders of magnitude faster while producing data of similar quality. We demonstrate proof of principle of
+our approach on experimental data consisting of melt mapped bacteriophage DNA.
+
+Introduction
+Optical mapping is an emergent complementary approach to DNA sequencing which produces a lower
+resolution (typically kbp) sequence-dependent map of individual DNA molecules [1–10]. As a direct complement to DNA sequencing, optical mapping can produce a scaffold to facilitate easier sequence assembly,
+and as an indirect complement, optical mapping promises a variety of applications for which low resolution maps will suffice. For example, it can be used to quickly identify large-scale structural variations,
+including duplications, deletions, insertions, inversions, and translocations, which are increasingly being
+linked to heritable traits of phenotypic significance [3, 11, 12], and it allows for the rapid identification
+of bacterial species and strains which could represent an important step against the growing problem of
+antibiotic resistance [13–17].
+To date, many techniques for optical mapping have been developed, and they typically rely on
+sequence-specific DNA modifications at short target sites, followed by imaging and analysis. These
+sequence-specific modifications can include staining and denaturation (“melt mapping”) [18], fluorocoding [19], competitive binding of intercalating dyes [20, 21], methylation [22], enzymatic nicking [23, 24],
+and enzymatic restriction [25–27].
+These optical mapping techniques can roughly be divided into three groups: stretching over a surface
+[9, 28–30], stretching via confinement in nanochannels [4, 31–36] or stretching via elongational flow in
+microchannels [37]. While surface–stretching techniques offer a few advantages, such as allowing for 100140% extension [26], mapping via nanochannel confinement allows for integration of the stretching in a
+lab on a chip context that in turn can be brought to application much more easily.
+Note that the nanochannel-based DNA barcoding schemes, the main focus of this study, should not
+be confused with schemes where short genetic markers [38] or restriction enzyme cleavage events [25] are
+detected as landmarks. Barcodes addressed by our technique are not simply binary in the sense that one
+
+2
+detects landmarks or the absence thereof; rather what we call “barcodes” are continuous fluorescence
+profiles which are more susceptible to thermal noise (see Fig. 1a).
+One particular problem inherent to nanochannel confinement techniques is that DNA tends to undergo
+random diffusive processes during imaging, including center-of-mass diffusion and local stretching [39].
+To correct for these effects, a procedure we denote kymograph alignment must be performed (see section Problem Definition). In this paper we present WPAlign (Weighted Path Align), an algorithm
+for kymograph alignment which offers linear scaling in time and can align DNA barcodes with length
+corresponding to an entire human genome in less than an hour on a typical desktop computer. We
+compare its performance to an existing technique and show that our method offers orders-of-magnitude
+improvement in computational speed while producing processed data of similar quality. Additionally, we
+present a new information score which quantifies the information content of DNA barcodes and should
+see widespread use as a barcode quality criterion by which experimentalists can evaluate barcodes and
+optimize experimental mapping conditions.
+
+Problem Definition
+In Figure 1a, the result of a typical nanochannel-based optical DNA mapping experiment is displayed.
+The horizontal axis (x-axis) of this kymograph represents the DNA’s extension in the nanochannel (where
+the pattern results from sequence-specific staining), and the vertical (y-axis) represents images of the DNA
+molecule at different times.
+Due to thermal center of mass and local conformational fluctuations (which occur because the flexible
+DNA molecule is only extended to roughly 50 percent of its contour length), the images over time are
+misaligned both locally and at a global level, leading to significant noise during time-averaging (see
+Figure 1c). Thus before a useful time-average can be performed, the bright and dark bands must be
+“straightened”; this procedure we refer to as kymograph alignment. Figure 1b shows the result of our
+algorithm, WPAlign, developed for this particular task, and Figure 1d shows the corresponding timeaverage. The details of the algorithm can be found in the Methods section. Intuitively, the purpose of
+this process is to, as closely as possible, mimic the results which would be obtained if the DNA were held
+and stretched to 100 percent of its length during imaging. For practical experimental reasons, this is not
+feasible for nanochannel-based techniques, so one must correct for misalignments such as those displayed
+in Fig. 1a.
+In Ref. [18], the kymograph alignment challenge is mathematically presented as a global optimization
+problem (see S1 for details): a template time frame, T , is first chosen. One then allows for local stretching
+of all the remaining frames, Ni , and maximizes the overlap between Ni and T . Finally, all the time frames
+are rescaled with average global stretching factors in order to ensure that the end-to-end distance of the
+DNA molecule after alignment is unchanged and that the time-averaged optical map is therefore consistent
+with thermodynamic constraints.
+In this study we pose the kymograph alignment challenge in slightly different mathematical terms,
+namely as a feature detection problem (details found in Methods). Visually, our method (see Results)
+produces appealing images which are very similar to those produced using the previous method. The
+main benefit of our approach is that it provides an orders-of-magnitude reduction in computational
+time. Furthermore, all the substeps in our algorithm use standard numerical tools and are, therefore,
+straightforward to implement.
+The rest of this study is organized as follows: in Methods we introduce our kymograph alignment
+algorithm, WPAlign. In Results, we compare our new algorithm to the previous method. In Discussion
+we summarize our results and point to further potential applications of our algorithm, and in the S1 we
+provide more technical details of our approach.
+
+3
+
+Figure 1. Problem definition. (A) A raw kymograph depicting denaturation mapping of an intact
+T4GT7 bacteriophage DNA molecule. The y-axis represents time (200 time frames over 20 seconds)
+while the x-axis represents the DNA extension in the nanochannel (170 pixels wide; scale bar is 2µm).
+Note that these specifications also apply to all of the following kymographs. (B) The image from (A)
+after undergoing the kymograph alignment process. (C) Trace of mean intensity over time for the raw
+kymograph (black) with ±1 standard deviation (red), and (D) the same for the aligned kymograph.
+
+4
+
+Methods
+We now consider the problem defined in the previous section, i.e., the alignment of a “fuzzy” DNA
+barcode (see Fig. 1a for an illustrative example) distorted by thermal fluctuations as it resides in a
+nanochannel. WPAlign works intuitively by detecting pronounced bright or dark ridges (“features”) and
+then stretching the barcode horizontally to straighten them. The advantage of this approach is that it
+reduces the problem to a simple two-step process of (1) single-feature detection, followed by (2) single
+feature alignment. This two-step process is then be applied recursively to align the entire kymograph.
+
+Single Feature Detection
+Consider an image represented as a 2D gray scale intensity function with columns x and rows y, denoted
+I(x, y), x ∈ [1, n], y ∈ [1, m]. See Fig. 1a for an illustrative example. Then a feature x = F (y) is a
+function mapping of rows Y to columns X. This mapping thus provides a curve, (x, y) = (F (y), y),
+through the image. Intuitively the feature F we would like to detect is the “most pronounced” vertical
+ridge or valley in I such that:
+1. (Completeness) Our detected feature F traverses each row y exactly once. Actual features might
+not adhere to this constraint, since anomalous events such as DNA breakage could occur, but these
+events should be treated separately from the alignment process.
+2. (Continuity) F ’s horizontal movement is constrained. I.e., |F (y + 1) − F (y)| ≤ k for some integer
+k and for all y. This is to fit the physical constraints we inherit from the polymer physics of DNA
+molecules for the present application.
+Unfortunately, standard feature detection (e.g., ridge detection) methods cannot be applied directly, as
+the resulting features will not necessarily satisfy these constraints, so we have developed the following
+three-step procedure for single feature detection:
+1. Image pre-processing
+First the entire image is smoothed with a 2D Gaussian kernel (here we use σh = 10 pixels and σv = 3
+pixels, where h and v represent the horizontal and vertical directions, respectively) to remove noise from
+random intensity fluctuations (see Fig. 2b and Fig. 6, line 13). Then we apply a Laplacian of Gaussian
+filter to obtain the Laplacian response image which we refer to as K (see Fig. 2c, and Fig. 6, line 14), a
+matrix with the same size as I which has large positive values in dark bands and large negative values
+in light bands (see also S1). These positive and negative values are linearly rescaled to range from (0, 1]
+and [−1, 0), respectively.
+Now our feature F should be represented by a continuous region of high (valley) or low (ridge) values
+in K. We would like to treat these as two distinct cases to avoid detecting a single feature which is
+partially composed of a ridge and partially composed of a valley, so we compute two separate images,
+KB and KD which emphasize bright and dark regions, respectively (see Fig. 4, Fig. 6 line 15, and S1).
+Both are positive or zero everywhere, with the smallest values representing the most pronounced feature
+locations.
+
+2. Network assembly
+We can think of the images KB and KD as energy landscapes, and finding the best ridge or valley becomes
+a problem of finding the lowest-energy paths through KB and KD , respectively. To do this, we assemble
+directed, acyclic networks GB and GD as follows (see Fig. 4, and Fig. 6, line 18). For simplicity, we
+describe our process only for GB , as the process is identical for GD .
+
+5
+
+Figure 2. Image preprocessing. (A) The raw, unaligned, kymograph shown in Fig. 1a (scale bar is
+2 µm, 20 seconds of imaging). (B) The kymograph after Gaussian smoothing, and (C) The Laplacian
+response image, which we refer to as K, that results from applying the Laplacian of Gaussian filter
+(with σ = 10 pixels) to our smoothed kymograph. In K, dark regions represent positive values and light
+regions represent negative values.
+
+Figure 3. Connectivity between nodes.
+1. First, we create one node for every pixel in KB , plus two “peripheral” nodes. Thus GB consists of
+(m × n + 2) nodes.
+2. Now the first of the peripheral nodes is connected to each of the nodes corresponding to the first
+row of GB , and each of the last-row nodes is connected to the second peripheral node with edge
+weight 1.
+3. The rest of the nodes are connected as follows: the node corresponding to pixel (i, j) in KB is
+connected to pixels in the next row directly below, to the left k columns, and to the right k columns
+(see Fig. 3). This k value is used to satisfy the continuity constraint above. We have found k = 2
+to be reasonable for our current application.
+4. If a pixel is too close to a border on the left or right (i.e., i − k < 1 or i + k > n), connections to
+non-existing nodes prescribed in step 3 are ignored.
+5. Finally, every edge is assigned a weight equal to the intensity of the pixel in KB corresponding to
+the node it is directed to.
+Note that the edge weights in this connection scheme are not “biased,” in the sense that given equal
+intensities, movement to any of the connected pixels is equally likely. Alternatively, one could assign a
+non-uniform distribution such that the edge weights are given by a combination of intensities and some
+prior knowledge of likely fluctuations. For example, the weight of the edge connecting (i, j) to (i′ , j ′ )
+could be given by wi→i′ ,j→j ′ = I(i′ , j ′ )f (i′ , i), where f is some probability distribution. Our scheme here
+represents a special uniform case where f (i′ , i) = 1/(2k + 1) for | i′ − i |≤ k and f (i′ , i) = 0 otherwise.
+
+6
+
+Figure 4. Network assembly. The Laplacian response image, K, (see Fig. 2c) has been rescaled into
+(A) KD and (B) KB , images that emphasize dark and bright regions in K, respectively. White pixels
+represent barriers that potential features cannot cross, while continuous dark regions indicate likely
+features. (C) Here we show one example network, although separate networks are indeed assembled for
+KB and KD . Each node (square) within the rectangular region represents a pixel in KB or KD . The
+top and bottom nodes (which we term “peripheral nodes”) are added to provide starting/ending points
+for the shortest path finding algorithm. The width of the edges corresponds to the inverse of the edge
+weight, and the darkness of the nodes represents the average weight of incoming edges. The red line
+illustrates the shortest path through the network. For the sake of visual clarity, this network was
+created using a small subsection of an actual Laplacian response with k = 1.
+After examining several additional forms for f , we found that the simple uniform case presented above
+achieved the best and most consistent results for our examples. However, this weighting scheme should,
+in general, be carefully chosen by the user to suit the particular data being considered.
+As for the choice of k, we found k = 2 to be reasonable for the data presented here; now we present a
+method for choosing k to be used on novel data. For unbiased diffusive motion, the diffusion length ∆L
+of the DNA molecule is connected to time as ∆L2 ∝ Dt (where t is the inverse sampling frequency), and
+the center-of-mass diffusion constant D is inversely√proportional to the number of polymer segments (i.e.,
+the length of the polymer) [40]. Hence ∆L ∝ 1/ L, where L is the length of the DNA molecule. For
+experimental setups identical to ours, the choice of k will vary based on the DNA length to be aligned
+according to:
+r
+Lref
+k = kref
+L
+where kref = 2, as presented here, and Lref = 24µm, the length of the molecules presented above.
+
+3. Shortest path finding
+Now every path between the peripheral nodes in our networks represents a potential feature which
+satisfies the continuity and completeness constraints above, so our task is to find the “best” such feature.
+Essentially, we are searching over all paths between the peripheral nodes which do not move more than
+k pixels horizontally between any adjacent rows. Our cost function is the sum of pixel intensities over
+
+7
+a path, and we seek to minimize this over the space of these acceptable paths. Thus, intuitively, the
+best bright feature corresponds to the shortest path in KB , and the best dark feature corresponds to the
+shortest path in KD . So, our task becomes a shortest path finding problem.
+Since our networks are directed and acyclic, the shortest path can be computed by a standard dynamic
+programming algorithm based on topological sorting which grows linearly with the sum of the number of
+edges and nodes (Fig. 6, line 19) [41]. Note that, in our graph, this sum grows bilinearly with the number
+of time frames and the horizontal width of our input kymographs. And since the number of time frames
+does not change, in practice, the sum of nodes and edges in our graph grows linearly with the kymograph
+width. Thus the computational time of the shortest path finding algorithm also grows linearly with the
+kymograph width.
+By this process we obtain two paths, one in KB corresponding to the best bright feature in our original
+kymograph, and one in KD corresponding to the best dark feature. The path with the shorter length of
+these two is chosen as the best overall feature (see fig. 4). If this feature is distinct enough (i.e., its length
+is lower than some threshold; see Methods on calculating KD and KB ) then we proceed with alignment.
+Otherwise the path is rejected, and recursion is terminated. This can happen, for instance, in large dark
+‘gaps’ associated with low labeling density mapping approaches.
+
+Single Feature Alignment
+Once the best feature F (y) has been detected by the three-step process above, it is aligned by setting
+F (y) = hF (y)i, where h.i denotes the mean (rounding to the nearest integer) for all rows y, and the pixels
+to the left and right of F (y) are stretched (or compressed) linearly. To determine intensity values at
+non-integer positions during this linear stretching, we used cubic spline interpolation (see Fig. 5 and Fig.
+6, line 23). Note that by setting F (y) = hF (y)i, we ensure that the feature is aligned over its position at
+thermodynamic equilibrium.
+
+Full Kymograph Alignment
+Using the scheme above, the best feature in the input image has been both (1) detected and (2) aligned.
+But we wish to detect and straighten all of the features. Thus to continue the process, the image is split
+vertically along the newly aligned feature (see Fig. 5c, d, and e), and w columns (where w is set to half
+the width of a typical feature) are removed from each on the side adjacent to the split. Then the (1)
+single feature detection and (2) single feature alignment routines are called again on each of these two
+smaller images if they are wider than typical a feature (i.e., 2w). In our current application, features
+are typically ∼ 10 pixels wide, so we use w = 5 pixels, though this parameter can easily be changed
+depending on the application. (see Fig. 5, and Fig. 6, lines 24–25). The algorithm then terminates when
+the width of the image is less than the width of a typical feature, 2w.
+It is worth noting that, since we remove columns before calling the process again, the algorithm
+is guaranteed to converge. If we did not perform this step, the same feature could conceivably be restraightened perpetually.
+
+Results
+In practice, WPAlign produces alignments which are visually appealing (see Fig. 7). To quantify the
+quality of these alignments, we use two quality criteria: time-trace noise reduction and information
+content along with empirical computational costs. We compare WPAlign to the method used in [18] (see
+S1 for a description) with respect to these measures.
+
+8
+
+Figure 5. Feature detection and recursion in WPAlign. (A) A raw, unaligned kymograph is
+given as input (see Fig. 1). (B) The “best” feature is identified from the input kymograph. (C) The
+feature identified in (B) is aligned via linear interpolation. (D, E) The feature identification process is
+called recursively on the regions to the right (D) and to the left (E) of the newly-aligned feature. (F)
+This process is continued until all features have been aligned.
+Time Trace Noise Reduction
+The ultimate goal of presenting the data in a kymograph format is to produce a 1-dimensional intensity
+profile that is “typical” and reproducible for the DNA being analyzed. This intensity profile is then
+compared to existing databases for genomic analysis. To produce this intensity profile, hIi, we simply
+take the time-average of an aligned kymograph
+m
+
+hI(x, y)iy =
+
+1 X
+I(x, y),
+m y=1
+
+(1)
+
+where m is the number of rows (time frames) in the kymograph. The reduction in noise can be quantified
+by the column-wise variance, given by
+m
+
+σ 2 (x) =
+
+1 X
+2
+[I(x, y) − hI(x, y)iy ] .
+m y=1
+
+(2)
+
+To compare WPAlign and the Reisner method [18], these variances were calculated for the 10 representative kymographs in Fig. 7, see S1 for experimental details on how these kymographs were obtained. For
+2
+2
+every column in each of the kymographs, we obtained values σW
+(x) and σR
+(x), corresponding to the vari2
+2
+ances resulting from alignment by the respective algorithms. Then a distribution of values σW
+(x)/σR
+(x)
+was calculated (see Fig. 8). This distribution is normal with mean µ = 0.75, indicating that, for a typical
+kymograph column, WPAlign reduced variance by 25% when compared to the Reisner method. Thus
+WPAlign, besides reducing computational costs, reduces kymograph noise and yields an improvement
+over the Reisner approach.
+
+9
+
+Figure 6. WPAlign pseudocode. Note that all substeps shown here are available in a variety of
+standard toolboxes, open-source and otherwise. For our particular implementation, all code was written
+in Matlab with dependencies in the Image Processing Toolbox and the Bioinformatics Toolbox (which
+implements the graph data structure and shortest path finding functionality).
+
+10
+
+Figure 7. Typical T4GT7 denaturation mapping kymographs, raw and aligned via
+WPAlign. The numbered kymographs represent the raw data, and the aligned versions are displayed
+directly below each.
+
+11
+
+Figure 8. Kymograph noise comparison of WPAlign and the Reisner approach.
+2
+Column-wise variances were calculated for aligned barcodes using WPAlign (σW
+(x)), and the Reisner
+2
+2
+2
+approach (σR (x)). Here we show the distribution of σW /σR . A Gaussian distribution was fit to this
+data, resulting in a mean of µ = 0.75 (with standard deviation σ = 0.32). Thus in this particular case,
+WPAlign reduces variance by 25% compared to the Reisner method. Overall, the fraction of columns
+2
+2
+such that σW
+< σR
+was 80%. (Inset) An example time trace of barcode 6 (see Fig. 7) aligned via the
+WPAlign and Reisner methods. Error bars represent one standard deviation (i.e., σW and σR ).
+In addition, we examined how aligned kymograph noise is affected by the length of the time axis (see
+Fig. 9). To do this, we calculated hσ 2 (x)i, the mean of the column-wise variances given above, given by
+"
+#
+n
+m
+1X 1 X
+2
+2
+(3)
+[I(x, y) − hI(x, y)iy ] ,
+hσ (x)i =
+n x=1 m y=1
+for kymographs with time axes ranging from 20 to 200 time frames. From the results we can see that the
+noise from kymographs aligned via WPAlign is independent of the number of time frames chosen during
+filming. However, kymographs aligned by the Reisner approach seem to undergo an increase in noise as
+the number of frames increases, until plateauing at roughly 120 frames.
+We present a possible explanation for this result: as the number of time frames increases, the underlying DNA molecule is allowed more time to undergo conformational changes and random diffusive
+processes, rendering the first and last frames increasingly dissimilar. Thus any template frame chosen by
+the Reisner method will be increasingly dissimilar from the frames farthest from it in the kymograph.
+This renders the local stretching factor optimization more prone to becoming stuck in local minima for
+these “distantly related” frames, introducing noise in the final alignment. WPAlign, on the other hand,
+avoids this problem as it does not rely on the choice of a single template frame.
+
+Information Score
+Before alignment, bright and dark features can stray into adjacent kymograph columns as the DNA
+molecule undergoes horizontal diffusion. Thus thin features are obscured in the time average, effectively
+
+12
+
+Figure 9. Effect of time axis length on aligned kymograph noise. Kymographs with time axes
+varying from 20 to 200 time frames in length were aligned by both methods. The resulting column-wise
+2
+2
+variances σR
+(x) and σW
+(x) were calculated as in Fig. 8. Here we plot, for each kymograph, the mean of
+2
+2
+these column variances, i.e., hσR
+(x)i and hσW
+(x)i, showing that kymograph noise increases with time
+axis length for the Reisner method but remains constant for WPAlign.
+broadening peaks and valleys. As alignments improve, however, features occupy less horizontal space
+and become more apparent in the final time-trace. Since these features are essential in later performing
+statistical comparisons with other data, increasing contrast between neighboring features (i.e., increasing
+feature sharpness) essentially increases the information contained in the time trace.
+To quantify this information content of the barcodes we present a new scheme based on the selfinformation of a random variable [42], see Methods for a comprehensive description. Here in brief, the
+information score, IS, of a kymograph is given by
+"
+#
+
+X
+log(|∆Ik |)2
+1
+(4)
+IS =
+exp −
+− log p
+2 log(σ 2 + χ)
+2π log(σ 2 + χ)
+k
+
+where σ 2 represents the noise of the underlying kymograph, χ = 1 is a regularization parameter ensuring
+that the score remains real-valued for all noise levels, and the ∆I’s represent “robust” intensity differences
+(see S1) between neighboring peaks and valleys. Thus information increases as the difference between
+neighboring peaks and valleys grows and as the noise of the underlying kymograph decreases. That is,
+time-traces with sharper, more well-defined local extrema will contain more information than time traces
+from noisy kymographs with broad extrema.
+Time traces and their corresponding information scores were calculated for the representative kymographs shown in Fig. 7 after undergoing alignment by both WPAlign and the Reisner method (see
+Fig. 10). In general, WPAlign produces visually sharper and more well-defined time-traces. Furthermore, the information content is greater for WPAlign in all examples considered. In fact, the average
+information gain from using WPAlign over the Reisner method on our dataset is roughly 78% (i.e.,
+h(ISW − ISR )/ISR i = 0.78).
+Furthermore, independent of our kymograph alignment technique, this information score can serve as
+an objective and easily interpretable barcode quality measurement by which barcodes can be compared,
+providing a basis for experimental optimization. For example, expected barcodes can be calculated
+
+13
+from theory for a number of experimental conditions [18], and then experiments can be performed only
+for barcodes expected to yield the highest information content, saving valuable time and resources for
+experimentalists. Furthermore, if theory is not available for a particular optical mapping application,
+the information score can serve as a quality criterion for experimental barcodes by which experimental
+conditions can be rigorously optimized.
+
+Computational Time
+Empirically, WPAlign exhibits linear scaling with barcode length, n (see Fig. 11). This is somewhat
+intuitive, as the bottleneck of the approach is the shortest path finding algorithm, and this runs in linear
+time due to the directed and acyclic qualities of our networks. The Reisner approach, on the other hand,
+scales with O(n2 ), rendering it impractical for bacterial barcodes on the order of 1 Mbp or larger (see
+Fig. 11).
+Perhaps most importantly, WPAlign was able to successfully align a simulated barcode with length
+on the order of a full human genome in only 40 minutes. The Reisner approach would require over 108
+seconds, or roughly 3 years, to perform this task on an identical computer.
+
+Discussion
+In this paper we present a new DNA barcode kymograph alignment algorithm which outperforms an
+existing alternative [18] in computational speed, and for the particular data presented here, also slightly
+improves on noise reduction properties and information content of the time-averaged barcodes. Indeed,
+the orders-of-magnitude improvement in computational speed could open the door for high throughput kymograph alignment at the human-genome scale as well as constituting an important step in data
+analysis for a number of nanofluidic optical mapping techniques, including denaturation mapping [18],
+fluorocoding [19], competitive binding [20,21], and enzymatic nicking [23,24]. By providing a rapid framework for this data analysis, WPAlign can help bring the many applications of optical mapping closer to
+application, including bacterial strain and species identification, detection of large-scale genomic structural variation, and scaffold building for third generation de novo sequencing techniques. Furthermore,
+the algorithm is easy to implement, as the various substeps involved are available in most standard
+numerical packages.
+Moreover, our feature detection method, suitably modified, may find application in other domains of
+biological image analysis, such as automated organism tracking [43, 44], or automated study of cellular
+transport along axons (à la [45–48]), defects in which have been implicated in a number of neurodegenerative diseases, including Alzheimer’s Disease, Parkinson’s Disease, and Amytrophic Lateral Sclerosis [49, 50].
+Finally our information score, motivated as a way to compare the quality of alignments produced by
+different methods, may find widespread application among the optical mapping community as an easily
+calculable and interpretable barcode quality criterion by which to optimize experimental conditions.
+
+Acknowledgments
+We thank Karl Åström for helpful discussions on image analysis.
+
+14
+
+Figure 10. Quality comparison of barcodes aligned via the Reisner approach and
+WPAlign. (Top) Representative kymographs aligned via the Reisner approach (above) and WPAlign
+(below). (Bottom) Average intensity traces from kymographs in Fig. 7 aligned via WPAlign (red) and
+the Reisner approach (black). The information score is displayed below each trace for both methods,
+quantifying the contrast between neighboring features. Notably, h(ISW − ISR )/ISR i = 0.78, indicating
+that WPAlign on average produced time-traces with slightly more information than the Reisner method
+over our sample set. Note that the plots are in the same order as the corresponding kymographs in Fig.
+7 and are ordered by decreasing ISW .
+
+15
+
+Figure 11. Comparison of time scaling for WPAlign and the Reisner approach. Empirical
+time scaling results for both techniques on identical kymographs ranging between ∼ 102 and ∼ 105
+pixels in width, where ∼ 105 pixels is roughly the length of an intact human genome at current
+resolutions. Power law curves of the form axb were fit to these data (solid lines), yielding b = 1.1 for
+WPAlign, and b = 2.2 for the Reisner method. Thus WPAlign exhibits approximately O(n) time scaling
+with barcode width, while the Reisner method scales approximately with O(n2 ). Scaling data beyond
+∼ 103 pixels was projected for the Reisner approach (dashed line), as alignment times became
+prohibitive. Simulated kymographs were generated by concatenating experimental T4GT7 kymographs
+from above.
+
+16
+
+References
+1. Aston C, Mishra B, Schwartz DC (1999) Optical mapping and its potential for large-scale sequencing projects. Trends in Biotechnology 17: 297–302.
+2. Samad A, Huff E, Cai W, Schwartz DC (1995) Optical mapping: a novel, single-molecule approach
+to genomic analysis. Genome research 5: 1–4.
+3. Neely RK, Deen J, Hofkens J (2011) Optical mapping of dna: Single-molecule-based methods for
+mapping genomes. Biopolymers 95: 298–311.
+4. Das SK, Austin MD, Akana MC, Deshpande P, Cao H, et al. (2010) Single molecule linear analysis
+of dna in nano-channel labeled with sequence specific fluorescent probes. Nucleic acids research
+38: e177–e177.
+5. Xiao M, Phong A, Ha C, Chan TF, Cai D, et al. (2007) Rapid dna mapping by fluorescent single
+molecule detection. Nucleic acids research 35: e16–e16.
+6. Valouev A, Schwartz DC, Zhou S, Waterman MS (2006) An algorithm for assembly of ordered
+restriction maps from single dna molecules. Proceedings of the National Academy of Sciences 103:
+15770–15775.
+7. Valouev A, Li L, Liu YC, Schwartz DC, Yang Y, et al. (2006) Alignment of optical maps. Journal
+of Computational Biology 13: 442–462.
+8. Ananiev GE, Goldstein S, Runnheim R, Forrest DK, Zhou S, et al. (2008) Optical mapping discerns
+genome wide dna methylation profiles. BMC molecular biology 9: 68.
+9. Jing J, Reed J, Huang J, Hu X, Clarke V, et al. (1998) Automated high resolution optical mapping
+using arrayed, fluid-fixed dna molecules. Proceedings of the National Academy of Sciences 95:
+8046–8051.
+10. Cai W, Jing J, Irvin B, Ohler L, Rose E, et al. (1998) High-resolution restriction maps of bacterial
+artificial chromosomes constructed by optical mapping. Proceedings of the National Academy of
+Sciences 95: 3390–3395.
+11. Conrad DF, Pinto D, Redon R, Feuk L, Gokcumen O, et al. (2009) Origins and functional impact
+of copy number variation in the human genome. Nature 464: 704–712.
+12. Redon R, Ishikawa S, Fitch KR, Feuk L, Perry GH, et al. (2006) Global variation in copy number
+in the human genome. nature 444: 444–454.
+13. Shukla SK, Kislow J, Briska A, Henkhaus J, Dykes C (2009) Optical mapping reveals a large genetic
+inversion between two methicillin-resistant staphylococcus aureus strains. Journal of bacteriology
+191: 5717–5723.
+14. Kotewicz ML, Jackson SA, LeClerc JE, Cebula TA (2007) Optical maps distinguish individual
+strains of escherichia coli o157: H7. Microbiology 153: 1720–1733.
+15. Zhou S, Kile A, Bechner M, Place M, Kvikstad E, et al. (2004) Single-molecule approach to bacterial
+genomic comparisons via optical mapping. Journal of bacteriology 186: 7773–7782.
+16. Zhou S, Deng W, Anantharaman TS, Lim A, Dimalanta ET, et al. (2002) A whole-genome shotgun
+optical map of yersinia pestis strain kim. Applied and environmental microbiology 68: 6321–6331.
+
+17
+17. Welch R, Burland V, Plunkett G, Redford P, Roesch P, et al. (2002) Extensive mosaic structure
+revealed by the complete genome sequence of uropathogenic escherichia coli. Proceedings of the
+National Academy of Sciences 99: 17020–17024.
+18. Reisner W, Larsen NB, Silahtaroglu A, Kristensen A, Tommerup N, et al. (2010) Single-molecule
+denaturation mapping of dna in nanofluidic channels. Proceedings of the National Academy of
+Sciences 107: 13294–13299.
+19. Neely RK, Dedecker P, Hotta Ji, Urbanavičiūtė G, Klimašauskas S, et al. (2010) Dna fluorocode:
+a single molecule, optical map of dna with nanometre resolution. Chemical Science 1: 453–460.
+20. Nyberg LK, Persson F, Berg J, Bergström J, Fransson E, et al. (2012) A single-step competitive
+binding assay for mapping of single dna molecules. Biochemical and biophysical research communications 417: 404–408.
+21. Nilsson AN, Emilsson G, Nyberg LK, Noble C, Stadler LS, et al. (2014) Competitive bindingbased optical dna mapping for fast identification of bacteria-multi-ligand transfer matrix theory
+and experimental applications on escherichia coli. Nucleic Acids Research : gku556.
+22. Lim SF, Karpusenko A, Sakon JJ, Hook JA, Lamar TA, et al. (2011) Dna methylation profiling in
+nanochannels. Biomicrofluidics 5: 034106.
+23. Baday M, Cravens A, Hastie A, Kim H, Kudeki DE, et al. (2012) Multicolor super-resolution dna
+imaging for genetic analysis. Nano letters 12: 3861–3866.
+24. Das SK, Austin MD, Akana MC, Deshpande P, Cao H, et al. (2010) Single molecule linear analysis
+of dna in nano-channel labeled with sequence specific fluorescent probes. Nucleic acids research
+38: e177–e177.
+25. Schwartz DC, Li X, Hernandez LI, Ramnarain SP, Huff EJ, et al. (1993) Ordered restriction maps
+of saccharomyces cerevisiae chromosomes constructed by optical mapping. Science 262: 110–114.
+26. Meng X, Benson K, Chada K, Huff EJ, Schwartz DC (1995) Optical mapping of lambda bacteriophage clones using restriction endonucleases. Nature Genetics 9: 432–438.
+27. Cai W, Aburatani H, Stanton VP, Housman DE, Wang YK, et al. (1995) Ordered restriction
+endonuclease maps of yeast artificial chromosomes created by optical mapping on surfaces. Proceedings of the National Academy of Sciences 92: 5164–5168.
+28. Schwartz DC, Li X, Hernandez LI, Ramnarain SP, Huff EJ, et al. (1993) Ordered restriction maps
+of saccharomyces cerevisiae chromosomes constructed by optical mapping. Science 262: 110–114.
+29. Cai W, Aburatani H, Stanton VP, Housman DE, Wang YK, et al. (1995) Ordered restriction
+endonuclease maps of yeast artificial chromosomes created by optical mapping on surfaces. Proceedings of the National Academy of Sciences 92: 5164–5168.
+30. Bensimon A, Simon A, Chiffaudel A, Croquette V, Heslot F, et al. (1994) Alignment and sensitive
+detection of dna by a moving interface. Science 265: 2096–2098.
+31. Jo K, Dhingra DM, Odijk T, de Pablo JJ, Graham MD, et al. (2007) A single-molecule barcoding
+system using nanoslits for dna analysis. Proceedings of the National Academy of Sciences 104:
+2673–2678.
+32. Douville N, Huh D, Takayama S (2008) Dna linearization through confinement in nanofluidic
+channels. Analytical and bioanalytical chemistry 391: 2395–2409.
+
+18
+33. Reisner W, Morton KJ, Riehn R, Wang YM, Yu Z, et al. (2005) Statics and dynamics of single
+dna molecules confined in nanochannels. Physical Review Letters 94: 196101.
+34. Reisner W, Pedersen JN, Austin RH (2012) Dna confinement in nanochannels: physics and biological applications. Reports on Progress in Physics 75: 106601.
+35. Tegenfeldt JO, Prinz C, Cao H, Chou S, Reisner WW, et al. (2004) The dynamics of genomiclength dna molecules in 100-nm channels. Proceedings of the National Academy of Sciences of the
+United States of America 101: 10979–10983.
+36. Persson F, Tegenfeldt JO (2010) Dna in nanochannels-directly visualizing genomic information.
+Chemical Society Reviews 39: 985–999.
+37. Marie R, Pedersen JN, Bauer DL, Rasmussen KH, Yusuf M, et al. (2013) Integrated view of genome
+structure and sequence of a single dna molecule in a nanofluidic device. Proceedings of the National
+Academy of Sciences 110: 4893–4898.
+38. P.D.N. Hebert et al. (2003) Biological identifications through DNA barcodes, Proceedings of the
+Royal Society B 270 313 (2003).
+39. Reisner W, Morton KJ, Riehn R, Wang YM, Yu Z, et al. (2005) Statics and dynamics of single
+dna molecules confined in nanochannels. Phys Rev Lett 94: 196101.
+40. De Gennes PG (1979) Scaling concepts in polymer physics. Cornell university press.
+41. Leiserson CE, Rivest RL, Stein C, Cormen TH (2001) Introduction to algorithms. The MIT press.
+42. Cover TM, Thomas JA (1991) Entropy, relative entropy and mutual information. Elements of
+Information Theory : 12–49.
+43. Tsibidis GD, Tavernarakis N (2007) Nemo: a computational tool for analyzing nematode locomotion. BMC neuroscience 8: 86.
+44. Huang KM, Cosman P, Schafer WR (2008) Automated detection and analysis of foraging behavior
+in c. elegans. In: Image Analysis and Interpretation, 2008. SSIAI 2008. IEEE Southwest Symposium
+on. IEEE, pp. 29–32.
+45. Chetta J, Shah SB (2011) A novel algorithm to generate kymographs from dynamic axons for the
+quantitative analysis of axonal transport. Journal of neuroscience methods 199: 230–240.
+46. Obashi K, Okabe S (2013) Regulation of mitochondrial dynamics and distribution by synapse
+position and neuronal activity in the axon. European Journal of Neuroscience : n/a–n/a.
+47. Zhou HM, Brust-Mascher I, Scholey JM (2001) Direct visualization of the movement of the
+monomeric axonal transport motor unc-104 along neuronal processes in livingcaenorhabditis elegans. The Journal of Neuroscience 21: 3749–3755.
+48. Miller KE, Sheetz MP (2004) Axonal mitochondrial transport and potential are correlated. Journal
+of Cell Science 117: 2791-2804.
+49. Chevalier-Larsen E, Holzbaur EL (2006) Axonal transport and neurodegenerative disease. Biochimica et Biophysica Acta (BBA)-Molecular Basis of Disease 1762: 1094–1108.
+50. Haghnia M, Cavalli V, Shah SB, Schimmelpfeng K, Brusch R, et al. (2007) Dynactin is required for
+coordinated bidirectional motility, but not for dynein membrane attachment. Molecular biology of
+the cell 18: 2081–2089.
+
+19
+51. Lowe DG (2004) Distinctive image features from scale-invariant keypoints. International journal
+of computer vision 60: 91–110.
+52. Azbel MY (1973) Random two-component one-dimensional ising model for heteropolymer melting.
+Physical Review Letters 31: 589–592.
+53. Azbel MY (1980) Dna sequencing and helix–coil transition. i. theory of dna melting. Biopolymers
+19: 61–80.
+
+Supporting Information
+Kymograph Generation
+As raw data, we are given movies of fluorescently stained DNA molecules confined in nanochannels. To
+generate kymographs from these movies, we perform the following procedure. First, we create a single
+representative frame via a simple time average of the entire movie. This frame is then rotated so that
+the channels are horizontal, and individual molecules are detected via image segmentation. For a given
+molecule, a 1D intensity trace is calculated for each movie frame by averaging over a 3-pixel vertical
+window, and these 1D traces are then stacked to form a kymograph.
+
+The Reisner Method
+Here we explain our implementation of the Reisner alignment method, as described in [18]. As usual, we
+begin with a raw, unaligned kymograph produced as detailed above. To begin the alignment, a template
+row, T , is chosen (typically picked near the middle of the kymograph), and then each non-template row,
+Ai , is individually and independently aligned to the template row in the following way.
+First, all the Ai are translated linearly so that their centers of mass are aligned to T ’s. Then the next
+step is to “smooth out” the local longitudinal fluctuations. This is done by dividing the Ai into a series
+of uniform length pieces and applying a set of dilation/contraction factors to them.
+In practice, a piecewise linear map Si is created, and the slopes of the individual linear components
+are defined by dilation factors dk . Thus Si itself is a function of the dk , for example Si (dk ). Now this
+′
+map Si operates on the row Ai we wish to align, and a new profile, Ai (xj , dk ) is created (where xj is
+the jth pixel in the profile). The parameters dk are chosen to minimize the least squared difference ∆
+between the row Ai and the template row T :
+∆=
+
+N h
+i2
+X
+′
+Ai (xj , dk ) − T (xj )
+j=1
+
+Minimizing ∆ with respect to the dk can be performed by any standard global optimization procedure;
+however it must be noted that the process is very susceptible to local minima. Thus in our implementation
+we employ simulated annealing; in this process we limit the number of ∆ evaluations to a number which
+increases linearly with the number of dilation factors dk .
+Once the dilation factors have been chosen for all rows, they are normalized so that the average dilation
+dk across all rows is one (i.e., hdk (i)i = 1). This is done to better approximate the true equilibrium
+conformation of the DNA and help minimize the effect of template frame choice. Now the dk (i) are
+applied to all rows Ai to obtain the final aligned kymograph.
+
+Laplacian of Gaussian Filter
+The Laplacian of Gaussian filter is a standard image processing technique which is useful for “blob”
+detection. It uses the sum of second derivatives in the image to emphasize blobs of size roughly given by
+
+20
+the variance of the Gaussian kernel. In this way, we emphasize not so much edges as ridges and valleys
+in the data which will be easier to detect in our feature detection step.
+To perform the Laplacian of Gaussian, first we convolve I with a Gaussian kernel
+
+ 2
+x + y2
+1
+(5)
+exp −
+g(x, y, t) =
+2πt
+2t
+to give a scale space representation L(x, y; t) = g(x, y, t) ⋆ I(x, y). Then the Laplacian operator
+∇2 L =
+√
+Lxx + Lyy is computed, resulting in strong positive responses for dark regions of extent 2t and strong
+negative responses for bright regions of similar extent [51]. For our data, we have found t = 10 pixels to
+be adequate.
+The size of the applied filter is set to be 10 pixels in the horizontal direction and only 3 pixels in the
+vertical direction, rendering the process close to one dimensional but with a small vertical component.
+This is done because features are expected to fluctuate horizontally between vertical time frames.
+
+Calculating KD and KB
+Given a Laplacian response K(x, y), linearly scaled such that each value falls in the range [−1, 1], we
+calculate KD and KB using
+(
+1 − K(x, y) for K(x, y) > 0
+KD (x, y) =
+(6)
+B
+for K(x, y) ≤ 0
+KB (x, y) =
+
+(
+
+1 + K(x, y) for K(x, y) < 0
+,
+B
+for K(x, y) ≥ 0
+
+(7)
+
+where B ≫ 1 is a large constant which creates “barrier” pixels through which paths will not traverse. In
+this way, we prevent the feature detection algorithm from “jumping” between adjacent features. Then in
+KD , small values represent dark regions, and in KB small values represent bright regions.
+
+Information Score
+Here we introduce an information score associated with a DNA barcode, given as a 2D intensity profile,
+I. This score was chosen to quantify the amount, and sharpness, of “robust” peaks and valleys in the
+barcode.
+We define these “robust” extrema as those which differ from neighboring pixels by an amount greater
+than a threshold value, Ith , typically chosen to be equal to the background noise level. In order to quantify
+this background noise, we assume that I has already been aligned. By the nature of the alignment, each
+column in I represents a single intensity value obscured by the addition of noise due to the photophysics
+of the dyes, noise in the imaging system and thermal fluctuations of the confined DNA molecules. Thus
+we create a new image whose pixel in the yth row, xth column, is given by
+I ′ (x, y) = I(x, y) − hI(x, y)iy ,
+
+(8)
+
+where I(x, y) is simply the intensity of this pixel in the aligned kymograph, and hI(x, y)iy is the mean
+intensity of the xth column of the kymograph. Then, assuming perfect alignment, I ′ is an image with
+intensities attributable only to our kymograph’s background noise, so our background variance σ 2 is given
+by the intensity variance of I ′ , or
+σ 2 = h(I ′ − hI ′ i)2 i.
+(9)
+
+21
+
+1300
+
+σ
+
+hIi
+
+1100
+
+900
+
+700
+
+500
+50
+
+100
+
+150
+
+Position (pixels)
+
+Figure 12. Illustration of “robust” extrema detected by Azbel’s method. The aligned
+time-average of kymograph 6 (from Figure 7) was used, with σ = 50 intensity units for illustrative
+purposes.
+Now we calculate the time average of I, denoted hI(x, y)iy , given by
+m
+
+hI(x, y)iy =
+
+1 X
+I(x, y)
+m y=1
+
+(10)
+
+and we locate the “robust” peaks and valleys by treating hI(x, y)iy as an energy landscape and employing
+the method of Azbel, developed for a simplified description of the random melting of a one dimensional
+two-component Ising model [52, 53] (see below). Thus we obtain only local extrema which are “robust,”
+i.e., regions which to the left and right are surround by an “energy barrier” larger than the threshold Ith
+(typically chosen equal to the average background noise, i.e., σ).
+Let us now, for completeness, briefly review the method by Azbel [52, 53] for finding robust local
+maxima and minima. The method scales linearly with the barcode length and uses the fact that robust
+local maxima and minima are alternating, i.e. a local maximum must be followed by a local minimum
+and vice versa. Since the barcode’s initial pixels in general represent background noise, in our version
+of the Azbel approach we utilize that the first local extremum must be a minimum. The algorithm now
+proceeds as follows: we step through the pixels, x, consecutively. For each pixel we calculate the intensity
+difference C(xs , x) = hIix − hIixs where xs is a start pixel as defined below. At the start of the algorithm
+we set xs = 1 and calculate C(xs , x) for increasing x as long as the criteria C(xs , x) < Ith is fulfilled
+(implemented through a while-loop). Once this criterion is violated we know that the pixel xs must be
+a robust local minimum (surrounded to the right by a barrier larger than Ith ), so this pixel number is
+stored and the while-loop terminated. If, within the while-loop above, the intensity difference decreases,
+i.e. we find that C(xs , x) < 0, we must have a new local minima and we shift xs to the present pixel
+position, xs → x, with a corresponding reset of C(xs , x). Once a robust local minima has been identified
+according the the scheme above, we proceed in an identical fashion to identify a subsequent robust local
+maximum, starting at pixel x. To this purpose we invoke the condition C(xs , x) > −Ith (and C(xs , x) > 0
+as a requirement for shifting xs ) within a new while-loop. The procedure above is repeated until all n
+pixels representing hI(x, y)ix has been exhausted. In Fig. 12 we display the local extrema found using
+the approach above.
+Finally our information score is that of self information [42], and we define the information content
+IS of a DNA barcode by
+"
+#
+
+X
+log(|∆Ik |)2
+1
+,
+(11)
+exp −
+IS =
+− log p
+2 log(σ 2 + χ)
+2π log(σ 2 + χ)
+k
+
+22
+where the ∆Ik s are the intensity differences between neighboring peaks and valleys identified above, and
+k denotes the numbering of ∆Is found. Also, χ = 1 is a regularization parameter which ensures that IS
+is real-valued for all noise levels.
+To justify the use of the logarithm of ∆I(k) rather than I(k) itself in Eq. (11) we note that in a
+simplistic approach to DNA melting we have that the probability for a DNA basepair to be open is
+related to the Boltzmann weight P (i) ∝ exp(−β∆E(i)), where ∆E(i) is the energy difference between a
+basepair being open and closed. Therefore, by using log[I(k)] our information score utilizes free energy
+differences.
+
+Experimental Procedure
+To generate the optical DNA mappings shown in the main text, we employed the following experimental
+protocol. T4GT7 DNA (supplied by Nippon Gene, Japan through Wako Chemicals GmbH, Neuss, GerR Iodide (LifeTechnologies,
+R
+many) was mixed at a ratio of 1 dye molecule per 6 base pairs with YOYO1
+USA) and kept at 50◦ C for 2 hours to ensure homogeneity of staining. Melting experiments were performed in a buffer consisting of 10mM NaCl in 0.05 x TBE (1 x TBE is 89mM Tris, 89mM Boric acid
+and 2mM EDTA). Beta-mercaptoethanol was added to a final concentration of 2% and formamide to a
+final concentration of 50%.
+Using compressed nitrogen the buffer carrying the DNA molecules was forced into nanochannels with
+cross section 100 nm by 150 nm etched in fused silica. Once in the nanochannels the molecules were
+imaged in a Nikon TE2000 microscope (Nikon, Tokyo, Japan) using a high-pressure mercury lamp for
+excitation, a FITC filter cube to pick out the fluorescence from the stained DNA and an Andor Ixon DU
+897 EMCCD (Andor Technology, Belfast, Ireland) camera for image acquisition.
+In order to form the melt maps the nanochannel device was brought into contact with an aluminium
+block, heated to 31.5◦ C at which temperature the molecules are partially denatured. We utilized the
+time dependence of the barcode formation process to create kymographs of different quality and different
+information contents. Molecules were imaged over several distinct 5-minute periods resulting in the 10
+kymographs in Figure 7, representing a collection of 4 molecules. Kymographs generated from the same
+molecules were: (1, 2, 5), (3, 8), (7, 4, 10), (6, 9).
+
+

@@ -1,0 +1,1828 @@
+arXiv:1502.04058v1 [stat.AP] 13 Feb 2015
+
+Latent modeling of flow cytometry cell
+populations
+Jonas Wallin1 , Kerstin Johnsson∗2 , and Magnus Fontes2,3
+1
+
+Mathematical Sciences, Chalmers and University of Gothenburg
+2
+Centre for Mathematical Sciences, Lund University
+3
+Institut Pasteur, Paris
+February 16, 2015
+
+Abstract
+Flow cytometry is a widespread single-cell measurement technology
+with a multitude of clinical and research applications. Interpretation
+of flow cytometry data is hard; the instrumentation is delicate and can
+not render absolute measurements, hence samples can only be interpreted in relation to each other while at the same time comparisons
+are confounded by inter-sample variation. Despite this, current automated flow cytometry data analysis methods either treat samples
+individually or ignore the variation by for example pooling the data.
+In this article we introduce a Bayesian hierarchical model for studying
+latent relations between cell populations in flow cytometry samples,
+thereby systematizing inter-sample variation. The model is applied to
+a data set containing replicated flow cytometry measurements of samples from healthy individuals, with informative priors capturing expert
+knowledge. It is shown that the technical variation in the inferred cell
+population sizes is small in comparison to the intrinsic biological variation. The large size of flow cytometry data, where a single sample can
+contain measurements on hundreds of thousands of cells, necessitates
+∗
+
+johnsson@maths.lth.se; Corresponding author
+
+1
+
+computationally efficient methods. To address this, we have implemented a parallel Markov Chain Monte Carlo scheme for sampling the
+posterior distribution.
+
+Keywords: Bayesian hierarchical models, flow cytometry, model-based clustering. MSC: Primary 62P10; secondary 62F15, 68U99
+
+1
+
+Introduction
+
+In a flow cytometer a number of characteristics for each individual cell in
+a sample of ∼ 104 to ∼ 106 cells are quantified as they pass through it in
+a fluid stream. The data that are obtained are most often summarized by
+grouping cells into cell populations; properties of these cell populations are
+used in many clinical applications—for example monitoring HIV infection
+and diagnosing blood cancers—and in many branches of medical research
+(Shapiro, 2005; Nolan and Yang, 2007). Defining the cell populations based
+on the measured characteristics is in state-of-the-art analyses still done manually by trained operators looking at two-dimensional projections of the data.
+However, the importance of automated methods has risen along with an increase of the dimension of typical flow cytometry data sets due developments
+in flow cytometry technology (O’Neill et al., 2013) and the emergence of
+studies with large numbers of flow cytometry samples (Chen et al., 2015).
+Automatic cell population identification is hard since flow cytometry measurements are not absolute, while at the same time different samples cannot
+be directly compared due to technical variation—especially apparent when
+samples are analyzed at different laboratories (Welters et al., 2012)—and intrinsic biological variation. Despite this, research into automated population
+identification methods has focused on individual or pooled flow cytometry
+samples, sometimes attempting to align data at first through normalization
+procedures (Hahne et al., 2010). We introduce a Bayesian hierarchical model
+with latent relations between flow cytometry samples, thereby allowing for a
+systematic study of variation of cell population characteristics in a collection
+of samples and additionally enabling the use of prior information about cell
+populations.
+Splitting the cell measurements in a sample into cell populations is essentially a clustering problem. In the context of flow cytometry data analysis
+clustering is called automatic gating, as opposed to the manual gating performed by operators. Model-based clustering using mixture models has been
+2
+
+the most used approach for automated gating (Lo et al., 2008; Boedigheimer
+and Ferbas, 2008; Chan et al., 2008; Pyne et al., 2009; Hu et al., 2013; Naim
+et al., 2014). Mixture models are very well suited to describe flow cytometry
+data because they have a natural biological interpretation based on the cell
+populations. Examples of other approaches that have been used for automated gating are grid based density clustering (Qian et al., 2010), spectral
+clustering (Zare et al., 2010), hierarchical clustering (Qiu et al., 2011; Bruggner et al., 2014) and k-means clustering (Aghaeepour et al., 2011; Ge and
+Sealfon, 2012). An evaluation of a wide range of automated gating methods
+was performed in the FlowCAP I challenge (Aghaeepour et al., 2013). No
+method clearly outperformed the others.
+Apart from pooling data, two approaches for identifying cell populations
+jointly in a collection of flow cytometry samples have been put forward previously. The first one is to cluster each sample separately and then match
+the resulting clusters (Pyne et al., 2009; Azad et al., 2013). The second one
+is a Dirichlet process Bayesian hierarchical model ignoring variation in location and shape between cell populations (Cron et al., 2013). This limitation
+precludes analysis of any such latent variation.
+In our model, the cells in a sample are clustered using a multivariate
+Gaussian mixture model (GMM), where K components describe cell populations and one component describes outliers. Outliers can arise for example
+from dead cells, non-specific binding of markers and doublets, i.e. pairs or
+groups of cells that pass through the flow cytometer at the same time. For
+each component not representing outliers its mean and covariance matrix is
+linked to a latent cluster which collects corresponding components across all
+samples. In practice this is done by assuming a normal prior for the means
+and an inverse Wishart prior for the covariance matrices of the components
+linked to a given latent cluster. The variation in location and shape between
+corresponding mixture components across samples is controlled by the priors on parameters of the latent clusters. The location of component means
+and shape of components can also be restricted if there is prior information
+supporting this. The probabilistic assumptions of the model are formulated
+in Section 2.1. In an extension of the model we include the possibility to
+account for that not all populations are present in every sample, which is a
+frequent situation in flow cytometry data sets which is challenging for joint
+analyzes.
+Our model differs from previous Bayesian hierarchical models of mixtures
+(Lopes et al., 2003; Müller et al., 2004; Teh et al., 2006; Salakhutdinov et al.,
+3
+
+2010) in that the mixture components forming the Gaussian mixture model
+for one sample are non-exchangeable; they represent different cell populations
+and thus have different priors. Furthermore, latent relations between the
+mean and covariance parameters of mixture components have previously only
+been studied in the case when the covariance matrices were assumed to be
+diagonal (Salakhutdinov et al., 2010).
+Another challenge that has to be addressed when analyzing flow cytometry data is that cell populations in flow cytometry data can be skew and/or
+have heavy tails and are then not fit well by a Gaussian component (Lo et al.,
+2008; Pyne et al., 2009; Frühwirth-Schnatter and Pyne, 2010). To handle this
+we use multiple components to describe such populations, an approach that
+have often been employed for flow cytometry data (Finak et al., 2009; Chan
+et al., 2008; Baudry et al., 2010; Naim et al., 2014) and has the further advantage that the number of cell populations can be automatically detected. We
+merge Gaussian components into super components with a procedure based
+on a systematic study of methods for merging mixture components (Hennig,
+2010); details are given in Section 2.2.
+In Section 3.1 we fit the model to a simulated data set to evaluate the
+ability of the sampling scheme to recover the model parameters. In Section
+3.2 we apply our model to a real world flow cytometry data set where we
+detect both known cell populations with prior information on population
+locations and cell populations without this prior information. We then apply
+Principal Component Analysis (PCA) to the inferred cell population sizes
+and find that biological variation between individuals can be separated from
+technical variation between replicates.
+
+2
+2.1
+
+Methods
+Model
+
+Let Yij denote vector valued measurement number i in sample j. Here i ∈
+{1, . . . , nj }, where nj is the number of cells in sample j, and j ∈ {1, . . . , J},
+where J is the number of samples. We let the dimension of the observations
+be denoted d. With K components describing cell populations the probability
+
+4
+
+density for cell measurement i of a flow cytometry sample j is modeled as
+f (Yij ) =
+
+K
+X
+
+πjk N (Yij ; µjk , Σjk ) + πj0 N (Yij ; µj0 , Σj0 ),
+
+(1)
+
+k=1
+
+where N (Y; µ, Σ) denotes the probability density function of the normal
+distribution with mean µ and covariance matrix Σ evaluated at Y. The
+number K is usually chosen to be much larger than the expected number of
+cell populations since for non-Gaussian cell populations many components
+are needed to describe them. The last component represents outliers and its
+parameters µj0 = µ0 and Σj0 = Σ0 are identical across samples. The vector
+π j = {πj0 , . . . , πjK } contains the mixing proportions, i.e. the proportion of
+cells described by the component. To connect the cell populations between
+samples we use a latent layer, assuming that for a given k each µjk and Σjk
+is drawn from a normal and an inverse Wishart distribution respectively.
+Specifically, in our model, for k = 1, . . . , K,
+Σjk |Ψk , νk ∼ IW (Ψk , νk )
+
+µjk |θ k , Σθk ∼ N (θ k , Σθk ),
+
+(2)
+
+where θ k , Σµk , Ψk and νk are hyper-parameters describing latent cluster
+k. The main reason for using the normal and inverse Wishart distributions is computational efficiency, since these are conjugate priors to the mean
+and the covariance respectively of the normal distribution. We call θ k and
+Ψk /(νk − d − 1) the latent cluster mean and latent cluster covariance matrix
+respectively, since they are the a priori expected values of µjk and Σjk .
+For the hyper-parameters describing the latent clusters and the mixing
+proportions we use the following prior distributions:
+θ k |tk , Sk ∼ N (tk , Sk ),
+Σθk |Qk , nθ ∼ IW (Qk , nθ ),
+Ψk |Hk , nΨ ∼ W (Hk , nΨ ),
+
+π j ∼ D(a),
+νk |λk ∼ exp(−λk ),
+
+(3)
+
+where W denotes the Wishart distribution and D denotes the Dirichlet distribution, which is conjugate prior to the multinomial distribution. For each νk
+we assign a exponential prior on the positive natural numbers. The complete
+structure of the model is displayed through a DAG in Fig. 1.
+The parameters tk and Sk define the prior belief of the location of the
+latent means θ k , whereas the parameters Qk and nθ control the spread of
+5
+
+nθ k
+
+Qk
+Σθ k
+
+tk
+
+Sk
+
+Hk
+
+λk
+
+Ψk
+
+θk
+
+n Ψk
+
+νk
+
+a
+µj,k
+
+πjk
+
+Σj,k
+
+k = 1...K
+
+Yi,j
+i = 1 . . . nj
+
+j = 1...J
+
+Figure 1: Directed acyclic graph describing the Bayesian hierarchical model.
+Square boxes indicate that the values are known.
+component means within a latent cluster and are hence important to control
+the variation between samples. A large nθk along with a small Qk forces the
+µjk together; it makes large deviations between Σθk and Qk unlikely. On
+the other hand, the parameters Hk and nΨk control the latent covariance
+matrices and the variation between component covariance matrices. If nΨk
+is large each Σjk will be close to Ψk /(νk − d − 1) for any k; note that a high
+nΨk makes high νk more probable.
+Finally, to simplify sampling from the posterior distribution of the parameters, we add an component assignment variable xij ∈ {0, 1, . . . , K} describing which component Yij is drawn from. To comply with (1), the a priori uncertainty of component membership is modeled by xij ∼ Mult(π j , 1),
+where Mult denotes the multinomial distribution.
+The resulting posterior distribution of all the parameters, denoted Θ, and
+x given the data Y is given in the Supplemental material, Appendix A. In
+Appendix B we describe the Markov chain Monte Carlo (MCMC) sampling
+scheme used to generate posteriors for our model parameters.
+6
+
+2.1.1
+
+Absent components
+
+In some flow cytometry data sets not all cell populations are present in all
+samples. In our model this corresponds to that πjk = 0 for some (j, k).
+However, mixture component parameters for empty clusters will still affect
+the mixing of the MCMC for the parameters of the latent cluster. It can also
+happen that if a cluster is empty that the mixture component moves and split
+a neighboring cluster in two. To avoid this in such data sets we extend our
+model by introducing a variable Zj ∈ {0, 1}K that says which components are
+active in sample j. This has the further advantage that when sampling from
+the posterior distribution of the model we get the probability for each cluster
+that it is present in a sample. We impose a prior on Zj which is proportional
+PK
+P
+to exp(−cs K
+k=1 Zj > 0) where I denotes the indicator function
+k=1 Zj )I(
+and cs > 0. The prior makes the model prefer fewer activated clusters so that
+if there is a very small cluster the likelihood will be larger if it is inactivated.
+The changes to (1)–(3) required by this extension are straightforward but
+inference of the model becomes a bit more involved since removing components reduces the dimension of the model. To accommodate for this we have
+included a reversible jump step in our sampling algorithm. Details are given
+in the Supplemental Material, Appendix B.
+
+2.2
+
+Merging latent clusters
+
+To determine the “correct” number of clusters in a data set directly from
+the data is an ill-defined problem, since what should be considered to be
+a separate cluster depends on the interpretation of the data. Nevertheless,
+there are many different criteria which can be used to guide the decision about
+the number of populations (Frühwirth-Schnatter, 2006; Hennig, 2010). We
+use overlap between components—measured by Bhattacharyya distance—
+and unimodality of the resulting super clusters—measured by Hartigan’s dip
+test (Hartigan and Hartigan, 1985)—to determine which latent clusters to
+merge and to indicate our confidence in the mergers.
+In an evaluation of criteria for merging Gaussian components, the Bhattacharyya distance performed well (Hennig, 2010). Bhattacharyya distance
+merges clusters according to a pattern-based cluster concept as opposed to a
+modality-based concept (Hennig, 2010), meaning that a small dense cluster
+inside a large sparse cluster will not be merged into the sparse cluster when
+their densities are disparate, even when the resulting super cluster would have
+7
+
+had a unimodal density. This makes sense for flow cytometry data since two
+such clusters could very well describe two different cell populations.
+The Bhattacharyya distance between N (µ1 , Σ1 ) and N (µ2 , Σ2 ) is
+
+
+p
+> −1
+dbhat = 1/8 · (µ1 − µ2 ) Σ̄ (µ1 − µ2 ) + 1/2 · log |Σ̄|/ |Σ2 ||Σ2 | , (4)
+where Σ̄ = (Σ1 + Σ2 )/2 (Fukunaga, 1990). In order to measure Bhattacharyya distance between mixtures of Gaussian distributions, which is necessary for deciding if super clusters should be merged with other clusters, we
+approximate each mixture with a Gaussian distribution. The means and the
+covariance matrices are estimated using a soft clustering of the data points
+inferred from the sampling of xij , detailed in the Supplementary material,
+Appendix C.
+However, it is not obvious how to set a threshold for dbhat , since the appropriate threshold depends on the distribution of the data (Hennig, 2010),
+which is unknown. Because of this we use a low soft threshold d1 and a
+high hard threshold d2 . Two clusters closer to each other than d1 are always
+merged, two clusters whose distance is between d1 and d2 are only merged if
+they fulfill an additional criterion based on Hartigan’s dip test for unimodality.
+Unimodality is an appealing heuristic for defining cell populations, and
+it has frequently been used for automated gating (Chan et al., 2008; Ge
+and Sealfon, 2012; Naim et al., 2014). It has two main limitations. The
+first one, populations which should be separate based on that they have
+disparate densities, even though they are colocalized, can be bypassed by
+combining unimodality with a pattern-based merging criterion such as Bhattacharyya distance. The second one, that it is difficult to determine if a
+multi-dimensional empirical distribution is multimodal, is usually handled by
+considering one-dimensional projections (Hennig, 2010; Naim et al., 2014).
+This is the approach we take here, using Hartigan’s dip test of unimodality
+for each of the projections onto the coordinate axis and for the projection
+onto Fisher’s discriminant coordinate. If for a proposed merger, any of these
+projections is found to be multimodal, the clusters are not merged. Further details of the merging procedure is given in the Supplemental material,
+Appendix C.
+
+8
+
+2.5
+
+2.5
+
+0.8
+
+0.8
+
+-1.0
+
+-1.0
+
+722
+
+675
+338
+0
+-2.7
+
+-1.0
+
+0.8
+
+2.5
+
+-2.7
+-3.4
+
+-0.9
+
+1.6
+
+4.1
+
+1496
+
+998
+
+499
+
+0
+-3.4
+
+-0.9
+
+1.6
+
+4.1
+
+-2.7
+-1.5
+
+3.4
+
+1082
+
+1012
+
+361
+
+-0.2
+
+1.1
+
+0
+-3.9
+
+2.4
+
+-1.5
+
+1.0
+
+3.4
+
+3.4
+
+1.0
+
+1.0
+
+-1.5
+
+-1.5
+
+-3.9
+-3.6
+
+-1.2
+
+1.3
+
+3.8
+
+-3.9
+-1.7
+
+4.1
+
+878
+
+1.6
+
+586
+
+1.3
+
+-0.9
+
+293
+
+-1.2
+
+-3.4
+-1.5
+
+-0.2
+
+1.1
+
+0
+
+2.4
+
+-3.6
+
+-1.2
+
+1.4
+
+2.9
+
+1.3
+
+3.8
+
+-3.6
+-1.7
+
+-0.2
+
+1.4
+
+2.9
+
+1.4
+
+2.9
+
+1124
+
+1052
+702
+
+750
+
+351
+
+375
+
+0
+-1.5
+
+-0.2
+
+3.8
+
+-0.2
+
+1.1
+
+0
+
+2.4
+
+(a)
+
+-1.7
+
+-0.2
+
+(b)
+
+Figure 2: One and two dimensional histograms for one flow cytometry sample containing 15,000 in (a), and histograms of 15,000 data points drawn
+uniformly from the pooled data in (b).
+
+3
+3.1
+
+Experiments
+Simulated data
+
+In other to test the performance of the proposed sampling scheme, we use it
+on a simulated data set. The dimension of the simulated data is, for visual
+reasons, set to three. We use four latent clusters and generate eighty artificial
+flow cytometry samples. Each sample has measurements of 15,000 cells. In
+order to test the ability to detect if a population is present in a sample or
+not, one of the latent clusters is present in only eight samples and one latent
+cluster is present in twentyfour samples. The cluster which is present in only
+eight samples represents a small cell population, containing 1% of the total
+number of cells. The parameters and the algorithm used for generating the
+data are given in the Supplementary material, Appendix D.1.
+In Fig. 2 we show univariate and bivariate histograms of all cell measurements pooled together, as well as the corresponding histograms of the data
+from a single sample where all four clusters are present. Note that the data
+when pooled together has a complicated density, as it is in fact a mixture of
+232 multivariate normal densities.
+The priors are chosen to be non-informative, the prior parameters as well
+as the initial values for the MCMC sampler are given in the Supplemental
+
+9
+
+2.5
+
+2.5
+
+759
+
+0.7
+
+0.7
+
+380
+
+-1.2
+
+-1.2
+
+1138
+
+0
+-3.1
+
+3.2
+
+3.2
+
+1032
+
+-1.2
+
+0.7
+
+2.5
+
+-3.1
+-3.4
+
+-0.9
+
+1.6
+
+4.1
+
+344
+
+-0.4
+
+1.0
+
+2.3
+
+4.1
+
+1483
+
+-0.9
+
+1.6
+
+4.1
+
+-3.4
+-1.8
+
+-3.8
+
+-1.5
+
+0.9
+
+3.2
+
+-1.5
+
+-3.8
+-3.6
+
+-1.1
+
+1.4
+
+3.9
+
+1.0
+
+2.3
+
+0
+-3.6
+
+-1.1
+
+1.4
+
+3.9
+
+-3.6
+-1.8
+1158
+
+740
+
+772
+
+370
+
+386
+
+-0.4
+
+1.0
+
+0
+-1.8
+
+2.3
+
+(a)
+
+1.3
+
+2.9
+
+-0.3
+
+1.3
+
+2.9
+
+1.4
+
+1110
+
+0
+-1.8
+
+-0.3
+
+-1.1
+
+276
+
+-0.4
+
+-3.8
+-1.8
+3.9
+
+552
+
+-0.9
+
+495
+
+0
+
+0.9
+
+-1.5
+
+828
+
+1.6
+
+989
+
+0
+-3.4
+
+-3.1
+-1.8
+
+688
+
+0.9
+
+-0.3
+
+1.3
+
+2.9
+
+(b)
+
+Figure 3: One and two dimensional histograms of 15,000 posterior draws of
+Y for the flow cytometry sample displayed in Fig. 2 (a). In (b) we show
+15,000 posterior draws of Y drawn uniformly from all the flow cytometry
+samples, thus matching Fig. 2 (b).
+material, Appendix D.1. The posterior distribution is explored by generating
+samples of the parameters in 105 iterations, after a burn-in period of 104
+iterations from the MCMC sampler. In each iteration we also generate a
+sample of Y, i.e. a sample from the posterior predictive. In Fig. 3 we mimic
+the plots in Fig. 2, with the samples coming from the posterior predictive
+distribution of Y. Fig. 4 displays dots at the posterior mean locations of the
+mixture component means µjk whose posterior probability of being active
+is greater than 1%; the true locations of the active clusters are displayed as
+circles. The model is able to detect which clusters that are active and which
+are not, and to find the location of the component means.
+Finally in Fig. 5 and 6, the marginal posterior distributions of the latent
+cluster parameters θ k and Ψk , subtracted by their true values, are presented.
+In Fig. 5 the dot represents the difference between the median of posterior
+distribution and the true value of each θ k . The vertical lines represent the
+2.5% and 97.5% quantiles. Fig. 6 displays results for each latent covariance
+matrix Ψk /(νk − 4) in an analogous way. From Fig. 5 and Fig. 6 we see that
+the true parameters of both the means and the covariances are all between
+the 2.5% and 97.5% quantiles of the posterior distribution.
+
+10
+
+2.5
+2.0
+1.5
+1.0
+0.5
+0.0
+−0.5
+−1.0
+−3
+
+−4
+−3
+
+−2
+
+0
+−2
+
+−1
+
+1
+
+−1
+
+0
+
+1
+
+2
+
+2
+3
+
+4
+
+3
+
+Figure 4: The posterior mean of the clusters centers, µjk (dots), and the true
+cluster centers (circles).
+
+0.28
+1
+
+2
+
+θ1
+
+3 1
+
+2
+
+3 1
+
+θ2
+
+2
+
+θ3
+
+3 1
+
+2
+
+3
+
+-0.23
+
+θ4
+
+Figure 5: The difference between the true value of each entry in each θ k and
+the approximated marginal posterior distribution generated by the MCMC
+sampler. The black dot represents the median and the vertical line goes
+between the 2.5% and 97.5% quantiles. The light gray horizontal line is the
+0 line.
+
+11
+
+0.01
+(1,1)
+
+(2,1)
+
+(3,1)
+
+(2,2)
+
+(3,2)
+
+(a) Ψ1 /(ν1 − 4)
+(1,1)
+
+(2,1)
+
+(3,1)
+
+(2,2)
+
+(3,2)
+
+0.00
+
+-0.00
+(3,3)
+
+(1,1)
+
+(2,1)
+
+(3,1)
+
+(2,2)
+
+(3,2)
+
+(b)Ψ2 /(ν2 − 4)
+
+0.01
+-0.01
+(3,3)
+
+(1,1)
+
+(c) Ψ3 /(ν3 − 4)
+
+(2,1)
+
+(3,1)
+
+(2,2)
+
+(3,2)
+
+-0.01
+(3,3)
+
+0.01
+-0.01
+(3,3)
+
+(d) Ψ4 /(ν4 − 4)
+
+Figure 6: The difference between the true value of each of the entries in
+Ψk /(νk − 4) and the approximated marginal posterior distribution generated
+by the MCMC sampler. The black dot shows the median, and the black
+vertical line goes between the 2.5% and 97.5% quantiles. The light gray
+horizontal line is the 0 line.
+
+3.2
+
+Flow cytometry data
+
+We use our model to study lymphocyte cell populations among peripheral
+mononuclear blood cells (PMBC) from four healthy donors. The data has
+previously been used in the evaluation of a population matching algorithm
+(Azad et al., 2013) and is available from the R package healthyFlowData.
+Lymphocytes are the leading actors in the adaptive immune response and
+also play a role in the innate immune response. It is well known that the
+sizes of the lymphocyte subpopulations vary between individuals (JentschUllrich et al., 2005).
+The blood from each of the four donors was split into five parts and then
+analyzed, the data set has therefore twenty flow cytometry samples. The data
+in healthyFlowData has been preprocessed as detailed in the Supplemental
+material, Appendix E.1. As an additional preprocessing step we scaled it
+using the 1% and 99% percentiles q0.01 and q0.99 of the pooled data, with
+the same scaling for all samples, so that q0.01 = 0 and q0.99 = 1 for each
+marker for the pooled data. Univariate and bivariate histograms of one of
+the samples as well as all samples pooled together are shown in Fig. 7.
+The data set has measurements of the four markers CD4, CD8, CD3 and
+CD19. If a cell population has a high expression of a certain marker, say CD4,
+it is said that it is positive for this marker, denoted CD4+. A population
+with low expression is called negative and if the expression is intermediate it
+12
+
+0.3
+
+0.0
+
+0.0
+
+0.0
+
+0.0 0.3 0.6 0.9
+
+CD4
+
+0.1 0.4 0.7 0.9
+2051
+1368
+684
+0
+
+0.1 0.4 0.7 0.9
+0.9
+
+0.7
+
+0.7
+
+0.4
+
+0.4
+
+0.1
+
+0.1
+0.1 0.4 0.7 0.9
+
+CD8
+
+0
+
+0.1
+
+CD3
+
+0.9
+
+0.7
+
+0.7
+
+0.4
+
+0.4
+
+0.4
+
+0.1
+
+0.1
+0.1 0.4 0.6 0.9
+
+0.9
+
+1497
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+749
+
+0.1
+0.1 0.4 0.6 0.9
+
+0.1
+0.1 0.4 0.7 0.9
+
+1698
+
+0.7
+0.4
+
+566
+
+0.1
+0.1 0.4 0.7 0.9
+
+CD3
+
+1116
+
+0.1 0.3 0.6 0.9
+0.9
+
+1132
+
+1674
+
+0.1 0.3 0.6 0.9
+
+2192
+1462
+
+558
+0
+
+0.1 0.3 0.6 0.9
+
+0.9
+
+0
+
+0.0 0.3 0.6 0.9
+
+0.1
+0.1 0.4 0.7 0.9
+
+2245
+
+CD8
+
+0.4
+
+0.1 0.4 0.7 0.9
+
+0.9
+
+0.7
+
+0
+
+0.0 0.3 0.6 0.9
+
+0.7
+
+526
+
+0.9
+
+0.1 0.4 0.7 0.9
+
+CD4
+
+0.9
+
+1052
+
+838
+0
+
+0.0 0.3 0.6 0.9
+
+0.9
+
+0.1 0.4 0.7 0.9
+1578
+
+1675
+
+CD8
+
+0
+
+2512
+
+CD4
+
+0.6
+
+0.3
+
+CD8
+
+0.9
+
+0.6
+
+0.3
+
+CD3
+
+0.9
+
+0.6
+
+645
+
+CD4
+
+0.9
+
+1290
+
+CD3
+
+1934
+
+731
+0
+
+0.0 0.3 0.6 0.9
+
+CD19
+
+0.1 0.3 0.6 0.9
+
+CD19
+
+(a)
+
+(b)
+
+Figure 7: One and two dimensional histograms of flow cytometry data.
+(a) One of the samples from healthyFlowData, with 19,160 data points.
+(b) 19,160 data points drawn from the twenty samples in healthyFlowData
+pooled together.
+is called dim or bright. It is well known that using the four markers above,
+five types of lymphocytes can be distinguished (Murphy et al., 2012). CD19
+is a pan B-cell marker, i.e. it is highly expressed on all B-cells, and CD3 is
+a pan T-cell marker. The lymphocytes with low expression of CD3 or CD19
+are natural killer (NK) cells. There are two major cell populations among
+the T cells, namely helper T cells and cytotoxic T cells. The helper T cells
+are CD4 positive and CD8 negative whereas the cytotoxic T cells are CD8
+positive and CD4 negative. There is also a CD4–CD8– population comprising
+mainly so called γδ T cells (Gertner et al., 2007). Table 1 summarizes these
+subpopulations; we want to follow them in the twenty samples, while at the
+same time accounting for unknown populations due to incomplete biological
+knowledge or technical artifacts.
+Often in Bayesian analysis of mixture models one tries to construct as
+non-informative priors as possible (Richardson and Green, 1997,Roeder and
+Wasserman, 1997). However, in our setup we have two kinds of prior information that we want to utilize. First, we have semi-quantitative information
+about marker expression in the previously known populations described in
+Table 1. Even though there is no reference value for marker expression of
+a positive population (Shapiro, 2005)—since we have positive and negative
+13
+
+Table 1: Lymphocyte subpopulations.
+CD4 CD8 CD3 CD19
+B cells
+Helper T cells
+Cytotoxic T cells
+CD4–CD8– T cells
+NK cells
+
++
+–
+–
+
+–
++
+–
+
+–
++
++
++
+–
+
++
+–
+–
+–
+–
+
+populations present for each of the four markers in the data—we can set
+relative values for the prior parameters tk based on the scaling of the data.
+Second, since the sample components linked to one latent cluster are supposed to represent one and the same cell population, the spread of their
+means must be reasonable. That is, for any latent cluster, the sample component means linked to it should be closer to its own mean than to the means
+of latent clusters that do not represent the same population, i.e. that are not
+merged with it during post-processing. This second piece of information is
+used to set nθ , nΨ and Qk . It is harder to translate to precise values of
+the parameters, but it can easily be detected if the priors allow too much
+variation. The chosen parameters as well as the initialization procedure are
+described in the Supplementary material Appendix E.2.
+Apart from the five latent clusters with informative priors on their latent means we also have a number of additional latent components with
+non-informative priors on their means. These additional components can
+capture outliers and unknown populations, but they can also capture parts
+of the known populations, especially if the populations are non-Gaussian and
+hence cannot be well approximated by one Gaussian component. We merge
+components with sufficient overlap as described in Section 2.2 after inferring
+the model to obtain the populations in one piece. With a higher number of
+components the data set can be described more accurately, but the interpretation of each component gets less clear. We use in total K = 17 components
+since we found that this was sufficient to describe the data set well, in the
+sense that one- and two-dimensional marginal distributions are accurate.
+With these priors we get in most cases appropriate variation between
+components when rerunning the analysis below, however sometimes (two out
+of six cases) the variation in the location of one of the seventeen clusters is
+a bit too high.
+14
+
+We run 105 burn-in iterations of our 
+algorithm and then R = 105 produc
+(r)
+(r)
+(r)
+(r)
+(r)
+(r)
+tion iterations to get samples of Θ(r) = µjk , Σjk , θ k , Ψk , νk , π j , r =
+1, . . . , R from the posterior distribution. Convergence of the MCMC sampler
+is established using trace plots, displayed in the Supplementary material,
+(r)
+(r)
+(r)
+(r)
+(r)
+Appendix E.3. We use the means of µjk , Σjk , θ k and Ψk /(νk − d − 1)
+to get point estimates of sample component and latent cluster means and
+(r)
+covariance matrices; the means of π j are used to get point estimates of the
+mixing proportions. Furthermore, in each iteration we draw one synthetic
+cell measurement from the models of selected flow cytometry samples and
+one from the model of the pooled data, in order to evaluate how well the
+model fits the data.
+Fig. 8 (a) shows univariate and bivariate histograms of the synthetic cell
+measurements for one flow cytometry sample. Fig. 3 and Fig. 4 in the Supplementary material display histograms of synthetic measurements of another
+sample as well as of the pooled data. From these results it is clear that the
+inferred model is accurate and captures the variation across samples, which
+a model of pooled data cannot do.
+Merging of latent components results in six cell populations, summary
+statistics of these are shown in Fig. 9. Two of the populations fit the NK cell
+expression pattern in Table 1; there are multiple possible explanations of this.
+One explanation is be that one of the population is monocytes, which have
+front and side scatter properties similar to lymphocytes (BD Biosciences,
+2000)—making it plausible that some of them have been included—and also
+are CD3–CD19–. Another explanation could be that there are two NK populations which are differentially activated. There are strong evidence that
+there are two separate populations, see for instance the histograms of their
+joint CD4 expression shown in Fig. 6 in the Supplementary material.
+The component representing outliers has only a very small proportion
+of the cells assigned to it, the median of π̂j0 across samples is 0.0003, the
+maximum is 0.0011.
+The variation between flow cytometry samples is systematized in the hierarchical model, results of this can be seen in Fig. 9 (a) and Fig. 8. For comparison, we fit Gaussian mixture models using the expectation-maximization
+algorithm to each flow cytometry sample separately. In this case there are no
+clear correspondences among the mixture components between samples, as
+seen in Fig. 10. When the data set was studied previously with an algorithm
+matching populations found by separate analysis of the samples, this was
+15
+
+CD8
+
+CD8
+
+0.9
+0.9
+
+0.9
+
+0.6
+
+0.6
+
+0.6
+
+615
+
+0.3
+
+0.3
+
+0.0
+
+0.0
+
+2043
+1362
+681
+0
+
+0.3
+0.0
+0.1 0.4 0.7 0.9
+
+0.9
+
+0.9
+
+0.7
+
+0.7
+
+0.4
+
+0.4
+
+0.1
+0.1 0.4 0.7 0.9
+
+CD8
+
+1743
+
+-0.1
+-0.0
+
+0.0 0.3 0.6 0.9
+
+0.7
+0.4
+0.1
+0.1 0.4 0.7 0.9
+
+CD3
+
+0.5
+
+1.0
+
+1.0
+
+0.9
+
+581
+
+0.4
+
+-0.1
+
+0.1
+0.1 0.4 0.7 0.9
+
+1162
+
+0
+
+0.4
+
+0.0 0.3 0.6 0.9
+
+CD3
+
+CD4
+
+0.1 0.4 0.7 0.9
+
+CD8
+
+0.0 0.3 0.6 0.9
+
+-0.0
+
+0.5
+
+1.0
+
+1.0
+
+CD3
+
+0
+
+CD4
+
+0.9
+
+1229
+
+CD4
+
+1843
+
+0.9
+
+0.0 0.3 0.6 0.9
+1847
+
+0.5
+
+0.5
+
+1232
+
+0.0
+
+616
+0
+
+0.0
+0.0 0.3 0.6 0.9
+
+0.1
+
+CD19
+
+0.6
+
+1.1
+
+CD19
+
+(a)
+
+0.1
+
+0.6
+
+1.1
+
+CD19
+
+(b)
+
+Figure 8: Bayesian hierarchical model of lymphocyte subsets of PBMC from
+healthy individuals. (a) One and two dimensional histograms of 19,160 synthetic data points generated from the inferred model of the flow cytometry
+sample depicted in Fig. 7 (a). (b) Component parameter representations of
+inferred latent clusters and mixture components across the twenty flow cytometry samples. The center of each ellipse is the mean and each semi-axis
+is an eigenvector with length given by the corresponding eigenvalue of the
+projected covariance matrix. In the left column parameters of latent clusters
+1
+Ψk ) are shown, in the right column parameters for the mixture
+(θ k , (νk −d−1)
+components in each sample (µjk , Σjk ) are shown. Each component or cluster
+is depicted with the same color as in Fig. 9; different shades of same color
+corresponds to latent clusters that have been merged.
+
+16
+
+0.8
+
+0.8
+
+0.2
+
+0.2
+
+0.8
+
+0.8
+
+0.2
+
+0.2
+
+0.8
+
+0.8
+
+0.2
+
+0.2
+
+0.8
+
+0.8
+
+0.2
+
+0.2
+
+0.8
+
+0.8
+
+0.2
+
+0.2
+
+0.8
+
+0.8
+
+0.2
+
+0.2
+
+CD4
+
+CD8
+
+CD3 CD19
+
+(a)
+
+10−1
+10−2
+10−1
+10−2
+10−1
+10−2
+10−1
+10−2
+10−1
+10−2
+10−1
+10−2
+CD4 CD8 CD3CD19
+
+(b)
+
+(c)
+
+Figure 9: Summary statistics of the six inferred cell populations, ordered by
+population size. (a) Component mean locations for each population. Different shades of a color in the same plot corresponds to different latent components form the same super component. Populations: CD4 T-cells (red),
+CD8 T-cells (yellow), B-cells (green), monocytes or NK cells (turquoise),
+CD4-CD8– T-cells (blue), and monocytes or NK cells (purple). (b) Boxplots of the soft clusters. The boxes go between qkm,0.25 and qkm,0.75 and the
+whiskers extend to qkm,0.01 and qkm,0.99 . The α-quantile for (merged) component
+Pk in dimension m, qkm,α , is here defined as qkm,α = mini0 j 0 {Yi0 j 0 m :
+α <
+ij:Yijm <Yi0 j 0 m wijk }. (c) Population proportions for each of the flow
+cytometry samples.
+
+17
+
+CD8
+
+CD8
+
+1.0
+
+CD8
+
+1.0
+
+CD4
+
+1.0
+
+0.5
+
+0.5
+
+0.5
+
+-0.0
+-0.0
+-0.0
+
+0.6
+
+1.2
+
+-0.0
+-0.0
+
+0.6
+
+1.2
+
+-0.0
+
+1.0
+
+1.0
+
+0.5
+
+0.5
+
+0.6
+
+1.2
+
+CD3
+
+1.0
+
+0.5
+
+-0.0
+
+-0.0
+-0.0
+
+0.6
+
+CD19
+
+1.2
+
+-0.0
+
+-0.0
+0.6
+
+CD19
+
+1.2
+
+-0.0
+
+0.6
+
+1.2
+
+CD19
+
+Figure 10: Component parameter representations of inferred mixture components in independent Gaussian mixture models of three flow cytometry
+samples. The two samples depicted in the two right columns are technical replicates. Note that there is no correspondence between colors between
+columns.
+only done with a coarse partition of the cell measurements, with four cell
+populations (Azad et al., 2013).
+In downstream analysis of flow cytometry data the locations and shapes
+of the cell populations as well as their sizes can be used. For example, one cell
+population might have varying expression of one marker in different samples;
+this can be studied using the mean parameters µjk . We use cell population
+sizes to show how technical variation between replicates can be separated
+from biological variation between donors.
+We estimate the size of each cell population in each sample by sum of the
+mixing proportions for the sample components representing that population.
+We then do a principal component analysis on the population sizes. Almost
+all of the variance, 99.3%, is captured in the first two principal components.
+A biplot onto the two first principal components is shown in Fig. 11. We
+see that the biological variation between donors is much larger than the
+technical variation between replicates, samples from different donors are well
+separated.
+
+18
+
+B cells
+
+CD4 T cells
+
+CD4-CD8- T cells
+
+CD8 T cells
+
+Figure 11: PCA biplot. Colors for cell populations are the same as in Fig.
+9. Samples from the same donor are plotted with the same marker. Samples
+from different donors are well separated.
+
+4
+
+Discussion
+
+In this paper we have presented a new Bayesian hierarchical model designed
+for joint population identification in many flow cytometry samples. The
+model captures the variability in shapes and locations of the populations between the samples and has the possibility to include expert knowledge. We
+showed that for a synthetic data set generated from the model, the parameters were recovered with high accuracy through a MCMC sampling scheme.
+The sampling scheme was then applied to a real flow cytometry data set which
+contained five populations whose expression patterns were well-known to experts. After merging latent clusters using criteria based on Bhattacharyya
+distance and Hartigan’s dip test, six populations were obtained—apart from
+the previously known populations, one additional population which could
+either be monocytes or NK cells.
+How much clusters should be merged is however a decision that needs to
+be taken by the interpreter of the data. The criteria we have used should
+be taken as guidelines. Other merging criteria, for example directly estimated misclassification probabilities (Hennig, 2010), and diagnostic plots
+which evaluate the separation of clusters could also be utilized to guide such
+
+19
+
+decisions. As an example, in the analysis of the data set studied in this article, a flow cytometry data analyst might want to consider the small cluster
+which is CD8+ and has intermediate CD4 expression to be separate from the
+CD8 T-cells.
+For very large flow cytometry data sets the running time can be prohibitive and downsampling is then required. A direction for future research
+is to find ways to downsample so that also small cell populations can be
+resolved, as has been done for the analysis of single flow cytometry samples
+(Naim et al., 2014).
+The priors that we used in the real data experiments were rudimentary;
+incorporating more detailed knowledge about cell populations could speed
+up convergence. With smart ways of formulating priors based on populations found in other flow cytometry data sets—possibly with different sets of
+markers than the data set under study—our method could lead the way to
+incremental learning of flow cytometry populations where well-known populations will be easily characterized.
+There are interesting approaches to analysis of multiple flow cytometry
+data samples in parallel which are not based on clustering (Aghaeepour et al.,
+2013). But the power of clustering approaches is to provide a comprehensive
+description of all cell populations in the samples which can reveal subtle signals and systematic perturbations. Finding good clustering algorithms which
+can serve as reliable automatic gating methods is therefore an important task.
+We feel strongly that analyzing many samples jointly, and using expert prior
+knowledge when doing automated gating is an important requirement to get
+the high performance which is needed.
+
+5
+
+Software
+
+Our implementation of the MCMC sampling is available as a Python package
+at https://github.com/JonasWallin/BayesFlow. Its parallel implementation is based on OpenMPI through the Python package mpi4py.
+
+6
+
+Supplementary material
+
+Supplementary material is available. It contains the posterior, the MCMC
+sampling scheme, additional details on the merging of components, infor-
+
+20
+
+mation about the data generation, priors and initialization for the synthetic
+data example; additional details on the flow cytometry data set, the priors
+and the initialization procedure used when studying this data set and further
+results pertaining to the flow cytometry data set.
+
+7
+
+Acknowledgements
+
+We would like to thank Ariful Azad for sharing the flow cytometry data set
+and for providing information about the preprocessing of the data. We would
+also like to thank Alejandra Urrutia at Institut Pasteur, Paris, for assisting
+with the interpretation of the data.
+The first author is supported by Knut and Alice Wallenbergs stiftelse.
+
+References
+N. Aghaeepour, R. Nikolic, H. H. Hoos, and R. R. Brinkman. Rapid cell
+population identification in flow cytometry data. Cytometry Part A, 79
+(1):6–13, 2011.
+N. Aghaeepour, G. Finak, The FlowCAP Consortium, The DREAM Consortium, H. Hoos, T. R. Mosmann, R. Brinkman, R. Gottardo, and R. H.
+Scheuermann. Critical assessment of automated flow cytometry data analysis techniques. Nature Methods, 10(3):228–238, 2013.
+A. Azad, A. Khan, B. Rajwa, S. Pyne, and A. Pothen. Classifying immunophenotypes with templates from flow cytometry. In Proceedings of
+the International Conference on Bioinformatics, Computational Biology
+and Biomedical Informatics, page 256. ACM, 2013.
+J.-P. Baudry, A. E. Raftery, G. Celeux, K. Lo, and R. Gottardo. Combining mixture components for clustering. Journal of Computational and
+Graphical Statistics, 19(2), 2010.
+BD Biosciences. Introduction to flow cytometry: A learning guide. Manual
+Part Number: 11-11032-01, April 2000.
+M. J. Boedigheimer and J. Ferbas. Mixture modeling approach to flow cytometry data. Cytometry Part A, 73(5):421–429, 2008.
+21
+
+R. V. Bruggner, B. Bodenmiller, D. L. Dill, R. J. Tibshirani, and G. P.
+Nolan. Automated identification of stratifying signatures in cellular subpopulations. Proceedings of the National Academy of Sciences, 111(26):
+E2770–E2777, 2014.
+C. Chan, F. Feng, J. Ottinger, D. Foster, M. West, and T. B. Kepler. Statistical mixture modeling for cell subtype identification in flow cytometry.
+Cytometry Part A, 73(8):693–701, 2008.
+X. Chen, M. Hasan, V. Libri, A. Urrutia, B. Beitz, V. Rouilly, D. Duffy,
+É. Patin, B. Chalmond, L. Rogge, L. Quintana-Murci, and M. L. Albert.
+Automated flow cytometric analysis across large numbers of samples and
+cell types. Clinical Immunology, 2015.
+A. Cron, C. Gouttefangeas, J. Frelinger, L. Lin, S. K. Singh, C. M. Britten,
+M. J. Welters, S. H. van der Burg, M. West, and C. Chan. Hierarchical
+modeling for rare event detection and cell subset alignment across flow
+cytometry samples. PLoS Computational Biology, 9(7):e1003130, 2013.
+G. Finak, A. Bashashati, R. Brinkman, and R. Gottardo. Merging mixture
+components for cell population identification in flow cytometry. Advances
+in Bioinformatics, 2009.
+S. Frühwirth-Schnatter. Finite Mixture and Markov Switching Models:
+Modeling and Applications to Random Processes. Springer, 2006. Chapter
+4.
+S. Frühwirth-Schnatter and S. Pyne. Bayesian inference for finite mixtures of univariate and multivariate skew-normal and skew-t distributions. Biostatistics, 11(2):317–336, 2010. doi: 10.1093/biostatistics/
+kxp062. URL http://biostatistics.oxfordjournals.org/content/
+11/2/317.abstract.
+K. Fukunaga. Introduction to Statistical Pattern Recognition. Academic
+press, 1990.
+Y. Ge and S. C. Sealfon. flowPeaks: a fast unsupervised clustering for flow
+cytometry data via k-means and density peak finding. Bioinformatics, 28
+(15):2052–2058, 2012.
+
+22
+
+J. Gertner, E. Scotet, M. Poupot, M. Bonneville, and J.-J. Fournié. Lymphocytes: gamma delta. eLS, 2007.
+F. Hahne, A. H. Khodabakhshi, A. Bashashati, C.-J. Wong, R. D. Gascoyne, A. P. Weng, V. Seyfert-Margolis, K. Bourcier, A. Asare, T. Lumley,
+et al. Per-channel basis normalization methods for flow cytometry data.
+Cytometry Part A, 77(2):121–131, 2010.
+J. A. Hartigan and P. M. Hartigan. The dip test of unimodality. The Annals
+of Statistics, pages 70–84, 1985.
+C. Hennig. Methods for merging Gaussian mixture components. Advances
+in Data Analysis and Classification, 4(1):3–34, 2010.
+X. Hu, H. Kim, P. J. Brennan, B. Han, C. M. Baecher-Allan, P. L. De Jager,
+M. B. Brenner, and S. Raychaudhuri. Application of user-guided automated cytometric data analysis to large-scale immunoprofiling of invariant
+natural killer T cells. Proceedings of the National Academy of Sciences,
+110(47):19030–19035, 2013.
+K. Jentsch-Ullrich, M. Koenigsmann, M. Mohren, and A. Franke. Lymphocyte subsets’ reference ranges in an age-and gender-balanced population of
+100 healthy adults — a monocentric german study. Clinical Immunology,
+116(2):192–197, 2005.
+K. Lo, R. R. Brinkman, and R. Gottardo. Automated gating of flow cytometry data via robust model-based clustering. Cytometry Part A, 73(4):
+321–332, 2008.
+H. F. Lopes, P. Müller, and G. L. Rosner. Bayesian meta-analysis for longitudinal data models using multivariate mixture priors. Biometrics, 59
+(1):66–75, 2003. ISSN 1541-0420. doi: 10.1111/1541-0420.00008. URL
+http://dx.doi.org/10.1111/1541-0420.00008.
+P. Müller, F. Quintana, and G. Rosner. A method for combining inference across related nonparametric Bayesian models. Journal of the Royal
+Statistical Society: Series B (Statistical Methodology), 66(3):735–749,
+2004. ISSN 1467-9868. doi: 10.1111/j.1467-9868.2004.05564.x. URL
+http://dx.doi.org/10.1111/j.1467-9868.2004.05564.x.
+
+23
+
+K. Murphy, P. Travers, and M. Walport. Janeway’s immunobiology. Garland
+Science, London, 2012.
+I. Naim, S. Datta, J. Rebhahn, J. S. Cavenaugh, T. R. Mosmann, and
+G. Sharma. Swift scalable clustering for automated identification of rare
+cell populations in large, high-dimensional flow cytometry datasets, part
+1: Algorithm design. Cytometry Part A, 2014.
+J. P. Nolan and L. Yang. The flow of cytometry into systems biology. Briefings
+in Functional Genomics and Proteomics, 6(2):81–90, 2007.
+K. O’Neill, N. Aghaeepour, J. Špidlen, and R. Brinkman. Flow cytometry
+bioinformatics. PLoS Computational Biology, 9(12):e1003365, 2013.
+S. Pyne, X. Hu, K. Wang, E. Rossin, T.-I. Lin, L. M. Maier, C. BaecherAllan, G. J. McLachlan, P. Tamayo, D. A. Hafler, et al. Automated highdimensional flow cytometric data analysis. Proceedings of the National
+Academy of Sciences, 106(21):8519–8524, 2009.
+Y. Qian, C. Wei, F. Eun-Hyung Lee, J. Campbell, J. Halliley, J. A. Lee,
+J. Cai, Y. M. Kong, E. Sadat, E. Thomson, et al. Elucidation of seventeen
+human peripheral blood B-cell subsets and quantification of the tetanus
+response using a density-based method for the automated identification of
+cell populations in multidimensional flow cytometry data. Cytometry Part
+B: Clinical Cytometry, 78(S1):S69–S82, 2010.
+P. Qiu, E. F. Simonds, S. C. Bendall, K. D. Gibbs Jr, R. V. Bruggner, M. D.
+Linderman, K. Sachs, G. P. Nolan, and S. K. Plevritis. Extracting a cellular hierarchy from high-dimensional cytometry data with spade. Nature
+Biotechnology, 29(10):886–891, 2011.
+S. Richardson and P. J. Green. On Bayesian analysis of mixtures with
+an unknown number of components (with discussion). Journal of the
+Royal Statistical Society: Series B (Statistical Methodology), 59(4):731–
+792, 1997. ISSN 1467-9868. doi: 10.1111/1467-9868.00095. URL http:
+//dx.doi.org/10.1111/1467-9868.00095.
+K. Roeder and L. Wasserman. Practical Bayesian density estimation using
+mixtures of normals. Journal of the American Statistical Association, 92
+(439):894–902, 1997.
+24
+
+R. Salakhutdinov, J. Tenenbaum, and A. Torralba. One-shot learning with a
+hierarchical nonparametric Bayesian model. Technical report, MIT, 2010.
+H. M. Shapiro. Practical flow cytometry. John Wiley & Sons, 2005.
+Y. W. Teh, M. I. Jordan, M. J. Beal, and D. M. Blei. Hierarchical Dirichlet
+processes. Journal of the American Statistical Association, 101(476):1566–
+1581, 2006.
+M. J. Welters, C. Gouttefangeas, T. H. Ramwadhdoebe, A. Letsch, C. H.
+Ottensmeier, C. M. Britten, and S. H. van der Burg. Harmonization of the
+intracellular cytokine staining assay. Cancer Immunology, Immunotherapy,
+61(7):967–978, 2012.
+H. Zare, P. Shooshtari, A. Gupta, and R. R. Brinkman. Data reduction for
+spectral clustering to analyze high throughput flow cytometry data. BMC
+Bioinformatics, 11:403, 2010.
+
+25
+
+

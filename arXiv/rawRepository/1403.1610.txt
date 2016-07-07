@@ -1,0 +1,2709 @@
+Journal of Mathematical Biology manuscript No.
+(will be inserted by the editor)
+
+arXiv:1403.1610v1 [q-bio.MN] 6 Mar 2014
+
+A method of ‘speed coefficients’ for biochemical model
+reduction applied to the NF-kappaB system
+
+Simon West · Lloyd J. Bridge · Michael R.H.
+White · Pawel Paszek · Vadim N. Biktashev
+
+Received: date / Accepted: date
+
+Abstract The relationship between components of biochemical network and the resulting dynamics of the overall system is a key focus of computational biology. However, as these networks and resulting mathematical models are inherently complex
+and non-linear, the understanding of this relationship becomes challenging. Among
+many approaches, model reduction methods provide an avenue to extract components responsible for the key dynamical features of the system. Unfortunately, these
+approaches often require intuition to apply. In this manuscript we propose a practical
+algorithm for the reduction of biochemical reaction systems using fast-slow asympThis study was supported in part by the Biotechnology and Biological Sciences Research Council (BBSRC) grants BBF0059381 and BBF5290031. Dr P. Paszek holds a BBSRC David Phillips Research Fellowship (BB/I017976/1).
+S. West
+Institute of Integrative Biology, Crown Street, University of Liverpool, L69 7ZB
+Tel.: +151-795-4454
+E-mail: simon.west@liv.ac.uk
+L.J. Bridge
+Faculty of Life Science, University of Manchester, Oxford Road, Manchester, M13 9PT
+Tel.: +161-275-1834
+E-mail: lloyd.bridge@manchester.ac.uk
+M. White
+Faculty of Life Science, University of Manchester, Oxford Road, Manchester, M13 9PT
+Tel.: +161-275-1834
+E-mail: mike.white@manchester.ac.uk
+P. Paszek
+Faculty of Life Science, University of Manchester, Oxford Road, Manchester, M13 9PT
+Tel.: +161-275-1734
+E-mail: pawel.paszek@manchester.ac.uk
+V. N. Biktashev
+College of Engineering, Mathematics and Physical Sciences, University of Exeter, North Park Road, Exeter
+EX4 4QF
+Tel.: +1392-72-6636
+E-mail: v.n.biktashev@exeter.ac.uk
+
+2
+
+Simon West et al.
+
+totics. This method allows the ranking of system variables according to how quickly
+they approach their momentary steady state, thus selecting the fastest for a steady
+state approximation. We applied this method to derive models of the Nuclear Factor
+kappa B network, a key regulator of the immune response that exhibits oscillatory
+dynamics. Analyses with respect to two specific solutions, which corresponded to
+different experimental conditions identified different components of the system that
+were responsible for the respective dynamics. This is an important demonstration of
+how reduction methods that provide approximations around a specific steady state,
+could be utilised in order to gain a better understanding of network topology in a
+broader context.
+Keywords Model reduction · Characteristic timescales · Signalling networks ·
+Nuclear Factor kappa B
+Mathematics Subject Classification (2000) MSC92-08 · MSC 92C42
+1 Introduction
+Biological systems are inherently complex. They are governed by a large number
+of functionally diverse components, which interact selectively and nonlinearly to
+achieve coherent outcomes (Kitano, 2002). Systems biology addresses this complexity by integrating biological experiments with computational methods, to understand
+how the components of a system interact and contribute to the biological function.
+However, the dynamical models that represent biological systems can often have
+high-dimensional state space and depend on a large number of parameters. Understanding the relationships between structure, parameters and function of such large
+systems is often a challenging and computationally intensive task.
+One example of such a complex and high-dimensional system is the signalling
+network of the Nuclear Factor kappa B (NF-κ B) transcription factor. NF-κ B dynamics affects cell fate through the action of dimeric transcription factors that regulate
+immune responses, cell proliferation and apoptosis (Hayden and Ghosh, 2008). In
+unstimulated cells NF-κ B is sequestered in the cytoplasm by association with the
+Inhibitor kappaB (Iκ B) family of proteins. Upon stimulation with cytokines, such as
+Tumour Necrosis Factor α (TNFα ), the Iκ Bs are degraded releasing NF-κ B to the
+nucleus where it activates the transcription of over 300 target genes (Hoffmann and
+Baltimore, 2006). Single cell fluorescence imaging has shown that upon continuous
+TNFα stimulation NF-κ B exhibits nuclear-to-cytoplasmic oscillations with a period
+of approximately 100 minutes (Nelson et al, 2004). This period is critical for maintaining downstream gene expression (Ashall et al, 2009). The oscillatory dynamics
+emerge through the interplay of a number of negative and positive feedback genes that
+are under the transcription control of NF-κ B. These, among others, include the Iκ B
+and A20 inhibitors, and cytokines such as TNFα (figure 1) (Hoffmann and Baltimore,
+2006). In order to understand this intricate feedback regulation various mathematical
+models of the NF-κ B signalling network have been proposed (Hoffmann et al, 2002;
+Lipniacki et al, 2004; Mengel et al, 2012; Turner et al, 2010). However, the overall
+system is not fully resolved.
+
+Minimal models of the NF-kappaB system
+
+3
+
+Fig. 1 Network diagram of the Simplified Model (derived from Ashall et al 2009) and the minimal model
+of the NF-κ B system. Time-dependent variables present in each model are depicted with black colour.
+Pointed and round arrowheads represent activating and inhibitory reactions, respectively. In unstimulated
+conditions NF-κ B is sequestered in the cytoplasm by association with Iκ Bα inhibitors. Stimulation with
+TNFα (by changing k24 = 1 from 0) causes activation of the IKK kinase, and subsequently degradation of
+Iκ Bα and translocation of free NF-κ B to the nucleus. Nuclear NF-κ B induces transcription of Iκ Bα and
+A20. Once synthesised Iκ Bα is able to bind to NF-κ B and return it to the cytoplasm, while A20 inhibits
+the IKK activity.
+
+The large number of variables and biochemical reactions in dynamic models,
+such as those of the NF-κ B system, makes them analytically intractable. Sensitivity
+analyses are often employed to understand these models, assessing how individual
+parameters influence model dynamics in a local and global context (Ihekwaba et al,
+2004, 2005; Rand, 2008). Model reduction approaches provide a complementary avenue to extract the core reactions and variables responsible for the key dynamical
+features of the system. These include modularisation to break large systems down
+into more tractable functional units (Saez-Rodriguez et al, 2004). However, definition of a module becomes arbitrary, so this remains a heuristic technique. Other
+techniques include using a posterori analysis and characteristic timescales. Based on
+error analysis, the former method identifies, for different time intervals, the components of the model required for accurate representation of the solution and uses this
+information to guide model simplification (Whiteley, 2010). The latter utilises the
+fact that many biological systems incorporate markedly different time-scales ranging
+from seconds to hours. Relevant approaches employ the use of partial-equilibriums
+(PE), quasi-steady-state approximations (QSSA), or grouping variables with equivalent time-scales (Krishna et al, 2006; Maeda et al, 1998; Schneider and Wilhelm,
+2000), see also (Kutumova et al, 2013) and Radulescu et al (2008) for analysis of
+the NF-kappaB signalling. These methods often rely on intuition to identify the small
+parameters that allow the successive reduction steps, and a standard problem for perturbation methods is that in reality the small parameters are never infinitely small
+and one needs somehow to assess whether they are small enough for any particular
+purpose, that is, additional accuracy control is required. Algorithmic approaches to
+identification of small parameters been proposed. For instance, Computational Singular Perturbation (CSP) method is an iterative procedure, based on identification of
+
+4
+
+Simon West et al.
+
+the fast modes through the analysis of of the eigenvalues of the Jacobian matrix (Lam
+and Goussis, 1994), see also (Kourdis et al, 2013) for the asymptotic analysis of the
+NF-kB dynamics. Other methods exploiting the eigenvalues of the Jacobian are the
+Intrinsic Low-Dimensional Manifolds (ILDM) method by Maas and Pope (1992) and
+a more refined Method of Invariant Manifold by Gorban and Karlin (2003). Comparison and analysis of these methods can be found in (Zagaris et al, 2004). Although
+these methods are more advanced that the classical PE and QSSA techniques, they
+are also more technically challenging than their predecessors. QSSA methods retain original variables and parameters. Alternative methods, such as the Elimination
+of Nonessential Variables (ENVA) method described in (Danø et al, 2006) exploit
+searches through lower-dimensional models of reduced networks for a minimal mathematical model which will reproduce a desired dynamic behaviour of the full model.
+Such a systematic reduction method has the advantage of requiring neither knowledge of the minimal structures, nor re-parameterisation of the retained lumped model
+components. Indeed, application of model reduction methods which are algorithmic
+rather than necessarily biologically intuitive can clearly reveal model sub-structures
+which control basic system dynamics.
+In this manuscript we use a simple algorithmic QSSA approach for the reduction
+of biochemical reaction systems using a heuristic that is likely to be widely applicable
+to this sort of systems. We define “speed coefficients” that enable ranking variables
+according to how quickly their approach their momentary steady-state. This allows
+a straightforward choice of variables for elimination by QSSA application at each
+step of the algorithm, while preserving dynamic characteristics of the system. We use
+this method to derive reduced models of the NF-κ B signalling network. Our analysis identifies the key feedback components of the system responsible for NF-κ B
+dynamics. Further, reduction of the NF-κ B model around different solutions (corresponding to different experimental protocols) revealed specific components of the
+IKK signalling module responsible for generation of the respective dynamics. This
+demonstrates the application of an essentially local technique can be used to infer
+information about the system in a larger context, ultimately providing a better understanding of the NF-κ B signalling network.
+
+2 Methods
+2.1 Perturbation theory for fast-slow systems
+The application of steady-state approximation to biochemical reaction systems typically argues that some of the reagents are highly reactive, so are used as quickly as
+they are made. Therefore, after the initial transient phase, the concentration of such
+a reagent is always close to what would be its steady-state as long as concentrations
+of other reagents were maintained constant. In the simplest form, this means that
+in the kinetic equations, the corresponding rate of change can be set to zero. This
+provides a general procedure for simplifying biochemical systems, based on the difference of characteristic time-scales. Practical application of this idea dates back at
+least to Briggs and Haldane (1925). More recent reviews and textbook expositions
+
+Minimal models of the NF-kappaB system
+
+5
+
+can be found e.g. in (Klonowski, 1983; Segel and Slemrod, 1989; Volpert and Hudjaev, 1985; Yablonskii et al, 1991). The basic mathematical justification of the formal
+procedures stems from the seminal work by Tikhonov (1952). It is formulated for
+systems which involve small parameter ε in the form
+dx
+= f (x, z,t) ,
+dt
+dz
+ε = g (x, z,t) ,
+dt
+
+(1)
+
+where x is a vector of slow variables and z is the vector of fast variables. In the limit
+ε → 0, the system (1) becomes
+dx
+= f (x, z,t) ,
+dt
+z = φ (x,t) ,
+
+(2)
+
+where φ (x,t) is the solution of g (x, z,t) = 0. If ε is small, the solutions to the original
+system (1) may be expected to differ from solutions of (2) only slightly. For an initialvalue problem for a finite time interval this is guaranteed by the following:
+Theorem 1 Let the right-hand sides of systems (1) and (2) be sufficiently smooth so
+solutions to initial value problems exist and are unique. Let x = X(t; ε ), z = Z(t; ε ),
+t ∈ [0, T ], T > 0 be a solution of the system (1) with initial condition X(0; ε ) = x0 ,
+Z(0; ε ) = z0 , and x = X̄(t) be a solution to the system (2) with initial condition X̄(0) =
+x0 . Consider also the “attached” system,
+dz
+= g (x, z,t) ,
+ds
+
+(3)
+
+depending on x and t as parameters. Let z = φ (x,t) be a function defined on an
+open set containing the trajectory {(X̄(t),t),t ∈ [0, T ]}, such that z = φ (X̄(t),t) is
+an isolated, Lyapunov stable and asymptotically stable equilibrium of (3) for the
+corresponding x = X̄(t) and any t ∈ [0, T ]. Finally, assume that z0 is within the basin
+of attraction of the equilibrium φ (x0 , 0) of system (3) at x = x0 , t = 0. Then for any
+t ∈ (0, T ],
+lim X(t; ε ) = X̄(t),
+lim Z(t; ε ) = φ (X̄(t)).
+ε →0
+
+ε →0
+
+This theorem is a special case of Theorem 1 of Tikhonov (1952). In fact, the
+solution of the full system (1) can be considered as consisting of two parts: the initial
+transient, approximately described by (3), with s = ε t, and x ≈ x0 , which is followed
+by the long-term part, approximately described by the solution x = X̄(t), z = φ (x).
+However the duration of the transient is O (ε ) so for any fixed t > 0 and sufficiently
+small ε , the initial transient will have expired by the time t, hence the limit.
+A limitation of the above result is that it gives only pointwise convergence in ε so
+it does not answer the questions about the behaviour of trajectories as t → 0 at a fixed
+ε . There were later extensions of this work, relieving this limitation. In this paper we
+will be looking at periodic solutions, so the following result is relevant to us:
+
+6
+
+Simon West et al.
+
+Theorem 2 In addition to the assumptions of Theorem 1, suppose that the slow system (2) has a periodic solution with period P0 , that is x = X̃(t): X̃(t + P0 ) ≡ X̃(t), and
+this solution is stable in the linear approximation. Then the full systems (1) have an
+(ε -dependent) family of periodic solutions with periods P(ε ) such that limε →0 P(ε ) =
+P0 and the corresponding orbits lie in a small vicinity of (X̃(t), φ (X̃ (t))) for small ε .
+Moreover, the periodic orbits and the period depend of ε smoothly.
+This theorem is a special case of Theorem 5 of (Anosov, 1960).
+When the approximation of the solution of the full system by that of the slow system is insufficient in itself, it can be improved by considering higher-order corrections
+in ε . The mathematical justification of that procedure is based on the results about
+smoothness of the dependence of solutions of the full system on ε , see e.g. Vasil’eva
+(1952). A very influential continuation of these works with important generalizations,
+under a currently popular name of “geometric perturbation theory”, has been done by
+Fenichel (1979). Below we present a simple illustration of the method, directly applicable to our situation.
+2.2 Identification of small parameters: parametric embedding
+In the real-life kinetic equations it is not always obvious which reagents can be suitable for the QSSA. To identify such reagents, we follow the formal method of “parametric embedding” (Suckley and Biktashev, 2003; Biktasheva et al, 2006).
+Definition 1 We will call a system
+u̇ = F(u; ε ),
+
+u ∈ Rd ,
+
+depending on parameter ε , a 1-parametric embedding of a system
+u̇ = f (u),
+
+u ∈ Rd ,
+
+if f (u) ≡ F(u, 1) for all u ∈ dom ( f ). If the limit ε → 0 is concerned then we call it
+a asymptotic embedding. If a 1-parametric embedding has a form (1), we call it a
+Tikhonov embedding.
+The typical use of this procedure has the form of a replacement of a small constant
+with a small parameter. If a system contains a dimensionless constant a which is
+“much smaller than 1”, then replacement of a with ε a constitutes a 1-parametric
+embedding; and then the limit ε → 0 can be considered. In practice, constant a would
+more often be replaced with parameter ε , but mathematically, in the context of ε → 0
+and a = const 6= 0 this, of course, does not make any difference from ε a. This explains
+the paradoxical use of a zero limit for a parameter whose true value is one.
+In some applications, the “small parameters” appear naturally and are readily
+identified. However, this is not always the case, and in complex nonlinear systems
+asymptotic analysis may require this procedure of parametric embedding, i.e. introduction of small parameters artificially. It is important to understand, that there are
+infinitely many ways a given system can be parametrically embedded, as there are
+infinitely many ways to draw a curve F(u; ε ) in the functional space given the only
+
+Minimal models of the NF-kappaB system
+
+7
+
+constraint that it passes through a given point, F(u; 1) = f (u). In terms of asymptotics, which of the embeddings is “better” depends on the qualitative features of the
+original systems that need to be represented, or classes of solutions that need to be
+approximated. Some examples of different Tikhonov embeddings of a simple cardiac
+excitation model can be found in Suckley and Biktashev (2003), and non-Tikhonov
+embedding of the same in Biktashev and Suckley (2004), and some of those examples
+are better than others in describing particularly interesting features of cardiac action
+potentials.
+If a numerical solution of the system can be found easily, then there is a simple
+practical recipe: to look at the solutions of the embedding at different, progressively
+decreasing values of the artificial small parameter ε , and see when the features of
+interest will start to converge. If the convergent behaviour is satisfactorily similar to
+the original system with ε = 1, the embedding is adequate for these features.
+To summarize, we claim that identification of small parameters in a given mathematical model with experimentally measured functions and constants will, from the
+formal mathematical viewpoint, always be arbitrary (even though in the simplest
+cases there may be such a natural choice that this ambiguity is not even realized
+by the modeller), and “validity” of such identification can be defined only empirically: if the asymptotics describe the required class of solutions sufficiently well. The
+rare exceptions are when the asymptotic series are in fact convergent and the residual
+terms can be estimated a priori. A cruder (and less reliable) estimate of the error of
+an asymptotic can be obtained through the analysis of the higher-order asymptotics,
+see e.g. Turányi et al (1993); more about it later.
+In this paper, we restrict consideration to Tikhonov embeddings (1). The simplest
+version of the above recipe results in the straightforward procedure: compare the
+solution of the full system with the solution where the putative fast variable has been
+replaced by its quasistationary value. In terms of the “numerical embedding”, this
+means a short-cut: considering values ε = 1 and ε = 0 instead of a (or as a very short)
+sequence of values of ε converging to 0. Although sometimes we have indeed studied
+several values of ε , we shall always present only ε = 1 and ε = 0 results, to avoid
+cluttering the graphs.
+
+2.3 Speed coefficients
+It follows from the above discussion that the “numerical embedding” procedure could
+be applied to any of the dynamic variables, and those whose adiabatic elimination
+would cause the smallest changes in the solution, could be taken as the fastest. In
+practice, for a large system, this exhaustive trial and error procedure may be too
+laborious. We employ a simple heuristic method to identify the candidates for the
+fastest variables.
+We describe it in terms of a generic system of N ordinary differential equations
+(ODEs),
+dxi
+= fi (x1 , . . . , xN ) ,
+dt
+
+i = 1, . . . N.
+
+(4)
+
+8
+
+Simon West et al.
+-2
+
+p
+q
+r
+s
+u
+v
+w
+x
+y
+z
+
+-3
+
+ln (λ )
+
+-4
+-5
+-6
+-7
+-8
+-9
+0
+
+50
+
+100
+
+150
+
+200
+
+250
+
+300
+
+Time (mins)
+
+Fig. 2 Semi-logarithmic plot of speed coefficients for the Simplified Model (SM). A larger speed coefficient means the variable is approaching its steady state faster. These coefficients identify variable z as the
+fastest, and therefore the most appropriate candidate for elimination.
+
+We define the “speed coefficients” for each dynamic variable xi as
+
+
+ ∂ fi 
+.
+λi (x1 , ..., xN ) = 
+∂ xi 
+
+(5)
+
+By definition, these coefficients depend on the dynamic variables, or, for a selected
+solution, they depend on time t. They can be used to rank the variables according to
+how quickly they approach their momentary steady-states (figure 2).
+It is very essential to understand that with the exception of relatively trivial cases,
+the most adequate choice of embedding will depend on the type of solutions that are
+of interest for the particular application at hand, because in a nonlinear system, what
+is “small” and what is “large” may be significantly different in different parts of the
+phase space. A simple but very instructive example illustrating this point is considered by Lam and Goussis (1994, Section A), where the meaning of fast/slow changes
+depending on initial conditions and on what part of the solution is considered. Our
+practical approach is that we start from one particular solution, which is selected in
+such a way that to be sufficiently representative for the class of solutions that are of
+interesting to a particular application. An obvious extension would be selection of
+a representative set of solutions; however for the illustration of the method, one is
+enough. As follows from the above, the task of selecting such solutions is inevitably
+the responsibility of the investigator who is going to apply the method and use the
+resulting reduced system. In the particular models we consider here this task is relatively straightforward, as the long-term behaviour is more or less the same for any
+physiologically sensible initial conditions. For elimination of any further ambiguity
+we have adopted a rule that we would select for elimination the variable that is fastest
+at its slowest. That is, for each variable we find the minimal value of its speed coefficient over the simulated time interval, and then select the variable which has the
+highest value of the minimal speed among other variables.
+Note that our heuristic procedure only uses partial information about the system
+(only the diagonal elements of the Jacobian, and only its minimal value along only
+one/a few solution(s)), but it is only used for preliminary selection of variables for
+reduction. Therefore, the actual success of reduction is established by comparison of
+
+Minimal models of the NF-kappaB system
+
+9
+
+the reduced and the original system, within the “numerical embedding” procedure
+described above. In the test cases presented in this paper, this proof has always been
+successful, if sometimes with first-order corrections. However one cannot exclude
+the possibility that high relative values of the non-diagonal elements of the Jacobian
+and/or its strong variations over the representative solutions may force the change
+of the candidate for reduction, or QSSA may be inapplicable in principle. As an extreme example, consider a subsystem: ẋ = Ay, ẏ = −Ax, which has zero diagonal
+Jacobian elements, so would be classed as (infinitely) slow, yet for large A its treatment as such within a larger system would produce wrong results, as in fact x and
+y will fastly oscillate. For the (bio-)chemical kinetics this sort of behaviour is, however, not very likely, at least at the level of elemetary reactions; see e.g. the discussion
+in (Turányi et al, 1993, p. 165). On the other hand, this fastly oscillating subsystem
+is not appropriate for Tikhonov style treatment anyway, and requires averaging in
+Krylov-Bogolyubov style instead; whereas if a system does have the form (1) and
+satisfies the assumptions of Theorem 1, then the eigenvalues of the Jacobian block
+ε −1 ∂ g/∂ z have negative real parts and are of the order of ε −1 , so its diagonal elements are likely to be large (and negative) — although, of course, counter-examples
+can be invented.
+Finally, we note again that the choice of variables for reduction may depend on
+the class of solutions of interest, which in our approach will be done via the choice
+of representative solution. In sections 3 and 4 we consider two different classes of
+solution in the same full model, which give two different reduced models.
+
+2.4 The model reduction algorithm
+Based on Tikhonov’s and Anosov’s theorems and the definition of the speed coefficients we can define a general method for reducing the dimension of a biochemical
+reaction system. We illustrate the method using an example where the right-hand
+side of an ordinary differential equation for a fast variable is linear with respect to the
+same variable. Suppose the variable x j has been identified as the fast variable in the
+system (4). With account of the artificial small parameter, this gives
+
+ε
+
+dx j
+= α j (t) − β j (t)x j ,
+dt
+
+(6)
+
+where coefficients α j (t) and β j (t) are presumed to depend on time via other dynamic
+variables. We look for a solution in the form of an asymptotic series x j = x0j + ε x1j +
+
+ε 2 x2j + O ε 3 . Substituting this into (6) gives
+
+ε ẋ0j + ε 2 ẋ1j + ε 3 ẋ2j = α j − β j x0j − εβ j x1j − ε 2 β j x2j + O ε 3 .
+
+(7)
+
+The simplest approximation for x j is obtained by considering the terms in (7) proportional to ε 0 ,
+0 = α j (t) − β j (t)x0j ,
+
+(8)
+
+10
+
+Simon West et al.
+
+which results in the zeroth-order QSSA for variable x j :
+x0j = x0j =
+
+α j (t)
+.
+β j (t)
+
+(9)
+
+This approximation x0j is then substituted into the original system of equations for the
+variable x j . If the variable is sufficiently fast then this steady-state expression should
+be a good approximation of the fast variable and the substitution will cause minimal
+change to the solution.
+In general, the zeroth-order QSSA provides a reasonable approximation of the
+original variable. However, if such approximation is not good enough, it can be improved by calculating an additional correction term. To do this we consider terms in
+(7) proportional to ε 1 :
+(10)
+ε ẋ0j = −εβ j x1j .
+
+Substituting our earlier result (9) into equation (10) and solving for x1j gives the firstorder correction in the form
+α j β˙j − β j α˙ j
+1
+x1j = − ẋ0j =
+.
+(11)
+βj
+β j3
+This results in the first-order QSSA x1j = x0j + ε x1j in the form
+x1j =
+
+α j (t) α j (t)β˙j (t) − β j (t)α˙ j (t)
+,
++
+β j (t)
+β j3 (t)
+
+(12)
+
+since the original problem corresponds to ε = 1. Note that the value of the first-order
+correction, or its estimate, can be used as an estimate of the accuracy of the leadingterm approximation; roughly speaking, this is the idea behind the accuracy estimate
+used in Turányi et al (1993).
+So our method can then be formulated into a general algorithm to reduce the
+dimension of a biochemical system defined by ordinary differential equations. The
+algorithm reads:
+1. Using numerical methods, find a representative solution of the system of ODEs
+for the chosen time interval.
+2. Calculate the expressions for the speed coefficients (λ ’s), using equation (5) from
+the system of ODEs (this can be assisted by a symbolic calculations software, e.g.
+Maple).
+3. Substitute the numerical solution of the system into the expressions for the λ ’s to
+find the speed for each variable at each time point.
+4. Plot the speed coefficients vs. time and identify the fastest variable (at its slowest).
+5. Calculate the expression for the zeroth-order QSSA using (9).
+6. Substitute this QSSA into the system of ODEs to eliminate the fastest variable,
+thus obtaining a reduced system.
+7. Compare the solution of the reduced system with the solution of the original
+system.
+8. If the zeroth-order QSSA is insufficient to maintain a suitable accuracy, calculate
+the first-order QSSA using equation (12).
+9. Repeat the above process for the new reduced system.
+
+Minimal models of the NF-kappaB system
+
+11
+
+Table 1 Variables and parameters: their names as in Ashall et al (2009), short names adopted here, and
+values. The initial conditions were obtained by equilibrating the system without stimulus (k24 = 0), with v
+and r set to k2 and k3 k1 , respectively, and other variables set to 0.
+Variables (µ M)
+NF κ B
+p
+3.81 × 10−3
+I κ Bα
+q
+1.58 × 10−2
+nNF κ B
+r
+9.79 × 10−3
+nI κ Bα
+s
+5.44 × 10−3
+tI κ Bα
+u
+2.07 × 10−5
+IKKn
+v
+0.08
+IKKa
+w
+0
+tA20
+x
+6.46 × 10−6
+A20
+y
+7.19 × 10−4
+pI κ Bα ◦ NF κ B
+z
+0
+IKKi
+a
+0
+pI κ Bα
+b
+0
+nI κ Bα ◦ nNF κ B c
+7.95 × 10−4
+I κ Bα ◦ NF κ B
+d
+7.30 × 10−2
+∗
+
+kv
+IKK∗
+NF-κ B†
+ka1a
+c1a
+c2a
+c3a
+c4a
+c1
+c2
+c3
+c4
+ki3a
+ke3a
+
+Parameters
+k1
+3.3
+k2
+0.08 µ M
+k3
+0.08 µ M
+k4
+0.5 ( µ Ms)−1
+k5
+1.4 × 10−7 ( µ Ms)−1
+k6
+0.5 s−1
+k7
+0.0003 s−1
+k8
+0.0005 s−1
+k9
+1.4 × 10−7 ( µ Ms)−1
+k10
+0.5 s−1
+k11
+0.00048 s−1
+k12
+0.0045 s−1
+k13
+0.00067 s−1
+k14
+3.35 × 10−4 s−1
+
+ki1
+ke1
+kc1a
+kc2a
+kt2a
+kp
+kbA20
+ka
+ki
+TR
+k
+h
+
+Parameters
+k15
+0.0026 s−1
+k16
+0.000052 s−1
+k17
+0.074 s−1
+k18
+0.37 s−1
+k19
+0.1 s−1
+k20
+0.0006 s−1
+k21
+0.0018 µ M
+k22
+0.004 s−1
+k23
+0.003 s−1
+k24
+1/0
+k
+0.065 µ M
+h
+2
+
+IKK= v + w + a (conserved quantity)
+p + d + z + k1 (r + c) (conserved quantity)
+
+† NF-κ B=
+
+1
+
+3 Minimal model of the NF-κ B system in response to continuous TNFα input
+The “two-feedback” model of the NF-κ B system presented in Ashall et al (2009) is
+our starting point. It is a system of 14 ordinary differential equations representing
+NF-κ B and the Iκ Bα and A20 negative feedbacks (figure 1). We use brief notations
+for its variables and parameters as given in Table 1. We pursued derivation of a minimal model with respect to a representative solution obtained for initial conditions
+as described in Table 1 and k24 = 1. In a biological context this corresponds to a
+continuous stimulation of the system with a high dose of TNFα (Ashall et al, 2009).
+Before employing the reduction algorithm we endeavoured to simplify the system
+by elementary means (similarly to Wang et al (2012)). Conservation of cellular IKK
+reads v + w + a = k2 = const, which allows us to eliminate a via the substitution
+a = k2 − v − w. Similarly, conservation of NF-κ B in all its five forms reads p + d +
+z + k11 (r + c) = k3 = const, which we use to eliminate d. Further, we observed that
+variable b is “decoupled”: it is only present in its own equation, and the dynamics
+of other variables do not depend on it. So it can be removed from the analysis, as
+the solution for it, if necessary, can be obtained post factum by integration of the
+solution of the remaining system. Finally, for this representative solution we have
+observed that some of the terms in the equation consistently remain so small that
+their elimination does not visibly change the solution. This involved elimination of
+variable c, leaving a system of 10 equations, which we shall refer to as the Simplified
+Model (SM):
+dp
+= k19 z − k4qp − k15 p + k16r
+dt
+dq
+= −k4 qp + k6u − k8q − k13q + k14s − k17wq
+dt
+dr
+= k15 k1 p − k4sr − k16 k1 r
+dt
+
+(13a)
+(13b)
+(13c)
+
+12
+
+Simon West et al.
+
+ds
+dt
+du
+dt
+dv
+dt
+dw
+dt
+dx
+dt
+dy
+dt
+dz
+dt
+
+= k13 k1 q − k4sr − k8 s − k14k1 s
+rh
+− k7 u
+r h + kh
+k21
+= k20
+(k2 − v) − k24 k22 v
+k21 + k24y
+= k5
+
+= k24 k22 v − k23w
+= k9
+
+rh
+r h + kh
+
+− k11 x
+
+= k10 x − k12y
+
+
+r
+= k18 w k3 − p −
+− k19 z
+k1
+
+(13d)
+(13e)
+(13f)
+(13g)
+(13h)
+(13i)
+(13j)
+
+The solution of (13) is very close to that of the original model (see Table 2 and Appendix A), and marks the starting point of the reduction procedure. We apply the
+reduction algorithm iteratively, eliminating a sequence of fast variables and employing different orders of approximation for them. To keep track of these, we introduce
+a nomenclature for the reduced models. The model variants are named according to
+the variables that have been removed, each with a subscript showing if a zeroth- or
+first-order QSSA has been used, 0 or 1 respectively. For example, the first variable
+eliminated is z, therefore the model with this variable replaced with a zeroth-order
+QSSA is titled z0 and the same with a first-order QSSA is titled z1 . A model where
+the variables z and p have been replaced in turn with their zeroth- and first-order
+QSSAs respectively, will be denoted as z0 p1 , etc. Below, we concentrate on the key
+points of the reduction sequence.
+Figure 2 shows the speed coefficients calculated for the Simplified Model. It identifies z to be the fastest and thus eliminated first. Application of the method, using
+zeroth-order approximation, results in a 9-variable model z0 with comparable solution to this of the Simplified Model (figure 3).
+Addition of a first-order correction to some of the QSSAs improved the model fit
+in comparison to respective predecessors. Figure 4 shows that a first-order correction
+in the variable p markedly improved the accuracy of the 8-variable reduced model.
+However, addition of these corrections can also increase the algebraic complexity of
+the system and it must be considered whether the improvement of the model outweighs the added complexity.
+As the reduction progressed, there was an increasing overlap in the ranges of
+the speed coefficients, and we had to apply the “the fastest at its slowest” heuristic
+rule. For example in figure 5, this rule identifies the variable w for elimination during
+reduction to the 4-variable model, even though two other variables, r and q, are at
+times faster.
+Successive cycles of the algorithm were applied to ultimately reduce this system
+to four differential equations. The method maintained the important qualitative features of the system, such as the limit cycle. However, through each stage of the reduction, the resulting limit cycle had a slightly reduced period and amplitude (Table 2).
+
+Minimal models of the NF-kappaB system
+102 p
+
+8
+
+13
+
+102 q
+
+25
+
+SM
+
+6
+
+20
+
+6
+
+z0
+
+102 r
+
+15
+
+4
+
+4
+10
+
+2
+
+2
+
+0
+
+0
+
+8
+
+102 s
+
+3
+
+5
+0
+
+104 u
+
+8
+
+6
+
+102 v
+
+6
+2
+
+4
+
+4
+1
+
+2
+0
+4
+
+2
+0
+
+0
+
+102 w
+
+20
+
+103 y
+
+105 x
+
+20
+3
+
+15
+
+2
+
+10
+
+10
+
+1
+
+5
+
+5
+
+0
+
+15
+
+0
+
+0
+0
+
+100
+
+200
+
+300
+
+400
+
+0
+
+100
+
+Time (mins)
+
+200
+
+300
+
+400
+
+0
+
+100
+
+Time (mins)
+
+200
+
+300
+
+400
+
+Time (mins)
+
+Fig. 3 Components of the representative solution for the 10-variable Simplified Model (SM, solid lines)
+and reduced 9-variable model z0 (dashed lines). The lines visually coincide in all cases, indicating that
+zeroth-order approximation is sufficient for z.
+25
+
+25
+
+z0
+z0 p0
+z0 p1
+
+20
+
+15
+
+102 r
+
+15
+
+102 r
+
+z0
+z0 p0
+z0 p1
+
+20
+
+10
+5
+
+10
+5
+
+0
+
+0
+0
+
+100
+
+200
+
+300
+
+400
+
+Time (mins)
+
+500
+
+600
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+102 q
+
+Fig. 4 Comparison of the representative solution for the 9-variable model z0 (solid lines) and its two 8variable reductions, with the zeroth-order (dashed lines) and the first-order (dotted lines) approximations
+for p. Left panel shows a solution for the variable nuclear NF-κ B, r, right panel shows a phase plane for
+the variables q and r. Use of the first-order approximation gives a marked improvement in accuracy of the
+reduced model.
+
+Using only the zeroth-order QSSAs was sufficient to reduce the model to five ODEs
+(z0 p0 y0 v0 s0 ), while maintaining the limit cycle. In order to reduce the system further,
+the use of a first-order QSSA was necessary (figure 6). A suitable zeroth- or firstorder QSSA could not be calculated to reduce the model beyond this, and therefore
+the model z0 p0 y0 v0 s0 w1 of four differential equations was chosen as the end point of
+this analysis. This minimal model is given by (14), where A = k24 k22 k20 k21 k12 k3 and
+
+14
+
+Simon West et al.
+-2
+
+q
+r
+u
+w
+x
+
+-3
+
+ln (λ )
+
+-4
+-5
+-6
+-7
+-8
+-9
+0
+
+50
+
+100
+
+150
+
+200
+
+250
+
+300
+
+Time (mins)
+Fig. 5 Semi-logarithmic plot of speed coefficients for dynamic variables of the z0 p0 y0 v0 s0 model. The
+variable w has the largest minimum compared to other variables, identifying it as the most appropriate
+candidate for the next elimination.
+Table 2 Key features of NF-κ B oscillations for each of the model variants. Fold change in period and
+amplitude was calculated relative to the period and amplitude of the original model in (Ashall et al, 2009).
+MSE was calculated after the models had been scaled to have the same period.
+Model
+
+Variable
+removed at this
+stage
+N/A
+a,b,c,d
+z
+p
+y
+v
+s
+w
+As above
+As above
+
+Original Model
+Simplified Model
+z0
+z0 p0
+z0 p0 y0
+z0 p0 y0 v0
+z0 p0 y0 v0 s0
+z0 p0 y0 v0 s0 w1
+z0 p1 y0 v0 s0 w1
+z0 p1 y1 v1 s1 w1
+
+Period
+(mins)
+
+Fold change
+in period
+
+Fold change
+in amplitude
+
+99.5
+100.5
+100.0
+92.5
+85.5
+77.7
+75.0
+73.8
+80.3
+86.6
+
+1
+1.01
+1.01
+0.93
+0.86
+0.78
+0.75
+0.74
+0.80
+0.87
+
+1
+1.06
+1.06
+0.92
+0.83
+0.65
+0.62
+0.71
+0.90
+1.01
+
+20
+
+20
+
+z0 p0 y0 v0 s0
+z0 p0 y0 v0 s0 w0
+z0 p1 y1 v1 s1 w1
+
+z0 p0 y0 v0 s0
+z0 p0 y0 v0 s0 w0
+z0 p1 y1 v1 s1 w1
+
+15
+
+102 r
+
+15
+
+102 r
+
+Shape
+MSE
+×105
+N/A
+1.24
+1.05
+2.47
+9.42
+32.4
+38.6
+22.3
+5.28
+6.31
+
+10
+
+5
+
+10
+
+5
+
+0
+
+0
+0
+
+100
+
+200
+
+300
+
+400
+
+Time (mins)
+
+500
+
+600
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+102 q
+
+Fig. 6 Comparison of the representative solution for the 5-variable model z0 p0 y0 v0 s0 (solid lines) and its
+two possible 4-variable reductions, with the zeroth-order (dashed lines) and the first-order (dotted lines)
+approximations for w. Use of the first-order approximation not only improved the accuracy of the 4variable model, but also maintained a stable limit cycle.
+
+Minimal models of the NF-kappaB system
+
+15
+
+25
+
+25
+SM
+
+SM
+
+z0 p0 y0 v0 s0 w1
+z0 p1 y1 v1 s1 w1
+
+20
+15
+
+15
+
+102 r
+
+102 r
+
+z0 p0 y0 v0 s0 w1
+z0 p1 y1 v1 s1 w1
+
+20
+
+10
+5
+
+10
+5
+
+0
+
+0
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+102 q
+
+Time (mins)
+
+Fig. 7 Comparison of the representative solution for the Simplified Model (solid lines) and the two fourvariable reductions, the cruder z0 p0 y0 v0 s0 w1 model (dashed lines) and the more accurate z0 p1 y1 v1 s1 w1
+model (dotted lines).
+
+2 k k k x.
+B(x) = k20 k21 k12 + k24k22 k21 k12 + k24
+22 10 23
+
+dq
+dt
+dr
+dt
+du
+dt
+dx
+dt
+
+= −k4 q p̄(q, r, x) + k6 u − k8q − k13q + k14s̄(q, r) − k17w̄(r, x)q
+
+(14a)
+
+= k15 k1 p̄(q, r, x) − k4 s̄(q, r)r − k16 k1 r
+
+(14b)
+
+rh
+− k7 u
+r h + kh
+rh
+− k11x
+= k9 h
+r + kh
+
+= k5
+
+(14c)
+(14d)
+
+
+h
+
+k9 r
+2 k k A
+− k11 x
+k24
+22 10
+A
+rh +kh
++
+w̄(r, x) =
+B(x)
+B(x)2
+k1 k13 q
+s̄(q, r) =
+k4 r + k1 k14 + k8
+
+
+k16 r + k18 w̄(r, x) k3 − kr1
+p̄(q, r, x) =
+k4 q + k15 + k18w̄(r, x)
+
+
+
+(14e)
+(14f)
+
+(14g)
+
+It was possible to add first-order corrections to all of the dynamic variables during
+the model reduction, producing a minimal model z1 p1 y1 v1 s1 w1 with a far improved
+fit in comparison to the original. However, the z0 approximation was so accurate
+that z1 did not make a noticeable improvement. Figure 7 shows comparison of the
+“simplest” and “the most accurate” 4-variable models to the original 10-variable one
+(the z0 p1 y1 v1 s1 w1 model is presented in appendix A).
+Figure 8 shows how some of the dynamic properties of the model change through
+the reduction process. It represents the steady state solution and continuation for the
+variable r as the parameter k24 is varied (Doedel et al, 2000; Ermentrout, 2002),
+showing the effect of altering the TNFα dose (Turner et al, 2010). In the original
+model, there is a supercritical Hopf bifurcation (HB) at k24 = 0.36 above which the
+limit cycle is observed. Successive elimination of the fastest variables causes the HB
+point to move up, closer to the value k24 = 1, which corresponds to a saturating dose
+
+16
+
+Simon West et al.
+12
+10
+
+102 r
+
+8
+
+z0
+z0 p1
+z0 p1 y1
+z0 p1 y1 v1
+z0 p1 y1 v1 s1
+z0 p1 y1 v1 s1 w1
+
+z0
+z0 p0
+z0 p0 y0
+z0 p0 y0 v0
+z0 p0 y0 v0 s0
+z0 p0 y0 v0 s0 w1
+
+6
+4
+2
+0
+0
+
+0.5
+
+1
+
+1.5
+
+2
+
+2.5 0
+
+0.5
+
+k26
+
+1
+
+1.5
+
+2
+
+2.5
+
+k26
+
+Fig. 8 Bifurcation analyses of reduced models with respect to the parameter k24 , representing the dose of
+TNFα stimulation. Branches of the solution in colour represent minimal and maximal values of the limit
+cycle. Solid and dashed black lines correspond to stable and unstable equilibria, respectively.
+
+of TNFα . Reduction from five to four differential equations using zeroth-order QSSA
+for w would move the HB point further to the right (Hopf bifurcation at k24 = 3.105).
+Figure 8 also demonstrates that use of the first-order correction terms dramatically
+reduces the loss in limit cycle amplitude and change in the location of the HB point.
+
+4 Model reduction with respect to pulsed TNFα input
+Previously, we derived models with respect a solution that corresponded to a constant
+value of the TNFα input, k24 ≡ 1. The universality of such models depends on how
+representative that solution actually is. In this subsection we give an example where
+a different selection of the representative solution leads to a different reduced model.
+We now consider another experimentally relevant case, where the TNFα input is
+varied: k24 = 0 except for 5-minute pulses of k24 = 1 delivered every 100 minutes.
+Under such stimulation, the system exhibits pulses of the nuclear NF-κ B entrained to
+the input frequency (Ashall et al, 2009). Despite the same 100 minute period, these
+pulses are markedly different than oscillations induced with the continuous TNFα
+input. The Simplified Model reproduces this property, see figure 2 vs figure 9 . However, the 6-variable variant, z0 p0 y0 v0 (see appendix B for equations), does not respond
+with a full-size nuclear NF-κ B translocation to each pulse, and the solution is of a
+double period, figure 9.
+We therefore developed an alternative minimal model, choosing the periodically
+entrained solution as the representative one. For the periodically entrained solution,
+the hierarchy of speeds of the variables associated with the IKK module is different
+from the k24 ≡ 1 case. Specifically, the first three fastest variables are z, p and y as
+before. However, when choosing the 4th variable for elimination, the neutral form
+of IKK, v, becomes one of the slowest, and the algorithm identified the active IKK,
+w, for approximation (figure 10). In the continuous case, v and w were the first and
+second fastest variables, respectively (figure 10). Ultimately, application of the algorithm with respect to the pulsed input resulted in a different model, which showed a
+much better agreement with the SM and did not display a period doubling (figure 9).
+
+Minimal models of the NF-kappaB system
+
+z0 p0 y0 v0
+∗z0 p0 y0 w0
+TNFα
+
+20
+
+102 r
+
+15
+10
+
+25
+
+1
+
+SM
+
+z0 p0 y0 v0
+∗z0 p0 y0 w0
+
+20
+15
+
+102 r
+
+SM
+
+TNFα
+
+25
+
+17
+
+10
+
+5
+
+5
+
+0
+0
+
+100
+
+200
+
+300
+
+400
+
+0
+500
+
+0
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+102 q
+
+Time (mins)
+
+Fig. 9 Models’ response to a pulsed TNFα input. Shown are solution of the Simplified Model (SM, solid
+line), the 6-variable model z0 p0 y0 v0 (dashed line), and the alternative 6-variable model ∗z0 p0 y0 v0 (15)
+(dotted line). The TNFα input is varied: k24 = 0 except for 5-minute pulses of k24 = 1 delivered every
+100 minutes (shown in grey lines on the left panel).
+-2
+
+q
+r
+s
+u
+v
+w
+x
+
+-3
+
+ln (λ )
+
+-4
+-5
+-6
+-7
+-8
+-9
+0
+
+(a)
+
+100
+
+200
+
+300
+
+Time (mins)
+
+400
+
+0
+
+100
+
+(b)
+
+200
+
+300
+
+400
+
+500
+
+Time (mins)
+
+Fig. 10 Comparison of the speed coefficients for the z0 p0 y0 calculated with respect to different solutions.
+(a) Constant input (k24 ≡ 1). (b) Pulsed input; k24 = 0 except for 5-minute pulses of k24 = 1 delivered
+every 100 minutes. Depicted in bold are the fourth fastest variables: v in (a) and w in (b).
+
+This alternative 6-variable, (∗z0 p0 y0 w0 ) model is given by:
+dq
+dt
+dr
+dt
+ds
+dt
+du
+dt
+dv
+dt
+dx
+dt
+
+= −k4 q p̄ + k6 u − k8q − k13q + k14s − k17w̄q
+
+(15a)
+
+= k15 k1 p̄ − k4 sr − k16 k1 r
+
+(15b)
+
+= k13 k1 p̄ − k4 sr − k8 s − k14 k1 s
+
+(15c)
+
+rh
+− k7 u
+r h + kh
+k21
+= k20
+(k2 − v) − k24 k22 v
+k21 + k24y
+rh
+− k11 x
+= k9 h
+r + kh
+k16 rk1 + k18 w̄k3 k1 − k18 w̄r
+p̄ =
+k1 (k4 q + k15 + k18w̄)
+= k5
+
+(15d)
+(15e)
+(15f)
+(15g)
+
+18
+
+Simon West et al.
+
+0.5
+
+K6
+K3
+K4
+
+0.6
+
+Nn
+
+Nn
+
+1
+
+0
+0
+10
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+0.4
+0.2
+
+1
+
+5
+
+0
+0
+60
+
+200
+
+400
+
+600
+
+800
+
+40
+
+Im 3
+
+4
+
+5
+
+0.4
+
+I
+
+0.2
+
+20
+0
+0
+
+2
+
+0.6
+
+1000
+
+Nn
+
+Im
+
+0
+
+0
+200
+
+400
+
+600
+
+800
+
+1000
+
+0
+
+Time (mins)
+
+5
+
+10
+
+I
+
+Fig. 11 Analysis of alternatively reduced models of the NF-κ B system. (Left-hand panel) Time courses
+for the 3-variable reduced model (K3) and its 6-variable predecessor developed in Krishna et al (2006)
+(K6), together with a new 4-variable reduced model obtained using the speed coefficient method (K4).
+Variables Nn , Im , I represent nuclear NF-κ B, Iκ Bα protein and Iκ Bα mRNA respectively. (Right-hand
+panel) Corresponding phase portraits for the limit cycles that the respective systems approach.
+
+k10 x
+k12
+k24 k22 v
+w̄ =
+k23
+ȳ =
+
+(15h)
+(15i)
+
+The difference in the v speed for alternative TNFα stimulation can be easily understood by analysing the dynamic equation for v. The last term in its right-hand side,
+−k24 k22 v, directly contributes towards decay of v, but only when k24 is switched on.
+So when k24 is off, the v variable is much slower and its adiabatic elimination is not
+justified.
+
+5 Application of speed coefficients method to Krishna model
+Here, we compare the behaviour and properties of two reduced models of Krishna’s
+full 6-variable model for NF-κ B signalling dynamics (Krishna et al, 2006), one obtained by combination of coarse graining and numerical observations, and the other
+obtained using our new method of speed coefficients. In this analysis, we demonstrate
+better agreement with the full model achieved using our algorithmic approach.
+Firstly, in figure 11, we show time courses for oscillatory solutions for variables representing nuclear NF-κ B, Iκ Bα protein and Iκ Bα mRNA in three models,
+namely Krishna’s full model (K6), Krishna’s 3-variable minimal model (K3), and a
+new 4-variable reduced model given by our speed coefficient algorithm (K4) (see
+Appendix D for the systems of equations). We note that, while neither of the reduced
+models matches the full model in period, the oscillation amplitudes of the three variables show reasonable agreement, with our new reduced model (K4) more closely
+
+Minimal models of the NF-kappaB system
+
+19
+80
+
+14
+
+SM
+
+12
+
+z0 p0 y0 v0 s0 w1
+
+102 r
+
+10
+
+K6
+
+70
+
+K3
+K4
+
+60
+50
+
+8
+
+40
+
+6
+
+30
+
+4
+
+20
+
+2
+
+10
+
+0
+
+0
+1
+
+(a)
+
+10
+
+k5 (Iκ Bα transcription)
+
+100
+
+1
+
+(b)
+
+10
+
+100
+
+kt (Iκ Bα transcription)
+
+Fig. 12 Analysis of alternatively reduced models of the NF-κ B system. Shown are bifurcation diagrams
+with respect to the rate of the Iκ Bα transcription. Simulations performed for a continuous TNFα input. (a)
+The minimal z0 p0 y0 v0 s0 w1 model developed herein (14) in comparison to the SM. The Iκ Bα transcription
+rate was normalised to its nominal value (as in Table 1). (b) The 3-variable reduced model (K3) and its
+6-variable predecessor developed in Krishna et al (2006) (K6), together with a new 4-variable reduced
+model obtained using the speed coefficient method (K4). Over the range of kt shown, the new reduced
+model gives better qualitative agreement with the full model, and does not introduce the subcritical Hopf
+bifurcation seen in K3.
+
+agreeing with the full model. Also, the K4 Iκ Bα protein profile shape shows better
+agreement with K6 than K3 does, with I flattening out in its troughs. Summary phase
+portraits clearly show that K4’s limit cycles more closely agree with K6 than K3 does.
+In figure 12 we compare bifurcation diagrams (with respect to the rate of Iκ Bα
+transcription) for reduced models with their corresponding full models, for both our
+Simplified Model and the Krishna model. For the Krishna model, we further compare the Krishna minimal model (K3)and our new reduced model (K4). The reduced
+model resulting from the speed coefficient method applied to the Simplified Model
+(SM) gives a bifurcation diagram in qualitative agreement with that for the corresponding full model over the range of k5 shown (figure 12(a)). Also, the reduced
+model resulting from our method applied to the Krishna model (see Appendix D)
+gives qualitative agreement with the full Krishna model (figure 12(b)). This is a
+marked improvement over the Krishna minimal model, which demonstrates features
+that are not present in the corresponding full model. These include variation of the
+limit cycle amplitude for values of the Iκ Bα transcription around 1, and a subcritical Hopf bifurcation at around kt = 50, with unstable limit cycles and hysteresis for
+the values between 50 and 240. On the contrary, our minimal model preserves the
+properties of the full model at least at the qualitative level, even for the values of the
+parameter very different from the one corresponding to the representative solution.
+We conclude that application of our method of speed coefficients can produce
+a reduced model of comparable dimensionality while better preserving the dynamic
+properties of the original system than other existing techniques.
+
+6 Discussion
+A key problem in computational and systems biology is to understand how dynamical properties of a system arise via the underlying biochemical networks. However, as
+
+20
+
+Simon West et al.
+
+these networks involve many components this task becomes analytically intractable
+and computationally challenging. In this manuscript we present a clearly defined and
+accessible QSSA algorithm for reduction of such biochemical reaction systems. The
+method proposed relies on the derivation of speed coefficients to rank system variables according to how quickly they approach their momentary-steady state. This
+enables a systematic method for selection of variables for steady-state approximation
+at each step of the algorithm.
+We used the method to derive a minimal models of the NF-κ B signalling network, a key regulator of the immune response (Hayden and Ghosh, 2008). Single
+cell time-lapse analyses showed that the NF-κ B system exhibits oscillatory dynamics in response to cytokine stimulation (Nelson et al, 2004; Turner et al, 2010; Tay
+et al, 2010). It has been shown that the frequency of those oscillations may govern
+downstream gene expression and therefore be the key functional output of the system
+(Ashall et al, 2009; Sung et al, 2009; Tay et al, 2010). The ability to control the NFκ B dynamics may therefore provide novel ways to treat inflammatory disease (Paszek
+et al, 2010).
+NF-κ B dynamics are generated via a complex network involving several negative feedback genes, such as A20 and Iκ Bα (Hoffmann and Baltimore, 2006). Many
+mathematical models have been developed to recapitulate existing experimental data
+by quite complex biochemical networks involving up to 30 dynamic variables and
+100 parameters with varying degrees of accuracy (Hoffmann et al, 2002; Lipniacki
+et al, 2004; Radulescu et al, 2008). Sensitivity analyses have then demonstrated that
+several parameters related to feedback regulation and IKK activation are responsible
+for generation of the oscillatory dynamics (Ihekwaba et al, 2004, 2005; Sung et al,
+2009). An interesting extension of the sensitivity analysis method was proposed by
+Jacobsen and Cedersund (2008) who considered sensitivity with respect not just parameter perturbations but to variations of the network structure, e.g. introduction of
+delays in the network connections. Model reduction discussed in our paper provides
+an alternative avenue to extract core network components. Indeed, minimal models
+by Krishna et al. and Radulescu et al. demonstrated that part of this complex system
+in response to continuous cytokine stimulation may be reduced to three dynamical
+variables describing the nuclear NF-κ B and Iκ Bα mRNA and protein (Krishna et al,
+2006). Here, we apply our method of speed coefficients to systematically reduce a
+2-feedback model of the NF-κ B system by Ashall et al (Ashall et al, 2009).
+Starting from a 14-variable model, we succeeded in closely representing dynamics of the NF-κ B network in response to constant TNFα input by a set of four variables (14). The minimal model included the nuclear NF-κ B and its cytoplasmic inhibitor Iκ Bα , as well as two negative feedback loops represented by Iκ Bα and A20
+transcripts. The latter variables were consistently ranked the slowest during successive reduction steps (figure 2 and figure 5), and in fact their subsequent QSSA resulted
+in the loss of oscillations. This suggested that the timescale of transcription relative to
+other processes generates the key delayed negative feedback motif that drives oscillations in the system (Novak and Tyson, 2008). While reducing the model, we observed
+that the period as well as the amplitude of oscillations was decreased with each reduction (Table 2). Replacing those variables with the respective QSSAs decreased the
+effective delay time in the system, and thus reduced the system’s propensity for oscil-
+
+Minimal models of the NF-kappaB system
+
+21
+
+lations. This effect was reverted by using first-order QSSA for some of the eliminated
+variables, namely cytoplasmic NF-κ B, nuclear Iκ Bα and the active form of IKK kinase. A more accurate representation of those variables is thus important to faithfully
+represent NF-κ B dynamics (figure 6 - figure 8). Our analysis is in agreement with
+results of Radulescu et al. who, using quasi-stationarity arguments, obtained a series
+of reduced models and eventually arrived at the 5 variable minimal model. While
+starting from a different two-feedback IkBa and A20 model (Lipniacki et al, 2004)
+than the one considered here, Radulescu et al. showed similar requirements for both
+feedbacks to maintain oscillatory dynamics.
+A model derived with respect to a specific solution is not necessarily able to
+reproduce the same breadth of responses as its forebear. However, by applying the algorithm with respect to a different solution one might try to potentially extract other
+key features of the system. Here, we demonstrated that the reduction of the model
+with respect to a pulsed and continuous TNFα input resulted in a different order of
+elimination of the variables and ultimately a different minimal models (figure 9). The
+differences unravelled specific components of the IKK module responsible for NFκ B dynamics in response to different stimulus. With a pulsed input the amplitude of
+the subsequent peaks is determined by the “refractory period”, i.e. the time it takes
+for the active IKK to return to its neutral state. This requires a very accurate temporal representation of the neutral form of IKK, v, in the model. However, in response
+to continuous TNFα input, both IKK-related variables became less important, and
+their steady-state approximation is sufficient to support the limit cycle. This analysis therefore begins to unravel how components of the KK signalling module could
+differentially encode temporal inflammatory signals.
+In order to demonstrate a more general applicability of our method, we have employed the speed coefficient algorithm to derive a new reduced model of the Krishna model (Krishna et al, 2006). The comparison with minimal Krishna et al model
+showed that both models perform similarly in terms of time courses and phase portraits (fig. 11). However, analysis of bifurcation diagrams showed that our algorithmic approach better preserved dynamical properties of the system (fig.12). In fact,
+the Krishna minimal model demonstrates features such as unstable limit cycle and
+hysteresis that are not present in the corresponding full model. Recently, Kourdis
+et al. used CSP algorithm to asymptotically analyse the dynamics of the Krishna et
+al. model. In agreement with our approach, their analysis identified similar fast/slow
+time scale variables that are essential to recapitulate limit cycle behaviour of the system. This analysis, in addition to our discussion of the Simplified Model, certainly
+suggests that our method has further potential as a viable technique for the reduction
+of biochemical network dynamic models.
+Our objective here was to present and implement a new model reduction technique that without relying on prior biological insights, would preserve characteristics
+of the original model’s numerical solutions. This method thus belongs to a class of
+reduction methods that are algorithmic rather than biologically or biochemically intuitive, and as such should be applicable to complex biochemical models where the
+most important network sub-structures underlying the observed dynamical behaviour
+are not necessarily apparent. Similarly to other approximation methods, there is a
+trade-off between simplicity and accuracy of the end-point models. Even if errors in-
+
+22
+
+Simon West et al.
+
+troduced by one reduction step are small, for many steps they can accumulate. The
+approximations can be improved by using higher-order asymptotics, which increases
+algebraic complexity of the resulting reduced model but retains the dimensionality.
+We believe that in practically interesting cases, the increased algebraic complexity
+can be overcome by appropriate approximation of the functions in the resulting models. Another way to improve the accuracy of reduced models is to adjust parameters
+to match the solutions of the full model; a semi-empirical model resulting from such
+adjustment would still have an advantage over a fully empirical model in that at least
+its structure is not arbitrarily postulated. In addition to a lower dimensionality, the
+reduced problems are less stiff, as by definition, the variables with fastest characteristic timescales are eliminated first. The reduced dimensionality and stiffness allow, in
+principle, more efficient computations which may be important, e.g., for large scale
+models including interaction of many cells. Last but not least, systems of lower dimensionality are more amenable for qualitative study and intuitive understanding.
+Acknowledgements
+The authors are grateful to Dr I.V. Biktasheva and Dr R.N. Bearon at the University
+of Liverpool for stimulating discussions and critical reading.
+References
+Anosov DV (1960) Limit cycles of systems of differential equations with small parameters in the highest derivatives. Mat Sb (NS) 50(92)(3):299–334
+Ashall L, Horton CA, Nelson DE, Paszek P, Harper CV, Sillitoe K, Ryan S, Spiller
+DG, Unitt JF, Broomhead DS, Kell DB, Rand DA, See V, White MR (2009) Pulsatile stimulation determines timing and specificity of nf-kappab-dependent transcription. Science 324(5924):242–246
+Biktashev VN, Suckley R (2004) Non-tikhonov asymptotic properties of cardiac excitability. Physical Review Letters 93:168,103
+Biktasheva IV, Simitev RD, Suckley R, Biktashev VN (2006) Asymptotic properties
+of mathematical models of excitability. Phil Trans Roy Soc London A: Math Phys
+Eng Sci 364(1842):1283–98
+Briggs GE, Haldane JBS (1925) A note on the kinetics of enzyme action. Biochem J
+19:338–339
+Danø S, Madsen MF, Schmidt H, Cedersund G (2006) Reduction of a biochemical model with preservation of its basic dynamic properties. FEBS Journal
+273(21):4862–4877
+Doedel E, Paffenroth R, Champneys A, Fairgrieve T, Kuznetsov Y, Sandstede B,
+Wang X (2000) Auto2000: Continuation and bifurcation software for ordinary differential equations (with homcont). Technical report, California Institute of Technology
+Ermentrout B (2002) Simulating, analysing, and animating dymaical systems: a guide
+to XPPAUT for researchers and students., Software, Environments, and Tools,
+vol 14. SIAM
+
+Minimal models of the NF-kappaB system
+
+23
+
+Fenichel N (1979) Geometric singular perturbation theory for ordinary differential
+equations. Journal of Differential Equations 31:53–98
+Gorban AN, Karlin IV (2003) Method of invariant manifold for chemical kinetics.
+Chemical Engineering Science 58:4751–4768
+Hayden MS, Ghosh S (2008) Shared principles in nf-kappab signaling. Cell
+132(3):344–362
+Hoffmann A, Baltimore D (2006) Circuitry of nuclear factor kappab signaling. Immunol Rev 210:171–186
+Hoffmann A, Levchenko A, Scott ML, Baltimore D (2002) The ikappab-nfkappab signaling module: temporal control and selective gene activation. Science
+298(5596):1241–1245
+Ihekwaba AE, Broomhead DS, Grimley RL, Benson N, Kell DB (2004) Sensitivity
+analysis of parameters controlling oscillatory signalling in the nf-kappab pathway:
+the roles of ikk and ikappabalpha. Syst Biol (Stevenage) 1(1):93–103
+Ihekwaba AE, Broomhead DS, Grimley R, Benson N, White MR, Kell DB (2005)
+Synergistic control of oscillations in the nf-kappab signalling pathway. Syst Biol
+(Stevenage) 152(3):153–160
+Jacobsen EW, Cedersund G (2008) Structural robustness of biochemical network
+models-with application to the oscillatory metabolism of activated neutrophils. IET
+Syst Biol 2(1):39–47, DOI 10.1049/iet-syb:20070008
+Kitano H (2002) Computational systems biology. Nature 420(6912):206–210
+Klonowski W (1983) Simplifying principles for chemical and enzyme reactionkinetics. Biophysical Chemistry 18(2):73–87
+Kourdis PD, Palasantza AG, Goussis DA (2013) Algorithmic asymptotic analysis
+of the NF-κ B signaling system. Computers and Mathematics with Applications
+65(10):1516–1534
+Krishna S, Jensen MH, Sneppen K (2006) Minimal model of spiky oscillations in
+nf-kappab signaling. Proc Natl Acad Sci U S A 103(29):10,840–10,845
+Kutumova E, Zinovyev A, Sharipov R, Kolpakov F (2013) Model composition
+through model reduction: a combined model of CD95 and NF-κ B signaling pathways. BMC Systems Biology 7(1):13, DOI 10.1186/1752-0509-7-13
+Lam SH, Goussis DA (1994) The CSP method for simplifying kinetics. International
+Journal of Chemical Kinetics 26(4):461–486
+Lipniacki T, Paszek P, Brasier AR, Luxon B, Kimmel M (2004) Mathematical model
+of nf-kappab regulatory module. J Theor Biol 228(2):195–215
+Maas U, Pope SB (1992) Simplifying chemical kinetics: Intrinsic low-dimensional
+manifolds in composition space. Combustion and Flame 88:239–264
+Maeda Y, Pakdaman K, Nomura T, Doi S, Sato S (1998) Reduction of a model for an
+onchidium pacemaker neuron. Biological Cybernetics 78(4):265–276
+Mengel B, Krishna S, Jensen MH, Trusina A (2012) Nested feedback loops in gene
+regulation. Physica a-Statistical Mechanics and Its Applications 391(1–2):100–106
+Nelson DE, Ihekwaba AE, Elliott M, Johnson JR, Gibney CA, Foreman BE, Nelson
+G, See V, Horton CA, Spiller DG, Edwards SW, McDowell HP, Unitt JF, Sullivan E, Grimley R, Benson N, Broomhead D, Kell DB, White MR (2004) Oscillations in nf-kappab signaling control the dynamics of gene expression. Science
+306(5696):704–708
+
+24
+
+Simon West et al.
+
+Novak B, Tyson JJ (2008) Design principles of biochemical oscillators. Nat Rev Mol
+Cell Biol 9(12):981–991
+Paszek P, Jackson DA, White MR (2010) Oscillatory control of signalling molecules.
+Current opinion in genetics & development 20(6):670–676
+Radulescu O, Gorban AN, Zinovyev A, Lilienbaum A (2008) Robust simplifications of multiscale biochemical networks. BMC Systems Biology 2:86, DOI
+10.1186/1752-0509-2-86
+Rand DA (2008) Mapping global sensitivity of cellular network dynamics: sensitivity
+heat maps and a global summation law. J R Soc Interface 5 Suppl 1:S59–S69
+Saez-Rodriguez J, Kremling A, Conzelmann H, Bettenbrock K, Gilles ED (2004)
+Modular analysis of signal transduction networks. Ieee Control Systems Magazine
+24(4):35–52
+Schneider KR, Wilhelm T (2000) Model reduction by extended quasi-steady-state
+approximation. Journal of Mathematical Biology 40(5):443–450
+Segel LA, Slemrod M (1989) The quasi-steady-state assumption: A case study in
+perturbation. SIAM Review 31:446–477
+Suckley R, Biktashev V (2003) Comparison of asymptotics of heart and nerve excitability. Physical Review E 68:011,902
+Sung MH, Salvatore L, De Lorenzi R, Indrawan A, Pasparakis M, Hager GL, Bianchi
+ME, Agresti A (2009) Sustained oscillations of nf-kappab produce distinct genome
+scanning and gene expression profiles. PLoS One 4(9):e7163
+Tay S, Hughey JJ, Lee TK, Lipniacki T, Quake SR, Covert MW (2010) Single-cell
+nf-kappab dynamics reveal digital activation and analogue information processing.
+Nature 466(7303):267–271
+Tikhonov AN (1952) Systems of differential equations with small parameters at the
+derivatives. USSR Mathematics Sbornik 31(3):575–586
+Turányi T, Tomlin AS, Pilling MJ (1993) On the error of the quasi-steady-state approximation. J Phys Chem 97:163–172
+Turner DA, Paszek P, Woodcock DJ, Nelson DE, Horton CA, Wang Y, Spiller DG,
+Rand D, White MR, Harper CV (2010) Physiological levels of tnfalpha stimulation
+induces stochastic dynamics of nf-kappab respose in single living cells. J Cell Sci
+Vasil’eva AB (1952) On differential equations containing small parameters. Mat Sb
+(NS) 31(73)(3):587–644
+Volpert AI, Hudjaev SI (1985) Analysis in classes of discontinuous functions and the
+equations of mathematical physics. Nijhoff, Dordrecht
+Wang Y, Paszek P, Horton CA, Yue H, White MR, Kell DB, Muldoon MR, Broomhead DS (2012) A systematic survey of the response of a model nf-κ b signalling
+pathway to tnfα stimulation. Journal of theoretical biology 297:137–147
+Whiteley JP (2010) Model reduction using a posteriori analysis. Mathematical Biosciences 225(1):44–52
+Yablonskii GS, Bykov VI, Gorban AN, Elokhin VI (1991) Kinetic Models of Catalytic Reactions, Comprehensive Chemical Kinetics, vol 32. Elsevier, Amsterdam
+Zagaris A, Kaper HG, Kaper TJ (2004) Fast and slow dynamics for the computational
+singular perturbation method. Multiscale Model Simul 2(4):613–638
+
+Minimal models of the NF-kappaB system
+
+102 p
+
+8
+
+25
+
+102 q
+
+25
+
+Ashall
+
+6
+
+20
+
+6
+
+SM
+
+102 r
+
+15
+
+4
+
+4
+10
+
+2
+
+2
+
+0
+8
+
+5
+
+0
+
+102 s
+
+3
+
+0
+
+104 u
+
+8
+
+6
+
+102 v
+
+6
+2
+
+4
+
+4
+1
+
+2
+0
+4
+
+2
+0
+
+0
+
+102 w
+
+20
+
+103 y
+
+105 x
+
+20
+3
+
+15
+
+2
+
+10
+
+10
+
+1
+
+5
+
+5
+
+0
+
+15
+
+0
+
+0
+0
+
+100
+
+200
+
+300
+
+400
+
+0
+
+100
+
+Time (mins)
+
+200
+
+300
+
+400
+
+0
+
+100
+
+Time (mins)
+
+200
+
+300
+
+Time (mins)
+
+Fig. 13 Ashall vs Simplified Model. Time courses of solutions to the full Ashall model and the Simplified
+Model, in response to continuous TNFα treatment for time t ≥ 0 (t in minutes). Clearly the Simplifed
+Model gives close agreement with the full model, in terms of variable amplitudes and the period of the
+limit cycle.
+
+A Simplified Model vs Ashall model
+In figure 13, we show time courses of solutions to the full Ashall model and the Simplified Model, in
+response to continuous TNFα treatment, demonstrating the close agreement between the two models.
+
+B Equations for the z0 p1 y1 v1 s1 w1 model
+The model consists of four ordinary differential equations
+dq
+dt
+dr
+dt
+du
+dt
+dx
+dt
+
+= −k4 q p̄(q,r,x) + k6 u − k8 q − k13 q + k14 s̄(q,r) − k17 w̄(r,x)q,
+
+(16a)
+
+= k15 k1 p̄(q,r,x) − k4 s̄(q,r)r − k16 k1 r,
+
+(16b)
+
+= k5
+
+rh
+
+− k7 u,
+r h + kh
+rh
+= k9 h
+− k11 x,
+r + kh
+
+(16c)
+(16d)
+
+400
+
+26
+
+Simon West et al.
+
+where the functions in the right-hand side are defined by
+k24 k22 k20 k21 k12 k3
+
+,
+2 k k x k
+k20 k21 k12 + k24 k22 k21 k12 + k24
+22 10
+23
+
+ h
+k9 r
+3 k2 k k k k k
+k24
+22 20 21 12 3 10 rh +kh − k11 x
+w1 (r,x) =
+ ,
+2 k k k + k k k k + k2 k k x 2
+k23
+20 21 12
+24 22 21 12
+24 22 10
+w0 (x) =
+
+(17a)
+
+(17b)
+
+w̄(r,x) = w0 (x) + w1 (r,x),
+ȳ(r,x) =
+
+v0 (r,x) =
+
+k10 x
+−
+k12
+
+h
+k12 (k9 rh r+kh
+2
+k10
+
+− k11 x)
+
+(17c)
+
+,
+
+(17d)
+
+k3 k20 k21
+,
+2 k ȳ(r,x)
+k20 k21 + k21 k22 k24 + k24
+22
+
+(17e)
+h
+
+v1 (r,x) =
+
+k20 k21
+21 +k24 ȳ(r,x)
+
+k12 ( k
+
+r
+2 k k k k2 (k
+−k20
+24 10 3 21 9 rh +kh − k11 x)
+k20 k21
+21 +k24 ȳ(r,x)
+
++ k24 k22 )( k
+
+− k24 k22 )2 (k21 + k24 ȳ(r,x))3
+
+,
+
+(17f)
+
+v̄(r,x) = v0 (r,x) + v1 (r,x),
+
+(17g)
+
+sα (q) = k1 k13 q,
+
+(17h)
+
+sβ (r) = k4 r + k1 k14 + k12 ,
+
+
+k16 r + k18 w̄(r,x) k3 − kr
+1
+p0 (q,r,x) =
+k4 q + k15 + k18 w̄(r,x),
+
+(17i)
+
+sδ (q,r,x) = k1 k15 p0 (q,r,x) − k1 k16 r,
+
+(17k)
+
+(17j)
+
+0
+
+sγ (q,r,u,x) = −k4 qp (q,r,x) − k13 q − k8 q + k6 u − k17 w̄(r,x)q,
+s̄(q,r,u,x) =
+
+sα (q)sβ (r)2 + k4 sδ (q,r,x)sα (q) − k1 k13 sγ (q,r,u,x)sβ (r)
+k42 sα (q)r + s3β (r) + k1 k13 k14 sβ (r)
+
+α p (r,x) = k1 k16 r + k18 w̄(r,x) (k1 k3 − r) ,
+
+β p (q,r,x) = k1 (k4 q + k15 + k18 w̄(r,x)) ,
+
+qα (q,r,u,x) = k6 u − k13 q + k14 s − k8 q − k17 w̄(r,x)q,
+qβ (q) = −k4 q,
+
+rα (q,r,u,x) = −r (k4 s̄(q,r,u,x) + k16 k1 ) ,
+rβ = k1 k15 ,
+
+pδ (r,x) = k1 (k4 qα (q,r,u,x) + k18 (k24 k22 v̄(r,x) − k23 w̄(r,x))) ,
+pγ (q) = k1 k4 qβ (q,r,u,x),
+
+pε (q,r,u,x) = k16 k1 rα (q,r,u,x) − k18 w̄(r,x)rα (q,r,u,x),
++ k18 (k24 k22 v̄(r,x) − k23 w̄(r,x)) (k1 k3 − r),
+
+pζ (r,x) = (k1 k16 − k18 w̄(r,x)) rβ ,
+
+β p2 α p + α p pδ − β p pε
+p̄(q,r,u,x) =
+.
+β p3 − α p pγ + β p pζ
+
+(17l)
+,
+
+(17m)
+(17n)
+(17o)
+(17p)
+(17q)
+(17r)
+(17s)
+(17t)
+(17u)
+(17v)
+(17w)
+(17x)
+(17y)
+
+C Equations for the z0 p0 y0 v0 model
+Dynamic equations for the 6-variable model, z0 p0 y0 v0 , reduced using a representative solution for continuous TNFα stimulation (k24 ≡ 1):
+dq
+= −k4 q p̄ + k6 u − k8 q − k13 q + k14 s − k17 w̄q
+dt
+
+(18a)
+
+Minimal models of the NF-kappaB system
+dr
+dt
+ds
+dt
+du
+dt
+dw
+dt
+dx
+dt
+
+27
+
+= k15 k1 p̄ − k4 sr − k16 k1 r
+
+(18b)
+
+= k13 k1 p̄ − k4 sr − k8 s − k14 k1 s
+
+(18c)
+
+h
+
+= k5
+
+r
+− k7 u
+r h + kh
+
+= k24 k22 v − k23 w
+
+rh
+− k11 x
+r h + kh
+k16 rk1 + k18 w̄k3 k1 − k18 w̄r
+p̄ =
+k1 (k4 q + k15 + k18 w̄)
+k10 x
+ȳ =
+k12
+k2 k20 k21
+v̄ =
+2 k y+k k
+k21 k22 k24 + k24
+22
+20 21
+= k9
+
+(18d)
+(18e)
+(18f)
+(18g)
+(18h)
+(18i)
+
+D Equations for K6, K3 and K4 models
+D.1 Krishna full model (K6)
+The full Krishna (Krishna et al, 2006) 7-variable model for Nn and N (free nuclear and cytoplasmic NF-κ B
+Im (Iκ Bα mRNA), In and I (free nuclear and cytoplasmic Iκ B), (NI)n and (NI) (nuclear and cytoplasmic
+NF-κ B:Iκ Bα ) is given as:
+dNn
+dt
+dIm
+dt
+dI
+dt
+dN
+dt
+d(NI)
+dt
+dIn
+dt
+d(NI)n
+dt
+
+= kNin N − k f n Nn In + kbn (NI)n ,
+
+(19a)
+
+= kt Nn2 − γm Im ,
+
+(19b)
+
+= ktl Im − k f NI + kb (NI) − kIin I + kIout In ,
+
+(19c)
+
+= −k f NI + (kb + α )(NI) − kNin N,
+
+(19d)
+
+= k f NI − (kb + α )(NI) + kNIout (NI)n ,
+
+(19e)
+
+= kIin I − kIout In − k f n Nn In + kbn (NI)n ,
+
+(19f)
+
+= k f n Nn In − (kbn + kNIout )(NI)n .
+
+(19g)
+
+Note that this can be replaced by a 6-variable system by using conservation of NF-κ B to eliminate N. Base
+parameter values used in (Krishna et al, 2006) are given in Table 3.
+
+D.2 Krishna 3-variable model (K3)
+The Krishna (Krishna et al, 2006) reduced model has 3 variables, and is given (in their Supplementary
+Material) as follows:
+
+28
+
+Simon West et al.
+Parameter
+
+Value
+
+Units
+
+Parameter
+
+Value
+
+Units
+
+kNin
+kbn
+γm
+kf
+kIin
+α
+IKK
+
+5.4
+0.03
+0.017
+30
+0.018
+1.05 IKK
+0.5
+
+min−1
+min−1
+min−1
+µ M−1 min−1
+min−1
+min−1
+µM
+
+kfn
+kt
+ktl
+kb
+kIout
+kNIout
+Ntot
+
+30
+1.03
+0.24
+0.03
+0.012
+0.83
+1
+
+µ M−1 min−1
+µ M−1 min−1
+min−1
+min−1
+min−1
+µM
+
+Table 3 Parameter values for Krishna model.
+
+dNn
+Ntot − Nn
+INn
+= kNin KI
+− kIin
+,
+dt
+KI + I
+δ + Nn
+dIm
+= kt Nn2 − γm Im ,
+dt
+dI
+Ntot − Nn
+= ktl Im − α
+I,
+dt
+KI + I
+
+(20a)
+(20b)
+(20c)
+
+where
+KI =
+
+kb + α
+,
+kf
+
+KN =
+
+kbn + KNIout
+,
+kfn
+
+δ=
+
+KN
+.
+Ntot
+
+(21)
+
+D.3 New 4-variable model
+The 4-variable model, obtained by applying our speed coefficient algorithm to K6 (with N eliminated),
+comes from first-order QSSA for Nn followed by zeroth-order QSSA for (NI)n . The resulting system for
+variables Im , I, (NI) and In is given by:
+dIm
+dt
+dI
+dt
+d(NI)
+dt
+dIn
+dt
+
+= kt Nn2
+
+− γm Im ,
+
+(22a)
+
+= [ktl Im + kb (NI) + kIout In ]
+
+
+
+− k f [Ntot − (NI) − Nn − (NI)n ] + kIin I,
+
+
+
+= k f I {Ntot − Nn − (NI)n } + kNIout (NI)n
+= [kIin I + kbn (NI)n ]
+
+	
+
+− (kIout + k f n Nn )In ,
+
+− (k f I + kb + α )(NI),
+
+(22b)
+(22c)
+(22d)
+
+with
+√
+−b − b2 − 4ac
+,
+2a
+k f n Nn In
+(NI)n =
+,
+kbn + kNIout
+Nn =
+
+(22e)
+(22f)
+
+Minimal models of the NF-kappaB system
+
+29
+
+where
+Ntot = N + Nn + (NI)n + (NI),
+a = kNIout k3f n (kNin − kbn )In2 ,
+ n
+
+3
+In kNIout kNin k2f n + kNin
+b = − kbn + kNIout
+kNIout + 2kNin kNIout k2f n In2
+
+(22g)
+(22h)
+
+2
++ kNIout kNin
+k f I + kNIout kNin k f n In k f I + kNIout k3f n In3
+
+2
+2
++ 2kNin
+kNIout k f n In − kNIout kNin (NI)In k2f n + 2kNin
+kbn k f n In + kNin kbn k2f n In2
+
+2
+3
++ kNin
+k f Ikbn − kNin k2f n In2 kIouIn + kbn k2f n In2 kIouIn + kNin
+kbn + kNin k f n In k f Ikbn
+
+3
+2
++ kNin
+k f n In + kNin k3f n In3 + 2kNin
+k2f n In2 + kNin k2f n In kIin I − kbn k2f n In kIin I
+o
+2
++ kNin
+k f Ik f n In + kNin k2f n In2 k f I ,
+
+2 n
+2
+2
+c = −kNin kbn + kNIout
+− kNin
++ kNin
+(NI) − 2kNin k f n In + kNin (NI)kb
+
+(22i)
+
++ kNin (NI)α + 2kNin (NI)k f n In − kNin k f I + kNin (NI)k f I
+
++ k f n In kIo − k f n (NI)In kIo + k f n In (NI)k f I + k f n (NI)kIin I − k f Ik f n In
+o
++ k f n In (NI)kb − k2f n In2 + k f n In (NI)α + (NI)k2f n In2 − k f n kIin I .
+
+(22j)
+
+

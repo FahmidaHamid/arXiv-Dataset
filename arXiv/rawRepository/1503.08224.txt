@@ -1,0 +1,3111 @@
+CoMEt: A Statistical Approach to Identify Combinations of Mutually
+Exclusive Alterations in Cancer
+Mark D.M. Leiserson1,2,∗ , Hsin-Ta Wu1,2,∗ , Fabio Vandin1,2,3 , Benjamin J. Raphael1,2
+Department of Computer Science and 2 Center for Computational Molecular Biology, Brown University,
+Providence, RI, USA
+3
+Department of Mathematics and Computer Science, University of Southern Denmark, Odense M, Denmark
+∗
+Equal contribution.
+
+arXiv:1503.08224v1 [q-bio.QM] 27 Mar 2015
+
+1
+
+Correspondence: braphael@brown.edu
+
+Abstract
+Cancer is a heterogeneous disease with different combinations of genetic and epigenetic alterations
+driving the development of cancer in different individuals. While these alterations are believed to converge on genes in key cellular signaling and regulatory pathways, our knowledge of these pathways
+remains incomplete, making it difficult to identify driver alterations by their recurrence across genes or
+known pathways. We introduce Combinations of Mutually Exclusive Alterations (CoMEt), an algorithm
+to identify combinations of alterations de novo, without any prior biological knowledge (e.g. pathways
+or protein interactions). CoMEt searches for combinations of mutations that exhibit mutual exclusivity,
+a pattern expected for mutations in pathways.
+CoMEt has several important feature that distinguish it from existing approaches to analyze mutual
+exclusivity among alterations. These include: an exact statistical test for mutual exclusivity that is more
+sensitive in detecting combinations containing rare alterations; simultaneous identification of collections
+of one or more combinations of mutually exclusive alterations; simultaneous analysis of subtype-specific
+mutations; and summarization over an ensemble of collections of mutually exclusive alterations. These
+features enable CoMEt to robustly identify alterations affecting multiple pathways, or hallmarks of cancer. We show that CoMEt outperforms existing approaches on simulated and real data. Application
+of CoMEt to hundreds of samples from 4 different cancer types from TCGA reveals multiple mutually
+exclusive sets within each cancer type. Many of these overlap known pathways, but others reveal novel
+putative cancer genes.
+
+1
+
+Introduction
+
+A major goal of large-scale cancer genomics projects such as The Cancer Genome Atlas (TCGA) [1–6], the
+International Cancer Genome Consortium (ICGC) [7, 8], and others is to identify the genetic and epigenetic
+alterations that drive cancer development. These projects have generated whole-genome/exome sequencing
+data measuring the somatic mutations in thousands of tumors in dozens of cancer types. Interpreting this
+data requires one to distinguish the driver mutations that play a role in cancer development and progression from passenger mutations that have no consequence for cancer. Identifying driver mutations directly
+from sequencing data is a significant challenge since individuals with the same cancer type typically exhibit
+different combinations of driver mutations [9, 10]. This mutational heterogeneity arises because driver mutations target genes in pathways – collections of interacting genes that perform a biological function (e.g.
+signaling or regulation) – such that each pathway can be perturbed in numerous ways [11].
+The observed mutational heterogeneity in cancer has motivated the development of methods to examine combinations of mutations, including methods that examine known pathways or networks (reviewed in
+[12,13]). However, most pathway databases and interaction networks are incomplete, lack tissue-specificity,
+and do not accurately represent the biology of a particular cancer cell. Thus, de novo methods for examining
+combinations of mutations are of particular interest as they require no prior biological knowledge and enable
+1
+
+the discovery of novel combinations. Unfortunately, the number of possible combinations is too large to test
+exhaustively and achieve statistically significant results. Current de novo approaches to identify putative
+combinations of mutations use the observation that mutations in the same pathway are often mutually exclusive [14]. This observation follows from the observation that there are relatively few driver mutations in
+a tumor sample, and these are distributed over multiple pathways/hallmarks of cancer [15].
+In 2011, three algorithms for identifying sets of genes with mutually exclusive mutations were introduced simultaneously: the De Novo Driver Exclusivity (Dendrix) [16], Recurrent Mutually Exclusive aberrations (RME) [17], and Mutual Exclusivity Modules (MEMo) [18] algorithms. Dendrix and RME are both
+de novo algorithms for identifying gene sets with mutually exclusive mutations, while MEMo examines
+mutual exclusivity on a protein-protein interaction network. The Dendrix algorithm identifies sets M of
+k genes with high coverage (many samples have a mutation in the set) and approximate exclusivity (few
+samples have a mutation in more than one gene in the set). Dendrix combines these two criteria into a
+weight W (M ), which is equal to the coverage of M minus the coverage overlap (co-occurring mutations)
+of M . Finding the set of maximum weight is an NP-hard problem [16]. Dendrix uses a Markov chain Monte
+Carlo (MCMC) algorithm to sample high weight gene sets; more recently other optimization methods have
+been used to find high weight sets [19, 20]. Leiserson et al. [21] introduced the Multi-Dendrix algorithm to
+identify multiple mutually exclusive gene sets simultaneously using an integer linear program. In contrast,
+RME defines the exclusivity weight as the percentage of covered samples that contain exactly one mutation within a gene set, and uses an online-learning linear threshold algorithm to identify groups of genes
+with high pairwise exclusivity. However, both the RME and MEMo algorithms were shown not to scale to
+reasonable-sized datasets [21], requiring extensive filtering of input data [17, 22].
+
+W(M) = 144
+
+CoMEt
+
+m1
+
+(b)
+
+124
+
+m2
+
+8
+
+m3
+
+m1
+
+W(M’) = 144
+
+m2,
+
+CoMEt
+
+,
+
+,
+
+m3
+
+,
+Φ(M’) = 9.8x10-9 m4 M’
+
+m3
+
+Not altered
+
+Altered
+
+6
+
+Φ(M) = 1.1x10-3 m4 M
+Dendrix
+
+Table XM
+
+m1
+
+6
+36
+36
+36
+
+m1
+
+Not altered
+
+Altered
+
+Not altered
+
+50
+
+42
+
+Altered
+
+7
+
+12
+
+m2
+
+Dendrix
+
+m2
+
+(a)
+
+Not altered
+
+Altered
+
+Not altered
+
+8
+
+3
+
+Altered
+
+2
+
+1
+
+36
+N=500 samples
+
+Figure 1: (a) Alteration matrices illustrating differences between the combinatorial weight function
+W (M ) introduced in Dendrix and the probabilistic score Φ(M ) used in CoMEt. Both matrices contain
+4 mutually exclusive alterations whose alteration frequencies are indicated inside each bar. The samples
+without alterations are not shown in either matrix. Since both sets are exclusive and have the same total
+alteration frequency, the Dendrix weight function does not distinguish between these sets. Sets like M
+(left) are common in cancer genome studies which often have a small number of recurrently mutated genes
+and a long tail of rarely mutated genes. The score used in CoMEt conditions on the observed frequencies
+of each alteration, giving more significance to the set M 0 . (b) An example of 2 × 2 × 2 contingency
+table XM for the set M = {m1 , m2 , m3 }, illustrating how samples are cross-classified into exclusive,
+co-occurring, or absent for each alteration. The test statistic φ(M ) used by CoMEt is the sum of the
+highlighted exclusive cells.
+One limitation of the combinatorial weight function used in Dendrix and subsequent algorithms is that
+genes with high mutation frequencies (high coverage) can dominate the mutual exclusivity signal, thus
+biasing the algorithms towards identifying gene sets where the majority of the coverage comes from one gene
+2
+
+(Figure 1(a)). These observations motivated the development of probabilistic models of mutual exclusivity.
+These include the Dendrix++ algorithm (an early version of the approach that we present in this paper) and
+the muex algorithm [23]. Dendrix++ uses a statistical score and was used in TCGA acute myeloid leukemia
+study [3]. The muex algorithm [23] uses a generative model of mutual exclusivity and a likelihood ratio test
+to identify mutually exclusive sets. We find that muex remains sensitive to the presence of high frequency
+mutations (See Section 3.2.3). Moreover, both of these approaches exhaustively enumerate gene sets to find
+those with high score, limiting their applicability to larger datasets. In addition, they do not identify multiple
+gene sets simultaneously, a feature that has proved useful with the Dendrix weight [21]. Finally, no current
+method identifies overlapping gene sets1 , although cancer genes have been shown to participate in multiple
+pathways [1], or addresses the problem of cancer subtype-specific mutations which can confound the mutual
+exclusivity signal.
+We introduce the Combinations of Mutually Exclusive Alterations (CoMEt) algorithm to address the
+limitations outlined above. CoMEt includes the following contributions.
+1. We develop an exact statistical test for mutual exclusivity conditional on the observed frequency of
+each alteration. This approach is less biased towards high frequency alterations, and enables the discovery of combinations of lower frequency alterations. We derive a novel tail enumeration procedure
+to compute the exact test, as well as a binomial approximation.
+2. CoMEt simultaneously identifies collections consisting of multiple combinations of mutually exclusive alterations, and samples from such collections using an MCMC algorithm. We summarize the
+resulting distribution by computing the marginal probability of pairs of alterations in the same sets.
+This enables CoMEt to identify sets of any size, including overlapping sets of alterations, without
+testing many parameter settings.
+3. Given prior knowledge of cancer-types/subtypes, CoMEt analyzes alterations and subtypes simultaneously, allowing the discovery of mutually exclusive alterations across cancer types, while avoiding
+the identification of spurious mutually exclusive sets of (sub)type-specfic mutations.
+We demonstrate that CoMEt outperforms earlier approaches on simulated and real cancer data. We apply
+CoMEt to acute myeloid leukemia (AML), glioblastoma (GBM), gastric (STAD), and breast cancer (BRCA)
+data from TCGA. In each cancer type, we identify combinations of mutated genes that overlap known
+cancer pathways and and also contain potentially novel cancer genes including IL7R and the EphB receptor
+EPHB3 in STAD, and the scavenger receptor SRCRB4D in GBM. On the gastric and breast cancer data,
+we demonstrate how CoMEt simultaneously identifies mutual exclusivity resulting from pathways and from
+subtype-specific mutations. CoMEt is available at http://compbio.cs.brown.edu/software/
+comet.
+
+2
+
+Methods
+
+2.1
+
+Overview of the CoMEt Algorithm
+
+We consider that a set E of m alterations have been measured in n samples. An alteration may be the
+somatic mutation of a particular gene, a specific single nucleotide mutation (e.g. V600E mutations in the
+BRAF gene), an epigenetic change such as hypermethylation of a promoter, or a variety of other changes.
+We assume that alterations are binary, such that alterations are either present or absent in each sample.
+We represent the set of measured alterations with an m × n binary alteration matrix A = [aij ], where
+aij = 1 if alteration i occurs in sample j, and aij = 0 otherwise. Our goal is to identify one or more sets
+1
+
+We note that while Multi-Dendrix [21] allows for searching for overlapping gene sets, this option was never explored.
+
+3
+
+V276T
+
+R252L
+
+E187G
+
+P179V
+
+L106T
+
+A101*
+A101E
+
+Chromosome Arm
+
+▪ splicing variants
+▪ gene expression
+
+Marginal probability graph
+
+Alterations
+
+▪ single nucleotide
+variations and
+smal indels
+▪ copy number
+aberrations
+
+Combinations of mutually exclusive alterations (CoMEt) algorithm
+Identify exclusive collections of alterations
+Alteration matrix A
+Markov chain Monte Carlo (MCMC)
+
+Patient
+
+A101D
+
+Data processing
+Biological data
+
+m1
+m2
+m3
+m4
+m5
+m6
+m7
+m8
+m9
+
+Samples
+
+Sampling collections M
+m1
+
+M m8
+m7
+
+M’ m9
+m4
+
+Identify significant collections
+
+Contingency tables
+
+m7
+
+m9
+
+m1
+m8
+
+m4
+
+CoMEt statistical score
+Exclusivity
+in consensus
+
+not in consensus
+
+permuted data
+
+real data
+
+Φ(M)= ∏ Φ(M)
+
+Figure 2: Overview of the CoMEt algorithm. First, we transform alteration data from different measurements into a binary alteration matrix A. Second, for fixed values of k and t we use a Markov Chain Monte
+Carlo (MCMC) algorithm to sample collections M in proportion to the weight Φ(M)−1 . Here we show a
+collection containing sets M and M0 with three and two alterations, respectively. We identify all collections
+whose weight exceeds the maximum observed in randomly permuted datasets. We summarize the alterations
+in these significant collections with a marginal probability graph, whose edge weights indicate the fraction
+of significant collections with the corresponding pair of alterations.
+
+M1 , M2 , . . . , Mt where the alterations in each Mi are surprisingly mutually exclusive across the n samples.
+We introduce the CoMEt algorithm for this purpose.
+CoMEt uses a novel statistical score based on an exact test for mutual exclusivity. Figure 1 motivates
+the development of the new score, showing two sets M and M 0 , each with four alterations. The alterations in both sets are perfectly exclusive (no sample has more than one alteration), and the total number
+of altered samples is the same. The Dendrix weight function W (M ) introduced in [16] (and used in later
+publications [19–21]) is defined as the coverage, the number of samples with at least one mutation in M ,
+minus the coverage overlap, the number of samples with more than one mutation in M . In this case,
+W (M ) = W (M 0 ). However, given the frequencies of each alteration, we are more surprised to observe
+mutual exclusivity among alterations in the set M 0 , which are each altered in 7% of samples, than we are to
+observe mutual exclusivity among the alterations in set M , where a single alteration has very high frequency
+(25%) and three alterations have relatively low frequency (< 2%). Sets like M are common in many cancer
+datasets where highly recurrent alterations (e.g. mutations in TP53 or amplification of EGFR) occur and can
+be combined with low frequency, spurious alterations. This problem was noted in [23], but the probabilistic
+model introduced therein seems to overcorrect for this effect, missing important combinations of alterations
+(See Section 3.2.3).
+We derive a score Φ(M ) for a set M of k alterations using an exact test of mutual exclusivity. Specifically, we examine a 2 × 2 × · · · × 2 = 2k contingency table XM (Figure 1(b)) whose entries indicate the
+4
+
+number of samples where each combination of alterations occur. For example, the entry x(24) of XM equals
+the number of samples where the second and fourth alterations in M occur, but the first and third alterations
+do not occur. The score Φ(M ) is the P -value of the observed mutual exclusivity in the table XM , where the
+margins of the table (determined by the number of samples where each alteration occurs) is fixed. That is
+the score Φ(M ) is conditional on the observed frequencies of alterations in M . This statistical score reduces
+the effect of the most frequent alterations have an unduly large contribution to the score.
+CoMEt scores a collection M = (M1 , . . . , Mt ) of t alteration sets by taking the product of the scores of
+each set Mi :
+t
+Y
+Φ(M) =
+Φ(Mi ).
+(1)
+i=1
+
+This score follows from the null hypothesis that exclusivity is independent across sets.
+Since the number of possible collections of alteration sets grows exponentially with the number of
+alterations, it is typically impossible to enumerate and compute the weight of all alteration sets. We use
+a Markov chain Monte Carlo (MCMC) algorithm to sample collections M of t alteration sets, where each
+collection is sampled with proportion to its weight Φ(M)−1 . We summarize this distribution by computing
+the marginal probability p(e, e0 ) for each pair of alterations in A. We summarize these probabilities using
+the marginal probability graph, a complete, undirected weighted graph G = (V, E) where V = E and
+where each edge e ∈ E connects a pair of vertices u, v with weight p(u, v). We identify the most exclusive
+alteration sets by first removing all edges from the graph weight below a threshold δ. The output of CoMEt
+is C(δ), the connected components in the resulting graph, which we call modules. The summarization via
+the marginal probability graph allows CoMEt to output collections of alteration sets different in number and
+size than specified by the input parameters.
+
+2.2
+
+Scoring mutual exclusivity
+
+We first describe a statistical score Φ(M ) for a tuple M = (m1 , . . . , mk ) of alterations. The score measures
+the surprise of the observed exclusivity of these alterations conditional on the rate of occurrence of each
+alteration. Since these rates are generally unknown (e.g. the background mutation rate for single nucleotide
+mutations varies greatly across genes and samples [24]), we use the exact distribution obtained from the
+observed data as the null distribution. Under this distribution, the status of the k alterations in n samples
+is described by selecting uniformly a k × m binary alteration matrix B with the constraint that the number
+of 1’s in row i of B equals the number of 1’s in row mi of the alteration matrix A. This distribution is
+equivalent to the sampling distribution on 2 × 2 × · · · × 2 = 2k contingency tables under the hypergeometric
+distribution, where dimension i of the table gives the cross-classification of the number of samples where
+alteration i occurs or not. For example, three alterations are described by a 2 × 2 × 2 table with margins
+equal to the frequency of each alteration (Figure 1(b)).
+We introduce notation to describe the statistical test. Given a set M of alterations, let x+
+(j) be the number
++
+of samples where alteration mj occurs. It follows that n − x(j) is the number of samples where mj does
+not occur. Similarly, for v ⊆ [k] = {1, . . . , k}, let xv denote the number of samples where alterations only
+occur in mv . The values xv for all v ⊆ [k] give the entries of a 2k contingency table XM with fixed margins
++
+k
+x+ = (x+
+(1) , . . . , x(k) ). Thus, the probability of observing a 2 contingency table XM with fixed margins
+x+ and whose sum of entries equals n follows the multivariate hypergeometric distribution
+
+
+Qk
++
++
+x
+!
+n
+−
+x
+j=1 (j)
+(j) !
+Q
+pXM = Pr(XM |x+ , k, n) =
+.
+(2)
+(n!)k−1 v⊆[k] xv !
+
+5
+
+To characterize the mutual exclusivity of alterations in a contingency table, we define the test statistic
+as
+Pkthe sum of the entries in the contingency table where exactly one alteration occurs, i.e. T (XM ) =
+j=1 x{j} , where x{j} is the number of samples where alterations occur only in mj . We compute a P value for the observed value T (XM ) of the test statistic as the tail probability of observing tables with the
+same margins whose exclusivity is at least as large as observed:
+X
+Pr(T ≥ T (XM )|x+ , k, n) =
+Pr(Y|x+ , k, n),
+(3)
+Y∈T (x+ ):
+T (Y)≥T (XM )
+
+where T (x+ ) is the set of 2k contingency tables with margins x+ . Note that for k = 2, the test
+statistic T (XM ) is equivalent to a one-sided Fisher’s exact test. 2 × 2 contingency tables have only one
+degree of freedom, and thus there are essentially only two ways in which the corresponding pair of random
+variables can be non-independent: having too many co-occurrences or too much exclusivity (Figure 1(b)).
+However, 2k tables have 2k − k − 1 degrees of freedom and there are many ways in which the corresponding
+random variables can be non-independent. The T (XM ) test statistic measures whether the alterations are
+surprisingly mutually exclusive, rather than non-independent in some other way.
+We define the score Φ(M ) using the mid P -value [25], which is the the average of the probability
+of observing a value at least as extreme as the observed value and observing a value more extreme than
+observed:
+1
+Φ(M ) = (P r(T ≥ T (XM )|x+ , k, n) + P r(T > T (XM )|x+ , k, n)).
+(4)
+2
+We use the mid P -value because the tail probability from exact tests is typically overly conservative, due
+to the discreteness of the exact distribution [25]. Finally, since cancer is driven by mutations in multiple
+pathways
+[15], we define a score Φ(M) for a collection M = (M1 , M2 , . . . , Mt ) of t gene sets as Φ(M) =
+Qt
+Φ(M
+i ). The product results from our assumption that under the null hypothesis mutations in different
+i=1
+sets Mi are independent.
+
+2.3
+
+Computing the mutual exclusivity score Φ(M )
+
+To compute the mutual exclusivity score Φ(M ), one must compute (3). This requires computing the probability of all tables Y with the same margins as XM and with exclusivity statistic T (Y) at least as large
+as the observed value T (XM ). Unfortunately, no algorithm is known to enumerate such tables. In general
+the problem of counting contingency tables with fixed margins are #P-complete [26], and thus it is unlikely
+they can be enumerated efficiently. Several methods have been proposed to solve the problem of counting
+contingency tables, including using the network algorithm [27, 28] for Fisher’s exact test in r × c contingency tables, or extensions to consider joint effect of two contingency tables (i.e. 2 × r × c) [29]. Branch
+and bound heuristics have also been used in some specialized cases [30]. However, these approaches still
+consider at most three dimensional contingency tables, and the problem of enumerating 2k tables does not
+seem to have been considered. Even for small k the enumeration problem is intractable: the number of 2k
+tables with fixed margins grows exponentially in k. [31] presented an exhaustive algorithms to enumerate
+all 23 and 24 contingency tables with fixed margins, demonstrating for example that for n = 36, there are
+> 100 million 24 tables. Randomized and approximate counting methods for contingency tables have been
+developed (e.g. [32,33] and references therein), although these generally do not provide a rigorous guarantee
+on the error in the approximation.
+We derive a novel tail enumeration algorithm to efficiently compute the tail probability in equation (3)
+for tables with high values of the exclusivity statistic T . The motivation for our approach is that the sets
+M of interest will have extremely high values of T (XM ), near the maximum possible value. For example,
+in the degenerate case of perfect exclusivity (no sample with more than one alteration in M ) there are no
+6
+
+more extreme tables to enumerate, and the algorithm needs only to evaluate the hypergeometric probability
+of equation (2) for this single table. Thus, if we enumerate tables starting from the highest possible values
+for T , we can obtain highly accurate P -values for the most interesting cases. Furthermore, we can stop the
+enumeration procedure when the P -value becomes sufficiently large and use approximations for these larger
+P -values (See below).
+Algorithm 1 is the tail enumeration strategy to enumerate contingency tables in approximate order from
+most to least exclusive. Briefly, let C = (v ⊆ [k] : |v| ≥ 2) be the vector of co-occurring (not exclusive)
+cells. The basic strategy employed by Algorithm 1 is to generate a table Y that is more exclusive than XM
+(i.e. T (Y) > T (XM ) by iterating through the possible values of each cell in C, using the following facts:
+• When all values in C are fixed, the other values in the contingency table are uniquely determined (See
+Procedure C OMPLETE C ONT T BL in Algorithm 1).
+• We can set and update exact upper and lower bounds for each cell in C. The values of each cell
+are bounded by two values (lines 10-11 in TAIL E NUMERATION): the first is how many more cooccurrences are allowed in the current table (TREM ) before Y is less exclusive than XM ; the second
+is given by the constrained marginal (M arRem) for that variable in XM .
+We find that Algorithm 1 performs well on real data, evaluating the test statistic T (XM ) in a few seconds
+for sets with k ≤ 7 that have a small number of co-occurrences.
+Algorithm 1 Tail enumeration for any k > 1
+Input: 2k contingency table X.
+Output: Set S of contingency tables at least as exclusive as X: S = Y ∈ T (x+ ) : T (Y) ≥ T (X).
+1: S ← {}
+2: N ← 2k
+3: C ←S ORTED ({v ⊆ [k] : |v| ≥ 2})
+. Sorted descending vector of co-occurring cells
+4: yv ← 0, ∀v ⊆ [k]
+Pk
++
+. Sum of alteration frequencies
+5: Tmax ←
+i=1 x(i)
+6: TAIL E NUMERATION(Y, C, Tmax − T (X))
+7: procedure TAIL E NUMERATION(Y, C, TREM ) . TREM : count of allowed co-occurrences remaining
+8:
+v ← H EAD(C)
+9:
+if v 6= N ULL then
+10:
+M arRem ← min {yi+ }
+. Minimum margin remaining
+i∈v
+
+11:
+12:
+13:
+14:
+15:
+16:
+17:
+18:
+19:
+20:
+21:
+
+for (i ← L, . . . , min{M arRem, b TREM
+|v| c}) do
+0
+Y ← C OPY(Y)
+yv0 ← i
+. Set value of cell v of Y0 to i
+TAIL E NUMERATION(Y0 ,TAIL(C), TREM − |v| × i)
+else
+. If all “co-occurring” cells have been set
+S = S ∪ {C OMPLETE C ONT T BL(Y)}
+procedure C OMPLETE C ONT T BL(Y)
+. Fill in remainder of contingency table x0
+for v ⊆ [k] : |v| = 1 do
+. Iterate over exclusive cells
++
+yv ← x+
+−
+y
+v
+v
+P
+Y(0,0,...,0) ← n − y∈Y y
+. Fill in cell with no alterations
+return Y
+
+Binomial approximation. We can approximate the distribution of the exclusivity statistic using the binomial distribution, which is a well-known approximation of the hypergeometric distribution. Under the null
+7
+
+P
+x
+hypothesis that alterations occur independently in the samples, let pe = kj=1 n(j) be the probability of an
+exclusive alteration; i.e. a sample contains exactly one alteration in M . Given a set M of alterations M , then
+the probability of observing T (XM ) or more exclusive alterations in n samples is given by the binomial tail
+PT (X)−1 n i
+n−i .
+probability 1 − i=0
+i pe (1 − pe )
+We find that the binomial provides a good approximation of the exact test P -value for sets M with a
+large number of co-occurring mutations, and consequently a higher P -value (See Figure S3). Conveniently,
+these are precisely the cases where the tail enumeration algorithm is slow.
+Permutation approximation. Another approximation to the exact test is obtained using a permutation
+test. We sample L tables with fixed margins uniformly from the space of all tables and compute the proportion of such tables whose exclusivity value T exceeds the observed value T (XM ). Of course, sampling
+uniformly from the set of tables with fixed margins is not straightforward. We use an MCMC approach
+as described in [18], although we do not fix the number of alterations per sample. Interestingly, while the
+MEMo algorithm [18] uses a permutation test, the test statistic is the coverage Γ(M ), rather than the exclusivity T (M ) used in CoMEt. While these are equivalent when k = 2 (since there is only one degree of
+freedom), they produce different results for k > 2. See further discussion in Section 2.8.
+In our implementation, we use the exact test, binomial approximation, or permutation approximation to
+compute Φ(M ) according to the following procedure. First, we calculate the P -value from the binomial
+approximation and compute the number of co-occurring alterations in M . If the number of co-occurring
+alterations is higher than a fixed threshold κ or the binomial P -value is larger than a fixed value ψ, we
+set Φ(M ) to be the binomial P -value. Otherwise, we perform the tail enumeration procedure to compute
+the exact test P -value, stopping the enumeration if the accumulated tail probability becomes larger than a
+threshold . If we stop, then we compute the permutation approximation with d 1 e samples, such that we
+expect to sample at least one table with T > T (XM ). This procedure focuses the time to perform tail
+enumeration in those cases where high accuracy is needed for small P -values.
+
+2.4
+
+Sampling collections of mutually exclusive alterations with MCMC
+
+Our goal is to identify a collection M of t alteration sets with low (highly significant) values of Φ(M).
+Since is typically not possible to enumerate all such collections (except for test datasets with small m, n,
+t, and k), we derive a Markov Chain Monte Carlo (MCMC) approach to sample from the space of possible
+collections. We use the Metropolis-Hastings algorithm [34, 35] to derive a Markov chain Monte Carlo
+(MCMC) algorithm to sample collections M in proportion to the weight Φ(M)−1 (See Supplementary
+Section S1.1).
+
+2.5
+
+Marginal probability graph
+
+We now present a method to extract a collection of highly exclusive alteration sets (with no prescribed size)
+from the posterior distribution obtained from the MCMC algorithm. Typically, there are multiple collections
+with significant scores. This might be for interesting reasons such as different sets of alterations with similar
+scores or alterations that appear in multiple mutually exclusive sets. However, the reason might also be
+suboptimal parameter selection; e.g. there may be a significant set of k = 3 alterations in the data, but
+running the algorithm with k = 4 will return many sets with the same three genes and a fourth “spurious”
+gene. To distinguish such cases, we summarize the posterior distribution on collections using a marginal
+probability graph G. For a pair (i, j) of alterations, let p(i, j) denote the posterior probability that i and j are
+found in the same set. We compute p(i, j) using the samples from the MCMC algorithm (See Supplementary
+Section S1.1).
+
+8
+
+Let G = (V, E) be a complete, undirected weighted graph whose vertices are the alterations and where
+each edge e ∈ E connects a pair of vertices u, v with weight p(u, v). Connected subgraphs of G with many
+high-weight edges are the most exclusive alteration sets in A. We identify these most exclusive alteration
+sets by first removing all edges with weight below a threshold δ (See Supplementary Section S1.2). Let C(δ)
+be the connected components of size ≥ 2 in the resulting graph. The output of CoMEt is the C(δ) alteration
+sets. We choose connected components as the output – as opposed to some other partition of the graph such
+as cliques – in order to be able to identify other topologies such as overlapping pathways (alteration sets),
+where two sets of alterations are connected by a cut node.
+
+2.6
+
+Statistical significance
+
+While the score Φ(M) measures our surprise of observing exclusivity within each of the sets in M conditional on the observed frequencies of each alteration, there are a large number of possible collections, and
+thus we might observe a high score by chance. We evaluate the statistical significance of the collection M
+by comparing to a null distribution of scores obtained on permuted alteration matrices A with the sample
+and alteration frequencies (sums of rows and columns of A) fixed [18, 36]. Let Φ∗ be the minimum score
+obtained over N permutations. We use the collections M satisfying Φ(M) ≤ Φ∗ (thus each such collection
+has P -value < N1 ) to compute the marginal probability graph.
+
+2.7
+
+Simultaneous analysis of alterations and cancer subtypes
+
+An important confounding factor in identifying cancer pathways de novo by analyzing exclusive alterations
+is that certain alterations primarily occur in particular cancer subtypes [37]. If we analyze a mixed set of
+samples with multiple subtypes, these subtype-specific alterations will be mutually exclusive in the data,
+even if they are not in the same biological pathway. When the subtypes are known in advance, one solution
+is to analyze subtypes separately; unfortunately this reduces sample numbers, thus reducing power to identify combinations of alterations that are shared across subtypes. CoMEt addresses this problem by adding
+one new “subtype row” to the alteration matrix A for each subtype. This subtype row contains an alteration
+in all samples excluding those of the given subtype. Thus, the sets of alterations that are surprisingly exclusive with these subtype rows are the ones primarily altered in that subtype. Note that when running CoMEt
+with subtype rows, we do not allow multiple subtypes to be placed in the same set. Because CoMEt simultaneously analyzes multiple alterations sets, CoMEt can identify exclusive sets containing subtype-specific
+alterations, general alterations, or any combination of these.
+When analyzing the cancer dataset that included sample subtype classifications, we perform two runs of
+CoMEt. First we ran CoMEt on the alteration matrix A. Then we ran CoMEt on the alteration matrix with
+“subtype rows” as we described. We summarize the ensemble of statistically significant collections sampled
+by the MCMC algorithm in the two CoMEt runs by normalizing and combining the sampling frequencies of
+each collection across the two runs, and then computing the marginal probability graph from on the merged
+collection.
+
+2.8
+
+Comparison to MEMo
+
+The MEMo algorithm [18] uses a permutation test to approximate the probability of observing exclusive
+mutations in a gene set M with contingency table X. The permutation test works by permuting the rows in
+A corresponding to the genes in M , and then determining if the permutation has a higher test statistic than
+M . This is then repeated N times to obtain an empirical P -value.
+The crucial difference between MEMo and CoMEt is that MEMo uses the coverage Γ(M ) as the test
+statistic, while CoMEt uses the test statistic T (X). (For ease of exposition, let Γ(X) also be defined a
+
+9
+
+the coverage for a contingency table X.) The reasoning behind using the coverage as the test statistic is
+the idea that a gene set with mutually exclusive mutations will also have the highest coverage possible, for
+fixed frequencies of individual mutations. While this is true for pairs of genes (which follows from the
+fact that 2 × 2 contingency tables have only one degree of freedom), when one examines three or more
+genes, maximizing coverage is not the same as maximizing exclusivity. In fact, we can see that for a
+given contingency table X it is possible to find another contingency table X 0 with the same margins (gene
+frequencies) as X, but that has:
+1. Higher exclusivity (T (X 0 ) > T (X)) and lower coverage (Γ(X 0 ) < Γ(X)), which could result in a
+deflated P -value for MEMo.
+2. Lower exclusivity (T (X 0 ) < T (X)) but the same coverage (Γ(X 0 ) = Γ(X)), which would result in
+an inflated P -value for MEMo.2
+See examples of both cases in Figure S2.
+
+3
+
+Results
+
+3.1
+
+Visualization of results
+
+We created a web application for interactive visualization of the CoMEt results (http://compbio-research.
+cs.brown.edu/comet; See Figure S4). For each dataset, the website shows the modules in the CoMEt
+marginal probability graph. Users can change the minimum edge weight parameter δ, which dynamically
+updates the modules. Edges in each module are labeled with the marginal probability. Users can view the
+rows of the alteration matrix that correspond to a given module, and also view, sort, and search through the
+collections sampled by CoMEt that include alterations in a given module.
+
+3.2
+
+Benchmarking and comparison to other methods
+
+We compared CoMEt on two simulated mutation datasets to three other published methods for finding
+mutually exclusive gene sets: Dendrix [16], Multi-Dendrix [21] and muex [23]. In addition, we performed
+a separate comparison to MEMo [18] (See details in Section 2.8).
+3.2.1
+
+Benchmarking of exclusivity scores for individual gene sets
+
+We first compared the exclusivity scores used by CoMEt, Dendrix, and muex for individual gene sets of size
+k on simulated datasets that represent key features of cancer sequencing data. In particular, each simulated
+dataset contains: (1) one implanted pathway P with k = 3 genes that is altered in a fraction γP samples
+with highly exclusive mutations; (2) a set C of 5 highly altered genes whose alterations are not necessarily
+exclusive; (3) other genes containing only passenger mutations that were altered at rate q. The set C models
+the highly recurrently altered genes that often appear in real cancer data sets, and can confound methods
+for identifying exclusive mutations. Further details of the simulation are in the Appendix (See details in
+Supplementary Section S2.2).
+We computed the average rank of the implanted pathway across 25 simulated datasets with n = 500
+samples, varying the coverage γP = 0.1, 0.2, . . . , 1.0. We ran muex with the same parameters used in [23],
+and ranked gene sets ascending by P -value. We then compared the algorithms by the average rank of
+the implanted pathway. We chose to use the average rank rather than a alternate measure such as the true
+positive or false positive rate because our simulated datasets only include a single true positive (the implanted
+2
+
+We have not found a case where T (X 0 ) < T (X) and Γ(X 0 ) > Γ(X), and conjecture that such a case does not exist.
+
+10
+
+(a)
+
+(b)
+1
+Avg. Adjusted Rand Index
+
+Avg. Rank
+
+10 0
+
+10 2
+
+10
+
+4
+
+0
+
+0. 2
+
+0. 4
+
+0. 6
+
+0. 8
+
+1
+
+0. 8
+0. 6
+0. 4
+0. 2
+0
+
+Fraction γ P of mutated samples
+CoMEt
+
+Dendrix
+
+3
+
+5
+
+4
+t =3
+
+muex
+
+CoMEt
+
+3
+k
+
+4
+
+5
+
+t =4
+Multi-Dendrix
+
+Figure 3: Comparison of CoMEt with other methods on simulated data with n = 500 samples. (a)
+The average rank of the implanted pathway in the results from by CoMEt (blue), Dendrix (red), and muex
+(brown) in 25 simulated datasets as a function of coverage. The number of ties (i.e. gene sets with the same
+weight as the implanted pathway) are shown as error bars. (b) Comparison of CoMEt and Multi-Dendrix in
+identifying an implanted collection containing multiple sets of alterations. Bars indicate average of adjusted
+Rand index between reported and implanted collection across 25 simulated datasets.
+
+pathway). We note that while we were able to reproduce the muex results from [23] using these parameters
+(See details in Section 3.2.3), it is possible that different parameters would improve the performance of
+muex on this dataset.
+We find that on average, CoMEt ranked the implanted pathway higher than the other methods for each
+coverage (Figure 3). For coverage γP ≥ 0.3, CoMEt always ranked the implanted pathway first, while
+Dendrix ranked first only for γP ≥ 0.7 and muex for γP ≥ 0.9. Even with extremely low coverage of
+γP = 0.1 and 0.2, CoMEt was over an order of magnitude better than the other approaches. We also
+performed this comparison using both a smaller and larger number of samples (n = 250 and n = 750,
+respectively). We found that CoMEt improved as n increased, as larger n gave the CoMEt probabilistic
+test increased power, while Dendrix did not improve and muex still performed poorly (See Figure S5).
+We also compared the average runtimes of each weight function across all gene sets in each simulated
+dataset (Figure S6), finding that CoMEt (< 4 minutes) and Dendrix (< 1 minute) were much faster than
+muex (often an hour or more). This comparison demonstrates the superiority of the statistical score used
+in CoMEt, which is able to identify a pathway with low coverage alterations, even in datasets with highly
+recurrently mutated genes and many passenger mutations, and also runs in reasonable time.
+3.2.2
+
+Benchmarking identification of collections of gene sets
+
+CoMEt and Multi-Dendrix [21] are the only available methods that simultaneously find collections containing more than one mutually exclusive set. Thus, we compared these algorithms on simulated datasets
+with overlapping and non-overlapping implanted gene sets We generated simulated data using a procedure
+similar to above with three important differences. First, we implanted a collection P = (P1 , P2 , . . . , Pt )
+of t pathways, each with exclusive mutations with total coverage γP . Second, all genes in each implanted
+pathway are mutated in the same number of samples. Third, we include m = 20, 000 genes and remove
+11
+
+those mutated in fewer than 1% of total samples (Figure S7). We generated datasets varying t from 2 to 4
+and k from 3 to 5 with coverages γP between 0.40 and 0.70 (See Table S2). We also generated datasets with
+overlapping implanted pathways with t = 3, k from 3 to 5, with γP = (0.75, 0.75, 0.60).
+On each dataset, we ran CoMEt using k = 4, t = 3, and Multi-Dendrix using its default parameters of
+t ranging from 2 to 4, and k ranging from 3 to 5. We compared the consensus sets output by Multi-Dendrix
+with the modules output by CoMEt, using the adjusted Rand index (ARI) [38], to score how well each
+algorithm identified the implanted pathways. The ARI measures the agreement between two partitions, with
+ARI = 1 indicating that two partitions are identical and ARI = -1 indicating that two partitions are maximally
+dissimilar. CoMEt outperformed Multi-Dendrix in 11/12 simulated datasets (each containing 25 replicates)
+(Figure 3b and Table S3). CoMEt found a much larger fraction of the implanted pathways (difference in
+ARI was > 0.2 for 8/12 datasets). Furthermore, CoMEt had an ARI > 0.5 for all 12 datasets, and ARI> 0.8
+for 7/12 datasets. We emphasize that we ran CoMEt with a single value of t and a single value of k over all
+datasets even though the size and number of implanted pathways varied across datasets. In contrast, MultiDendrix was run with a range of parameter values. This demonstrates that CoMEt is much less sensitive to
+parameter choices than Multi-Dendrix.
+We also compared the output of CoMEt and Multi-Dendrix using the true values of t and k. We found
+that CoMEt outperformed Multi-Dendrix on 11/12 datasets (Table S3). This shows that the statistical score
+used by CoMEt and the MCMC sampling are important features, even on simulated datasets where the
+implanted collections are fairly strong signals in the data.
+muex
+Alterations set
+
+CoMEt
+Φ(M )
+
+Statistic
+
+Alteration set
+
+Φ(M )
+
+Statistic
+
+Multi-Dendrix GBM dataset [21], k = 3, t = 3
+EGFR,PDGFRA(A),PTEN(D)
+FRMPD4(D),MDM2(A),PIK3CA
+ABP1,ARID2(D),DUSP27
+
+0.0029
+0.011
+0.18232
+
+1.89
+2.63
+1.78
+
+CDK4(A),CDKN2A(D),RB1
+CDKN2A(D),MDM2(A),TP53
+IDH1,PTEN,PTEN(D)
+
+6.3 × 10−19
+4.8 × 10−17
+1.1 × 10−8
+
+-3.93
+-5.38
+-0.55
+
+1.9 × 10−8
+1.1 × 10−7
+5.9 × 10−5
+
+-14.72
+-8.01
+-2.51
+
+muex GBM dataset [23], k = 4, t = 3
+ABCC9,PIK3CA,RPL5,TRAT1
+CNTNAP2,IDH1,KEL,SCN9A
+CDH18,MMP13,SULT1B1,TRIM51
+
+0.96
+0.11
+0.32
+
+2.62
+6.35
+3.24
+
+EGFR, GCSAML, IDH1, OTC
+ABCC9,CDK4,CDKN2B,RPL5
+CDK4,CNTNAP2,NF1,SCN9A
+
+Table 1: Collections of alterations reported by muex and CoMEt on the Multi-Dendrix GBM dataset
+[21] (with k = 3 and t = 3), and on the muex GBM dataset [23] (with k = 4 and t = 3). Bolded
+alterations indicate genes in the COSMIC Cancer Census [39].
+
+3.2.3
+
+Comparison to muex on real data
+
+We compared CoMEt to muex [23] using two different versions of the TCGA glioblastoma (GBM) dataset:
+(1) the dataset from [21] containing 398 alterations and 261 samples; (2) the dataset from [23], containing
+83 alterations and 236 samples (See Section S2.1). There are 184 samples in both the Multi-Dendrix GBM
+and muex GBM datasets. Besides the samples, the main difference between these two datasets is that the
+muex dataset is restricted to only 83 significantly recurrent alterations.
+Since the muex score is for single alteration sets, we ran muex iteratively to identify collections of
+alteration sets. That is, we run muex to find the top scoring alteration set, remove those alterations, and
+repeat t − 1 times. We ran muex with the parameters used in [23], restricting to alteration sets with coverage
+at least 0.3, impurity lower than 0.5, and a significance cutoff of 0.05. On the muex GBM dataset, we ran
+CoMEt and muex with k = 4 and t = 3 to match the parameters used in [23]. On the Multi-Dendrix GBM
+12
+
+dataset, we ran CoMEt and muex with k = 3 and t = 3, since muex aborted with an out-of-memory error
+for k = 4 on this dataset.
+On both GBM datasets, CoMEt identifies collections with much more significant exclusivity. Moreover, more of the genes in the CoMEt collections are known cancer genes (according to the COSMIC
+Cancer Census [39]) compared to the genes in the muex collections (Table 1). On the Multi-Dendrix GBM
+dataset, CoMEt identifies three collections that overlap the Rb (CDK4, CDKN2A, RB1), p53 (TP53, MDM2,
+CDKN2A), and PI(3)K (PTEN, IDH1) signaling pathways. Each of these sets include surprisingly exclusive
+alterations, with Φ(M ) ranging from 10−8 to 10−19 , and all the alterations are in cancer genes. In contrast,
+muex identifies sets with lower coverage and less surprising exclusivity, with Φ(M ) > 10−3 for each set,
+and three of the alterations are not in known cancer genes.
+On the muex GBM dataset, CoMEt again identifies more exclusive alteration sets that overlap more
+known cancer genes, while muex reports few known cancer genes with most having an uncertain association
+with cancer. In general this dataset seems to include more spurious alterations, as both algorithms identify
+less exclusive sets with fewer cancer genes than on the Multi-Dendrix GBM dataset. This might be a result
+of the different handling of copy number aberrations in the two papers (see [21] and [23]).
+Multi-Dendrix
+Φ(M )
+
+Alterations set
+
+CoMEt
+W(M)
+
+Alteration set
+
+Φ(M )
+
+W(M)
+
+Pan-cancer GBM dataset [40], k = 3, t = 4
+CDKN2A(D),CDK4(A),RB1
+TP53,MDM2(A), MDM4(A)
+PTEN,PIK3CA,IDH1
+EGFR,NF1,PDGFRA(A)
+
+1.4 × 10−13
+3.7 × 10−6
+3.5 × 10−4
+1.1 × 10−2
+
+160
+128
+125
+120
+
+CDKN2A(D),CDK4(A),RB1
+TP53,MDM2(A),STAG2
+PTEN,LRP1B,IDH1
+EGFR,NF1,CALCR
+
+1.4 × 10−13
+3.8 × 10−7
+6.9 × 10−5
+4.3 × 10−4
+
+160
+119
+112
+111
+
+Pan-cancer GBM dataset [40] without MutSigCV filter, k = 3, t = 4
+CDKN2A(D),CDK4(A),RB1
+TP53,MDM2(A),EGFR
+PTEN,MUC16,IDH1
+TTN, PIK3R1,PDGFRA(A)
+
+1.4 × 10−13
+3.6 × 10−4
+1.3 × 10−3
+2.5 × 10−1
+
+160
+144
+130
+109
+
+CDKN2A(D),CDK4(A),RB1
+TP53,MDM2(A),STAG2
+PTEN,LRP1B,IDH1
+EGFR,NF1,PKHD1
+
+1.4 × 10−13
+3.8 × 10−7
+6.9 × 10−5
+1.1 × 10−4
+
+160
+119
+112
+117
+
+Table 2: Collections of alterations reported by Multi-Dendrix and CoMEt on Pan-Cancer glioblastoma
+data [40] (with k = 3 and t = 4). Bolded alterations indicate differences between alteration datasets with
+and without MutSigCV filter.
+
+3.2.4
+
+Comparison to Multi-Dendrix on real data
+
+Because CoMEt conditions on the observed alteration frequencies, we argue that it is less biased towards
+gene that have high mutation frequencies because of their higher background mutation rates; e.g. long genes.
+To illustrate this point, we compare CoMEt with Multi-Dendrix on Glioblastoma (GBM) and Breast cancer
+(BRCA) with and without the MutSigCV [9] filter that requires that frequently mutated genes have low
+MutSigCV q-values (See Section S2.1 for details). We ran CoMEt and Multi-Dendrix with k = 3 and t = 4
+on GBM and k = 4 and t = 4 on BRCA. We used mutation data from the TCGA Pan-Cancer dataset [40]
+which contains whole-exome and copy number array data, and downloaded MutSigCV output from the
+corresponding Synapse repository (syn2812925). We used different TCGA GBM and BRCA datasets here
+than we present in Section 3 because of the availability of MutSigCV results on the Pan-Cancer dataset.
+For each cancer, we generated two datasets. In one dataset, we applied a MutSigCV filter to remove highly
+altered genes (altered in > 2.5% of samples) but insignificant by MutSigCV (q-value < 0.1). The second
+dataset did not include any MutSigCV filter.
+
+13
+
+We found that CoMEt produces almost identical results when using the alteration dataset with or without
+the MutSigCV filter, in both GBM and BRCA (See Table 2 and Supplementary Table S1). In contrast, the
+Multi-Dendrix results are different with and without the MutSigSV filter. Without the MutSigCV filter,
+Multi-Dendrix output includes highly altered genes in GBM (including TTN and MUC16) that are known
+to have high background mutation rates. Furthermore, Multi-Dendrix gives the collection including TTN
+and MUC16 higher weight W 0 than the highest weight collection obtained with the MutSigCV filter. MultiDendrix also has quite different results between the datasets with and without the MutSigCV filter in BRCA,
+while CoMEt is largely consistent. This observation demonstrates that genes with high alteration frequencies
+can dominate the mutual exclusivity signal in Dendrix weight function W (M ) and bias the algorithms
+towards identifying gene sets where the majority of the coverage comes from one gene, while CoMEt gives
+less weight to these genes, which are likely not cancer genes.
+
+3.3
+
+CoMEt results on real cancer datasets
+
+We ran CoMEt on four mutation datasets from TCGA: glioblastoma (GBM) [1], breast cancer (BRCA) [4],
+gastric cancer (STAD) [6] and acute myeloid leukemia (AML) [3]. Because CoMEt can analyze any type of
+binary alterations, we include many types of alterations in these datasets: small indels and single nucleotide
+variations, copy number aberrations, aberrant splicing events, gene fusions, and (for BRCA and STAD)
+cancer subtype. See Section S2.1 for details on these datasets and Supplementary Section S1.2 for details
+on parameters.
+TCGA AML
+RUNX1
+20
+
+Cohesin complex
+
+54
+
+1.0
+
+56
+1.0
+
+1.0
+
+0.97
+
+1.0
+
+PML-RARα
+
+NPM1
+
+1.0
+
+0.97
+
+TP53
+
+1.0
+
+16
+
+0.97
+
+ASXL1
+
+15
+
+0.97
+
+9
+
+0.97
+
+Φ:2.1E-19
+
+0.97
+
+11
+
+Coverage: 63.5%
+
+MYH11-CBFβ
+
+Other epigenetic modifiers
+
+FLT3
+
+KDM6A
+
+56
+
+51
+Tyrosine
+kinases
+
+9
+
+0.26
+
+MLL-Fusions
+
+DNMT3A
+0.31
+
+0.59
+
+0.18
+
+25
+
+0.28
+0.87
+
+0.49
+
+0.69
+
+23
+NRAS/KRAS
+
+Φ:0.001
+Coverage: 35.5%
+
+17
+
+IDH2
+0.34
+
+20
+0.33
+
+0.32
+
+12
+Protein Tyrosine
+Phosphatase
+
+Φ:0.006
+Coverage: 24.5%
+
+Legend
+
+4
+0.73
+
+0.52
+
+Other
+myeloid
+transcription
+factors
+
+23
+
+11
+
+0.95
+
+25
+
+0.19
+0.28
+
+0.97
+0.97
+
+TET2
+0.32
+
+0.31
+
+Serine/
+Threonine
+kinases
+
+Tumor suppressor
+
+DNA methylation
+
+Transcription factor fusions
+
+Cohesin complex
+
+Nucleophosmin gene
+
+Chromatin modifiers
+
+Myeloid transcription factors
+
+Φ:1.4E-5
+
+Activated signaling
+
+Coverage: 53%
+
+Probability of observing
+pair together
+
+Top scoring gene set
+
+Figure 4: CoMEt results on TCGA AML. Each circle represents the alterations in a gene or genomic
+region with the number in the circle indicating the number of samples in which the alteration occurs. Black
+lines are edges in the marginal probability graph with indicated probabilities. Orange polygons indicate the
+sets in the collection M with the most significant value Φ(M). Φ values are shown for each top set (orange
+polygon).
+
+14
+
+Acute myeloid leukemia (AML) We first ran CoMEt with t = 4 alteration sets, each of size k = 4.
+The CoMEt output contains four mutually exclusive modules that include 18 alterations (Figure S9). These
+4 modules are: (1) TP53, RUNX1, NPM1, PML-RARα (52.5% of samples); (2) KDM6A, FLT3, tyrosine
+kinases, RAS proteins, serine/threonine kinases, DNMT3A, MLL-X fusions, MYH11-CBFβ, and RUNX1RUNX1T1 fusion (70% of samples); (3) cohesin complex, other myeloid transcription factors, and other
+epigenetic modifiers (33% of samples); (4) TET2 and IDH2 (18.5% of samples).
+The recent TCGA AML publication [3] reported strong mutual exclusivity (using an earlier version of
+CoMEt algorithm, called Dendrix++) across several expert-defined classes. Thus, we increased the value of
+k compute t = 4 gene sets with sizes k = 6, 4, 4, 3. Because of the larger values of k, we increased the
+number of MCMC iterations to 200 million. The resulting marginal probability graph (δ = 0.179) contained
+4 mutually exclusive modules with a total of 19 genes (Figure 4).
+The first module contains six perfectly mutually exclusive alterations. These six alterations include: mutations in TP53, RUNX1, NPM1; PML-RARα, MYH11-CBFβ fusion genes, and other MLL fusions, which
+we denote as MLL-X fusions, following [3]. These six alterations are known to be drivers in AML, and together are found in 63.5% of the samples. These fusion genes are defining aberrations for certain subtypes of
+AML, as PML-RARα, MYH11-CBFβ, and MLL-fusions are associated with acute promyelocytic leukemia,
+acute monoblastic or monocytic leukemia, and acute megakaryoblastic leukemia, respectively. The second
+module (altered in 63% of samples) contains receptor tyrosine kinases (RTKs) and their downstream RAS
+target proteins. These include mutations in the FLT3 tyrosine kinase, other tyrosine kinases, serine/threonine
+kinases, and RAS proteins. Two additional genes DNMT3A and KDM6A, are also included in this set. These
+genes are involved in DNA/histone methylation, and their interactions with the other RTK/RAS genes in
+the set are less clear. Notably, the marginal probability graph (Figure 4) shows that the connection between
+DNMT3A and other genes in the set is largely due to its mutual exclusivity with other tyrosine kinases, and
+in fact a number of samples have mutations in both FLT3 and DMNT3A (Figure S10). Thus, the patterns
+of exclusivity/co-occurrence between alterations may be subtle, demonstrating the advantages of CoMEt’s
+approach to simultaneously examine multiple collections of sets of alterations.
+The third module (altered in 35.5% of samples) contains genes related to chromatin modification and
+gene regulation including ASXL1, the cohesin complex, other myeloid transcription factors, and other epigenetic modifiers. Finally, the fourth module (altered in 24.5% of samples) contains genes related to DNA
+methylation including TET2, IDH2 and protein tyrosine phosphatases. Mutual exclusivity between TET2
+and IDH2 in AML has been previously reported [41–43]. Moreover, recent work provides a mechanistic
+explanation for this observed exclusivity: Figeroa et al. [41] show that mutant IDH12 inhibits TET2’s function in demethylation of 5-methylcytosine. These results demonstrate that CoMEt is able to extract multiple
+functional modules directly from alteration data.
+Glioblastoma multiforme (GBM) We ran CoMEt on the TCGA GBM dataset from [21] with t = 4 and
+k = 4. While [21] removed amplifications in EGFR because they were so frequent it confounded their
+analysis, we added these amplifications back when running CoMEt, treating EGFR amplifications and TP53
+as subtypes so they could not be sampled in the same set (See Section 2.7 for details). The resulting marginal
+probability graph (δ = 0.263) includes two mutually exclusive modules (Figure 5(a)).
+The first module includes: three genes in the Rb signaling pathway (CDK4, RB1, CDKN2C) and three
+genes in the p53 signaling pathway (TP53, MDM2, and MDM4)), as annotated by the original TCGA GBM
+publication [1]. This module also contains deletions in CDKN2A, which is a member of both the Rb signaling and p53 signaling pathways. Indeed, it is well known that different isoforms of the CDKN2A gene
+are involved in the Rb and p53 signaling pathways (See Figure 5(b) and also [1]) and the genomic deletion
+of CDKN2A affects both isoforms. Moreover, we find that the pairs CDK4-RB1 and MDM2-TP53 have
+surprisingly co-occurring alterations (P = 6 × 10−21 ; See Figure 5(b)). This co-occurrence is stronger
+
+15
+
+(a) TCGA GBM
+
+(b) Co-occurring in GBM pathways
+
+Coverage: 54.79%
+NPAS3(D)
+
+TP53 76
+
+0.52
+0.50
+
+0.57
+
+0.98
+
+176
+0.50
+
+0.48
+
+0.50
+
+0.50
+0.50
+
+19
+
+CDKN2A(D)
+
+MDM2(A)
+
+0.41
+
+13
+
+0.41
+0.26
+
+PTEN(D) IDH1
+41
+
+0.57
+
+Φ:2.2E-21 VAV2(D)
+Coverage: 89.27%
+
+22
+
+0.42
+0.42
+
+0.98
+
+1
+0.57
+
+0.37
+
+8
+
+14
+
+NF1
+
+0.35
+
+RB1
+
+23
+
+MDM4(A)
+
+27
+
+0.48
+
+CDKN2A
+PDPN,
+PRDM2(A)
+
+17
+
+0.37
+
+PIK3R1
+
+0.46
+
+0.40
+0.46
+
+76
+
+5
+
+PTEN
+
+SRCRB4D
+
+Φ:7.7E-10
+
+Coverage: 54.41%
+
+127
+
+0.96
+
+0.46
+
+46
+
+0.97
+
+EGFR(A)
+
+p16/INK4A
+CDK4
+
+Coverage: 72.03%
+
+ARF
+
+5.61E-13
+
+MDM2
+0.08
+
+RB1
+
+PDGFRA(A)
+
+Φ:1.4E-9
+
+Splice
+variants
+
+TP53 signaling
+
+Φ:8.4E-5
+
+CDK4(A)
+CDKN2C(D)
+53
+
+0.50
+
+5
+
+Rb signaling
+
+MSL3
+
+0.006
+
+TP53
+
+6E-21
+
+Senecscence &
+Apoptosis
+
+G1/S
+Progression
+
+Legend
+p53 Signaling
+
+RB Signaling
+
+Other
+
+PI(3)K Signaling
+
+Probability of observing pair together
+
+Top scoring gene set
+
+Interactions
+
+co-occurs w/
+Module
+Module
+
+co-occurs w/
+Gene
+Gene
+
+Gene
+
+inhibits
+Gene
+
+Figure 5: CoMEt results on (a) TCGA GBM. Style is the same as in Figure 4, except for the addition of
+character(s) inside parentheses after a gene name indicates the type of alterations in the gene: D: deletion,
+A: amplification. (b) Different splice variants of CDKN2A are part of both the Rb signaling (left) and p53
+signaling (right) pathways. CoMEt recovers this relationship as two separate exclusive gene sets. The Rb
+signaling (RB1 and CDK4) and p53 signaling (MDM2 and TP53) gene sets (not including CDKN2A) exhibit
+a statistically significant number of co-occurring mutations (P = 6 × 10−21 ), where the co-occurrence
+between the pairs (dotted orange line) is more significant than between any of the pairs of genes (dotted red
+line).
+
+than the co-occurrence of alterations in individual genes. This pattern indicates that glioblastomas can alter
+the function of the Rb and p53 signaling pathways either by deleting CDKN2A, or by altering one gene in
+each of the pairs (CDK4, RB1) and (TP53, MDM2). We emphasize that CoMEt identified this overlapping
+module by sampling non-overlapping exclusive sets. Finally, this module contains alterations in three additional genes: NPAS3, VAV2, and MSL3. NPAS3 has been studied as a novel late-stage acting progression
+factor in gliomas with tumor suppressive functions [44, 45]. VAV2 has been reported to regulate EGFR,
+and knockdown of VAV2 enhanced EGFR degradation and further reduced cell proliferation [46]. MSL3 is a
+member of the male-specific lethal (MSL) complex and is thought to play a role in transcriptional regulation.
+As reported in [21], the MSL complex also includes MOF, which regulates p53 in cell cycle and may be
+involved in cancer [47]. We note that Multi-Dendrix identifies similar Rb and p53 signaling modules [21],
+with the important difference being that CoMEt correctly places CDKN2A in a module with both the Rb and
+p53 signaling pathways, consistent with the figure in the TCGA GBM publication [1].
+The second module includes alterations in the PI(3)K signaling pathway – including PIK3R1, PTEN,
+deletion of PTEN and IDH1 – as well as amplifications in the genes (EGFR, PDGFRA) and in a region containing PRDM2 and PDPN. Additional genes in this module are NF1 and SRCRB4D. The PI(3)K signaling
+pathway genes overlap the results reported by Multi-Dendrix on this dataset in [21], with the important differences being CoMEt includes NF1 and amplifications in EGFR (which were not analyzed by [21]). In this
+module, we also found one mutually exclusive gene set (from the highest weight collection) that includes
+EGFR, IDH1, NF1, and PDGFRA. Alterations in these genes have strong association with individual subtypes in GBM [37]: EGFR amplification is associated with the Classical GBM subtype, IDH1 and PDGFRA
+amplification are associated with Proneural GBM subtype, and NF1 is associated with Mesenchymal GBM
+subtype. This shows that mutually exclusive gene sets can result from subtype-specific mutations.
+Finally, SRCRB4D is a scavenger receptor with no known associations with cancer. However, two other
+16
+
+scavenger receptor genes have previously reported roles in glioblastoma. Homozygous deletions of DMBT1
+were reported in glioblastomas and astrocytomas [48, 49]. CD36 was recently reported to be involved in
+cancer stem cell maintainence in glioblastoma [50].
+These results show that CoMEt can automatically find large portions of the pathways that were manually
+curated in TCGA GBM publication [1], including overlapping pathways. Moreover, CoMEt identifies additional genes with putative roles in glioblastoma and significant exclusivity with other known glioblastoma
+genes.
+(a) TCGA STAD w/ subtypes
+MAP2K7
+TP53
+
+CIN
+64.6%
+
+0.52
+
+0.18
+
+6
+
+PIK3CA
+
+0.19
+
+0.52
+
+0.27
+
+TLN1
+
+6
+
+0.19
+0.19
+
+107
+
+0.51
+
+0.51
+
+0.31
+
+6
+
+6
+
+6
+
+BAT2L1
+
+C12orf63
+
+10.1%
+
+25.3%
+
+7
+
+6
+
+PTPRJ
+
+PCDHA11
+
+Φ:3.5E-15
+
+Φ:2.2E-7
+
+Coverage: 63.13%
+
+0.40
+
+39
+
+0.49
+
+151
+CCND1(A)
+
+Φ:2.6E-9
+Legend
+p53 Signaling
+Cell cyle mediators
+
+0.47
+
+AKT1
+
+0.40
+
+0.49
+0.48
+
+12
+ENSG00000247765
+
+Coverage: 43.78% Coverage: 36.41%
+
+0.33
+
+Φ:1.9E-7
+
+Coverage: 32.94%
+
+RTK/RAS Signaling
+
+33
+0.33
+
+71
+
+0.65
+
+0.65
+
+5
+
+0.29
+
+Φ:1.4E-6
+
+PI(3)K/Akt Signaling
+
+Genomically stable gastric cancer
+
+0.35
+
+TP53
+
+186
+0.65
+0.65
+
+4q13.3(A)
+0.35
+
+39
+
+11.4%
+0.50
+
+HER2-enriched
+
+95 ERBB2(A)
+
+CTCF
+
+KIF17
+
+Coverage: 48.13%
+
+0.65
+
+0.35
+
+13
+
+0.29
+
+Φ:2E-3
+Coverage: 53%
+
+18.5% Basal-Like
+
+0.65
+
+178 PIK3CA
+0.48
+
+0.29
+
+Φ:1.1E-26
+
+54
+
+CDH1
+
+0.30
+
+PTEN(D)
+
+0.62
+
+Φ:2.9E-6
+
+GATA3
+
+0.40
+
+0.41
+
+17
+
+CNBD1
+
+Φ:2.7E-3
+
+0.45
+
+12
+
+0.47
+0.49
+
+CDH1
+
+44.4% Luminal-A
+
+105
+
+0.43
+
+SMAD4
+
+0.30
+
+0.28
+KRAS(A)
+66
+26 0.41
+13
+IL7R,
+EPHB3(A)
+0.27 HDAC10, MET(AS)
+LIFR(A) 0.28
+10
+BRD1(D)
+
+Φ:5.4E-10
+
+MCL1(A)
+
+0.20
+
+CCNE1(A)
+ARID1A
+41
+30
+
+49
+
+Φ:1.3E-16
+
+(b) TCGA BRCA w/ subtypes
+24.6% Luminal-B
+
+26
+
+11
+
+26
+
+0.53
+0.40
+
+BTBD11
+
+0.22
+
+0.27
+
+0.52
+0.41
+
+61
+
+9
+
+0.41
+
+0.41
+
+0.31
+
+MAP3K1
+
+0.52
+
+0.31
+
+0.27
+
+MYOM3
+
+Φ:3.0E-21
+
+0.52
+
+28
+
+0.18
+
+GS
+
+EBV
+
+ERBB2(A)
+
+ARHGAP26CLDN18(F)
+
+Φ:1.9E-15
+Coverage: 54.83%
+Other
+
+c-MET Signaling
+
+Φ:1.8E-26
+
+Probability of observing pair together
+
+Subtype
+
+Top scoring gene set
+
+Figure 6: CoMEt results on (a) TCGA STAD subtypes, (b) TCGA BRCA subtypes. Style is the same as
+in Figure 5, except for the addition of subtype alterations (brown) and that character(s) inside parentheses
+after a gene name indicates the type of alterations in the gene (AS: alternative splicing event, F: fusion
+gene). Here, an edge between a subtype and an alteration indicates that the alteration is associated with the
+subtype.
+
+Gastric cancer (STAD) We performed two runs of CoMEt on the TCGA gastric cancer (STAD) dataset,
+and then merged the runs (described in Section 2.7). We first ran CoMEt with t = 4 and k = 4. We then ran
+CoMEt on a STAD dataset that included sample subtype classifications. TCGA recently classified gastric
+cancers into four subtypes based on integration of different molecular data [6]. To examine the relationships
+between subtypes and other alterations, we introduce “subtype alterations” for the three subtypes from [6]
+(we did not include the hypermutated samples from the MSI subtype in our analysis). As described in
+17
+
+Section 2.7, these “subtype alterations” are marked as altered in samples that are not members of the subtype,
+so that mutual exclusivity between an “subtype alteration” and another alteration indicates that the alteration
+is enriched in the subtype. We ran CoMEt on the STAD dataset with subtype alterations using k = 4 and
+t = 3 (the number of subtypes).
+CoMEt identified five mutually exclusive modules from the marginal probability graph (δ = 0.132) in
+the STAD dataset (Figure 6(a)). Each of these modules includes known cancer genes and novel candidate
+genes. Two modules indicate subtype-specific altered genes and pathways. The first module (altered in 69%
+(150/217) of the STAD samples) includes two genes, TP53 and PIK3CA, that are enriched for alterations
+in the CIN and EBV subtypes, respectively. TCGA gastric study reported that 80% of EBV tumors contain
+an alteration in PIK3CA, and they suggested that EBV tumors might respond to PI3-kinase inhibitors [6].
+Given this strong signal, it is not surprising that these two genes appear in CoMEt results. However, these
+signals do not dominate the CoMEt results, and four other interesting modules are also output. There are six
+other mutated genes in this first module including MAP2K7, TLN1, BAT2L1, C12orf63 (recently renamed
+CFAP54), MYOM3 and PTPRJ. Given the rarity of these mutations, their significance is unclear.
+The second STAD model includes the genomically stable (GS) subtype, mutations in CDH1, mutations
+in PCDHA11, ARHGAP6-CLDN18 fusions, and amplification of a region containing EPHB3. CDH1 somatic mutations and ARHGAP6-CLDN18 fusions were reported to be mutually exclusive and enriched in
+the genomically stable subtype in gastric cancer [6], and CoMEt recapitulates this result. EPHB3 is the
+member of Eph/ephrin signaling which controls the compartmentalization of cells in epithelial tissues. A
+recent study [51] demonstrated EphB receptors (e.g. EPHB1 and EPHB3) interact with CDH1 in epithelial
+intestinal cells that regulates the formation of E-cadherin-based adhesions. This interaction explains the
+perfect mutual exclusivity between CDH1 and EPHB3, which to our knowledge is the first report of this relationship. This demonstrates that mutual exclusivity between pairs of alterations/subtypes may have subtle
+explanations, further underscoring the need for analysis of collections of multiple alterations.
+The third module (altered in 95/217 of samples) includes amplifications of KRAS and ERBB2, and
+mutations in BTBD11. KRAS and ERBB2 are members of the RTK/RAS signaling pathway, and their role
+in cancer is well-documented. Little is known about the function of BTBD11, and thus the significance of
+the mutations is unclear.
+The fourth STAD module (115/217 of samples) contains three altered genes, including amplifications
+of CCNE1, mutations in SMAD4 and splice-site mutations in MET. CCNE1 is a well-known cell cycle
+mediator, and SMAD4 is a member of the TGF-β pathway, and MET participates in the RTK/RAS signaling
+pathway [6].
+The fifth STAD module (79/217 of samples) contains four altered genes, including amplifications in
+a region with IL7R and LIFR, deletions in a region with HDAC10 and BRD1, mutations in ARID1A, and
+mutations in CNBD1. ARID1A is a well-known cancer gene shown to be significantly mutated in gastric
+cancer [6]. Moreover, inhibition of HDAC10 has been reported with association with human gastric cancer
+cells [52]. Gain-of-function mutations in IL7R have been reported to associated with childhood acute lymphoblastic leukemia [53]. Our CoMEt results suggest that IL7R mutations may have a role in gastric cancer
+as well.
+Breast cancer (BRCA) We performed two runs of CoMEt on the TCGA breast cancer (BRCA) dataset,
+and then merged the runs. We first ran CoMEt with k = 4 and t = 4. We then introduced subtype alterations
+for four subtypes from [4] (as described in Section 2.7). Breast cancers are traditionally classified into
+multiple subtypes based on mRNA expression. Here we analyze four subtypes: luminal A, luminal B, basallike, and HER2-enriched. We ran CoMEt on a BRCA dataset that included sample subtype classifications
+with k = 4 and t = 4 (the number of subtypes).
+CoMEt identified three subtype-specific modules and three modules with mutated genes (Figure 6(b))
+
+18
+
+in the marginal probability graph (δ = 0.287). The first module shows the strong association between
+amplification of CCND1 and the luminal B subtype as previously reported [54]. Similarly, the third module
+shows the strong association between ERBB2 amplification and the HER2 (ERRB2) -enriched subtype.
+The second module shows a complicated relationship between: (1) subtype-associated alterations in
+the Luminal-A and Basal-Like subtypes, and (2) mutual exclusivity resulting from alterations in the same
+pathway(s). This module contains five sets of genes (highlighted in orange in Figure 6(b)) in the highest
+scoring collection M output by CoMEt. Consistent with TCGA study [4], we find that: CDH1, AKT1 and
+PIK3CA are associated with the luminal A subtype, and these form a set in the CoMEt output. Similarly,
+TP53 and amplification of chromosome region 4q13.3 are associated with the basal-like subtype, and also
+form a set in the CoMEt output. Two of the other sets contains genes in the same pathway. PTEN is a known
+inhibitor of PIK3CA, explaining the observed exclusivity between PTEN deletion and PIK3CA mutation.
+Moreover, MCL1, MAP3K1, AKT1 are all part of the PI(3)K/Akt signaling pathway. Together, these sets
+contain five genes that are annotated as part of the PI(3)K/Akt signaling pathway in TCGA study [4]. (red
+circles in Figure 6(b)).
+The final set in this module includes mutations in the genes TP53, CDH1, GATA3 and CTCF. These
+four genes are altered in 54.83% (278/507) of the BRCA samples. TP53 is a member of the p53 signaling
+pathway, while CDH1, GATA3, and CTCF all have been reported as potential driver genes in breast cancer.
+CDH1 is a tumor supressor that is well-known to play multiple roles in cancer [55], including invasion and
+proliferation in breast cancer [56]. GATA3 is a transcription factor that has long been known to be involved in
+breast cancer tumorigenesis [57]. Recently, GATA3 has been reported to promote differentiation, suppresses
+metastasis and alter the tumor microenvironment in breast cancer [58]. As noted by Multi-Dendrix [21],
+GATA3 has also been reported to suppress tumor metastases through inhibition of CDH1 promoters [59],
+which suggests that the mutations in GATA3 are an alternate way to downregulate CDH1 and may explain
+the exclusivity of the mutations in GATA3 and CDH1. Moreover, GATA3 is enriched for mutations in both
+luminal A and luminal B, i.e. 32 of the 54 mutations in GATA3 occur in luminal A (P = 0.0207) and 32 of
+the 54 mutations in GATA3 occur in luminal B (P = 0.065). This might suggest GATA3 mutations mainly
+occur in patients with luminal breast cancer. CTCF neighbors CDH1 on chromosome 16q22.1 and has been
+reported with CDH1 to be a tumor suppressor in breast cancer [60,61]. Interestingly, both CDH1 and CTCF
+have most of their mutations in samples of the luminal A subtype. CDH1 is enriched for mutations in luminal
+A (as reported in [4]) and 9 of the 13 mutations in CTCF occur in luminal A (P = 0.0891), suggesting these
+two genes are in a pathway specifically targeted in luminal A. Furthermore, 4 of the 9 mutations in CTCF
+in luminal A are missense mutations in zinc finger domains, suggesting possible functional role for these
+mutations [62].
+Together, these results demonstrate CoMEt’s ability to simultaneously identify alterations that are mutually exclusive due to interactions between genes in pathways or due to subtype-specific alterations. This
+allows a more refined interpretation of mutually exclusive alterations than simple pairwise analyses.
+
+4
+
+Discussion
+
+We introduce the CoMEt algorithm for identifying collections of mutually exclusive alterations in cancer de
+novo, i.e. with no prior biological knowledge. CoMEt uses a novel statistical score for exclusive alterations
+that conditions on the frequency of each alteration and thus can detect exclusivity of rare mutations. CoMEt
+overcomes large computational challenges in computing the score using a new algorithm for contingency
+table analysis, and in optimizing the score in genome-scale data using the first Markov chain Monte Carlo
+(MCMC) algorithm for identifying collections of exclusive alterations.
+We demonstrate that CoMEt is superior to earlier de novo methods – Dendrix [16], muex [23], and
+Multi-Dendrix [21] – on simulated and real data. We then apply CoMEt to large mutation datasets from
+
+19
+
+multiple TCGA cancer types [1, 3, 4, 6]. On each dataset, CoMEt identifies significantly exclusive collections of alterations that overlap well-known cancer pathways, as well as implicate novel cancer genes. In
+addition, CoMEt illustrates subtle relationships between mutual exclusivity resulting from cancer subtypes
+and exclusivity resulting from pathways or protein interactions. These findings provide testable hypotheses
+for further downstream analysis or experimental validation.
+The input to CoMEt is a matrix of binary alterations, and thus can be used to analyze a variety of
+alterations including point mutations and indels, copy number aberrations (amplifications and deletions)
+and complex rearrangements, splice-site mutations, gene fusions, and subtype annotations. CoMEt may be
+useful in analysis of other types of alterations; e.g. germline variants.
+Another application for CoMEt is pan-cancer analysis, such as the recently published TCGA study [5]
+and the upcoming ICGC pan-cancer project. Since pan-cancer datasets have many cancer-type specific
+alterations, CoMEt’s ability to simultaneously analyze type-specific and other types of exclusive alterations
+should prove useful for this analysis. Finally, we anticipate that the novel tail enumeration strategy used
+in CoMEt may be of broader interest, both for examining mutual exclusivity in other datasets, including
+non-biological data, as well as for adapting for other types of exact statistics.
+
+20
+
+References
+1. The Cancer Genome Atlas Research Network. Comprehensive genomic characterization defines
+human glioblastoma genes and core pathways. Nature, 455(7216):1061–8, October 2008.
+2. Cameron W Brennan, Roel G W Verhaak, Aaron McKenna, Benito Campos, Houtan Noushmehr,
+and et al. The somatic genomic landscape of glioblastoma. Cell, 155(2):462–77, October 2013.
+3. The Cancer Genome Atlas Research Network. Genomic and epigenomic landscapes of adult de novo
+acute myeloid leukemia. The New England journal of medicine, 368(22):2059–74, May 2013.
+4. The Cancer Genome Atlas Research Network. Comprehensive molecular portraits of human breast
+tumours. Nature, 490(7418):61–70, October 2012.
+5. Kyle Chang, Chad J Creighton, Caleb Davis, Lawrence Donehower, Jennifer Drummond, and et
+al. The Cancer Genome Atlas Pan-Cancer analysis project. Nature Genetics, 45(10):1113–1120,
+September 2013.
+6. Adam J. Bass, Vesteinn Thorsson, Ilya Shmulevich, Sheila M. Reynolds, Michael Miller, and et al.
+Comprehensive molecular characterization of gastric adenocarcinoma. Nature, 513(7517):202–209,
+July 2014.
+7. Thomas J Hudson, Warwick Anderson, Axel Artez, Anna D Barker, Cindy Bell, and et al. International network of cancer genome projects. Nature, 464(7291):993–8, April 2010.
+8. Junjun Zhang, Joachim Baran, a Cros, Jonathan M Guberman, Syed Haider, and et al. International
+Cancer Genome Consortium Data Portal–a one-stop shop for cancer genomics data. Database : the
+journal of biological databases and curation, 2011:bar026, January 2011.
+9. Michael S Lawrence, Petar Stojanov, Paz Polak, Gregory V Kryukov, Kristian Cibulskis, and et
+al. Mutational heterogeneity in cancer and the search for new cancer-associated genes. Nature,
+499(7457):214–8, July 2013.
+10. Jesse J Salk, Edward J Fox, and Lawrence a Loeb. Mutational heterogeneity in human cancers: origin
+and consequences. Annual review of pathology, 5:51–75, January 2010.
+11. Bert Vogelstein, Nickolas Papadopoulos, Victor E Velculescu, Shibin Zhou, Luis a Diaz, and Kenneth W Kinzler. Cancer genome landscapes. Science (New York, N.Y.), 339(6127):1546–58, March
+2013.
+12. Benjamin J Raphael, Jason R Dobson, Layla Oesper, and Fabio Vandin. Identifying driver mutations
+in sequenced cancer genomes: computational approaches to enable precision medicine. Genome
+medicine, 6(1):5, January 2014.
+13. Li Ding, Benjamin J Raphael, Feng Chen, and Michael C Wendl. Advances for studying clonal
+evolution in cancer. Cancer letters, 340(2):212–9, November 2013.
+14. Chen-Hsiang Yeang, Frank McCormick, and Arnold Levine. Combinatorial patterns of somatic gene
+mutations in cancer. The FASEB journal, 22(8):2605–22, August 2008.
+15. Douglas Hanahan and Robert a Weinberg.
+144(5):646–74, March 2011.
+
+Hallmarks of cancer: the next generation.
+
+21
+
+Cell,
+
+16. Fabio Vandin, Eli Upfal, and Benjamin J Raphael. De novo discovery of mutated driver pathways in
+cancer. Genome research, 22(2):375–85, February 2012.
+17. Christopher a Miller, Stephen H Settle, Erik P Sulman, Kenneth D Aldape, and Aleksandar Milosavljevic. Discovering functional modules by identifying recurrent and mutually exclusive mutational
+patterns in tumors. BMC medical genomics, 4(1):34, January 2011.
+18. Giovanni Ciriello, Ethan Cerami, Chris Sander, and Nikolaus Schultz. Mutual exclusivity analysis
+identifies oncogenic network modules. Genome research, 22(2):398–406, February 2012.
+19. Junfei Zhao, Shihua Zhang, Ling-Yun Wu, and Xiang-Sun Zhang. Efficient methods for identifying
+mutated driver pathways in cancer. Bioinformatics (Oxford, England), 28(22):2940–7, November
+2012.
+20. Hai-Tao Li, Yu-Lang Zhang, Chun-Hou Zheng, and Hong-Qiang Wang. Simulated annealing
+based algorithm for identifying mutated driver pathways in cancer. BioMed research international,
+2014:375980, January 2014.
+21. Mark D M Leiserson, Dima Blokh, Roded Sharan, and Benjamin J Raphael. Simultaneous identification of multiple driver pathways in cancer. PLoS computational biology, 9(5):e1003054, May
+2013.
+22. Giovanni Ciriello, Ethan Cerami, Bulent Arman Aksoy, Chris Sander, and Nikolaus Schultz. Using MEMo to discover mutual exclusivity modules in cancer. Current protocols in bioinformatics,
+41(8.17.1):8.17.2, March 2013.
+23. Ewa Szczurek and Niko Beerenwinkel. Modeling mutual exclusivity of cancer mutations. PLoS
+computational biology, 10(3):e1003503, March 2014.
+24. Michael S Lawrence, Petar Stojanov, Craig H Mermel, James T Robinson, Levi a Garraway, and et al.
+Discovery and saturation analysis of cancer genes across 21 tumour types. Nature, 505(7484):495–
+501, January 2014.
+25. HO Lancaster. Significance tests in discrete distributions. Journal of the American Statistical Association, 56(294):223–234, 1961.
+26. Martin Dyer, Ravi Kannan, and John Mount. Sampling Contingency Tables. Random Structures and
+Algorithms, 10(4):487–506, 1997.
+27. Cyrus R Mehta and Nitin R Patel. A network algorithm for performing fisher’s exact test in r× c
+contingency tables. Journal of the American Statistical Association, 78(382):427–434, 1983.
+28. F Requena and N Martı́n Ciudad. A major improvement to the network algorithm for fisher’s exact
+test in 2× c contingency tables. Computational statistics &amp; data analysis, 51(2):490–498, 2006.
+29. A Berrington de González and DR Cox. Additive and multiplicative models for the joint effect of
+two risk factors. Biostatistics, 6(1):1–9, 2005.
+30. Gill Bejerano, Nir Friedman, and Naftali Tishby. Efficient exact p-value computation for small sample, sparse, and surprising categorical data. Journal of Computational Biology, 11(5):867–886, 2004.
+31. Daniel Zelterman, ISF Chan, and PW Mielke Jr. Exact tests of significance in higher dimensional
+tables. The American Statistician, 49(4):357–361, 1995.
+22
+
+32. Alexander Barvinok, Zur Luria, and Alexander Yong. An approximation algorithm for counting
+contingency tables. Random Structures and Algorithms, 37(1):25–66, 2010.
+33. Jeffrey W. Miller and Matthew T. Harrison. Exact sampling and counting for fixed-margin matrices.
+The Annals of Statistics, 41(3):1569–1592, June 2013.
+34. Nicholas Metropolis, Arianna W. Rosenbluth, Marshall N. Rosenbluth, Augusta H. Teller, and Edward Teller. Equation of State Calculations by Fast Computing Machines. The Journal of Chemical
+Physics, 21(6):1087, 1953.
+35. WK Hastings. Monte Carlo sampling methods using Markov chains and their applications.
+Biometrika, 57(1):97–109, 1970.
+36. Andrea Gobbi, Francesco Iorio, Kevin J Dawson, David C Wedge, David Tamborero, and et al. Fast
+randomization of large genomic datasets while preserving alteration counts. Bioinformatics (Oxford,
+England), 30(17):i617–i623, September 2014.
+37. Roel G W Verhaak, Katherine a Hoadley, Elizabeth Purdom, Victoria Wang, Yuan Qi, and et al.
+Integrated genomic analysis identifies clinically relevant subtypes of glioblastoma characterized by
+abnormalities in PDGFRA, IDH1, EGFR, and NF1. Cancer cell, 17(1):98–110, January 2010.
+38. Lawrence Hubert and Phipps Arabie. Comparing partitions. Journal of classification, 2(1):193–218,
+1985.
+39. Simon a Forbes, Nidhi Bindal, Sally Bamford, Charlotte Cole, Chai Yin Kok, and et al. COSMIC:
+mining complete cancer genomes in the Catalogue of Somatic Mutations in Cancer. Nucleic acids
+research, 39(Database issue):D945–50, January 2011.
+40. Mark DM Leiserson, Fabio Vandin, Hsin-Ta Wu, Jason R Dobson, Jonathan V Eldridge, Jacob L
+Thomas, Alexandra Papoutsaki, Younhun Kim, Beifang Niu, Michael McLellan, et al. Pan-cancer
+network analysis identifies combinations of rare somatic mutations across pathways and protein complexes. Nature genetics, 2014.
+41. Maria E Figueroa, Omar Abdel-Wahab, Chao Lu, Patrick S Ward, Jay Patel, Alan Shih, Yushan Li,
+Neha Bhagwat, Aparna Vasanthakumar, Hugo F Fernandez, et al. Leukemic idh1 and idh2 mutations
+result in a hypermethylation phenotype, disrupt tet2 function, and impair hematopoietic differentiation. Cancer cell, 18(6):553–567, 2010.
+42. Omar Abdel-Wahab and Ross L Levine. Mutations in epigenetic modifiers in the pathogenesis and
+therapy of acute myeloid leukemia. Blood, 121(18):3563–3572, 2013.
+43. Klaus H Metzeler, Kati Maharry, Michael D Radmacher, Krzysztof Mrózek, Dean Margeson, Heiko
+Becker, John Curfman, Kelsi B Holland, Sebastian Schwind, Susan P Whitman, et al. Tet2 mutations
+improve the new european leukemianet risk classification of acute myeloid leukemia: a cancer and
+leukemia group b study. Journal of clinical oncology, 29(10):1373–1381, 2011.
+44. D Kamnasaran, N Ajewung, M Rana, and P Gould. 393 npas3 is a novel late-stage acting progression
+factor in gliomas with tumour suppressive functions. European Journal of Cancer Supplements,
+8(5):100, 2010.
+45. Frederico Moreira, Tim-Rasmus Kiehl, Kelvin So, Norbert F Ajeawung, Carmelita Honculada, Peter Gould, Russell O Pieper, and Deepak Kamnasaran. Npas3 demonstrates features of a tumor
+23
+
+suppressive role in driving the progression of astrocytomas. The American journal of pathology,
+179(1):462–476, 2011.
+46. S Thalappilly, P Soubeyran, JL Iovanna, and NJ Dusetti. Vav2 regulates epidermal growth factor
+receptor endocytosis and degradation. Oncogene, 29(17):2528–2539, 2010.
+47. S Rea, G Xouri, and A Akhtar. Males absent on the first (mof): from flies to humans. Oncogene,
+26(37):5385–5394, 2007.
+48. Jan Mollenhauer, Stefan Wiemann, Wolfram Scheurlen, Bernhard Korn, Yutaka Hayashi, Klaus K
+Wilgenbus, Andreas von Deimling, and Annemarie Poustka. Dmbt1, a new member of the srcr
+superfamily, on chromosome 10q25. 3–26.1 is deleted in malignant brain tumours. Nature genetics,
+17(1):32–39, 1997.
+49. Kazuya Motomura, Michel Mittelbronn, Werner Paulus, Benjamin Brokinkel, Kathy Keyvani, Ulrich
+Sure, Karsten Wrede, Yoichi Nakazato, Yuko Tanaka, Daniela Pierscianek, et al. Dmbt1 homozygous deletion in diffuse astrocytomas is associated with unfavorable clinical outcome. Journal of
+Neuropathology &amp; Experimental Neurology, 71(8):702–707, 2012.
+50. James S Hale, Balint Otvos, Maksim Sinyuk, Alvaro G Alvarado, Masahiro Hitomi, Kevin Stoltz,
+Qiulian Wu, William Flavahan, Bruce Levison, Mette L Johansen, et al. Cancer stem cell-specific
+scavenger receptor cd36 drives glioblastoma progression. Stem Cells, 32(7):1746–1758, 2014.
+51. Guiomar Solanas, Carme Cortina, Marta Sevillano, and Eduard Batlle. Cleavage of e-cadherin
+by adam10 mediates epithelial cell sorting downstream of ephb signalling. Nature cell biology,
+13(9):1100–1107, 2011.
+52. Ju-Hee Lee, Eun-Goo Jeong, Moon-Chang Choi, Sung-Hak Kim, Jung-Hyun Park, Sang-Hyun
+Song, Jinah Park, Yung-Jue Bang, and Tae-You Kim. Inhibition of histone deacetylase 10 induces
+thioredoxin-interacting protein and causes accumulation of reactive oxygen species in snu-620 human
+gastric cancer cells. Molecules and cells, 30(2):107–112, 2010.
+53. Chen Shochat, Noa Tal, Obul R Bandapalli, Chiara Palmi, Ithamar Ganmore, Geertruy te Kronnie,
+Gunnar Cario, Giovanni Cazzaniga, Andreas E Kulozik, Martin Stanulla, et al. Gain-of-function
+mutations in interleukin-7 receptor-α (il7r) in childhood acute lymphoblastic leukemias. The Journal
+of experimental medicine, 208(5):901–908, 2011.
+54. Karolina Holm, Johan Staaf, Göran Jönsson, Johan Vallon-Christersson, Haukur Gunnarsson, Adalgeir Arason, Linda Magnusson, Rosa B Barkardottir, Cecilia Hegardt, Markus Ringnér, et al. Characterisation of amplification patterns and target genes at chromosome 11q13 in ccnd1-amplified sporadic and familial breast tumours. Breast cancer research and treatment, 133(2):583–594, 2012.
+55. F Graziano, B Humar, and P Guilford. The role of the E-cadherin gene (CDH1) in diffuse gastric
+cancer susceptibility: from the laboratory to clinical practice. Annals of oncology, pages 1705–1713,
+2003.
+56. Shunsuke Hiraguri, Tony Godfrey, Haruhiko Nakamura, and Jeremy Graff. Mechanisms of inactivation of E-cadherin in breast cancer cell lines. Cancer Research, 1:1972–1978, 1998.
+57. Jerry Usary, Victor Llaca, Gamze Karaca, Shafaq Presswala, Mehmet Karaca, Xiaping He, Anita
+Langerød, Rolf Kåresen, Daniel S Oh, Lynn G Dressler, et al. Mutation of gata3 in human breast
+tumors. Oncogene, 23(46):7669–7678, 2004.
+24
+
+58. Jonathan Chou, Jeffrey H Lin, Audrey Brenot, Jung-whan Kim, Sylvain Provot, and Zena Werb.
+Gata3 suppresses metastasis and modulates the tumour microenvironment by regulating microrna29b expression. Nature cell biology, 15(2):201–213, 2013.
+59. Wei Yan, Qing Jackie Cao, Richard B Arenas, Brooke Bentley, and Rong Shao. GATA3 inhibits
+breast cancer metastasis through the reversal of epithelial-mesenchymal transition. The Journal of
+biological chemistry, 285(18):14042–51, April 2010.
+60. Pamela Cowin, Tracey M Rowlands, and Sarah J Hatsell. Cadherins and catenins in breast cancer.
+Current opinion in cell biology, 17(5):499–508, 2005.
+61. Andrew R Green, Sophie Krivinskas, Peter Young, Emad A Rakha, E Claire Paish, Desmond G Powe,
+and Ian O Ellis. Loss of expression of chromosome 16q genes dpep1 and ctcf in lobular carcinoma
+in situ of the breast. Breast cancer research and treatment, 113(1):59–66, 2009.
+62. Galina N Filippova, Chen-Feng Qi, Jonathan E Ulmer, James M Moore, Michael D Ward, Ying J Hu,
+Dmitri I Loukinov, Elena M Pugacheva, Elena M Klenova, Paul E Grundy, et al. Tumor-associated
+zinc finger mutations in the ctcf transcription factor selectively alter its dna-binding specificity. Cancer research, 62(1):48–52, 2002.
+63. Craig H Mermel, Steven E Schumacher, Barbara Hill, Matthew L Meyerson, Rameen Beroukhim,
+and Gad Getz. GISTIC2.0 facilitates sensitive and confident localization of the targets of focal somatic copy-number alteration in human cancers. Genome biology, 12(4):R41, January 2011.
+
+25
+
+Supplementary Information for
+CoMEt: A Statistical Approach to Identify Combinations of Mutually
+Exclusive Alterations in Cancer
+Mark D.M. Leiserson1,2,∗ , Hsin-Ta Wu1,2,∗ , Fabio Vandin1,2,3 , Benjamin J. Raphael1,2
+1
+
+Department of Computer Science and 2 Center for Computational Molecular Biology, Brown University,
+Providence, RI, USA
+3
+Department of Mathematics and Computer Science, University of Southern Denmark, Odense M, Denmark
+∗
+Equal contribution.
+Correspondence: braphael@brown.edu
+
+S1
+S1.1
+
+Methods
+MCMC Algorithm
+
+We define a Markov chain whose states Ω are possible collections M and where transitions between states
+(collections) are defined such that the chain is ergodic. Finite and ergodic Markov chains converge to a
+unique stationary distribution. In this case, because we want to sample from collections M in proportion to
+their weights Φ(M)−1 , our desired stationary distribution is
+Φ(M)−1
+.
+0 −1
+M0 ∈Ω Φ(M )
+
+πM = P
+
+(5)
+
+Note that we use Φ(M)−1 so more exclusive collections have higher weights. The Metropolis-Hastings
+algorithm [34, 35] is a method for defining transition probabilities for an irreducible Markov chain such that
+the modified chain is ergodic and has a desired stationary distribution. A Metropolis-Hastings algorithm to
+sample collections M according to this stationary distribution is as follows:
+It is easy to see that this chain is ergodic (it is possible to reach any state (collection) from any other state
+(collection), it is finite, and it is not bipartite) and thus it converges to our desired stationary distribution.
+We apply a parameter α to increase/decrease the difference between Φ(M0N ) and Φ(MN ). Also, in the
+second step of the algorithm, we ensure that the number of exclusive alterations is larger than the number of
+co-occurring by checking that the Dendrix weight W (M ) > 0. This is to avoid examining sets alterations
+with high coverage (e.g. altered over 90% of samples) that may have significant exclusivity even though
+relatively few samples harbor exclusive alterations. We assess convergence of the MCMC algorithm by
+calculating total variation distance of the the sampling distributions from multiple chains with different
+initializations (See Supplementary Section S1.1). The MCMC algorithm consists of the following steps:
+Initialization. Choose tk genes uniformly at random from E, and assign k genes at random to initialize
+M = M1 , . . . , M t .
+Iteration. For N = 1, 2, . . . , obtain MN +1 from MN as follows:
+1. Select a gene g uniformly at random from E.
+2. Define the proposed collection M0N as follows:
+i) If g ∈
+/ MN , then choose uniformly at random gene g 0 ∈ Mi , and replace g 0 with g.
+ii) Else, choose uniformly at random gene g 0 ∈ Mi , and swap genes g and g 0 . Note that if
+g, g 0 ∈ Mi , then Mi will be unchanged.
+26
+
+α
+
+Φ(MN )
+3. Let P (MN , M0N ) = min{1, Φ(M
+0 )α }.
+N
+
+4. With probability P (MN , M0N ), MN +1 = M0N , else MN +1 = MN .
+Convergence of MCMC from different initial gene sets To assess convergence of the MCMC algorithm,
+we compare the sampling distributions from multiple chains with different initializations. The idea is that
+if multiple chains have converged, by definition they should appear very similar to one another; if not, one
+or more of the chains has failed to converge. We create the following pipeline for performing CoMEt on
+all our experiments. To make the initializations have high variety, we create 5 to 10 initializations for any
+t and k of CoMEt. One initialization is from Multi-Dendrix [21] results with the same t and k, and other
+initializations generate randomly.
+Precisely, we first define whole sampling gene sets Ω as the union of the last 0.5% of sampling gene
+sets ωi of each chain i. We then define the distribution for each chain i over the whole sampling gene sets
+Ω = ∪∀i ωi as Pi (s) = Fi (s)/|ωi | if s ∈ Ω othereise 0, and the distribution for the union chain u over the
+whole sampling gene sets Ω as Pu (s) = Fu (s)/|Ω|. We calculate the mean total variation distance over Pi
+and Pu . The total variation distance between Pi and Pu is defined as
+|Pi − Pu ||T V = max kPi (s) − Pu (s)k
+s∈Ω
+
+(6)
+
+We start CoMEt with 100 million iterations for each of these initializations. We examine convergence by
+calculating both metrics across the initializations. If the metric is close to 0, this indicates the convergence
+and the process will be stopped; otherwise, we increase 1.5 times of the number of iterations until the number
+of iterations touches 1 billion. In final, we use the union of ten sampling distribution as sampling results.
+For example, we performed above pipeline for t = 3 and k = 4 on AML mutation data and plotted the
+distribution of total variation distance after 1 million iteration and 10 million iteration MCMC runs (Figure
+S1).
+
+S1.2
+
+Parameter selection
+
+We select δ with the following heuristic procedure. When we run CoMEt with t sets in the collection, ideally
+we should obtain t cliques in the marginal probability graph. To find the best δ that fulfills the expectation,
+we search for an “L-corner” in a graph of the number of edges in the marginal probability graph as a function
+of the edge weight.
+More precisely, we first plot a log-log distribution with the number of edges in the marginal probability
+graph with edge weight ≥ p against edge weight
+ p (Figure S8). We choose δ starting from the minimum
+edge weight pmin that contains at least t × k2 edges in the marginal probability graph. e.g. the yellow
+horizontal line in Figure S8 shows the number of edges in GBM with k = 3 and t = 3. We identify a value
+δ where the number of edges increases dramatically after this value as the probability threshold decreases.
+To find this value, for each value x we perform a linear regression of two best-fit lines (using root mean
+squared error) before and after this value. We the first p > pmin that forms a “L-corner”, i.e. the slope of the
+two best-fit lines changes from a smaller negative value to a larger negative value as the value x decreases
+(e.g. moving leftward in Figure S8).
+For each cancer dataset, we ran CoMEt with k = 4, t = 4, and 100 million iterations using 5 to 10
+random initializations. For BRCA and STAD with subtypes, we ran CoMEt with k = 4 and t equal to
+the number of pre-defined subtypes (4 and 3, respectively), and 100 million iterations using 10 random
+initializations. (See Section S2.1 and Supplementary Section S1.1). Ideally, CoMEt should be run with the
+largest values of k and t that are biologically meaningful for a particular dataset. If smaller values of k
+and t are best supported by the data, the summarization procedure will demonstrate this. In practice, using
+
+27
+
+large values of k and t might lead to long run times and slow convergence of the MCMC algorithm, since
+the space of possible collections will be very large. Thus, an alternative approach that we use to generate
+results is to run with small values of t and k (e.g. t = 3, 4 and k = 3, 4) and examine the resulting marginal
+probability graph. If there t or more cliques or approximate cliques in the graph, this suggests the use of
+larger values of t and k. We used this approach to find larger collections in the AML dataset (See details in
+Section 3.3).
+
+S2
+S2.1
+
+Data
+Somatic mutation datasets
+
+Acute myeloid leukemia (AML) The AML dataset contains whole-exome and copy number array data
+in 200 AML patients from The Cancer Genome Atlas (TCGA) [3]. Using the annotations in [3], we
+categorized multiple genes together based on expert knowledge, which results in 9 categories including
+spliceosome, cohesin complex, MLL-X fusions, other myeloid transcription factors, other epigenetic modifiers, other tyrosine kinase, serine/threonine kinase, protein tyrosine phosphatase, and RAS protein. More
+details are in [3]. This results in 51 genes and 200 patients.
+Glioblastoma multiforme (GBM) We analyzed three GBM datasets:
+1. The Multi-Dendrix GBM dataset from [21]. This dataset contains whole-exome and copy number
+array data in 261 GBM patients and 398 genes from The Cancer Genome Atlas (TCGA) [1]. Data
+preparation for GBM can be found in [21]. Note that in Section 3.3 we included amplifications in
+EGFR which were not considered in [21].
+2. The muex GBM dataset from [23]. This dataset contains 83 alterations in 236 samples from [1],
+including SNVs in genes identified as significantly mutated by MutSigCV [9] and CNAs called by
+GISTIC2 [63] then restricted to those with significantly concordant gene expression (higher for amplifications, lower for deletions).
+3. The Pan-cancer GBM dataset from [5]. We analyzed the non-silent mutations (single nucleotide variants and small indels) from the MAF file and focal copy number aberrations from GISTIC2 output.
+This dataset contains 509 genes in 291 samples. Moreover, we removed genes with non-silent mutations in < 1% of samples and with mutations in > 2.5% of samples with MutSigCV [9] q-value
+> 0.1. This dataset contains 406 genes in 291 samples.
+Gastric cancer (STAD) We analyzed the non-silent mutations (single nucleotide variants and small indels) from the MAF file in 289 gastric cancer samples. We also included focal driver copy number aberrations from GISTIC2 output via Firehose, fusion genes, rearrangements and splicing events [6]. We removed
+74 hypermutators and genes with non-silent mutations in < 2.5% of samples and with mutations in > 3%
+of samples with MutSigCV [9] q-value > 0.25. This process results in 217 STAD patients and 397 genes
+with mutations. We considered four subtypes identified by TCGA [6], including tumors were positive for
+Epstein-Barr virus (EBV), tumors had high microsatellite instability (MSI) genomically stable (GS) tumors
+with a low level of somatic copy number aberrations, and chromosomally unstable (CIN) tumors with a
+high level of somatic copy number aberrations and were called. We do not analyze the MSI subtype since
+samples in MSI are hypermutators.
+
+28
+
+Breast cancer (BRCA) The BRCA dataset contains whole-exome and copy number array data in 507
+BRCA patients and 375 genes from The Cancer Genome Atlas (TCGA) [4]. Data preparation for BRCA
+can be found in [21]. We downloaded subtype information of BRCA from The Cancer Genome Atlas
+(TCGA) [4]. We considered four subtypes – basal-like, HER2-enriched, luminal A, and luminal B – that
+each contain at least 10% of the total samples.
+
+S2.2
+
+Simulated data
+
+We generated simulated datasets using the following approach. Recall C is a set of highly altered genes
+whose alterations are not necessarily exclusive.
+1. Select k genes to form an “implanted pathway” P .
+2. Let γP be the fraction of mutated samples in P . Select γP × n samples to be exclusively mutated in
+P , where the proportion of mutations in each gene in P is given by the tuple µP = (c1 , . . . , ck ).
+3. Randomly select samples to be mutated in each gene in C, where the fraction of mutated samples per
+gene is given by γC .
+4. For each of the n samples s in each of the m genes g (including the implanted and cancer genes),
+mutate g in s with fixed probability q. This step introduces noise into the dataset.
+We used m = 100, n = 500, k = 3, µP = (0.5, 0.35, 0.15), |C| = 5, γC = (0.67, 0.49, 0.29, 0.29, 0.2),
+and q = 0.0027538462.3 We removed alterations that occurred in fewer than 5 alterations (resulting in the
+average number of genes of 276.44). We ran CoMEt 100 million iterations from 3 random initial starts.
+
+S3
+
+Supplementary Tables
+Multi-Dendrix
+
+CoMEt
+Φ(M )
+
+Alterations set
+
+W(M) Alteration set
+
+Φ(M )
+
+W(M)
+
+Pan-cancer BRCA dataset [40], k = 4, t = 4
+PIK3CA, MCL1(A), ZNF703(A), AKT1
+TP53, GATA3, MAP3K1, CDH1
+CCND1(A), MYC(A), MAP2K4, CBFB
+TUBD1(A), STK11,TCF3(D), MLL3, RUNX1
+
+9.2 × 10−9
+1.7 × 10−11
+5.4 × 10−1
+2.2 × 10−1
+
+403
+397
+307
+284
+
+PIK3CA, ING5(D), PEG3, AKT1
+TP53, GATA3, CDH1, CTCF
+MT-ND1, MYC(A), LAMA2, MAP3K1
+CBFB, FHIT(D), RUNX1, ZNF703(A)
+
+2.6 × 10−12
+4.1 × 10−17
+1.7 × 10−7
+5.5 × 10−3
+
+352
+380
+269
+256
+
+2.6 × 10−12
+4.1 × 10−17
+1.7 × 10−7
+4.4 × 10−5
+
+352
+380
+269
+249
+
+Pan-cancer BRCA dataset [40] without MutSigCV filter, k = 4, t = 4
+PIK3CA, TUBD1(A), PTEN(D), AKT1
+TP53, GATA3, CDH1, MAP2K4
+CCND1(A), MYC(A), MUC4, MAP3K1
+MCL1(A), ZNF703(A), ENSG1*, CROCCP2
+
+2.0 × 10−7
+5.0 × 10−16
+2.7 × 10−1
+1.2 × 10−2
+
+397
+382
+323
+294
+
+PIK3CA, ING5(D), PEG3, AKT1
+TP53, GATA3, CDH1, CTCF
+MT-ND1, MYC(A), LAMA2, MAP3K1
+ERBB2(A), PTEN(D), CROCCP2, ENSG2*
+
+Table S1: Collections of alterations reported by Multi-Dendrix and CoMEt on TCGA Pan-cancer
+breast cancer data [40] with k = 3 and t = 4. Bolded alterations indicate differences between alteration datasets with and without MutSigCV filter. *Due to the limited width of the page, we replaced
+ENSG00000210082 as ENSG1 and ENSG00000211459 as ENSG2.
+
+3
+
+We chose values for C and q using values calculated from real data. We choose C to match the mutation frequencies of the
+five most mutated genes in the TCGA glioblastoma dataset. We calculated q empirically from the TCGA breast cancer mutation
+matrix.
+
+29
+
+Coverage
+
+t=2
+(0.70, 0.50)
+
+t=3
+(0.70, 0.60, 0.50)
+
+t=4
+(0.70, 0.60, 0.50, 0.40)
+
+Table S2: Coverages γP for each simulated dataset with non-overlapping pathways.
+
+t
+2
+2
+2
+3
+
+k
+3
+4
+5
+3
+
+3
+
+4
+
+3
+
+5
+
+4
+4
+4
+
+3
+4
+5
+
+Class
+Non-overlapping
+Non-overlapping
+Non-overlapping
+Non-overlapping
+Overlapping
+Non-overlapping
+Overlapping
+Non-overlapping
+Overlapping
+Non-overlapping
+Non-overlapping
+Non-overlapping
+
+Consensus
+0.53
+0.51
+0.74
+0.68
+0.66
+0.88
+0.82
+0.94
+0.97
+0.8
+0.92
+0.83
+
+CoMEt
+True Highest weight
+1.0
+0.65
+1.0
+0.79
+1.0
+0.76
+0.97
+0.85
+0.94
+0.78
+1.0
+1.0
+0.95
+0.95
+1.0
+0.88
+0.96
+0.91
+0.97
+0.73
+1.0
+0.85
+1.0
+0.73
+
+Multi-Dendrix
+Consensus True
+0.43
+0.49
+0.53
+0.48
+0.45
+0.48
+0.45
+0.65
+0.48
+0.69
+0.51
+0.65
+0.69
+0.68
+0.57
+0.64
+0.58
+0.6
+0.37
+0.5
+0.47
+0.54
+0.47
+0.5
+
+Table S3: Results of CoMEt and Multi-Dendrix on simulated datasets consisting of t implanted pathways, each with k genes. The mean average adjusted Rand index across 25 simulated datasets for different
+parameter choices. We compared CoMEt to Multi-Dendrix using each algorithm’s consensus procedure
+(“Consensus”). We also compared CoMEt to Multi-Dendrix when run with the true values of t and k of the
+implanted pathways (“True“).
+
+30
+
+Total variation distance
+
+Supplementary Figures
+
+Total variation distance
+
+S1
+
+Iteration of MCMC
+
+Iteration of MCMC
+
+Figure S1: Plots of total variation distance distribution in each iteration of for an MCMC run with
+1M iterations (left) and an MCMC run with 10M iterations (right).
+a. 23 contingency table
+
+Table X
+Gene 3
+Not mutated
+
+Gene 1
+Mutated
+
+Not mutated
+
+50
+
+42
+
+Mutated
+
+7
+
+12
+
+b. Less exclusive, same coverage
+
+8
+
+3
+
+Mutated
+
+2
+
+1
+
+Table X’
+Mutated
+
+Gene 1
+Mutated
+
+Not mutated
+
+50
+
+41
+
+Mutated
+
+9
+
+11
+
+Not mutated
+
+Gene 2
+
+Gene 2
+
+Mutated
+
+Not mutated
+
+Gene 1
+
+c. More exclusive, lower coverage
+
+Gene 2
+
+Not mutated
+
+Gene 3
+
+Not mutated
+
+Not mutated
+
+T(X’’) = 58
+!(X’’) = 70
+ɸ(X) = 0.587
+MEMo = 0.995
+
+Gene 2
+
+Gene 1
+Not mutated
+
+T(X’) = 56
+!(X’) = 75
+ɸ(X) = 0.734
+MEMo = 0.718
+
+Mutated
+
+Not mutated
+
+Mutated
+
+Not mutated
+
+6
+
+6
+
+Mutated
+
+2
+
+0
+
+The frequency/coverage
+of each gene is the
+same in each table: 
+!(g1) = 58
+!(g2) = 22
+!(g3) = 14
+
+Table X’’
+Gene 3
+
+Mutated
+
+Gene 1
+
+Gene 1
+
+Not mutated
+
+Mutated
+
+Not mutated
+
+55
+
+46
+
+Mutated
+
+10
+
+0
+
+Not mutated
+
+Gene 2
+
+Gene 2
+
+T(X) = 57
+!(X) = 75
+ɸ(X) = 0.663
+MEMo = 0.718
+
+Mutated
+
+Not mutated
+
+2
+
+0
+
+Mutated
+
+0
+
+12
+
+Figure S2: Two cases where the MEMo permutation test statistic Γ (the coverage, or number of altered samples) deflates or inflates the P -value compared to the CoMEt test statistic T (the number of
+samples with exclusive mutations).
+
+31
+
+Figure S3: Scatter plot between negative log of exact and binomial P -values for all sets of k = 3
+alterations on the GBM dataset (left) and BRCA dataset (right). The color of each dot represents the
+number of co-occurring alterations according to the scale at the right. Note that the P -values for the exact
+test much smaller than the binomial only in cases with relatively low number of co-occurrences. These cases
+are the fastest to compute with the tail enumeration algorithm.
+
+Figure S4: Screenshot of the web application for interactive visualization of CoMEt results.
+
+32
+
+(b)
+
+100
+
+100
+
+101
+
+101
+
+102
+
+102
+
+Avg. Rank
+
+Avg. Rank
+
+(a)
+
+103
+
+103
+
+104
+
+104
+
+105
+
+105
+0
+
+0.2
+0.4
+0.6
+0.8
+1
+Fraction γP of mutated samples
+CoMEt
+
+0
+Dendrix
+
+0.2
+0.4
+0.6
+0.8
+1
+Fraction γP of mutated samples
+
+muex
+
+Figure S5: The average rank of the implanted pathway in output from CoMEt (blue), Dendrix (red),
+and muex (green) in 25 simulated datasets using (a) n = 250 and (b) n = 750 samples. The average
+number of ties (i.e. gene sets with the same score as the implanted pathway) are shown as error bars.
+
+Avg. Runtime (secs)
+
+104
+
+CoMEt
+Dendrix
+muex
+
+103
+
+102
+
+0
+
+0.2
+0.4
+0.6
+0.8
+1
+Fraction γP of mutated samples
+
+Figure S6: Comparison of the average runtime of CoMEt, Dendrix, and muex on N = 25 simulated
+datasets with a single implanted pathway. The standard deviation for the runtime is shown as an error bar.
+
+33
+
+log10 ( the number of genes that have at least x mutations )
+
+the number of mutations (%)
+
+Figure S7: The distribution of the number of genes with ≥ x mutations in simulated data. We removed
+those genes mutated in fewer than 1% of mutations, i.e. genes mutated in fewer than 5 samples.
+
+Figure S8: The distribution of the number of edges with weight ≥ p in GBM with k = 3 and t = 3 in
+log-log scale. The red dot indicates the first hitting edge weight where the change in slope is negative (when
+moving leftward) such that the number of edges in the subgraph is at least t × k2 = 9 (as the horizontal
+yellow line).
+
+34
+
+RUNX1-RUNXT1
+0.31
+
+7
+
+MYH11-CBFβ
+
+0.28
+
+11
+
+0.36
+0.77
+
+11
+MLL-Fusions
+51
+DNMT3A
+
+0.51
+
+Tyrosine
+kinases
+
+25
+
+0.2
+0.3
+
+0.25
+
+0.19
+
+0.88
+
+9
+
+Serine/
+Threonine
+kinases
+
+20
+
+1.0
+
+0.21
+
+23
+
+23
+
+NPM1
+54
+
+1.0
+0.88
+
+0.88
+
+16
+PML-RARα
+
+0.88
+
+1.0
+
+25
+
+0.46
+
+0.74
+
+Other
+myeloid
+transcription
+factors
+TET2
+17
+
+Other epigenetic modifiers
+
+NRAS/KRAS
+RUNX1
+
+56
+
+4
+0.78
+
+0.37
+
+Cohesin complex
+
+KDM6A
+
+56
+
+0.46
+
+0.83
+0.5
+
+0.92
+
+FLT3
+
+IDH2
+0.19
+
+20
+
+Legend
+Tumor suppressor
+
+DNA methylation
+
+Transcription factor fusions
+
+Cohesin complex
+
+Nucleophosmin gene
+
+Chromatin modifiers
+
+15
+
+Myeloid transcription factors
+
+TP53
+
+Activated signaling
+
+Probability of observing
+pair together
+
+Figure S9: CoMEt results on AML dataset with t = 4 and k = 4.
+
+35
+
+(a) TCGA GBM
+
+Φ=2.3Ε−10
+
+Coverage: 90.42 % (236/261 samples)
+
+CDKN2A(D) (176)
+CDK4(A) (53)
+CDKN2C(D) (27)
+RB1 (19)
+VAV2(D) (8)
+MSL3 (5)
+
+Mutation Matrix Legend Amp
+
+Del
+
+SNV
+
+Exclusive mutations
+
+Φ=4.8Ε−17
+
+Coverage: 91.19 % (238/261 samples)
+
+Co-occurring mutations
+
+CDKN2A(D) (176)
+TP53 (76)
+MDM2(A) (23)
+Φ=7.7Ε−10
+
+(b) TCGA AML
+
+Φ=4.6Ε−09
+
+Coverage: 54.41 % (142/261 samples)
+
+Coverage: 73.56 % (192/261 samples)
+
+EGFR(A) (127)
+PDGFRA(A) (46)
+NF1 (22)
+IDH1 (14)
+SRCRB4D (5)
+
+PTEN (76)
+PTEN(D) (41)
+PIK3R1 (17)
+PDPN,PRDM2(A) (13)
+
+Φ=2.1Ε−19
+
+Coverage: 63.5 % (127/200 samples)
+
+NPM1 (54)
+RUNX1 (20)
+PML-RARA (16)
+TP53 (15)
+MYH11-CBFB (11)
+MLLX (11)
+
+Φ=0.001
+
+Coverage: 35.5 % (71/200 samples)
+
+Φ=0.006
+
+Coverage: 24.5 % (49/200 samples)
+
+MODs (29)
+Cohesin (26)
+MyeloidTFs (13)
+ASXL1 (5)
+Φ=0.29
+Φ=1.4Ε−05
+
+Coverage: 63 % (126/200 samples)
+Coverage: 53% (106/200 samples) without KDM6A and FLT3
+
+FLT3 (56)
+DNMT3A (51)
+STKs (25)
+RAS (23)
+TKs (9)
+KDM6A (4)
+
+IDH2 (20)
+TET2 (17)
+PTPs (12)
+
+(c) TCGA STAD
+
+Φ=2.7Ε−3
+
+Φ= 1.7Ε−9 Coverage: 69.12 % (150/217 samples)
+
+Coverage: 43.78 % (95/217 samples)
+
+ERBB2(A) (61)
+KRAS(A) (26)
+BTBD11 (11)
+
+TP53 (107)
+PIK3CA (28)
+C12orf63 (6)
+BAT2L1 (6)
+TLN1 (6)
+MAP2K7 (6)
+
+Φ=2.9Ε−6
+
+Coverage: 36.41 % (79/217 samples)
+
+ARID1A (30)
+IL7R,LIFR(A) (26)
+HDAC10,BRD1(D) (13)
+CNBD1 (10)
+
+Φ= 1.0Ε−2 Coverage: 39.17 % (85/217 samples)
+
+EPHB3(A) (49)
+CDH1 (26)
+ARHGAP26-CLDN18(F) (9)
+PCDHA11 (6)
+
+Φ=2.0Ε−3
+
+Coverage: 53.00 % (115/217 samples)
+
+MET(R) (66)
+CCNE1(A) (41)
+SMAD4 (17)
+
+(d) TCGA BRCA
+Φ=1.9Ε−15
+
+TP53 (186)
+GATA3 (54)
+CDH1 (33)
+CTCF (13)
+
+Coverage: 54.83 % (278/507 samples)
+
+Φ=1.9Ε−07
+
+Coverage: 32.94 % (167/507 samples)
+
+MCL1(A) (105)
+MAP3K1 (39)
+ENSG00000247765 (12)
+AKT1 (12)
+
+Φ=1.4Ε−06
+
+Coverage: 48.13 % (244/507 samples)
+
+PIK3CA (178)
+PTEN(D) (71)
+KIF17 (5)
+
+Figure S10: Mutation matrices for the CoMEt results on (a) TCGA GBM, (b) TCGA AML, (c) TCGA
+STAD, and (d) TCGA BRCA datasets. The matrices have alterations as rows, and samples as columns.
+Each cell indicates whether or not an alteration occurred in a particular sample, where grey indicates the
+sample was not altered. Samples with co-occurring alterations in the same set are colored orange, while
+exclusive alterations are colored blue.
+
+36
+
+

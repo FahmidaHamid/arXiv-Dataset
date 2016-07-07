@@ -1,0 +1,1661 @@
+A sequentially Markov conditional sampling distribution for
+structured populations with migration and recombination
+
+arXiv:1208.5086v2 [q-bio.PE] 1 Nov 2012
+
+Matthias Steinrücken1,∗ , Joshua S. Paul2,† and Yun S. Song1,2,‡
+
+Abstract
+Conditional sampling distributions (CSDs), sometimes referred to as copying models, underlie numerous practical tools in population genomic analyses. Though an important application
+that has received much attention is the inference of population structure, the explicit exchange
+of migrants at specified rates has not hitherto been incorporated into the CSD in a principled
+framework. Recently, in the case of a single panmictic population, a sequentially Markov CSD
+has been developed as an accurate, efficient approximation to a principled CSD derived from
+the diffusion process dual to the coalescent with recombination. In this paper, the sequentially
+Markov CSD framework is extended to incorporate subdivided population structure, thus providing an efficiently computable CSD that admits a genealogical interpretation related to the
+structured coalescent with migration and recombination. As a concrete application, it is demonstrated empirically that the CSD developed here can be employed to yield accurate estimation
+of a wide range of migration rates.
+
+Keywords: structured coalescent, recombination, migration, conditional sampling distribution,
+hidden Markov model, sequentially Markov coalescent
+
+1
+
+Introduction
+
+Under a given population genetic model, the conditional sampling distribution (CSD), also called a
+copying model by some authors, describes the probability that an additionally sampled haplotype
+is of a certain type, given that a collection of haplotypes has already been observed. As described
+below, various applications in population genomics make use of the CSD. Although the CSD is
+of much importance, no exact closed-form expressions are known in the situations to which it has
+been applied, and so a number of approximations have been proposed.
+Following the seminal work of Stephens and Donnelly (2000) and Fearnhead and Donnelly (2001),
+Li and Stephens (2003) proposed a widely used CSD, denoted π̂LS , which models the additionally
+observed haplotype as an imperfect mosaic of the haplotypes already observed. The model underlying π̂LS can be cast as a hidden Markov model (HMM), thus admitting efficient implementation. In
+their paper, Li and Stephens used the CSD π̂LS in a pseudo-likelihood framework to estimate finescale recombination rates, and subsequently π̂LS and its extensions have been used in numerous other
+population genetic applications, including estimating gene-conversion parameters (Gay et al., 2007;
+Yin et al., 2009), and phasing genotype sequence data into haplotype sequence data and imputing
+1
+2
+
+Department of Statistics, University of California, Berkeley, CA 94720, USA
+Computer Science Division, University of California, Berkeley, CA 94720, USA
+Email: ∗ steinrue@stat.berkeley.edu, † jspaul@cs.berkeley.edu, ‡ yss@stat.berkeley.edu
+
+1
+
+missing data (Stephens and Scheet, 2005; Li and Abecasis, 2006; Li et al., 2010; Marchini et al.,
+2007; Howie et al., 2009).
+Another important application of the CSD that has received much attention is the inference
+of population structure and demography. Hellenthal et al. (2008) employed π̂LS to model human
+colonization history as a sequence of founder events and estimated the order of the founding events,
+as well as the relative contribution of different founding populations during the events. To estimate
+the splitting time of two populations Davison et al. (2009) modified π̂LS to incorporate the split
+into the copying model, and used the same pseudo-likelihood framework as Li and Stephens (2003)
+to estimate the time of splitting. In a more recent study, Lawson et al. (2012) applied π̂LS to a
+sample of DNA sequences and used properties of the inferred mosaic pattern to reveal structure in
+the underlying population.
+To handle admixture, a modification to π̂LS was introduced by Price et al. (2009), who assumed
+that the previously observed haplotypes in the CSD are from two distinct ancestral populations
+(e.g., African and European). In modeling the mosaic pattern for a haplotype sampled from
+the admixed population (e.g., African American), it is then assumed more likely that adjacent
+segments originate from the same ancestral population, rather than from two different ancestral
+populations. Price et al. applied this modified copying model to detect chromosomal segments
+of distinct ancestry in admixed individuals and estimated admixture fractions in recently admixed
+populations. The same model was applied by Wegmann et al. (2011), who used the inferred ancestry
+switch-points to estimate relative recombination rates between different populations.
+As discussed above, π̂LS is a very useful CSD with a variety of applications, but it was not
+derived from, though was certainly motivated by, principles underlying the coalescent process. To
+derive CSDs in a principled way, De Iorio and Griffiths (2004a) introduced a general approximation
+technique based on the diffusion process dual to the coalescent; this work was first presented in the
+case of a single locus and a panmictic population, but in a companion paper (De Iorio and Griffiths,
+2004b) the authors applied the method to the case of a subdivided population with migration.
+Griffiths et al. (2008) extended the diffusion approximation technique to handle recombination in
+the special case of two loci with parent-independent mutation at each locus, and Paul and Song
+(2010) later generalized the framework to an arbitrary number of loci and an arbitrary finite-alleles
+mutation model.
+Although more accurate than the CSDs developed by Fearnhead and Donnelly (2001) and by
+Li and Stephens (2003), the CSD π̂PS proposed by Paul and Song (2010) is not amenable to efficient
+evaluation. More precisely, π̂PS can be computed by solving a recursion that becomes intractable
+for a large number of loci. However, utilizing ideas related to the sequentially Markov coalescent
+(SMC) (Wiuf and Hein, 1999; McVean and Cardin, 2005; Marjoram and Wall, 2006), which is a
+simplified genealogical process that captures the essential features of the full coalescent model with
+recombination, we (Paul et al., 2011) recently developed an approximation to π̂PS that could be cast
+as an HMM with continuous hidden state space. Furthermore, upon discretizing this continuous
+state space, we obtained an accurate approximation with computational efficiency comparable to
+the CSDs of Fearnhead and Donnelly (2001) and Li and Stephens (2003).
+In this paper, we extend our previous work on the sequentially Markov CSD to incorporate
+subdivided population structure with migration. Following Paul and Song (2010), we describe a
+genealogical process for an additionally sampled haplotype conditioned on the genealogy of already
+observed haplotypes. We present a recursion that can be used to compute the probability of
+the additionally sampled haplotype, but, as in Paul and Song (2010), solving this recursion is
+
+2
+
+tractable only for a small number of loci. As in Paul et al. (2011), we apply the sequentially
+Markov framework to the conditional genealogical process with migration and recombination, and
+obtain an accurate approximation that facilitates computation for a large number of loci. As a
+concrete application, we demonstrate empirically that our new CSD can be employed in various
+pseudo-likelihoods to produce accurate estimation of a wide range of migration rates.
+The remainder of this paper is organized as follows: In Section 2, we introduce the notation
+adopted throughout the paper and describe the relevant population genetic model, the coalescent
+with recombination and migration. We then describe the genealogical interpretation of our CSD in
+Section 3 and introduce several approximations in Section 4 to obtain a CSD for which computation is tractable. In Section 5, we demonstrate the applicability of our CSD by employing it to the
+estimation of migration rates from simulated data. Finally, we conclude in Section 6 with a discussion of further applications and extensions of the CSD developed herein to estimate demographic
+parameters in more complex scenarios.
+
+2
+
+Background
+
+In this section, we briefly describe how migration is integrated into the coalescent with recombination, and recall the CSD π̂PS proposed by Paul and Song (2010), which we extend to incorporate
+migration in the following section. We begin by defining some general notation that will be used
+throughout.
+
+2.1
+
+Notation
+
+We consider haplotypes in the finite-sites, finite-alleles setting. Denote the set of loci by L =
+{1, . . . , k} and the set of alleles at locus ℓ ∈ L by Eℓ ; recombination may occur between any
+consecutive pair of loci, and we denote the set of potential recombination breakpoints by B =
+{(1, 2), . . . , (k − 1, k)}. The space of k-locus haplotypes is denoted by H = E1 × · · · × Ek . Given a
+haplotype h ∈ H, we denote by h[ℓ] ∈ Eℓ the allele at locus ℓ ∈ L, and by h[ℓ : ℓ′ ] (for ℓ ≤ ℓ′ ) the
+partial haplotype (h[ℓ], . . . , h[ℓ′ ]).
+We consider an island model of population structure with a finite set of demes denoted by
+Γ = {1, . . . , g}. At a given time, each individual belongs to a single deme, and the ancestors
+and descendants of the individual may belong to different demes by means of a migration process,
+detailed in Section 2.2.
+
+A structured sample configuration of haplotypes is specified by n = nγ,h γ∈Γ,h∈H , where nγ,h
+denotes the number of haplotypes of type h within deme γ in the sample. The configuration of
+haplotypes within deme γ ∈ Γ is denoted nγ , and the total number of haplotypes
+in the deme by
+P
+|nγ | = nγ . The total number of haplotypes in n is denoted by n = |n| = γ∈Γ nγ . Finally, we use
+eγ,h to denote the singleton configuration comprising a single haplotype h within deme γ.
+
+2.2
+
+The coalescent with recombination and migration
+
+The stochastic process underlying our work is the coalescent with recombination and migration
+(Griffiths and Marjoram, 1997; Herbots, 1997). Consider a structured population with
+P a finite set
+Γ of demes. We denote the relative size of deme γ ∈ Γ by κγ , where 0 ≤ κγ ≤ 1 and γ∈Γ κγ = 1.
+Note that two individuals within a deme find a common ancestor at rate inversely proportional to
+the relative size of the deme; in the coalescent limit, coalescence within deme γ occurs at rate κ−1
+γ .
+3
+
+To allow for migration of ancestral lineages between demes, define vγγ ′ to be the probability
+that an individual in deme γ has a parent in deme γ ′ . In the coalescent limit, as the population
+size N tends to infinity, an ancestral lineage in deme γ migrates, backwards in time, to deme γ ′
+at rate mγγ ′ /2, where mγγ ′ = 4N vγγ ′ is the scaled migration rate. Henceforward, we consider a
+′
+′
+continuous-time
+Markov migration process with transition rate
+P matrix M = (mγγ /2)γ,γ ∈Γ , where
+P
+mγγ = − γ ′ 6=γ mγγ ′ . For ease of notation, we define mγ = γ ′ 6=γ mγγ ′ .
+An ancestral lineage undergoes mutation at locus ℓ ∈ L at rate θℓ /2, where θℓ is the scaled
+mutation rate, and according to the stochastic mutation transition matrix P(ℓ) . Further, as in the
+ordinary coalescent with recombination, an ancestral lineage undergoes recombination, backwards
+in time, at breakpoint b ∈ B at rate ρb /2, where ρb is the scaled recombination rate, giving rise to
+two lineages (in the same deme).
+A structured configuration n with nγ individuals in each deme γ can be sampled as follows.
+The process starts at present with nγ untyped lineages in each deme γ, and lineages in each deme
+γ evolve backwards in time subject to the following possible events:
+Mutation: Each lineage undergoes mutation at locus ℓ ∈ L with rate θℓ /2 according to the
+mutation transition matrix P(ℓ) .
+Recombination: Each lineage undergoes recombination at breakpoint b ∈ B with rate ρb /2.
+Migration: Each lineage migrates to deme γ ′ with rate mγγ ′ /2.
+Coalescence: Each pair of lineages coalesce with rate κ−1
+γ .
+When a single lineage remains, the type at each locus ℓ is chosen according to the stationary
+distribution of the mutation matrix P(ℓ) , and this type is propagated toward the present, producing
+a realization for the sample n.
+
+2.3
+
+The CSD π̂PS for a single panmictic population
+
+The approximate CSD π̂PS (Paul and Song, 2010) for a single panmictic population is described by a
+genealogical process closely related to the coalescent with recombination. Suppose that, conditioned
+on having already observed a haplotype configuration n, we wish to sample c additional haplotypes.
+As described in Paul and Song (2010), given the true fully-specified genealogy An for the conditional
+configuration n, it is possible to sample a conditional genealogy C for the c additional haplotypes.
+The conditional genealogy C comprises the following: mutation, recombination, and coalescence
+within C, occurring at rates given in Section 2.2; and absorption of lineages into the known genealogy
+An , occurring at rate 1 for each pair. Because the types of the lineages of An are known, the type of
+an absorbed lineage is determined. Thus, when all lineages of C have been absorbed, the type may
+be propagated forward, thereby producing a realization for sample configuration c with |c| = c.
+Unfortunately, we do not generally have access to the true genealogy An . Making use of the
+diffusion-generator approximation (De Iorio and Griffiths, 2004a,b; Griffiths et al., 2008), Paul and Song
+(2010) propose the following: Assume that An = A0 (n), where A0 (n) is called the trunk genealogy in which lineages do not mutate, recombine, or coalesce with one another, but instead form
+a non-random “trunk” extending infinitely into the past. Note that A0 (n) does not have a most
+recent common ancestor, and for this reason is improper; nonetheless, it remains possible to sample
+a well-defined conditional genealogy C, and thus to generate an additional sample c, in much the
+
+4
+
+same way as described above. In particular, lineages within C evolve backwards in time subject to
+the following events:
+Mutation: Each lineage undergoes mutation at locus ℓ ∈ L with rate θℓ according to P(ℓ) .
+Recombination: Each lineage undergoes recombination at breakpoint b ∈ B with rate ρb
+Coalescence: Each pair of lineages coalesce with rate 2.
+Absorption: Each lineage is absorbed into a lineage of An = A0 (n) with rate 1.
+Observe that the rate of absorption is the same as in the case where An is known. The rates for mutation, recombination, and coalescence, on the other hand, are each a factor of two larger than those
+given in Section 2.2; intuitively, this adjustment accounts for using the (incorrect) trunk genealogy
+A0 (n), and notably the absence of events therein. Importantly, the CSD π̂PS has been shown to
+be correct for a one-locus model with parent independent mutation (Stephens and Donnelly, 2000;
+De Iorio and Griffiths, 2004a; Paul and Song, 2010), a strong argument in favor of the given rate
+adjustment. The CSD π̂PS is completely characterized by the above genealogical process.
+Remark. The rates given for the genealogical process governing π̂PS are double those given by
+Paul and Song (2010) and Paul et al. (2011). Importantly, the genealogical process is time-homogeneous,
+and so for the purposes of computing the conditional sampling probability (CSP) π̂PS (c|n), this
+modification has no effect (indeed, any constant multiple of the rates will yield the same CSP).
+However, we believe that the scaling adopted here admits a natural interpretation of the absorption
+time as a true coalescence time. For example, consider sampling a single haplotype conditional on
+a configuration n with |n| = 1; analogous to coalescence of two lines in Kingman’s coalescent,
+absorption in the genealogical process associated with π̂PS occurs at rate 1.
+
+3
+
+A new CSD π̂Mig for structured populations with recombination
+and migration
+
+We now introduce an approximate CSD π̂Mig by extending the genealogical process of Section 2.3
+to a general structured population with |Γ| ≥ 1. Suppose that conditioned on having already
+observed a structured sample configuration n, we wish to sample c additional haplotypes with cγ
+of them in each deme γ. As before, given the true fully-specified genealogy An for the conditional
+configuration n, including migration events, it is possible to sample a conditional genealogy C for
+the c additional haplotypes. The conditional genealogy C comprises the events and corresponding
+rates of Section 2.2, this time including migration, and the absorption of lineages in each deme γ
+into lineages of An in deme γ. These latter absorption events occur at rate κ−1
+γ .
+In practice, we do not have access to the true genealogy An , but the diffusion-generator technique (De Iorio and Griffiths, 2004a,b; Griffiths et al., 2008; Paul and Song, 2010) again implies
+the following approximation: Assume that An = A0 (n) = {A0 (nγ )}γ∈Γ , where A0 (nγ ) is the
+non-random sub-trunk genealogy associated with deme γ, within which lineages do not mutate,
+recombine, migrate, or coalesce with one another. As in Section 2.3, given this assumption it remains possible to sample a well-defined conditional genealogy C, and thus to generate the additional
+structured sample c. Specifically, lineages within each deme γ of C evolve backwards in time subject
+to the following events:
+5
+
+Mutation: Each lineage undergoes mutation at locus ℓ ∈ L with rate θℓ according to the
+mutation transition matrix P(ℓ) .
+Recombination: Each lineage undergoes recombination at breakpoint b ∈ B with rate ρb .
+Migration: Each lineage migrates to deme γ ′ with rate mγγ ′ .
+Coalescence: Each pair of lineages coalesces with rate 2κ−1
+γ .
+Absorption: Each lineage is absorbed into a lineage of A0 (nγ ) with rate κ−1
+γ .
+Observe that the rates of mutation, recombination, migration, and coalescence are a factor of two
+larger than when the true genealogy An is known. Intuitively, this again accounts for using the
+(incorrect) trunk genealogy A0 (n), and particularly the absence of events therein; see the remark at
+the end of Section 2.3. The approximate CSD π̂Mig is completely characterized by this genealogical
+process. See Figure 1(a) for an illustration.
+Remark. For strongly asymmetric migration rates, the approximate CSD π̂Mig , and in particular
+the assumed trunk genealogy A0 (n), may be very inaccurate. Consider for example the case of two
+demes and m12 ≫ m21 . The expected time for an additionally sampled haplotype in deme 2 to
+be absorbed into the trunk in deme 1 will be very large, since the lineages in the trunk genealogy
+A0 (n1 ) are confined to stay in deme 1. In case of the true genealogy An , however, one would
+expect the lineages of the haplotypes in the observed configuration in deme 1 to cross over to deme
+2 quickly and coalesce more recently with the additional lineage.
+We now consider computing the CSP π̂Mig (c|n). It is possible to derive the following result directly using the diffusion-generator approximation, but we defer this work to Appendix A. Below, we
+obtain the result through the genealogical process detailed above; using typical forward-backward
+genealogical arguments in coalescent theory, we deduce that π̂Mig (c|n) satisfies the following equation:
+
+
+1 X
+·
+cγ,h nγ,h + cγ,h − 1 κ−1
+π̂Mig (c|n) =
+γ π̂Mig (c − eγ,h |n)
+N γ∈Γ,
+h∈H
+
++
+
+X
+
+θℓ
+
++
+
+ρb
+
+b∈B
+
++
+
+X
+
+(ℓ)
+
+Pa,h[ℓ] π̂Mig (c − eγ,h + eγ,Sℓa (h) |n)
+
+a∈Eℓ
+
+ℓ∈L
+
+X
+
+X
+
+γ ′ 6=γ
+
+X
+
+π̂Mig (c − eγ,h + eγ,Rb (h,h′ ) + eγ,Rb (h′ ,h) |n)
+
+h′ ∈H
+
+
+mγγ ′ π̂Mig (c − eγ,h + eγ ′ ,h |n) ,
+
+(3.1)
+
+where Sℓa (h) denotes the haplotype obtained by substituting the allele at locus ℓ of h with allele a,
+and Rb (h, h′ ) denotes the haplotype obtained, via recombination about breakpoint b = (ℓ, ℓ + 1),
+by joining the (partial) haplotypes h[1 : ℓ] and h′ [ℓ + 1, k]. The first term on the right hand
+side of this equation corresponds to coalescence and absorption of haplotype h in deme γ, and
+the subsequent terms correspond to mutation, recombination, and migration, respectively. The
+normalizing constant N is given by
+"
+#
+X
+X
+X
+X
+−1
+N =
+cγ (nγ + cγ − 1)κγ +
+θℓ +
+ρb +
+mγγ ′ .
+γ∈Γ
+
+ℓ∈L
+
+6
+
+b∈B
+
+γ ′ 6=γ
+
+Equation (3.1) is for the “full” (conditional) genealogical process, and, because of the recombination terms, it cannot be directly computed by solving a set of linear equations. However, as in
+Paul and Song (2010), it is possible to derive a “reduced” recursion related to (3.1) that can be
+computed by solving a finite set of linear equations. Unfortunately, the number of variables in
+the set of equations grows super-exponentially with both the number of loci and the number of
+haplotypes in the sample configuration n, making it computationally intractable for all but the
+smallest problems. In the following section, we propose accurate approximations that allow for
+efficient computation.
+
+4
+
+An efficiently computable CSD as an approximation of π̂Mig
+
+As described above, the recursion for π̂Mig (c|n) becomes computationally intractable for even modest datasets. In what follows, we adopt a set of approximations to obtain a CSD that admits
+efficient implementation, while retaining the accuracy of π̂Mig .
+
+4.1
+
+The CSD π̂MigSMC : Sequentially Markov approximation of C
+
+We follow Paul et al. (2011) and use ideas underlying the SMC (Wiuf and Hein, 1999; McVean and Cardin,
+2005; Marjoram and Wall, 2006) to approximate π̂Mig . Briefly, observe that a given conditional genealogy induces a marginal conditional genealogy (MCG) at each locus, where each MCG comprises
+a series of mutation and migration events, and the eventual absorption into a lineage of the subtrunk in a certain deme. See Figure 1(b) for an illustration. The key insight, initially provided by
+Wiuf and Hein (1999), is that we can generate the conditional genealogy as a sequence of MCGs,
+rather than backwards in time. Moreover, though the sequence is not formally Markov, it is well approximated (McVean and Cardin, 2005; Marjoram and Wall, 2006; Paul et al., 2011) by a Markov
+process using a two-locus transition density. Applying this approximation to π̂Mig yields the sequentially Markov CSD π̂MigSMC . For ease of exposition, we restrict attention to the case of sampling
+a single additional haplotype, denoted h, but the ideas generalize, in principle, to sampling two or
+more additional haplotypes.
+Since mutations can be superimposed onto the conditional genealogy, we first consider generating a sequence of MCGs without mutations according to a Markov process. The genealogical
+process underlying π̂Mig yields the following sampling procedure for the MCG at an arbitrary locus:
+The ancestral lineage of the additionally sampled haplotype initially resides in deme α, where the
+additional haplotype is sampled, and proceeds backwards in time, subject to the migration process, until being absorbed into a lineage of the sub-trunk A0 (nγ ) within the current deme γ. The
+associated marginal distribution is used as the initial distribution at the first locus.
+Conditional on the marginal genealogy at locus ℓ − 1, the marginal genealogy at locus ℓ can be
+sampled by first placing recombination events onto the MCG at locus ℓ − 1 according to a Poisson
+process with rate ρ(ℓ−1,ℓ) . If no recombination occurs, the marginal genealogy at locus ℓ is identical
+to the one at locus ℓ − 1. If recombination does occur, the MCG at locus ℓ is identical to the
+MCG at locus ℓ − 1 up to the time tb of the most recent recombination event. At this point, the
+lineage resides in the same deme in which the ancestral lineage at locus ℓ − 1 resided at the time of
+the recombination event, and, independently of the lineage at locus ℓ − 1, proceeds backwards in
+time, subject to the migration process, until being absorbed into a lineage of the sub-trunk A0 (nγ )
+within the current deme γ. Figure 2 illustrates this transition mechanism for the Markov process.
+
+7
+
+Figure 1: Illustration of the subsequent approximations to the true conditional sampling distribution. The three loci of each
+haplotype are each represented by a filled circle, with the color indicating the allelic type
+at that locus. The trunk genealogies in deme
+1 A0 (n1 ) and deme 2 A0 (n2 ), as well as the
+conditional genealogy C are indicated. The
+different demes are indicated by the white
+and the grey background. Time is represented vertically, with the present (time 0) at
+the bottom of the illustration. (a) The genealogical interpretation: Mutation events,
+along with the locus and resulting haplotype, are indicated by small arrows. Recombination events, and the resulting haplotype,
+are indicated by branching events in C. Migration events are indicated by switching to
+another deme. Absorption events, and the
+corresponding absorption time (t(a) and t(b) )
+and haplotype (h(a) and h(b) , respectively),
+are indicated by dot-dashed horizontal lines.
+(b) The corresponding sequential interpretation: The marginal genealogies at the first,
+second, and third locus are emphasized as
+dotted, dashed, and solid lines, respectively.
+Mutation events at each locus, along with
+resulting allele, are indicated by small arrows. Absorption events at each locus are
+indicated by horizontal lines. (c) The corresponding sequential interpretation where
+just the deme of absorption, the time of absorption, and the absorbing haplotype are
+recorded. The gap in the ancestral lineages
+indicates that the marginal conditional genealogy is integrated out.
+
+t(a)
+
+h(a)
+
+t(b)
+
+A0 (n1 )
+
+C
+
+h(b)
+
+A0 (n2 )
+
+(a) π̂Mig
+
+h(a)
+
+t(a)
+t(b)
+
+A0 (n1 )
+
+C
+
+h(b)
+
+A0 (n2 )
+
+(b) π̂MigSMC
+
+h(a)
+
+t(a)
+t(b)
+
+A0 (n1 )
+
+C
+
+h(b)
+
+A0 (n2 )
+
+(c) π̂MigSMC-AO
+
+8
+
+tℓ−1
+
+tℓ−1
+
+tℓ−1
+tℓ
+
+tb
+(1)
+
+tb
+(2)
+
+(3)
+
+Figure 2: The transition density from locus ℓ − 1 to locus ℓ in the model underlying π̂MigSMC
+is illustrated. The white and the grey background symbolize the two different demes that the
+ancestral lineage can reside in. (1) A Poisson number of recombination events is placed uniformly
+onto the marginal conditional genealogy at locus ℓ − 1. (2) If the time tb of the most recent
+recombination event is more recent than the time of absorption tℓ−1 , then the marginal conditional
+genealogy up to this time is copied to locus ℓ. (3) The ancestral lineage at locus ℓ evolves according
+to migration until it is absorbed at time tℓ into the trunk in some deme.
+Conditional on the MCG at locus ℓ, mutations are superimposed onto the MCG according to
+a Poisson process with rate θℓ . The MCG is absorbed into a trunk lineage corresponding to some
+haplotype h, thereby specifying an “ancestral” allele h[ℓ]. This allele is then propagated to the
+present according to the mutations and the mutation transition matrix P(ℓ) , thereby generating an
+allele at locus ℓ of the additional haplotype. We refer to the associated distribution of alleles as
+the emission distribution.
+It is possible to write down explicit expressions for the initial, transition, and emission distributions for π̂MigSMC . However, as the state space for the MCG at each locus includes the entire migrational history, an efficient algorithm for computing the CSP is not known. In the next subsections,
+we introduce further approximations to this model in order to admit an efficient implementation.
+Although we do not prove it here, we note that, analogous to Paul et al. (2011), the sequentially
+Markov version of the CSD can be obtained from the genealogical process introduced in Section 3
+by prohibiting coalescence events in the conditional genealogy between lineages not ancestral to any
+overlapping parts of the additionally sampled haplotypes. In the case of sampling one additional
+haplotype, this corresponds to prohibiting all coalescence events in the conditional genealogy. This
+observation allows one to write down a recursive formula to compute probabilities under π̂MigSMC ,
+but this again does not lead to an efficient implementation.
+
+4.2
+
+The CSD π̂MigSMC-AO : Keeping track of the absorption time only
+
+As noted in the previous subsection, if we keep track of all demes in which the additional ancestral
+lineage at a given locus resides at any given time in the past, then the MCG is a complicated
+object. To remedy this, we approximate the full marginal genealogy by just recording the time
+until absorption, as well as the deme in which the ancestral lineage resides at the time of absorption
+and also the absorbing haplotype. The reduced MCG at locus ℓ is thus given by a triplet of random
+A
+A
+A
+variables (GA
+ℓ , Tℓ , Hℓ ) ∈ Γ × R≥0 × H, that is the deme of absorption Gℓ , the absorption time
+9
+
+TℓA , and the absorbing haplotype HℓA . Henceforward, we use S to denote Γ × R≥0 × H.
+Now, observe that the marginal migration dynamics of the ancestral lineage at a single locus can
+be described by a continuous-time Markov chain with a finite state space. The states can be divided
+in two groups: one state for each deme denoting residence in that deme before being absorbed into
+the trunk, and another one for each deme to represent being absorbed into a lineage of the trunk in
+the given deme at some previous time. We denote the set of states by {1, . . . , g, a1 , . . . , ag }, where,
+for 1 ≤ i ≤ g, state i denotes residence in deme i, and state ai denotes absorption in deme i. The
+dynamics of the Markov chain is given by the (2g × 2g)-dimensional block-specified rate matrix
+
+
+M −A A
+Z=
+,
+0
+0
+where 0 is a (g × g)-dimensional matrix of zeros, M is the (g × g)-dimensional matrix of migration
+rates which govern the transitions between the first group of states (the non-absorbed states), and
+A is the (g × g)-dimensional diagonal matrix
+
+ −1
+κ1 n1 · · ·
+0
+
+.. 
+..
+A =  ...
+.
+. 
+0
+
+···
+
+κ−1
+g ng
+
+which governs the transition into the second group (the absorbed states). The diagonal form ensures
+that the absorbed state ai can be reached only if the ancestral lineage currently resides in deme i.
+Also, note that absorption is proportional to the inverse of relative size κ−1
+of deme i, as well as
+i
+the number of trunk-lineages ni in deme i. Because the absorbing states are also absorbing in the
+context of the Markov chain, the rows of Z corresponding to these states are set to zero.
+The process generating the conditional genealogy for the whole additional haplotype proceeds
+sequentially along the haplotype, and thus admits a natural interpretation in an HMM framework,
+where the MCG at a given locus is the hidden state and the allele of the additionally sampled
+haplotype at this locus is the emitted symbol. We now describe the initial density, the transition
+density, and the emission probability.
+4.2.1
+
+Initial density
+
+Standard theory of Markov chains yields that the probabilities of interest for the initial density
+can be found in the respective entries of the transition semigroup. If the additional haplotype is
+sampled at present in deme α, the probability of residing in deme i and not being absorbed more
+recently than time t into the past is (etZ )α,i . On the other hand, the cumulative probability of
+being absorbed in deme i more recently than time t is given by (etZ )α,ai . Thus, the initial density of
+state s = (ω, h, t), that is the density of being absorbed in deme ω at time t into the trunk-lineage
+of haplotype h, is given by the derivative of the latter matrix exponential:
+d
+P{GA = ω, T A ≤ t, H A = h}
+dt
+
+
+d nω,h tZ 
+=
+e α,aω
+dt nω
+
+nω,h
+ZetZ α,aω .
+=
+nω
+
+ζ (n) (s) =
+
+10
+
+(4.1)
+
+The factor nω,h /nω comes from the fact that absorption into a specific lineage of the trunk is
+uniform amongst those present in deme ω.
+4.2.2
+
+Transition density
+
+The density for transition from locus ℓ − 1 to ℓ using the full MCG, described in Section 4.1,
+conditions on the full migration history of the lineage of the additionally sampled haplotype at
+locus ℓ − 1. Thus, at the time of a possible recombination event, all demes up to this event,
+including the deme where the event takes place are determined. If only the time and the deme of
+absorption are recorded, then the deme in which the ancestral lineage resides at the time of the
+recombination event is a random variable with a distribution determined by the dynamics of the
+Markov chain. Let GB
+tb denote the random deme in which the ancestral lineage of the additional
+haplotype resides at the time tb of the recombination event. Then, for γ ∈ Γ, the distribution is
+given by
+ t Z   (t −t )Z 
+e b α,γ Ze ℓ−1 b γ,aω
+ℓ−1
+A
+A
+ t Z
+.
+(4.2)
+=
+t
+,
+G
+=
+ω
+}
+=
+P{GB
+=
+γ
+|
+T
+ℓ−1
+ℓ−1
+tb
+ℓ−1
+ℓ−1
+Ze ℓ−1 α,aω
+ℓ−1
+
+The transition from sℓ−1 to sℓ is now given as follows: The time tb of the potential recombination
+event is chosen according to an exponential distribution with rate ρ(ℓ−1,ℓ) . If tb ≥ tℓ−1 , no recombination occurs and the MCG sℓ is identical to sℓ−1 . If tb < tℓ−1 , then recombination occurs and
+we use (4.2) to determine the probability that the ancestral lineage resided in a certain deme at
+the time of the recombination event. The ancestral lineage at locus ℓ proceeds from time tb in this
+deme and is again subject to migration according to the dynamics of the Markov chain governed
+by rate matrix Z, until it is absorbed. Integrating over the possible times of the recombination
+event and summing over the different possible demes yields the following transition density of the
+hidden state sℓ at locus ℓ, given sℓ−1 at the previous locus:
+A
+A
+A
+A
+A
+A
+φ(n)
+ρb (sℓ |sℓ−1 ) = P{Gℓ = ωℓ , Tℓ ∈ dtℓ , Hℓ = hℓ |Gℓ−1 = ωℓ−1 , Tℓ−1 = tℓ−1 , Hℓ−1 = hℓ−1 }
+
+= e−ρb tℓ−1 δsℓ ,sℓ−1
+ t Z   (t −t )Z 
+Z tℓ−1 ∧tℓ
+e b α,γ Ze ℓ−1 b γ,aω 
+X
+
+nωℓ ,hℓ
+ℓ−1
+−ρb tb
+ t Z
+e
+Ze(tℓ −tb )Z γ,aω dtb ,
++
+nωℓ tb =0
+ℓ
+Ze ℓ−1 α,a
+γ∈Γ
+
+ωℓ−1
+
+(4.3)
+
+where tℓ−1 ∧ tℓ denotes the minimum of tℓ−1 and tℓ .
+4.2.3
+
+Emission probability
+
+Since the mutation rate does not depend on the deme in which the ancestral lineage of the additional
+haplotype resides, the emission probability at locus ℓ only depends on the absorption time tℓ and the
+allele of the absorbing haplotype at that locus hℓ [ℓ]. As described above, a Poisson number (with
+mean tℓ θℓ ) of mutation events is placed onto the MCG sℓ and the “ancestral” allele is propagated
+to the present according to the mutation transition matrix P(ℓ) . Thus, the probability that the
+allele of the additional haplotype is h[ℓ], given the hidden state sℓ , can be written as the following
+
+11
+
+matrix exponential:
+(n)
+
+A
+A
+ξθℓ (h[ℓ] | sℓ ) = P{Hℓ = h[ℓ] | GA
+ℓ = ωℓ , Tℓ = tℓ , Hℓ = hℓ }
+
+
+(ℓ)
+= etℓ θℓ (P −I) h [ℓ],h[ℓ],
+
+(4.4)
+
+ℓ
+
+where Hℓ denotes the random allele emitted at locus ℓ.
+4.2.4
+
+A hidden Markov model formulation to compute the CSP
+
+Using the quantities introduced in the previous Sections, we can now employ the forward algorithm
+for this HMM with continuous hidden state space (Cappé et al., 2005) by defining the quantity
+fℓh (·) recursively. The base case for the first locus is
+(n)
+
+f1h (s1 ) = ξθ1 (h[1]|s1 ) · ζ (n) (s1 ),
+and the recursive step for the transition from locus ℓ − 1 to ℓ is
+Z
+(n)
+h
+h
+fℓ (sℓ ) = ξθℓ (h[ℓ]|sℓ ) · φ(n)
+ρb (sℓ |sℓ−1 )fℓ−1 (sℓ−1 )dsℓ−1 ,
+where b = (ℓ−1, ℓ). Finally, the CSP π̂MigSMC-AO (h|n) of an additional haplotype h given the already
+observed sample configuration n is given by:
+Z
+π̂MigSMC-AO (h|n) = fkh (sk )dsk .
+The sequentially Markov genealogical process corresponding to the CSD π̂MigSMC-AO is illustrated in
+Figure 1(c).
+Note that the dynamics of the Markov chain on the hidden states is reversible with respect to
+the initial density, i.e.,
+′
+(n)
+′ (n) ′
+φ(n)
+(s) = φ(n)
+(s )
+ρ (s |s)ζ
+ρ (s|s )ζ
+holds for all recombination rates ρ ∈ R≥0 and hidden states s, s′ ∈ S. Thus, the initial density ζ (n) (·)
+is in fact the stationary distribution of the Markov chain on the hidden state space. Reversibility
+also ensures that the CSP computed starting at the first locus and proceeding forward is the same
+as the CSP computed when starting at the final locus and proceeding backward.
+
+4.3
+
+Discretizing time
+
+The reduced hidden state space of the HMM introduced in the previous subsection yields an approximation to the full sequentially Markov conditional sampling distribution. However, the hidden
+state space (in particular the absorption time) is continuous, making implementation with standard (discrete) HMM methodology impossible. Thus, as in Paul et al. (2011), we propose a further
+approximation, by discretizing the positive real line into a finite number of intervals and recording
+the interval that the absorption time falls into. Formally, this corresponds to the approximation
+that the transition density and emission probability are equal for times that belong to the same
+interval.
+To this end, assume that 0 = x0 < x1 < · · · < xd = ∞ is a finite, strictly increasing sequence in
+R≥0 ∪ {∞} such that D = {Dj = [xj−1 , xj )}j=1,...,d is a partition of R≥0 into d intervals. We denote
+12
+
+the discretized hidden state space Γ×{1, . . . , d}×H by Σ and the hidden states by σ = (ω, i, h) ∈ Σ,
+where i is the index of the interval of absorption. As before, ω denotes the deme and h the trunk
+lineage of absorption. Based on the partition D, denote the discretized version of the initial density
+as
+ζ̃ (n) (σ) = P{GA = ω, T A ∈ Di , H A = h}
+Z
+ζ (n) (ω, t, h)dt
+=
+Di
+
+= u(ω, i) ·
+where
+u(ω, i) =
+
+Z
+
+ZetZ
+t∈Di
+
+
+
+α,aω
+
+nω,h
+,
+nω
+
+dt = exi Z
+
+
+
+α,aω
+
+− exi−1 Z
+
+
+
+α,aω
+
+.
+
+Note that the event {T A ∈ Di } encodes that we only record the time interval in which absorption
+happens.
+Similarly, we can derive the discretized version of the transition density as
+A
+A
+A
+A
+A
+A
+φ̃(n)
+ρb (σℓ |σℓ−1 ) = P{Gℓ = ωℓ , Tℓ ∈ Diℓ , Hℓ = hℓ |Gℓ−1 = ωℓ−1 , Tℓ−1 ∈ Diℓ−1 , Hℓ−1 = hℓ−1 }
+Z Z
+1
+(n)
+=
+(ωℓ−1 , tℓ−1 , hℓ−1 )dtℓ−1 dtℓ
+φ(n)
+ρ (ωℓ , tℓ , hℓ |ωℓ−1 , tℓ−1 , hℓ−1 )ζ
+(n)
+ζ̃ (σℓ−1 ) Diℓ Diℓ−1 b
+nω ,h
+= yρb (ωℓ−1 , iℓ−1 ) · δsℓ−1 ,sℓ + zρb (ωℓ , iℓ |ωℓ−1 , iℓ−1 ) · ℓ ℓ ,
+n ωℓ
+(4.5)
+
+where explicit expressions of yρb (ωℓ−1 , iℓ−1 ) and zρb (ωℓ , iℓ |ωℓ−1 , iℓ−1 ) are shown in Appendix C.
+Note that we again only record the intervals containing the absorption times at locus ℓ − 1 and ℓ.
+Finally, the emission probabilities in the discretized HMM can be obtained via
+(n)
+
+A
+A
+ξ̃θℓ (h[ℓ]|σℓ ) = P{Hℓ = h[ℓ]|GA
+ℓ = ωℓ , Tℓ ∈ Diℓ , Hℓ = hℓ }
+Z
+1
+(n)
+ξθℓ (h[ℓ]|ωℓ , tℓ , hℓ )ζ (n) (ωℓ , tℓ , hℓ )dtℓ ,
+=
+(n)
+ζ̃ (σℓ ) Diℓ
+
+(4.6)
+
+and we again provide a more explicit form of this quantity in Appendix C. Note that the emission
+probability (4.4) in the continuous case is only dependent on the time of absorption and the allele
+that the absorbing haplotype bears at the given locus. The discretized analog (4.6) on the other
+hand also depends on the deme that the absorbing haplotype resides in. This is due to the fact that
+the latter conditions on being absorbed at any point in a given time interval, and since the rate of
+absorption during that interval depends on the deme, this dependence enters expression (4.6).
+With the state space discretized, the CSP can be computed via the standard forward algorithm
+for HMMs (Cappé et al., 2005). Thus, we define the quantity Fℓh (σℓ ) recursively along loci. At the
+first locus, we have
+(n)
+F1h (σ1 ) = ξ˜θ1 (h[1]|σ1 ) · ζ̃ (n) (σ1 ).
+The transition from locus ℓ − 1 to locus ℓ is given by
+X
+(n)
+h
+φ̃(n)
+Fℓh (σℓ ) = ξ̃θℓ (h[ℓ]|σℓ ) ·
+ρb (σℓ |σℓ−1 )Fℓ−1 (σℓ−1 ),
+σℓ−1 ∈Σ
+
+13
+
+and the probability of observing haplotype h under the discretized HMM is given by
+X h
+π̂MigSMC-AOD (h|n) :=
+Fk (σk ),
+σk ∈Σ
+
+which provides an approximation to π̂MigSMC-AO (h|n).
+Remark.
+1. In Paul et al. (2011), the authors advocate using a discretization based on points obtained
+from Gaussian quadrature. However, we obtained numerically more stable results when using
+a logarithmic discretization, that is xi = −(1/r) log((d − i)/i), where r is the harmonic mean
+of the absorption rates in each deme.
+2. The runtime of the standard implementation of the forward algorithm for HMMs described
+in the previous paragraph is quadratic in the number of hidden states. In Paul et al. (2011),
+the authors describe a straightforward implementation of their model that leads to a better
+bound on the runtime. Since our transition density is of similar form, a similar improvement
+can be applied here.
+
+5
+
+Application: Estimating migration rates
+
+To demonstrate the utility of our approximate CSD π̂MigSMC-AOD , we considered estimating migration
+rates for data simulated under the full coalescent with recombination and migration. In particular,
+we simulated
+data for k = 104 bi-allelic loci. For simplicity, we set θℓ = 5 × 10−2 and P(ℓ) =
+
+
+1/2 1/2
+for all ℓ ∈ L, and ρb = 5 × 10−2 for all b ∈ B. We considered a structured population
+1/2 1/2
+with two demes (i.e., Γ = {1, 2}), and set κ1 = κ2 = 0.5 and m12 = m21 = m. For each value of
+m ∈ {0.01, 0.10, 1.00, 10.0}, we generated 100 datasets with n1 = n2 = 10 individuals in each of the
+two demes.
+Observe that the per-individual mutation and recombination rates are thus both approximately
+104 · 5 × 10−2 = 5 × 102 . In humans, for which average per-base mutation and recombination
+rates are on the order of 10−3 , these values correspond to a genomic sequence on the order of
+500 kb. We thus reason that the haplotypes we simulated are representative of a relatively longer
+genomic sequence that has been “compressed”, for reasons of computational efficiency, into 104 loci.
+Further, we chose the range of migration rates to be compliant with recent estimates in humans
+(Gutenkunst et al., 2009; Gravel et al., 2011), as well as Drosophila (Wang and Hey, 2010).
+We considered three approximate/composite likelihood formulations thatPmake use of the CSD.
+Let n be a particular sample configuration of n haplotypes, and write n = ni=1 eγi ,hi .
+LCL: In the Leave-one-out Composite Likelihood, the likelihood is approximated as a product of
+CSPs with each the result of removing a single haplotype from the sample configuration:
+1/n
+Y
+n
+.
+π̂MigSMC-AOD (eγi ,hi |n − eγi ,hi )
+LCL(n) =
+i=1
+
+PAC: In the popular Product of Approximate Conditionals framework (Li and Stephens, 2003), the
+likelihood is approximated by a conditional decomposition, averaged over 20 random permutations {σj } of the haplotypes (this number of permutations is as suggested by Li and Stephens).
+14
+
+0.0
+
+0.1
+
+0.2
+
+0.3
+
+Scaled log-likelihood
+
+Scaled log-likelihood
+
+LCL
+PAC
+PCL
+
+0.4
+
+0.0
+
+0.1
+
+0.2
+
+Migration rate, m
+
+Migration rate, m
+
+(a)
+
+(b)
+
+0.3
+
+0.4
+
+Figure 3: Re-scaled log likelihood surfaces for two sample configurations (generated for m = 0.10, indicated
+by a vertical line in the plots), and for each of the three approximate likelihood formulations (LCL, PAC,
+PCL) described in the text. In both cases, the likelihoods are computed using the true values of θ = 5 × 10−2
+and ρ = 5 × 10−2 . (a) A case for which all of the likelihood surfaces are similar (b) A case for which the
+LCL likelihood surface is substantially different than the likelihood surfaces for PAC and PCL
+Defining σj (eγi ,hi ) = eγσj (i) ,hσj (i) :
+PAC(n) =
+
+i
+20 n
+
+
+X
+1 XY
+π̂MigSMC-AOD σj (eγi ,hi )|n −
+σj (eγi′ ,hi′ ) .
+20
+′
+j=1 i=1
+
+i =1
+
+PCL: In the Pairwise Composite Likelihood, the likelihood is approximated as a product of CSPs
+with each a single haplotype conditioned upon a single haplotype:
+PCL(n) =
+
+n Y
+Y
+
+π̂MigSMC-AOD (eγi ,hi |eγi′ ,hi′ ).
+
+i=1 i′ 6=i
+
+We set the values of θ and ρ to the (true) values used for simulation, and considered the approximate
+likelihood surfaces for the parameter m. Figure 3 shows the surfaces for two example configurations
+(generated as described above) for m = 0.10. Perhaps most importantly, the likelihood surfaces
+appear to be unimodal and otherwise well-behaved. In Figure 3(a), the likelihood curves are quite
+similar to one another, and the maximum likelihood occurs near the true parameter. This is not
+generally true, however, as evidenced by Figure 3(b), for which the likelihood surface for the LCL
+method is substantially different than that of PAC and PCL.
+We also considered the behavior of the maximum likelihood estimate (MLE) under each of the
+likelihood approximations. For each simulated dataset, we computed, using golden section search,
+the MLE migration rate m̂, and computed log2 (m̂/m), where m is the (true) migration rate used
+to generate the dataset. In this way, results for different values of m are directly comparable; a
+correct estimate of the migration rate produces a value of 0, and under- and overestimation by a
+factor of two produce values of −1 and 1, respectively. To assess the performance of the MLEs
+15
+
+based on the CSD developed in this paper, we also compared with estimates obtained from the
+widely-used test statistic FST :
+FST : It can be shown that the migration rate in a symmetric island model with two sub-populations
+can be estimated by
+
+
+1
+1
+−1 ,
+m̂(n) =
+4 FST (n)
+where FST (n) = 1−πS (n)/πT (n), with πS (n) denoting the average within-population diversity
+and πT (n) the overall diversity; c.f., Charlesworth (1998, Equation (4)). Note that, although
+Charlesworth discusses three different estimators for FST , the corresponding migration rate
+estimators coincide in models where the sub-populations have equal weights.
+For each true migration rate m ∈ {0.01, 0.10, 1.00, 10.0}, box plots for the transformed MLE
+under each likelihood approximation and the FST -based estimator are presented in Figure 4. Observe that the LCL-based MLE performs very poorly for m = 0.01 (see Figure 4(a)), consistently
+underestimating the true value; this may be because the final haplotype to be sampled is generally
+very similar to previously-sampled haplotypes within the deme, obviating the need for migration
+events within the conditional genealogy. Intuitively, this effect should be diminished when the data
+are produced using larger migration rates, which does appears to be the case (see Figures 4(b),
+4(c), and 4(d)).
+On the other hand, the PCL-based MLE performed poorly for m = 10.0, again consistently
+underestimating the true value. This may be because, for large migration rates, there simply is not
+enough information in a pairwise analysis of the haplotypes to determine the true rate; intuitively,
+this effect should be diminished when the data are produced using smaller migration rates, relative
+to the rate of recombination. This is indeed the case, and in fact, for smaller migration rates, the
+PCL-based MLE is well-correlated with the PAC-based MLE (data not shown).
+The PAC-based MLE appears not to suffer at either of these extremes. We speculate that this
+is because PAC incorporates both pairwise and higher-order terms, making it less susceptible to the
+problems we observe with the LCL- and PCL-based MLEs. We note that Li and Stephens (2003)
+came to a similar conclusion.
+For low migration rates, the method based on FST consistently overestimates the true rates (see
+Figure 4(a)), but shows a small variance. For intermediate migration rates, on the other hand, it
+produces underestimates (see Figures 4(b) and 4(c)), and the variance is larger than that of the
+PAC-based MLE. The estimates for large migration rates (see Figure 4(d)) are similarly biased,
+although the variance is comparable to the MLE methods in this case. Overall, the PAC-based
+estimation is quite accurate, demonstrating that, using the CSD π̂MigSMC-AOD , it is possible to attain
+accurate estimates of the migration rate.
+
+6
+
+Discussion
+
+Numerous applications in population genomics make use of the conditional sampling distribution,
+so developing accurate, efficiently computable CSDs for various population genetic models is of
+much interest. Recently, we proposed an accurate sequentially Markov CSD that follows from
+approximating the diffusion process dual to the coalescent with recombination for a single panmictic
+population. In this paper, we have extended that approach to incorporate subdivided population
+structure with migration, providing a novel CSD that facilitates computation and also admits a
+16
+
+3
+−0
+−2
+
+−1
+
+log2 (m̂/m)
+
+1
+
+2
+
+3
+2
+1
+−0
+−1
+−3
+
+−3
+
+−2
+
+log 2 (m̂/m)
+
+LCL
+
+PAC
+
+PCL
+
+FST
+
+LCL
+
+FST
+
+PCL
+
+FST
+
+(b)
+
+−0
+−2
+
+−1
+
+log2 (m̂/m)
+
+1
+
+2
+
+3
+2
+1
+−0
+−1
+−3
+
+−3
+
+−2
+
+log 2 (m̂/m)
+
+PCL
+
+3
+
+(a)
+
+PAC
+
+LCL
+
+PAC
+
+PCL
+
+FST
+
+LCL
+
+(c)
+
+PAC
+(d)
+
+Figure 4: Box plots (produced using the software package R, and including outliers) for the quantity
+log2 (m̂/m) over 100 samples, where m̂ is the MLE under each of the three approximate likelihood formulations (LCL, PAC, PCL) or the FST -based estimate as described in the text. The MLE values m̂ were found
+using golden section search within the interval (m · 10−1 , m · 10) (a) m = 0.01 (b) m = 0.10 (c) m = 1.00 (d)
+m = 10.0. Note that the median of the LCL estimator in (a) lies on the lower bound of the interval, thus at
+least half of the estimates reach this bound and are most likely even smaller.
+
+useful genealogical interpretation closely related to the structured coalescent with migration and
+recombination. We believe that this extension will have several interesting applications, some of
+17
+
+which we list below.
+Recalling the applications of CSDs described in the introduction, we note that it is straightforward to apply π̂MigSMC-AOD to annotate segments of distinct ancestry in individuals. As in Price et al.
+(2009), the already observed configuration consists of the donor individuals from different populations. For low migration rates, the model underlying π̂MigSMC-AOD leads naturally to the fact
+that, following a recombination event, the ancestral lineage at the next locus is more likely to get
+absorbed in the same deme, rather than switching demes by a migration event and then getting
+absorbed in a different deme. Whereas the method developed by Price et al. (2009) is applicable
+for recently admixed individuals, we expect our model to be more accurate in situations where the
+mixing of the populations happened over a long time through the continuous exchange of migrants.
+Recall that Wegmann et al. (2011) estimated relative recombination rate variation in different
+populations based on ancestry switch-points in the chromosome detected using the method of
+Price et al. (2009). As detailed above, our model can be extended to detect ancestry switch-points
+in populations that mixed over long periods of time. In such situations we expect that the segments
+of different ancestry detected by our method can be used in a similar fashion as in Wegmann et al.
+(2011) to analyze recombination rate variation in different subpopulations, when no strong recent
+admixture is evident.
+Recently, Li and Durbin (2011) performed a related analysis of human demography. They used
+the SMC in the special case of a sample consisting of only two sequences, and thus were able to
+obtain explicit transition functions along the sequence, as we did for our CSD (Paul et al., 2011).
+Li and Durbin incorporated changes in the size of the population into their model, thus allowing
+them to use the two sequences of a diploid individual to infer population size histories of different
+human populations. They do not explicitly account for population structure and migration in their
+analysis, but we believe that the methods developed in this paper could be readily incorporated
+into their model. In a similar study, Mailund et al. (2011) used a pair of sequences sampled from
+different populations in the SMC framework to estimate ancestral population sizes and splitting
+times in an isolation model. Again, we think it is possible to incorporate migration into the model
+using the ideas we developed in this paper.
+Paul and Song (2012) have recently developed a framework to substantially increase the speed of
+computations involved in dealing with HMMs for next-generation sequence data, and they demonstrate their improvements in the model introduced by Paul et al. (2011). Utilizing the fact that
+whole genomic sequence data consists of long stretches without sequence variation in between SNPs,
+and that the observed variation can be described by a small number of haplotype blocks, they were
+able to decrease the computation time by several orders of magnitude. The same ideas can be applied to speedup our method, fostering the application of analyses like the one detailed in Section 5
+or similar applications to whole genome sequence data.
+The CSDs developed in this paper assume that the structure underlying the population remains
+unchanged throughout the whole course of evolution. Furthermore the rates at which migrants are
+exchanged are assumed constant. This is mirrored by the fact that the Markov chain described
+by the matrix Z is time homogeneous and the number of states does not change. For more realistic populations one would pose changes of the population structure and the population sizes
+at different points in the past, as well as varying rates of migration. The methods developed in
+this paper can be readily extended to scenarios where the structural parameters of the underlying
+demography are piecewise constant for given periods of time. This can be implemented by allowing
+the Markov chain, governing the absorption of the additional ancestral lineage, to be piecewise ho-
+
+18
+
+mogeneous. Except for the work of Davison et al. (2009) and Price et al. (2009), we are not aware
+of any other CSDs that try to incorporate explicit population structure into the copying model.
+Such a CSD accounting for a more general demographic model would allow one to estimate more
+general demographic parameters like ancient population sizes and structure, as well as migration
+rates, and duration of periods of migration in certain isolation-with-migration scenarios, using,
+for example, the framework illustrated in Section 5, importance sampling (Stephens and Donnelly,
+2000; Fearnhead and Donnelly, 2001; Griffiths et al., 2008), or other frameworks detailed in the
+introduction. Myers et al. (2008) show that demographic studies like Gutenkunst et al. (2009) and
+Gravel et al. (2011), that rely exclusively on the frequency spectrum, can be limited in resolving demographic parameters, and methods, as the one developed in this paper, that explicitly incorporate
+linkage structure, might alleviate such problems.
+
+Acknowledgments
+We thank John Kamm for many stimulating and fruitful discussions. This research is supported
+in part by a DFG Research Fellowship STE 2011/1-1 to M.S; an NIH National Research Service
+Award Trainee appointment on T32-HG00047 to JSP; and an NIH grant R01-GM094402, and a
+Packard Fellowship for Science and Engineering to Y.S.S.
+
+19
+
+A
+
+Diffusion approximation
+
+We here provide a derivation of the sampling recursion using the diffusion generator approximation
+(De Iorio and Griffiths, 2004a,b; Griffiths et al., 2008; Paul and Song, 2010). The diffusion associated with
+ the coalescent including migration and recombination has state given by the vector
+x = xγ,h γ∈Γ,h∈H where xγ,h is the frequency of haplotype h within deme γ. The generator for
+the diffusion can then be written
+L f (x) =
+
+X
+
+Lγ,h
+
+γ∈Γ
+h∈H
+
+∂
+f (x),
+∂xγ,h
+
+where
+Lγ,h f (x) =
+
+
+X
+1
+∂
+f (x)
+xγ,h
+(δh,h′ − xγ,h′ )κ−1
+γ
+2
+∂x
+γ,h′
+′
+h ∈H
+X X
+
+(ℓ)
++
+xγ,Sℓa (h) Pa,h[ℓ] − δSℓa (h),h f (x)
+θℓ
++
+
+ℓ∈L
+
+a∈Eℓ
+
+X
+
+X
+
+ρb
+
+b∈B
+
+h′ ∈H
+
+
+xγ,Rb (h,h′ ) xγ,Rb (h′ ,h) − xγ,h f (x)
+
+
+
+X
++
+mγγ ′ xγ ′ ,h − mγ xγ,h f (x) ,
+γ ′ 6=γ
+
+and f is an arbitrary, bounded, twice-differentiable function with continuous second derivatives.
+Denote the probability of obtaining (at stationarity) an ordered sample configuration n by q(n).
+Then q(n) = E[q(n|X)], where E denotes expectation with respect to theQstationary
+distribution of
+Q
+nγ,h
+. Finally,
+the diffusion, X denotes the random vector of frequencies, and q(n|x) = γ∈Γ h∈H xγ,h
+given an additional haplotype configuration c, the true conditional sampling probability is, by
+definition, π(c|n) = q(c + n)/q(n).
+By general diffusion theory, E[L f (X)] = 0. The diffusion generator approximation assumes the
+existence of a distribution, with associated expectation Ê, such that the previous condition holds
+component-wise; that is for each γ ∈ Γ and h ∈ H,
+#
+"
+∂
+f (X) = 0.
+Ê Lγ,h
+∂Xγ,h
+By analogy to the exact case, we assume that the sampling distribution is approximated by q̂(n) =
+Ê[q(n|X)], and define the approximate CSD π̂Mig (c|n) = q̂(n + c)/q̂(n). Using the component-wise
+approximation above,
+
+
+XX
+cγ,h
+∂
+Ê Lγ,h
+q(n + c|X) = 0.
+cγ,h + nγ,h
+∂Xγ,h
+γ∈Γ h∈H
+
+Using the expressions for Lγ,h and q(n + c|X), together with the definition q̂(n) = Ê[q(n|X)], we
+
+20
+
+obtain, after some algebra analogous to Paul and Song (2010, Appendix),
+
+1 X
+cγ,h (nγ,h + cγ,h − 1)κ−1
+q̂(n + c) =
+γ q̂(n + c − eγ,h )
+N γ∈Γ
+h∈H
+
++
+
+X
+
+θℓ
+
++
+
+ρb
+
+X
+
+q̂(n + c − eγ,h + eγ,Rb (h,h′ ) + eγ,Rb (h′ ,h)) )
+
+h′ ∈H
+
+b∈B
+
++
+
+(ℓ)
+
+Pa,h[ℓ] q̂(n + c − eγ,h + eγ,Sℓa (h) )
+
+a∈Eℓ
+
+ℓ∈L
+
+X
+
+X
+
+
+mγγ ′ q̂(n + c − eγ,h + eγ ′ ,h ) ,
+
+X
+
+γ ′ 6=γ
+
+where the normalizing constant is given by
+i
+X
+X
+X h
+.
++
+θ
++
+ρ
++
+m
+N =
+cγ (nγ + cγ − 1)κ−1
+γ
+ℓ
+b
+γ
+γ∈Γ
+
+ℓ∈L
+
+b∈B
+
+Dividing this result by q̂(n), we thus obtain the given recursion for π̂Mig (c|n). It is also possible to
+derive, in much the same way, the “reduced” version of this recursion; for details, see Paul and Song
+(2010).
+
+B
+
+Explicit transition density
+
+We begin by assuming that the matrix Z is diagonalizable, which is true if and only if M is
+diagonalizable. In this case,
+exponentials in equations
+P2g (4.1)tλand (4.3) admit the eigenP the matrix
+tλk (v w ) and (ZetZ )
+k (v w ). Here λ
+=
+decomposition (etZ )i,j = 2g
+e
+i,j
+k k
+k are the
+k k
+k=1 λk e
+k=1
+eigenvalues of Z, vk are the eigenvectors, and wk are the rows of the inverse of the matrix of
+eigenvectors V = (v1 , . . . , v2g ). This eigen-decomposition can be used to evaluate the matrix
+exponential in equation (4.1), and to compute the integral in equation (4.3) analytically as
+−ρb tℓ−1
+δsℓ ,sℓ−1
+φ(n)
+ρb (sℓ |sℓ−1 ) = e
+
+nω ,h
+ρb
+
++ ℓ ℓ
+t
+ℓ−1
+nωℓ Ze Z α,a
+ω
+where
+Iba (λ) =
+
+Z
+
+ℓ−1
+
+b
+
+t=a
+
+2g X
+2g X
+2g h
+XX
+(vk wk )α,γ (vm wm )γ,aωℓ−1 (vn wn )γ,aωℓ
+γ∈Γ k=1 m=1 n=1
+
+t
+
+× λm λn etℓ−1 λm etℓ λn I0ℓ−1
+
+eλt dt =
+
+(
+
+1 λb
+λ (e
+
+∧tℓ
+
+i
+(λk − λm − λn − ρb ) ,
+
+− eλa ), if λ 6= 0,
+b − a,
+if λ = 0.
+
+(B.1)
+
+Note that for a non-diagonalizable matrix, a similar eigen-decomposition can be employed using
+generalized eigenvectors and the Jordan normal form, and similar, though more involved, explicit
+computations can be performed.
+
+21
+
+C
+
+Probabilities in discretized HMM
+
+We now give more explicit forms of the quantities involved in the probabilities of the discretized
+HMM, derived using the eigen-decomposition of the extended migration matrix Z = V ΛV −1 .
+Inserting equation (4.3) and (4.1)Pinto the second to last line in equation (4.5), combined with the
+tλk (v w )
+eigen-decomposition (ZetZ )i,j = 2g
+k k i,j yields
+k=1 λk e
+2g
+
+yρ (ωℓ−1 , i) =
+
+1 X
+x
+(vk wk )α,aω λk Ixii−1 (λk − ρ),
+u(ω, i)
+k=1
+
+for the first term in the last line of equation (4.5), with Iba (λ) defined as in equation (B.1). For the
+second term we get
+2g
+
+2g
+
+2g
+
+ρ XX X X
+(vk wk )α,γ (vm wm )γ,aω (vn wn )γ,aω′
+zρ (ω , j|ω, i) =
+u(ω, i)
+γ∈Γ k=1 m=1 n=1
+
+x ∧x
+× eλm xi eλn xj I0 i j (λk − λm − λn − ρ)
+′
+
+x ∧xj−1
+
+− eλm xi eλn xj−1 I0 i
+
+− λm − λn − ρ)
+
+−
+
+(λk
+λm xi−1 λn xj xi−1 ∧xj
+e
+e
+I0
+(λk
+
+− λm − λn − ρ)
+
++
+
+x
+∧x
+eλm xi−1 eλn xj−1 I0 i−1 j−1 (λk
+
+
+− λm − λn − ρ) .
+
+Finally, using equation (4.6) one can show that
+|E| 2g
+
+(n)
+ξ˜θ (h|ω, i, h) =
+
+1 XX
+x
+(qj pj )h[ℓ],h[ℓ](vk wk )α,aω λk Ixii−1 (λk + θµj − θ)
+u(ω, i)
+j=1 k=1
+
+holds, where E is the set of alleles at the given locus, and we used the eigen-decompositions of
+Z and the mutation matrix P = Q diag(µ1 , . . . , µ|E| ) Q−1 . Here µj are the eigenvalues of the
+mutation matrix, Q = (q1 , . . . , q2g ) is the matrix which has the eigenvectors of the mutation matrix
+as columns, and pj denotes the j-th row of Q−1 .
+
+22
+
+References
+Cappé, O., Moulines, E., and Ryden, T. 2005. Inference in Hidden Markov Models. Springer Series
+in Statistics. Springer.
+Charlesworth, B. 1998. Measures of divergence between populations and the effect of forces that
+reduce variability. Molecular Biology and Evolution, 15,(5) 538–543.
+Davison, D., Pritchard, J. K., and Coop, G. 2009. An approximate likelihood for genetic data under
+a model with recombination and population splitting. Theor. Popul. Biol., 75,(4) 331–345.
+De Iorio, M. and Griffiths, R. C. 2004a. Importance sampling on coalescent histories. I. Adv. in
+Appl. Probab., 36,(2) 417–433.
+De Iorio, M. and Griffiths, R. C. 2004b. Importance sampling on coalescent histories. II: Subdivided
+population models. Adv. in Appl. Probab., 36,(2) 434–454.
+Fearnhead, P. and Donnelly, P. 2001. Estimating recombination rates from population genetic
+data. Genetics, 159, 1299–1318.
+Gay, J., Myers, S. R., and McVean, G. A. T. 2007. Estimating meiotic gene conversion rates from
+population genetic data. Genetics, 177, 881–894.
+Gravel, S., Henn, B. M., Gutenkunst, R. N., Indap, A. R., Marth, G. T., Clark, A. G., Yu, F.,
+Gibbs, R. A., Project, T. . G., and Bustamante, C. D. 2011. Demographic history and rare allele
+sharing among human populations. Proceedings of the National Academy of Sciences.
+Griffiths, R. C. and Marjoram, P. 1997. An ancestral recombination graph. In Progress in population
+genetics and human evolution (Minneapolis, MN, 1994), volume 87 of IMA Vol. Math. Appl.,
+pages 257–270. Springer, New York.
+Griffiths, R. C., Jenkins, P. A., and Song, Y. S. 2008. Importance sampling and the two-locus
+model with subdivided population structure. Adv. in Appl. Probab., 40,(2) 473–500.
+Gutenkunst, R. N., Hernandez, R. D., Williamson, S. H., and Bustamante, C. D. 10 2009. Inferring
+the joint demographic history of multiple populations from multidimensional SNP frequency data.
+PLoS Genet, 5,(10) e1000695.
+Hellenthal, G., Auton, A., and Falush, D. 2008. Inferring human colonization history using a
+copying model. PLoS Genet., 4,(5) e1000078.
+Herbots, H. M. 1997. The structured coalescent. In Progress in population genetics and human
+evolution (Minneapolis, MN, 1994), volume 87 of IMA Vol. Math. Appl., pages 231–255. Springer,
+New York.
+Howie, B. N., Donnelly, P., and Marchini, J. 2009. A flexible and accurate genotype imputation
+method for the next generation of genome-wide association studies. PLoS Genet, 5,(6) e1000529.
+Lawson, D., Hellenthal, G., Myers, S., and Falush, D. 2012. Inference of population structure using
+dense haplotype data. PLoS Genetics, 8,(1) e1002453.
+
+23
+
+Li, H. and Durbin, R. 2011. Inference of human population history from individual whole-genome
+sequences. Nature, 475, 493–496.
+Li, N. and Stephens, M. 2003. Modelling linkage disequilibrium, and identifying recombination
+hotspots using SNP data. Genetics, 165, 2213–2233.
+Li, Y. and Abecasis, G. R. 2006. Mach 1.0: Rapid haplotype reconstruction and missing genotype
+inference. Am. J. Hum. Genet., S79, 2290.
+Li, Y., Willer, C. J., Ding, J., Scheet, P., and Abecasis, G. R. 2010. Mach: Using sequence and
+genotype data to estimate haplotypes and unobserved genotypes. Genetic Epidemiology, 34,
+816–834.
+Mailund, T., Dutheil, J. Y., Hobolth, A., Lunter, G., and Schierup, M. H. 03 2011. Estimating divergence time and ancestral effective population size of bornean and sumatran orangutan
+subspecies using a coalescent hidden markov model. PLoS Genet, 7,(3) e1001319.
+Marchini, J., Howie, B., Myers, S. R., McVean, G. A. T., and Donnelly, P. 2007. A new multipoint
+method for genome-wide association studies by imputation of genotypes. Nat. Genet., 39,(7)
+906–13.
+Marjoram, P. and Wall, J. D. 2006. Fast “coalescent” simulation. BMC Genet., 7, 16.
+McVean, G. A. and Cardin, N. J. 2005. Approximating the coalescent with recombination. Philos.
+Trans. R. Soc. Lond. B Biol. Sci., 360, 1387–93.
+Myers, S., Fefferman, C., and Patterson, N. 2008. Can one learn history from the allelic spectrum?
+Theoretical Population Biology, 73,(3) 342–348.
+Paul, J. S. and Song, Y. S. 2010. A principled approach to deriving approximate conditional
+sampling distributions in population genetics models with recombination. Genetics, 186, 321–
+338.
+Paul, J. S. and Song, Y. S. 2012. Blockwise HMM computation for large-scale population genomic
+inference. Bioinformatics (submitted).
+Paul, J. S., Steinrücken, M., and Song, Y. S. 2011. An accurate sequentially Markov conditional
+sampling distribution for the coalescent with recombination. Genetics, 187, 1115–1128.
+Price, A. L., Tandon, A., Patterson, N., Barnes, K. C., Rafaels, N., Ruczinski, I., Beaty, T. H.,
+Mathias, R., Reich, D., and Myers, S. 2009. Sensitive detection of chromosomal segments of
+distinct ancestry in admixed populations. PLoS Genet., 5,(6) e1000519.
+Stephens, M. and Donnelly, P. 2000. Inference in molecular population genetics. J. R. Stat. Soc.
+Ser. B Stat. Methodol., 62,(4) 605–655.
+Stephens, M. and Scheet, P. 2005. Accounting for decay of linkage disequilibrium in haplotype
+inference and missing-data imputation. Am. J. Hum. Genet., 76,(3) 449–462.
+Wang, Y. and Hey, J. 2010. Estimating divergence parameters with small samples from a large
+number of loci. Genetics, 184,(2) 363–379.
+24
+
+Wegmann, D., Kessner, D. E., Veeramah, K. R., Mathias, R. A., Nicolae, D. L., Yanek, L. R.,
+Sun, Y. V., Torgerson, D. G., Rafaels, N., Mosley, T., Becker, L. C., Ruczinski, I., Beaty, T. H.,
+Kardia, S. L. R., Meyers, D. A., Barnes, K. C., Becker, D. M., Freimer, N. B., and Novembre, J.
+2011. Recombination rates in admixed individuals identified by ancestry-based inference. Nat.
+Genet., 43, 847–853.
+Wiuf, C. and Hein, J. 1999. Recombination as a point process along sequences. Theor. Pop. Biol.,
+55, 248–259.
+Yin, J., Jordan, M. I., and Song, Y. S. 2009. Joint estimation of gene conversion rates and mean
+conversion tract lengths from population SNP data. Bioinformatics, 25,(12) i231–9.
+
+25
+
+

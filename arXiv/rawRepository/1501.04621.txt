@@ -1,0 +1,1196 @@
+Sparse Bayesian Learning for EEG Source Localization
+Sajib Saha1, 3, Frank de Hoog2, Ya.I. Nesterets1,4, Rajib Rana5, M. Tahtali3 and T.E.
+Gureyev1,4
+1)
+
+CSIRO Materials Science and Engineering, Clayton, VIC 3168, Australia
+2)
+3)
+
+CSIRO Computational Informatics, Canberra, ACT
+
+University of New South Wales, Canberra, ACT 2610, Australia
+4)
+
+University of New England, Armidale, NSW 2351, Australia
+5)
+
+University of Southern Queensland, Australia
+
+Abstract
+Purpose: Localizing the sources of electrical activity from electroencephalographic (EEG)
+data has gained considerable attention over the last few years. In this paper, we propose an
+innovative source localization method for EEG, based on Sparse Bayesian Learning (SBL).
+Methods: To better specify the sparsity profile and to ensure efficient source localization, the
+proposed approach considers grouping of the electrical current dipoles inside human brain.
+SBL is used to solve the localization problem in addition with imposed constraint that the
+electric current dipoles associated with the brain activity are isotropic.
+Results: Numerical experiments are conducted on a realistic head model that is obtained by
+segmentation of MRI images of the head and includes four major components, namely the
+scalp, the skull, the cerebrospinal fluid (CSF) and the brain, with appropriate relative
+conductivity values. The results demonstrate that the isotropy constraint significantly
+improves the performance of SBL. In a noiseless environment, the proposed method was
+found to accurately (with accuracy of >75%) locate up to 6 simultaneously active sources,
+whereas for SBL without the isotropy constraint, the accuracy of finding just 3
+simultaneously active sources was <75%.
+Conclusions: Compared to the state-of-the-art algorithms, the proposed method is potentially
+more consistent in specifying the sparsity profile of human brain activity and is able to
+produce better source localization for EEG.
+
+Introduction:
+The problem of source localization in EEG has gained significant attention in recent years
+because of its potential diagnostic value for epilepsy [1], stroke [2, 3], traumatic brain injury
+[4] and other brain disorders. Localization of the sources of electrical activity inside the brain
+is carried out by measuring the scalp potentials produced by the electric activity in the brain
+(this is modelled using electric current dipoles), and then working back and estimating the
+dipoles that best fit the measurements. The EEG source localization represents a highdimensional inverse problem which is severely ill-posed [5] by nature and has an infinite
+number of solutions [6]. In order to find an appropriate unique solution among the set of
+possible ones, constraints are introduced into the problem [7]. In the literature, the most
+commonly used constraint is the minimum-norm constraint [8-10], which finds the solution
+1
+
+that best matches the measurements with the smallest l2 residuals. The strength of l2 norm
+based approaches (including Support Vector Machines [36]) is their low computational cost;
+however such methods are often criticized for generating very broadly distributed or
+“smeared” sources in the reconstruction region [11] and for poor performance for multiple
+simultaneously active sources [12, 13]. Following the discovery by Donoho and Candes et al.
+[14, 15] that sparsity 1 could enable exact solution of ill-posed problems under certain
+conditions, there has been a tremendous growth of publications [16-21] on efficient
+application of sparsity constraints for ill-posed problems. In EEG, many researches have used
+sparseness constraints in spatial, spatiotemporal and frequency domains [6] to reflect the
+focal nature of the cortical activity. Techniques relying on sparseness constraint search for a
+solution vector that not only matches the measurements, but also has as few nonzero entries
+as possible. Among the list of approaches that provide a sparse solution [22], SBL [23, 24]
+represents an important family of algorithms. In EEG, where the dictionary matrix is highly
+coherent, an SBL-based approach, TMSBL (i.e. SBL for multiple measurement vector with
+temporally correlated source vectors) [25] has been found superior over other state-of-the-art
+sparsity prior approaches. Despite its success in accurately locating up to 3 active sources for
+a dictionary matrix of size 80×390 (where 80 is the number of measurements and 390 is the
+number of unknowns), TMSBL and other similar sparsity prior approaches are still
+insufficient in most realistic scenarios. For example, it is well known that Brodmann area 17
+[26] is related to the human visual activity. For a realistic head model, which contains about
+6,000 dipoles [3], with each dipole corresponding to about 5×5×5 mm3 of grey matter, the
+number of dipoles that belong to that region (Brodmann area 17) is about 54. Relying on the
+well accepted phenomenon in the EEG literature, that a region of the brain corresponding to a
+group of dipoles, rather than to a single dipole, tends to be activated during a certain brain
+activity [5], TMSBL is likely to produce inaccurate results for any group of more than 3
+active dipoles.
+Assuming typical activation of a group of dipoles, rather than a single dipole for a certain
+brain activity, and taking into account the severely underdetermined nature of the problem,
+the sparsity-based reconstruction methodology proposed in this paper groups the dipoles and
+assumes simultaneous activation of all or majority of the dipoles in the group. In addition, it
+is assumed that electrical activity inside the human brain is sparse when represented in terms
+of activity of groups of dipoles. While, grouping based on functionality would be the most
+appropriate, the full functionality of different parts of the human brain is still not known
+completely and the grouping of dipoles in the present work is anatomical [27] based on AAL
+(Automated Anatomical Labelling) scheme rather than on a functional classification of the
+human cerebral cortex. It is worth mentioning that the AAL map [27] is frequently used in
+fMRI to describe out the region of interest [28], which indicates the potential suitability of
+such segmentation of the brain as a tentative basis for functional classification relevant to
+EEG. In this paper we consider each group of dipoles to have the same magnitude and
+orientation of their dipole moments.
+In addition to grouping dipoles, in this paper we propose an enhanced version of the Sparse
+Bayesian Learning methodology for EEG source localization, that takes into account the fact
+that when a brain region is active there is likely to be a contribution to the scalp electric
+potentials from each of the components of the current density vector. Existing works based
+1
+
+A signal x is called S-sparse if it has only S nonzero elements. However, natural signals are rather
+compressible. A signal x is designated compressible if it has only a small proportion of large coefficients when
+the signal is transformed into a suitable domain such as, Haar, Fourier etc. Mathematically, a signal is
+compressible if the coefficients decay obeys the power law[15].
+
+2
+
+on Sparse Bayesian Learning in EEG do not make a distinction between the treatment of
+spatial regions and the directional components of the current distribution within those
+regions. Specifically, each of the directional components of the current are assumed to be
+sparse independently. However, it is more logical to assume that when a brain region is active
+there is contribution to the potential from each of the components of the current density
+vector. In the absence of prior information about the current distribution, a better choice is an
+uninformative prior that the activity in each region is isotropic and this is what is done in the
+present paper. An advantage of this approach is that it requires the estimation of one third of
+the number of hyper-priors compared with putting an independent prior in each of the three
+spatial directions. In our simulations, each group of dipoles is assumed to have the same
+magnitude. While the effect of the partial activation of the groups is reported, the effect of
+different orientation of dipoles in a group has not been investigated yet.
+
+Mathematical Formulation of EEG:
+The model used for the forward and inverse imaging problems in EEG has the following
+form:
+ =  + .
+
+(1)
+
+Here  ∈ ℝ	
+ × is a vector of the scalp electric potentials measured by the NE electrodes
+with respect to a reference electrode,  ∈ ℝ	× is the primary or impressed current dipole
+vector, where NV is the number of dipole locations in the brain, with each dipole current
+vector having three independent components corresponding to the usual Cartesian
+coordinates in 3D space, 	 ∈ ℝ	
+ ×	 is the so-called lead field matrix and  is the noise
+vector. The lead field matrix has the following structure.
+
+
+  				,
+				,
+				…					, 					, 					,
+ ,
+
+
+
+
+				,
+				,
+				…					, 					, 					, 
+ ,
+
+=
+…
+
+
+…
+ 	
+
+	
+
+	
+
+	
+
+	
+
+	
+ 
+, 				, 				, 				…					, 					, 					, 
+
+
+where ,
+is the scalp electric potential at the lth electrode, due to a unit strength dipole with
+orientation D ∈ (!, ", #) that is located in the pth voxel.
+
+Sparse Bayesian Learning:
+Sparse Bayesian Learning was initially proposed for regression and classification by Tipping
+[24] in the machine learning context. In [22], Wipf et al. applied SBL for the sparse signal
+recovery problem. The idea of SBL is to find J through Maximum a Posteriori (MAP)
+estimate [23, 24]. In common with other methods for sparse signal recovery [29-31], SBL
+assumes that the components of the noise vector are independent, identically distributed
+Gaussian random variables and this leads to the following probability density function for 
+[22]
+
+3
+
++
+
+
+%(|, '  ) = (2)'  )* , exp(− 1, || − || ).
+Obtaining maximum likelihood estimates for  is equivalent to finding the minimum-norm
+solution to (1) and such solutions are well known to produce non-sparse representations [22].
+To alleviate this problem, SBL incorporates a prior distribution for the components of the
+current density that encourages sparsity. Typically, this is achieved by assuming that that the
+components are independent mean zero random variables, each with a different variance.
+That is,
+
+
+8
+%(, 2) = ∏57(2)45 )*, exp(− 9
+).
+6
+
+	
+
+ ,
+
+8
+
+However, in the absence of prior information about the current distribution, a better choice is
+an uninformative prior where the activity in each region is isotropic. This is achieved by
+assuming that, for a given region, the variances of the components is the same. That is, 2 =
+(: , … , :	 ); ⨂[1				1				1]; , where @ = (: , … , :	 ) , is a vector of nonnegative
+hyperparameters and ⨂ is the Kronecker product operator. This approach allows one to
+achieve a three-fold reduction of the number of hyperparameters.
+
+The hyperparameters (along with the error variance '  ) are estimated from the data by
+marginalizing over the weights and then performing maximum likelihood (ML) optimization.
+Following Zhang et al. [23] the marginalized probability density function (pdf) is given by
+%(, 2, '  ) = 	 A %(|, '  ) %(, 2)B
++
+
+
+6
+
+																							= (2))* , |C |*, exp	[−  ; C * ]
+
+
+where C ≜ ('  E + CF ; ), and
+:
+1
+⋱
+CF = G
+I⨂J
+K.
+1
+:	
+1
+
+(2)
+
+(3)
+
+Using the Bayes rule we obtain the posterior density of  which is also Gaussian,
+%(|, @, '  ) = 	 LM (NM , CM ),
+with mean
+
+N  = 1 , C  ; 
+
+
+(4)
+
+and covariance matrix
+C = (CF * +
+
+1 ; *O
+ )
+'
+
+						= CF − CF ; ('  E + CF ; )* CF.
+
+(5)
+
+So given the hyperparameters, (i.e. @ and '  ), the MAP (maximum a posteriori) estimate of 
+is given by
+P ≜ N = ('  CF * + ; )* ; 
+			= CF ; ('  E + CF ; )* .
+
+4
+
+Following Zhang [23], to find the hyperparameters Q = {@, '  }, we employ the Expectation
+Maximization (EM) method to maximize %(, Q).
+
+The EM formulation proceeds by treating  as hidden variables and then maximizing
+T(Q) = U|,V(WXY) [log %(, , Q)]
+
+= U|,V(WXY) [log %(|, '  )] + U|,V(WXY) ]log %(	, : , … , :	 )^
+
+(6)
+
+where Q (_`) denotes the estimated hyperparameters in the previous iteration.
+
+To estimate @, we notice that the first term in (6) is unrelated to @ and thus the Tfunction can
+be simplified to
+
+T(@) = 	 U|,V(WXY) [log %(	, @)].
+
+From the analysis in [23], it follows that
+
+
+
+
+log %(	, @) ∝ − log(|CF |) − ; (CF * ),
+
+
+
+
+which results in
+
+
+
+
+T(@) ∝ −  log(|CF |) −  	Tr[CF * (C + N N ; )],
+
+(7)
+
+where N and C are evaluated using equations (4) and (5) respectively, and the old estimated
+hyperparameter Q (_`) .
+From equation (3) we have
+CF = diag(@)⨂ J
+
+1
+
+K yielding
+
+1
+
+gCh
+gij
+
+1
+the unit vector with 1 in the ith component.
+
+= diag(k)⨂ J
+
+1
+
+1
+
+Now the derivative of (7) with respect to :l (∀l ∈ 1: op ) is given by
+1
+qT
+3
+1
+=−
++
+Tr[(diag(k)⨂
+J
+q:l
+2:l 2:l 
+So the learning rule for :l becomes
+
+
+:l ←  Tr[(diag(k)⨂ J
+
+1
+
+1
+
+1
+
+1
+
+1
+
+K)(C + N (N ); )(diag(k)⨂ J
+
+K)(C + N (N ) )(diag(k)⨂ J
+;
+
+To learn '  , the Tfunction is simplified to
+T('  ) = 	 U|;V(WXY) [log %(|	; '  )]
+													∝ −
+
+ou
+1
+
+log('  ) −  U|;V(WXY) [v| − |v ]
+2
+2'
+5
+
+1
+
+K , where kl ∈ ℝ	 is
+
+1
+
+1
+
+1
+
+1
+
+K)].
+
+1
+
+1
+
+K)]
+
+													= −
+													= −
+
+
+ou
+1
+log('  ) −  [wv − N vw + Tr(C ; )]
+2
+2'
+
+	
+
+
+
+log('  ) −
+
+
+
+1,
+
+
+
+[wv − N vw + '  ]op − TrxC Cy * z^.
+
+
+(8)
+
+By taking the derivatives of equation (8) over '  and setting it to zero the '  learning rule
+becomes
+' ←
+
+
+
+
+
+wv − N vw + ' (_`) [op − Tr(C Cy * )]
+
+
+
+
+ou
+
+where ' (_`) denotes the estimated '  on the previous iteration.
+
+Data Model and Assumptions:
+A realistic head model was obtained from segmentation of MRI images of the head and
+includes four major compartments, namely scalp, skull, cerebrospinal fluid (CSF) and brain,
+with the following relative conductivity values [5]: σscalp=1, σskull=0.05, σCSF=5, σbrain=1. The
+source space was constructed by dividing the head model into 5×5×5 mm3 cubes and
+considering possible current dipoles only at the centre of those cubes that consisted of at least
+60% of gray matter. This segmentation procedure resulted in 6203 dipole positions. In order
+to implement the proposed sparsity criteria, the 6203 dipoles were grouped based on
+anatomical structure of the cerebral cortex. Since Automated Anatomical Labeling (AAL)
+[27] is frequently used in functional MRI (fMRI) to locate functional activity inside human
+brain, we used the AAL template from the MRIcro [32] package. The template consists of
+116 areas in the standard MNI space. Thus while forming clusters each of the 6203 dipoles
+was assigned a tag based on the closely located anatomical area. Dipoles with the same tag
+formed a cluster. Theoretically, we expected to form 116 clusters. However in our case we
+were able to form only 113 clusters due to the coarse sampling of the head model in EEG
+compared to fMRI and also due to the percentage of gray matter associated with a dipole;
+which resulted in zero dipoles in small anatomical areas. Assuming uniform activity across a
+whole area/group, the resultant 113 clusters which we called Functional Zones were then
+used to recompute the previously calculated lead field matrix from  ∈ ℝ	
+ ×(|}F~) to  ∈
+ℝ	
+ ×~ , by taking the average of all the lead field values belonging to each group.
+Localizing the Sources of Electrical Activity:
+To localize the sources of electrical activity we solve the inverse problem based on the
+proposed Sparse Bayesian Learning and with 113 Functional Zones. The solution P 	 ∈ ℝ~×
+is a -component vector representing current sources at 113 locations within the brain volume
+with three directional (i.e. x, y, z directions) components per location. The x, y and z
+components are used to calculate the magnitude of the current density for each of the
+Functional Zones. From the magnitudes of the current density of the Functional Zones, the
+maximum magnitude, || is determined. Any Functional Zone with a magnitude larger
+than or equal to || , is considered to be active. The threshold, t is experimentally set to
+1/3 of || .
+
+6
+
+Experimental Analysis:
+Experiments were conducted by varying the number of simultaneously active Functional
+Zones for the EEG headset configuration shown below.
+
+y
+z
+
+x
+
+Figure 1: Schematic representation of the electrodes positions in the 33-electrodes setup.
+We analyzed the performance of the proposed method against TMSBL [23] method, where in
+both cases we grouped the dipoles into Functional Zones, to reduce the dimensionality of the
+problem and to better specify the sparsity profile.
+Error Distance (ED) [33] was used to analyse the reconstruction performance. The error
+distance between the actual and the estimated source locations is defined as
+
+
+
+U = 	 × ∑l∈  v|l 0  |v  	  ∑∈
+l v| 0 l |v
+
+
+	
+
+
+
+	
+
+
+
+(7)
+
+Here  and l are the actual and estimated source locations respectively. o and o are the
+total numbers of estimated and the undetected sources respectively. The first term of equation
+(7) calculates the mean of the distance from each estimated source to its closest real source,
+and the corresponding real source is then marked as detected. All the undetected real sources
+made up the elements of the data set L and thus the second term of the equation calculates the
+mean of the distance from each of the undetected sources to the closest estimated source.
+
+A) Noise-Free Simulations:
+i) Localization Error - Single Source Activation:
+First, a single Functional Zone was considered active and the corresponding potentials on the
+electrodes were calculated based on the averaged lead field matrix  . The experiment was
+conducted for all Functional Zones activated sequentially one at a time. Each activated
+Functional Zone had the same magnitude but different orientations (chosen randomly) of the
+dipole moment (i.e. the orientation of the average dipole moment). For this experiment, each
+Functional Zone was represented by its centroid l ∀ ∈ 1: $. For an active source position
+l we claimed a “success” if the error distance was zero. The success rate was computed as
+7
+
+j
+∑
+j6(u 77F)
+
+l
+.	 We computed mean error distance, U = ∑
+l7 U /o for
+unsuccessful cases as localization error. The experiment was repeated 100 times. For each
+run we computed the success rate, the mean error distance (considering only unsuccessful
+cases) and the standard deviation. Table 1 shows the average of 100 such findings.
+
+
+Table 1: Success rate and the localization error analysis for unsuccessful cases for one Active
+Zone (67 Functional Zones in total).
+Success rate
+Mean error distance
+(for unsuccessful cases)
+(mm)
+Standard deviation of the mean error distance
+(for unsuccessful cases)
+(mm)
+
+Proposed method
+1.00
+0
+
+TMSBL
+0.96
+20.08
+
+0
+
+10.71
+
+ii) Localization Error – Multiple Sources Activation:
+In this case S (S >1) Functional Zones were activated simultaneously. From the total of
+!
+ = !(*)! possible combinations of Functional Zones one combination was chosen
+
+randomly. Then we computed the error distance between the actual and reconstructed signal
+and claimed a “success” if the computed error distance was zero. We did the experiment 1000
+times (varying the combinations of activated Functional Zones and the orientation of the
+average dipole moment) and the success rate was computed over these 1000 runs. For the
+unsuccessful cases we computed the mean error distance, U = 	
+
+j
+∑6hhh
+j6 u
+
+  ¡¢X
+
+and the standard
+
+deviation of the mean error distance. We did the same for each values of S. Figure 2 shows
+the success rates as a function of S. Table 2 summarizes the localization errors for
+unsuccessful cases.
+As expected, both for the proposed method and for TMSBL the success rate decreases with
+the increased number of simultaneously active zones. In more than 75% of the cases, the
+proposed method obtained accurate localization for up to 6 simultaneously active Functional
+Zones. This degree of accuracy not achieved by TMSBL, even for the much simpler problem
+of locating just 3 simultaneously active Functional Zones.
+
+8
+
+Figure 2: Success rate of the reconstruction in regard to number of simultaneously active
+areas. Here “success” meant that all the activated Functional Zones were exactly located in
+the reconstructed signal.
+Table 2: Localization error analysis for unsuccessful cases, where “success” meant that all the
+activated Functional Zones were exactly located in the reconstructed signal.
+Number of
+Proposed method
+simultaneously
+active areas
+Mean error Standard
+distance
+deviation
+(mm)
+(mm)
+2
+18.2119
+15.2933
+3
+28.1601
+23.5682
+4
+27.7569
+21.8031
+5
+39.4475
+24.3093
+6
+41.2074
+23.8359
+7
+44.1597
+21.5332
+8
+46.3797
+18.8601
+9
+47.9485
+17.2700
+10
+51.2658
+16.6363
+
+9
+
+TMSBL
+Mean error
+distance
+(mm)
+23.2785
+25.0346
+31.9021
+41.5874
+49.3348
+54.3522
+57.5860
+58.9300
+59.1794
+
+Standard
+deviation
+(mm)
+19.3761
+21.4945
+21.7739
+22.0897
+21.6766
+19.9626
+17.7100
+17.2988
+16.4202
+
+iii) Partially activated Functional Zone:
+This experiment was designed to analyse the performance of the localization method when
+only a fraction of the Functional Zone rather than the whole Functional Zone was active. For
+each of the activated Functional Zone a specified percentage of the dipoles belonging to that
+Functional Zone was activated. One dipole of the considered Functional Zone was chosen
+randomly and the rest of the active dipoles (based on the specified percentage of activated
+dipoles) were adjacent to the chosen dipole. The complete Lead field matrix  was used for
+the forward problem (i.e. to generate ), whereas  was used for the inverse problem.
+While Functional Zone(s) can have random direction of activity, all the dipoles within a
+given Functional Zone were considered to have the same orientation. The experiment was
+conducted for all the Functional Zones (1: ) activated sequentially, one at a time. In this
+case we claimed a “success” if the activated Functional Zone was exactly detected in the
+reconstructed signal (i.e. if the error distance was zero). The success rate was computed as
+j
+∑
+j6(u 77F)
+
+l
+and mean error distance, E was computed as ∑
+l7 U /o
+considering only unsuccessful cases. The whole experiment was conducted 10 times and for
+each run we computed the success rate and the mean error distance (considering only
+unsuccessful cases). The results shown in Table 3 are the average over 10 such findings.
+
+
+Table 3: Success rate as a function of the activated percentage of a Functional Zone.
+Percentage of
+the active area
+
+Success rate
+
+Mean error distance
+(for unsuccessful cases)
+(mm)
+
+100 %
+90 %
+80 %
+70 %
+60 %
+50 %
+
+Proposed method
+1
+0.9912
+0.9209
+0.8419
+0.7022
+0.6324
+
+TMSBL
+0.9668
+0.9313
+0.8063
+0.6972
+0.5708
+0.4902
+
+Proposed method
+0
+10.9501
+13.8112
+15.2404
+14.8319
+15.3301
+
+TMSBL
+19.0342
+18.2507
+15.6526
+16.2270
+16.4311
+16.2450
+
+From the results it is clear that when the whole area of the considered zone is active it is very
+likely that it will be exactly localized in the reconstructed signal. As soon as the percentage of
+the active area decreases the chances of inexact localization increase. Another important
+observation is that when the percentage of activation decreases one could have more than one
+active Functional Zone detected in the reconstructed signal, however it is very likely that the
+activity maxima will coincide with the actual activated Functional Zone. In order to verify
+this claim, rather than computing the error distance as in Table 3, we considered only one
+Functional Zone having the maximum magnitude in the reconstructed signal and then
+computed the Euclidian distance between the actual and estimated Functional Zone. The
+findings are shown in Table 4.
+
+10
+
+Table 4: Success rate for percentage of the Functional Zone. The results shown here is the
+average over 10 runs.
+Percentage of
+the active area
+
+Success rate
+
+Mean Euclidian distance
+(unsuccessful cases)
+(mm)
+
+100 %
+90 %
+80 %
+70 %
+60 %
+50 %
+
+Proposed method
+1
+0.9999
+0.9801
+0.9451
+0.8601
+0.8210
+
+TMSBL
+0.9735
+0.9636
+0.9383
+0.8706
+0.7996
+0.7352
+
+Proposed method
+0
+7.1505
+16.8112
+18.2404
+19.8319
+20.3301
+
+TMSBL
+18.9541
+17.2557
+17.6526
+17.2270
+19.4311
+21.2450
+
+Since clustering based on AAL produces non-uniformly sized clusters, for the large clusters (
+having >100 dipoles), rather than specifying the active area as percentage of whole area, we
+specify the active area in terms of the number of dipoles. One dipole of the considered
+Functional Zone was chosen randomly and the rest of the active dipoles were adjacent to the
+chosen dipole. We considered only one Functional Zone having the maximum magnitude in
+the reconstructed signal and then computed the Euclidian distance between the actual and
+estimated Functional Zone. The findings are shown in Table 5.
+
+Table 5: Success rate for partially activated (defined in terms of the number of active dipoles)
+Functional Zone. The results shown here is the average over 10 runs.
+Number of
+active dipoles
+
+Success rate
+
+Mean Euclidian distance
+(unsuccessful cases)
+(mm)
+
+10
+20
+30
+
+Proposed method
+0.4047
+0.4952
+0.5433
+
+TMSBL
+0.3501
+0.4239
+0.4555
+
+Proposed method
+30.0219
+26.3471
+25.3709
+
+TMSBL
+31.2713
+27.9808
+28.0677
+
+B) Experiment with Noisy Data:
+All of the preceding experiments were performed in the absence of noise in the simulated
+EEG data. Experimental data will inevitably be contaminated by “noise” from various
+sources, including measurement noise and background brain activity [34]. Here we
+investigated the effect of simulated pseudo-random measurement noise superimposed on the
+measured scalp potentials.
+
+11
+
+i) Localization Error - Single Source Activation:
+First, a single Functional Zone was considered active and the corresponding potentials on the
+electrodes were calculated based on  . We then added variable amounts of noise to each of
+the electrode potentials. The noise vector  was generated based on the SNR (Signal to Noise
+Ratio) defined below.
+SNR	(in	dB) = 20	logF
+
+v||v,
+
+(8)
+
+©v||v, ª
+
+where <…> designates the mean value over a statistical ensemble.
+In this study we increased the SNR from 5 dB to 30 dB with 5dB increments. The experiment
+was conducted for all Functional Zones «l ∀l ∈ 1: ¬­) activated sequentially	one at a time
+and for different levels of SNR. Localization of the Functional Zone was performed
+according to the algorithm specified above in section ‘Localizing the Sources of Electrical
+∑ (u j 77F)
+
+Activity’. We computed the success rate (computed as j6 
+	), the mean error distance
+(considering only unsuccessful cases). Since we were adding random (normally distributed)
+noise, we did 100 repetitions of the experiment. Table 6 shows the average of 100 such
+findings.
+
+Table 6: Success rate and localization error (i.e. error distance) analysis with different levels
+of SNR, where “success” meant that activated Functional Zone was exactly located in the
+reconstructed signal
+SNR level
+
+(in dB)
+30
+25
+20
+15
+10
+5
+
+Success rate
+
+Proposed method
+0.5981
+0.5191
+0.4539
+0.2610
+0.1097
+0.0199
+
+Mean localization error
+(unsuccessful cases)
+
+TMSBL
+0.3651
+0.2051
+0.1763
+0.1070
+0.0104
+0.0095
+
+(in mm)
+Proposed method
+28.1613
+28.8527
+31.1621
+38.1996
+53.8633
+64.0945
+
+TMSBL
+31.6501
+33.3575
+40.9204
+44.8093
+55.7988
+66.9675
+
+ii) Localization Error – Multiple Source Activation:
+In this case S (S >1) Functional Zones were activated simultaneously. From the total of 
+possible combinations of Functional Zones, one combination was chosen randomly. Then we
+computed the error distance between the actual and reconstructed signal as localization error.
+We performed the experiment 1000 times (varying the combinations of activated Functional
+Zones and the orientation of the average dipole moment) and the mean error distance was
+computed over these 1000 runs. We did the same for each values of S. For each value of S the
+experiment was performed in the presence of 20 dB noise as specified by equation (8). Since
+we were adding random amount of noise, we did 100 repetitions of the experiment. Figure 3
+shows the average of 100 such findings.
+12
+
+Figure 3: Localization error analysis for simultaneously activated Functional Zones in the
+presence of 20 dB noise.
+
+C) Experiment – Simulation Follows the Assumption:
+The experiment was conducted for S (S >=1) simultaneously active Functional Zones,
+considering two different cases and without the presence of noise. In one case (case I), while
+generating the forward problem we exactly followed the assumption, i.e. for each activated
+Functional Zone all three components of the average dipole moment were sampled from
+Gaussian distribution having zero mean and constant variance. In the other case (case II), we
+did not necessarily follow the assumption, i.e. for each activated Functional Zone all the three
+components of the average dipole moment were chosen randomly. For both of the cases the
+proposed method was used to solve the inverse problem. For a stated S, from the total of
+!
+ = ! *$! possible combinations of Functional Zones one combination was chosen
+
+randomly. Then we computed the error distance between the actual and reconstructed signal
+and claimed a “success” if the computed error distance was zero. We did the experiment 1000
+times (varying the combinations of activated Functional Zones and the orientation of the
+average dipole moment) and the success rate was computed over these 1000 runs. Figure 4
+shows the findings.
+
+13
+
+Figure 4: Success rate of the reconstruction as a function of the number of simultaneously
+active areas. Here “success” meant that all the activated Functional Zones were exactly
+located in the reconstructed signal. The data are based on the average of 1000 runs for each
+number of simultaneously active Functional Zone.
+
+Conclusions:
+By exploiting the well accepted phenomenon that usually a group of adjacent dipoles rather
+than a single dipole becomes active [35], the proposed approach groups the dipoles inside the
+human brain on the anatomical/functional basis to reduce the severe underdetermined nature
+of the EEG problem and thereby achieve better source localization. The grouping of dipoles
+into several Functional Zones not only reduces the dimensionality of the problem, but also
+ensures potentially more realistic specification of the sparsity profile. Following the
+demonstration by Zhang [25] that SBL algorithms are superior to other state-of-the-art
+methods in EEG, where the dictionary matrix (i.e. lead field matrix) is highly coherent, we
+have used SBL for solving the localization problem. We also proposed an enhanced version
+of the SBL algorithm based on an uninformative isotropic prior distribution for each current
+dipole. While the proposed version of the SBL algorithm this isotropy to solve the inverse
+problem, we did not necessarily follow this assumption in the simulation to generate the
+forward data for the experiment in section -A and section-B of the ‘Experimental Analysis’.
+As can be seen from the section-C of the ‘Experimental Analysis’ that when the forward
+problem exactly follows the assumption, one might expect even more improvement in the
+results.
+14
+
+For comparison, the TMSBL [25] code implemented in MATLAB was downloaded from the
+author’s website. Though TMSBL code had the option to incorporate temporal measurements
+also, in this work we did not consider any temporal measurement neither for TMSBL nor for
+the proposed method. Out of the two noise variance learning rules that are available in the
+MATLAB package of TMSBL, we used the one that follows the derivation of [23], both for
+TMSBL and for the proposed case.
+We evaluated the proposed method by varying the number of simultaneously activated
+Functional Zones and in regard to different levels of noise, using a realistic head model. The
+results indicate that the proposed method ensures better source localization. In a noiseless
+environment, the proposed method was found to accurately (with accuracy of >75%) locate
+up to 6 simultaneously active Functional Zones, whereas for TMSBL, even for 3
+simultaneously active Functional Zones, the accuracy was <75%. Also in the presence of
+noise, the proposed method was found to be more robust against the TMSBL method.
+Since the relevant details of the human brain activity are still not known precisely, it is
+particularly important to know what percentage of the Functional Zone needs to be activated
+for successful localization of that Zone. Experiments reveal that even with 50% activation, of
+the considered Functional Zone, there is 80% chance that the activated Functional Zone will
+be accurately localized by the proposed method.
+One fundamental question remains; how meaningful the AAL-based grouping is for the
+proposed method? Since the full functionality of different parts of the human brain is still not
+known completely, grouping based on the AAL map seems a logical choice, considering that
+it is regularly used in fMRI studies. Our future work will aim at evaluating the correlation of
+the EEG-based activity localization with that of fMRI.
+
+ACKNOWLEDGMENT
+This project was supported by the Computational and Simulation Sciences Transformational
+Capability Platform of Commonwealth Scientific and Industrial Research Organisation
+(CSIRO), Australia, along with University of New South Wales (UNSW), Canberra,
+Australia. The authors would like to thank Dr. Chao Suo and Dr. Roger Koenig-Robert of
+Monash Biomedical Imaging (MBI) Laboratory, VIC, Australia for their valuable comments
+and suggestions.
+
+References
+1
+
+Chris Plummer, A. Simon Harvey, Mark Cook, “EEG source localization in focal epilepsy:
+Where are we now?,” Epilepsia 49 (2), 201-218 (2008).
+2
+
+S. Finnigan, and M. J. van Putten, “EEG in ischaemic stroke: quantitative EEG can uniquely
+inform (sub-)acute prognoses and clinical management,” Clin Neurophysiol 124 (1), 10-19
+(2013).
+
+3
+
+T. G. Phan, T. Gureyev, Y. Nesterets, H. Ma, D. Thyagarajan, “Novel Application of EEG
+Source Localization in the Assessment of the Penumbra,” Cerebrovascular diseases 33 (4),
+405-407 (2012).
+
+15
+
+4
+
+P. W. Kaplan and A. O. Rossetti, “EEG Patterns and Imaging Correlations in
+Encephalopathy: Encephalopathy Part II,” Journal of Clinical Neurophysiology 28 (3), 233251 (2011).
+5
+
+Paul L. Nunez, Ramesh Srinivasan, Electric fields of the brain: the neurophysics of EEG.
+(Oxford University Press, USA, 2006).
+6
+
+S. C. Wu, A.L. Swindlehurst, “Matching Pursuit and Source Deflation for Sparse
+EEG/MEG Dipole Moment Estimation,” IEEE Transactions on Biomedical Engineering 60
+(8), 2280 – 2288 (Aug, 2013).
+7
+
+Roberta Grech, Tracey Cassar, Joseph Muscat, Kenneth Camilleri, Simon Fabri, Michalis
+Zervakis, Petros Xanthopoulos, Vangelis Sakkalis, Bart Vanrumste, “Review on solving the
+inverse problem in EEG source analysis,” Journal of neuroengineering and rehabilitation 5
+(1), (2008).
+8
+
+Pascual-Marqui, Roberto Domingo, “Review of methods for solving the EEG inverse
+problem,” International journal of bioelectromagnetism 1(1), 75-86 (1999).
+9
+
+J. W. Phillips, R. M. Leahy, and J. C. Mosher, “MEG-based imaging of focal neuronal
+current sources,” IEEE Trans. Med. Imag. 16 (3), 338-348 (Jun. 1997).
+
+10
+
+N.G. Gençer, Samuel J. Williamson, “Differential characterization of neural sources with
+the bimodal truncated SVD pseudo-inverse for EEG and MEG measurements,” IEEE
+Transactions on Biomedical Engineering 45(7), 827-838 (1998).
+
+11
+
+Alexandre Gramfort, Matthieu Kowalski, and Matti Hämäläinen, “Mixed-norm estimates
+for the M/EEG inverse problem using accelerated gradient methods,” Physics in medicine
+and biology 57 (7), 2012.
+12
+
+Michael Wagner, Manfred Fuchs, Jörn Kastner, “Evaluation of sLORETA in the presence
+of noise and multiple sources,” Brain Topography 16 (4), 277-280 (2004).
+13
+
+S. Saha, Ya.I. Nesterets, M. Tahtali, and T.E. Gureyev, “Evaluation of spatial resolution
+and noise sensitivity of sLORETA method for EEG source localization using realistic head
+model,” arXiv:1407.7953.
+
+14
+
+David L. Donoho, “Compressed sensing,” IEEE Transactions on Information Theory 52
+(4), 1289-1306 (2006).
+15
+
+Emmanuel Candes, and Justin Romberg, “Signal recovery from random projections,”
+Proc. SPIE 5674, 76-86 (2005).
+16
+
+Chew, Sien W., Rajib Rana, Patrick Lucey, Simon Lucey, and Sridha Sridharan, “Sparse
+temporal representations for facial expression recognition,” Advances in Image and Video
+Technology, 311-322 (2012).
+17
+
+Shen, Yiran, Wen Hu, Rajib Rana, and Chun Tung Chou, “Non-uniform compressive
+sensing in wireless sensor networks: Feasibility and application,” IEEE Intelligent Sensors,
+Sensor Networks and Information Processing (ISSNIP), Seventh International Conference on,
+271-276 (2011).
+
+16
+
+18
+
+Rana, Rajib, Wen Hu, Tim Wark, and Chun Tung Chou, “An adaptive algorithm for
+compressive approximation of trajectory (aacat) for delay tolerant networks,” Wireless
+Sensor Networks, 33-48 (2011).
+19
+
+Shen, Yiran, Wen Hu, Rajib Rana, and Chun Tung Chou, “Nonuniform compressive
+sensing for heterogeneous wireless sensor networks,” IEEE Sensors Journal 13 (6), 21202128 (2013).
+20
+
+Wei, Bo, Mingrui Yang, Rajib Kumar Rana, Chun Tung Chou, and Wen Hu, “Distributed
+sparse approximation for frog sound classification,” ACM Proceedings of the 11th
+international conference on Information Processing in Sensor Networks, 105-106 (2012).
+
+21
+
+Rana, Rajib, Chun Tung Chou, Nirupama Bulusu, Salil Kanhere, and Wen Hu. “EarPhone: A context-aware noise mapping using smart phones,” Pervasive and Mobile
+Computing (2014).
+22
+
+David P. Wipf, and Bhaskar D. Rao, “Sparse Bayesian learning for basis selection,” IEEE
+Transactions on Signal Processing 52 (8), 2153-2164 (2004).
+
+23
+
+Zhilin Zhang, and Bhaskar D. Rao, “Sparse signal recovery with temporally correlated
+source vectors using sparse Bayesian learning,” IEEE Journal of Selected Topics in Signal
+Processing 5 (5), 912-926 (2011).
+
+24
+
+Michael E. Tipping, “Sparse Bayesian learning and the relevance vector machine,” The
+journal of machine learning research 1, 211-244 (2001).
+25
+
+Zhilin Zhang, “Comparison of Sparse Signal Recovery Algorithms with Highly Coherent
+Dictionary Matrices: The Advantage of T-MSBL,” Research Note, (2012).
+26
+
+Karl Zilles, Katrin Amunts, “Centenary of Brodmann’s map—conception and fate,” Nature
+Reviews Neuroscience 11 (2), 139-145 (2010).
+
+27
+
+N. Tzourio-Mazoyer, B. Landeau, D. Papathanassiou, F. Crivello, O. Etard, N. Delcroix,
+Bernard Mazoyer and M. Joliot, “Automated Anatomical Labeling of activations in SPM
+using a Macroscopic Anatomical Parcellation of the MNI MRI single-subject brain,”
+NeuroImage 15 (1), 273-289 (January, 2002)
+28
+
+Rahul S. Desikan, Florent Ségonne, Bruce Fischl, Brian T. Quinn, Bradford C. Dickerson,
+Deborah Blacker, Randy L. Buckner et al. “An automated labeling system for subdividing the
+human cerebral cortex on MRI scans into gyral based regions of interest,” Neuroimage 31
+(3), 968-980 (2006).
+
+29
+
+Scott Shaobing Chen, David L. Donoho, and Michael A. Saunders, “Atomic
+decomposition by basis pursuit,” SIAM journal on scientific computing 20 (1), 33-61 (1998).
+30
+
+Rao, Bhaskar D., and Kenneth Kreutz-Delgado, “An affine scaling methodology for best
+basis selection,” IEEE Transactions on Signal Processing 47 (1), 187-200 (1999).
+31
+
+Rao, Bhaskar D., Kjersti Engan, Shane F. Cotter, Jason Palmer, and Kenneth KreutzDelgado, “Subset selection in noise based on diversity measure minimization,” IEEE
+Transactions on Signal Processing 51 (3), 760-770 (2003).
+
+17
+
+32
+
+http://www.mccauslandcenter.sc.edu/mricro/mricro/template.html
+
+33
+
+Jun Yao, Julius Dewald, “Evaluation of different cortical source localization methods using
+simulated and experimental EEG data,” Neuroimage 25 (2), 369-382 (2005).
+34
+
+Hesheng Liu, Paul H. Schimpf, Guoya Dong, Xiaorong Gao, Fusheng Yang, and Shangkai
+Gao, “Standardized shrinking LORETA-FOCUSS (SSLOFO): a new algorithm for spatiotemporal EEG source reconstruction,” IEEE Transactions on Biomedical Engineering, 52
+(10), 1681-1691 (2005).
+
+35
+
+S. Saha, Ya.I. Nesterets, Rajib Rana, M. Tahtali, Frank de Hoog, T.E. Gureyev, “EEG
+source localization using a sparsity prior based on Brodmann areas,” arXiv:1406.2434
+36
+
+Rana, Rajib, et al. "Feasibility analysis of using humidex as an indoor thermal comfort
+predictor." Energy and Buildings 64 (2013): 17-25.
+
+18
+
+

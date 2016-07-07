@@ -1,0 +1,1325 @@
+Model Checking Gene Regulatory Networks
+
+?
+
+Mirco Giacobbe∗ , Călin C. Guet∗ , Ashutosh Gupta∗† ,
+Thomas A. Henzinger∗ , Tiago Paixão∗ , and Tatjana Petrov∗
+
+arXiv:1410.7704v2 [cs.CE] 16 Jan 2015
+
+IST Austria, Austria∗
+
+TIFR, India†
+
+Abstract. The behaviour of gene regulatory networks (GRNs) is typically analysed using simulation-based statistical testing-like methods. In
+this paper, we demonstrate that we can replace this approach by a formal
+verification-like method that gives higher assurance and scalability. We
+focus on Wagner’s weighted GRN model with varying weights, which is
+used in evolutionary biology. In the model, weight parameters represent
+the gene interaction strength that may change due to genetic mutations.
+For a property of interest, we synthesise the constraints over the parameter space that represent the set of GRNs satisfying the property. We
+experimentally show that our parameter synthesis procedure computes
+the mutational robustness of GRNs –an important problem of interest
+in evolutionary biology– more efficiently than the classical simulation
+method. We specify the property in linear temporal logics. We employ
+symbolic bounded model checking and SMT solving to compute the space
+of GRNs that satisfy the property, which amounts to synthesizing a set
+of linear constraints on the weights.
+
+1
+
+Introduction
+
+Gene regulatory networks (GRNs) are one of the most prevalent and fundamental
+type of biological networks whose main actors are genes regulating other genes.
+A topology of a GRN is represented by a graph of interactions among a finite set
+of genes, where nodes represent genes, and edges denote the type of regulation
+(activation or repression) between the genes, if any. In [21], Wagner introduced
+a simple but useful model for GRNs that captures important features of GRNs.
+In the model, a system state specifies the activity of each gene as a Boolean
+value. The system is executed in discrete time steps, and all gene values are
+synchronously and deterministically updated: a gene active at time n affects the
+value of its neighbouring genes at time n + 1. This effect is modelled through two
+kinds of parameters: threshold parameters assigned to each gene, which specify
+?
+
+This research was supported by the European Research Council (ERC) under grant
+267989 (QUAREM), the Austrian Science Fund (FWF) under grants S11402-N23
+(RiSE) and Z211-N23 (Wittgenstein Award), the European Union’s SAGE grant
+agreement no. 618091, ERC Advanced Grant ERC-2009-AdG-250152, the People
+Programme (Marie Curie Actions) of the European Union’s Seventh Framework
+Programme (FP7/2007-2013) under REA grant agreement no. 291734, and the SNSF
+Early Postdoc.Mobility Fellowship, the grant number P2EZP2 148797.
+
+the strength necessary to sustain the gene’s activity, and weight parameters
+assigned to pairs of genes, which denote the strength of their directed effect.
+Some properties of GRNs can be expressed in linear temporal logic (LTL)(such
+as reaching a steady-state), where atomic propositions are modelled by gene values. A single GRN may or may not satisfy a property of interest. Biologists
+are often interested in the behavior of populations of GRNs, and in presence
+of environmental perturbations. For example, the parameters of GRNs from a
+population may change from one generation to another due to mutations, and
+the distribution over the different GRNs in a population changes accordingly.
+We refer to the set of GRNs obtained by varying parameters on a fixed topology as GRN space. For a given population of GRNs instantiated from a GRN
+space, typical quantities of interest refer to the long-run average behavior. For
+example, robustness refers to the averaged satisfiability of the property within a
+population of GRNs, after an extended number of generations. In this context,
+Wagner’s model of GRN has been used to show that mutational robustness can
+gradually evolve in GRNs [10], that sexual reproduction can enhance robustness to recombination [1], or to predict the phenotypic effect of mutations [17].
+The computational analysis used in these studies relies on explicitly executing
+GRNs, with the purpose of checking if they satisfy the property. Then, in order
+to compute the robustness of a population of GRNs, the satisfaction check must
+be performed repeatedly for many different GRNs. In other words, robustness
+is estimated by statistically sampling GRNs from the GRN space and executing
+each of them until the property is (dis)proven. In this work, we pursue formal
+analysis of Wagner’s GRNs which allows to avoid repeated executions of GRNs,
+and to compute mutational robustness with higher assurance and scalability.
+In this paper, we present a novel method for synthesizing the space of parameters which characterize GRNs that satisfy a given property. These constraints
+eliminate the need of explicitly executing the GRN to check the satisfaction of the
+property. Importantly, the synthesized parameter constraints allow to efficiently
+answer questions that are very difficult or impossible to answer by simulation,
+e.g. emptiness check or parameter sensitivity analysis. In this work, we chose
+to demonstrate how the synthesized constraints can be used to compute the
+robustness of a population of GRNs with respect to genetic mutations. Since
+constraint evaluation is usually faster than executing a GRN, the constraints
+pre-computation enables faster computation of robustness. This further allows
+to compute the robustness with higher precision, within the same computational
+time. Moreover, it sometimes becomes possible to replace the statistical sampling
+with the exact computation of robustness.
+In our method, for a given GRN space and LTL property, we used SMT
+solving and bounded model checking to generate a set of constraints such that a
+GRN satisfies the LTL property if and only if its weight parameters satisfy the
+constraints. The key insight in this method is that the obtained constraints are
+complex Boolean combinations of linear inequalities. Solving linear constraints
+has been the focus of both industry and academia for some time. However, the
+technology for solving linear constraints with Boolean structure, namely SMT
+
+solving, has matured only in the last decade [3]. This technology has enabled us
+to successfully apply an SMT solver to generate the desired constraints.
+We have built a tool which computes the constraints for a given GRN space
+and a property expressed in a fragment of LTL. In order to demonstrate the
+effectiveness of our method, we computed the robustness of five GRNs listed
+in [8], and for three GRNs known to exhibit oscillatory behavior. We first synthesized the constraints and then we used them to estimate robustness based
+on statistical sampling of GRNs from the GRN space. Then, in order to compare the performance with the simulation-based methods, we implemented the
+approximate computation of robustness, where the satisfiability of the property
+is verified by executing the GRNs explicitly. The results show that in six out
+of eight tested networks, the pre-computation of constraints provides greater
+efficiency, performing up to three times faster than the simulation method.
+Related Work Formal verification techniques are already used for aiding various aspects of biological research [11,13,16,15,22]. In particular, the robustness
+of models of biochemical systems with respect to temporal properties has been
+studied [18,6,19]. Our work is, to the best of our knowledge, the first application of formal verification to studying the evolution of mutational robustness
+of gene regulatory networks and, as such, it opens up a novel application area
+for the formal verification community. As previously discussed, with respect to
+related studies in evolutionary biology, our method can offer a higher degree of
+assurance, more accuracy, and better scalability than the traditional, simulationbased approaches. In addition, while the mutational robustness has been studied
+only for invariant properties, our method allows to compute the mutational robustness for non-trivial temporal properties that are expressible in LTL, such as
+bistability or oscillations between gene states.
+1.1
+
+Motivating example
+
+In the following, we will illustrate the main idea of the paper on an example of a
+GRN space T generated from the GRN network shown in Fig. 1(a). Two genes
+A and B inhibit each other, and both genes have a self-activating loop. The
+parameters (iA , iB ) represent constant inputs, which we assume to be regulated
+by some other genes that are not presented in the figure. Each of the genes is assigned a threshold value (tA , tB ), and each edge is assigned a weight (wAA ,wAB ,
+wBA , wBB ). The dynamics of a GRN-individual chosen from T depends on these
+parameters. Genes are in either active or inactive state, which we represent with
+Boolean variables. For a given initial state of all genes, and for fixed values of
+weights and thresholds, the values of all genes evolve deterministically in discrete
+time-steps that are synchronized over all genes. Let a (resp. b) be the Boolean
+variable representing the activity of gene A (resp. B). We denote a GRN state by
+a pair (a, b). Let τ be the function that governs the dynamics of G (see Def. 3):
+τ (a, b) = (iA + awAA − bwBA > tA , iB + bwBB − awAB > tB )
+The next state of a gene is the result of arithmetically adding the influence from
+other active genes.
+
+10+3
+
+01
+iA
+wAA
+
+A
+tA
+
+wAB
+wBA
+(a)
+
+α0 , β¯1
+
+iB
+wBB α¯0 , β¯1
+
+B
+tB
+
+α¯0 , β1
+
+misa
+
+10+2
+
+00
+time[s]
+
+α0 , β1
+
+10+1
+10+0
+
+10
+
+11
+
+α1 , β0
+(b)
+
+10-1
+10+5
+
+evaluation
+execution
+10+6
+# of samples
+
+10+7
+
+(c)
+
+Fig. 1: Motivating example. a) The topology of a GRN with mutual inhibition of
+genes A and B. b) The labelled transition system where labels denote the linear
+constraints which enable the transition. α0 , α1 , β0 , and β1 denote linear atomic
+formulas iA − wBA ≤ tA , iB + wBB > tB , iB − wAB ≤ tB , and iA + wAA > tA
+respectively. c) Run-times comparison between execution method (dashed lines)
+and our evaluation method (solid lines).
+The topology of mutually inhibiting pair of genes is known to be bistable:
+whenever one gene is highly expressed and the other is barely expressed, the
+system remains stable [14,19]. The bistability property can be written as the
+following LTL formula (see Def. 4):
+(A ∧ ¬B =⇒ (A ∧ ¬B)) ∧ (¬A ∧ B =⇒ (¬A ∧ B)).
+Let us fix values for parameters tA = tB = 0.6, wAB = wBA = wBB = 0.3,
+and iA = iB = 32 . Then, we can check that a GRN is bistable by executing
+the GRN. Indeed, for the given parameter values, the states (0, 1) and (1, 0) are
+fixed points of τ . In other words, the GRN with those parameter values have
+two stable states: if they start in state (0, 1) (resp. (1, 0)), they remain there.
+Now let us choose iA = 23 , iB = 13 . Again, by executing the GRN, we can
+conclude that it does not satisfy the property: at state (0, 1), B does not have
+sufficiently strong activation to surpass its threshold and the system jumps to
+(0, 0). Intuitively, since the external activation of B is too small, the phenotype
+has changed to a single stable state. In general, it is not hard to inspect that
+the bistability property will be met by any choice of parameters satisfying the
+following constraints:
+{iA − wBA ≤ tA , iA + wAA > tA , iB − wAB ≤ tB , iB + wBB > tB }.
+
+(1)
+
+Let’s now suppose that we want to compute the robustness of T in presence
+of variations on edges due to mutations. Then, for each possible value of parameters, one needs to verify if the respective GRN satisfies the property. Using the
+constraints (1), one may verify GRNs without executing them.
+Our method automatizes this idea to any given GRN topology and any property specified in LTL. We first encode T as a parametrized labelled transition
+system, partly shown in Fig. 1(b). Our implementation does not explicitly construct this transition system, nor executes the GRNs (the implementation is
+
+described in Section 5). Then, we apply symbolic model checking to compute
+the constraints which represent the space of GRN’s from T that satisfy the
+bi-stability property.
+To illustrate the scalability of our method in comparison with the standard
+methods, in Fig. 1(c), we compare the performance of computing the mutational robustness with and without precomputing the constraints (referred to
+as evaluation and execution method respectively). We choose a mutation model
+such that each parameter takes 13 possible values distributed according to the
+binomial distribution (see Appendix for more details on the mutation model).
+We estimate the robustness value by statistical sampling of the possible parameter values. For a small number of samples, our method is slower because we
+spend extra time in computing the constraints. However, more samples may
+be necessary for achieving the desired precision. As the number of samples increases, our method becomes faster, because each evaluation of the constraints
+is two times faster than checking bistability by executing GRN-individuals. For
+1.2 × 105 many simulations, execution and evaluation methods take same total
+time, and the robustness value estimated from these many samples lies in the
+interval (0.8871, 0.8907) with 95% confidence. Hence, for this GRN, if one needs
+better precision for the robustness value, our method is preferred.
+One may think that for this example, we may compute exact robustness because the number of parameter values is only 136 (four weights and two inputs).
+For simplicity of illustration, we chose this example, and we later present examples with a much larger space of parameters, for which exact computation of
+robustness is infeasible.
+
+2
+
+Preliminaries
+
+In this section, we start by defining a GRN space, which will serve to specify
+common features for GRNs from the same population. These common features
+are types of gene interactions (topology), constant parameters (thresholds), and
+ranges of parameter values that are subject to some environmental perturbation
+(weights). Then, we formally introduce a model of an individual GRN from the
+GRN space and temporal logic to express its properties.
+2.1
+
+Basic notation
+
+R≥0 (resp. Q≥0 ) is the set of non-negative real (resp. rational) numbers. For
+m < n, let m..n denote the set of integers from m to n. With abuse of notation,
+we treat finite maps with ordered domain as vectors with size of the map.
+Let V be an infinite set of variable names. For rationals k1 , . . . , kn , a rational
+variable vector v = (v1 , . . . , vn ), and a rational t, let k1 v1 + · · · + kn vn + t denote
+a linear term. Let k1 v1 + · · · + kn vn + t > 0 and k1 v1 + · · · + kn vn + t ≥ 0 be a
+strict and non-strict inequality over v respectively. Let linear(v) be the set of all
+the (non-)strict inequalities over v. Let polyhedra(v) be the set of all the finite
+conjunctions of the elements of linear(v).
+
+2.2
+
+GRN space
+
+The key characteristics of the behaviour of a GRN are typically summarised
+by a directed graph where nodes represent genes and edges denote the type of
+regulation between the genes. A regulation edge is either activation (one gene’s
+activity increases the activity of the other gene) or repression (one gene’s activity
+decreases the activity of the other gene) [20]. In Wagner’s model of a GRN, in
+addition to the activation types between genes, each gene is assigned a threshold
+and each edge (pair of genes) is assigned a weight. The threshold of a gene
+models the amount of activation level necessary to sustain activity of the gene.
+The weight on an edge quantifies the influence of the source gene on destination
+gene of the edge.
+We extend the Wagner’s model by allowing a range of values for weight
+parameters. We call our model GRN space, denoting that all GRNs instantiated
+from that space share the same topology, and their parameters fall into given
+ranges. We assume that each gene always has some minimum level of expression
+without any external influence. In the model, this constant input is incorporated
+by a special gene which is always active, and activates all other genes from
+the network. The weight on the edge between the special gene and some other
+gene represents the minimum level of activation. The minimal activation is also
+subject to perturbation.
+Definition 1 (GRN space) A GRN space is a tuple
+T = (G, gin ,
+
+,
+
+, t, wmax , W ),
+
+where
+– G = {g1 , . . . , gd } is a finite ordered set of genes,
+– gin ∈ G is the special gene used to model the constant input for all genes,
+–
+⊆ G × G is the activation relation such that ∀g ∈ G \ {gin } (gin , g) ∈
+and ∀g (g, gin ) ∈
+/ ,
+⊆ G × G is the repression relation such that ∩ = ∅ ∧ ∀g (g, gin ) ∈
+/ ,
+–
+– t : G → Q is the threshold function such that ∀g ∈ G \ {gin } t(g) ≥ 0 and
+t(gin ) < 0,
+– wmax : ( ∪ ) → Q≥0 is the maximum value of an activation/repression,
+– W = P(( ∪ ) → Q≥0 ) assigns a set of possible weight functions to each
+activation/inhibition relation, so that w ∈ W ⇒ ∀(g, g 0 ) ∈ ∪ w(g, g 0 ) ≤
+wmax (g, g 0 ).
+In the following text, if not explicitly specified otherwise, we will be referring
+to the GRN space T = (G, gin , , , t, wmax , W ).
+2.3
+
+GRN-individual
+
+Definition 2 (GRN-individual) A GRN-individual G is a pair (T, w), where
+w ∈ W is a weight function from the GRN space.
+
+A state σ : G → B of a GRN-individual G = (T, w) denotes the activation
+state of each gene in terms of a Boolean value. Let Σ(G) (resp. Σ(T )) denote the
+set of all states of G (resp. T ), such that σ(gin ) = true. The GRN model executes
+in discrete time steps by updating all the activation states synchronously and
+deterministically according to the following rule: a gene is active at next time if
+and only if the total influence on that gene, from genes active at current time,
+surpasses its threshold.
+Definition 3 (Semantics of a GRN-individual) A run of a GRN-individual
+G = (T, w) is an infinite sequence of states σ0 , σ1 , . . . such that σn ∈ Σ(G) and
+τ (σn ) = σn+1 for all n ≥ 0, where τ : Σ(G) → Σ(G) is a deterministic transition
+function defined by
+
+
+X
+X
+w(g)
+−
+w(g)
+> t(g 0 ) .
+(2)
+τ (σ) := λg 0.
+{g|σ(g)∧(g,g 0 )∈
+
+}
+
+{g|σ(g)∧(g,g 0 )∈
+
+}
+
+The language of G, denoted by JGK, is a set of all possible runs of G. Note that
+a GRN-individual does not specify the initial state. Therefore, JGK may contain
+more than one run.
+2.4
+
+Temporal properties
+
+A GRN exists in a living organism to exhibit certain behaviors. Here we present
+a linear temporal logic (LTL) to express the expected behaviors of GRNs.
+Definition 4 (Syntax of Linear Temporal properties) The grammar of the
+language of temporal linear logic formulae are given by the following rules
+ϕ ::= g | (¬ϕ) | (ϕ ∨ ϕ) | (ϕUϕ),
+where g ∈ G is a gene.
+Linear temporal properties are evaluated over all (in)finite runs of states from
+Σ(G). Let us consider a run r = σ1 , σ2 , σ3 , · · · ∈ Σ(G)∗ ∪ Σ(G)∞ . Let ri be the
+suffix of r after i states and ri is the ith state of r. The satisfaction relation |=
+between a run and an LTL formula is defined as follows:
+r |= g if r1 (g),
+
+i
+
+r |= ¬ϕ if r 6|= ϕ,
+
+j
+
+r |= ϕ1 ∨ ϕ2 if r |= ϕ1 or r |= ϕ2 ,
+
+r |= (ϕ1 Uϕ2 ) if ∃i.r |= ϕ2 and ∀j ≤ i.r |= ϕ1 .
+
+Note that if |r| < i then ri has no meaning. In such a situation, the above
+semantics returns undefined, i.e., r is too short to decide the LTL formula. We
+say a language L |= ϕ if for each run r ∈ L, r |= ϕ, and a GRN G |= ϕ if
+LJGK |= ϕ. Let ♦ϕ be shorthand of trueUϕ and ϕ be shorthand of ¬♦¬ϕ.
+Note that we did not include next operator in the definition of LTL. This is
+because a typical GRN does not expect something is to be done in strictly next
+cycle.
+
+3
+
+Algorithm for parameter synthesis
+
+In this section we present an algorithm for synthesizing the weights’ space corresponding to a given property in linear temporal logic. The method combines
+LTL model checking [2] and satisfiability modulo theory (SMT) solving [4].
+The method operates in two steps. First, we represent any GRN-individual
+from the GRN space with a parametrized transition system. In this system,
+a transition exists between every two states, and it is labelled by linear constraints, that are necessary and sufficient constraints to enable that transition
+in a concrete GRN-individual (for example, see Fig. 1b)). We say that a run
+of the parametrized transition system is feasible if the conjunction of all the
+constraints labelled along the run is satisfiable. Second, we search for all the feasible runs that satisfy the desired LTL property and we record the constraints
+collected along them. The disjunction of such run constraints fully characterizes
+the regions of weights which ensure that LTL property holds in the respective
+GRN-individual.
+Definition 5 (Parametrized transition system) For a given GRN space T
+and rational parameters map v : G → V , the parametrized transition system
+(T, v) is a labelled transition system (Σ(T ), Φ), where the labeling of edges
+Φ : Σ(T ) × Σ(T ) → polyhedra(v) is defined as follows:
+
+Φ := λσσ 0 .
+
+^
+
+
+
+
+g 0 ∈G
+
+X
+
+v(g)
+0
+
+{g|σ(g)∧(g,g )∈
+
+−
+
+X
+
+
+
+v(g) > t(g 0 ) ⇐⇒ σ 0 (g 0 ) .
+
+} {g|σ(g)∧(g,g 0 )∈
+
+}
+
+Φ(σ, σ 0 ) says that a gene g 0 is active in σ 0 iff the weighted sum of activation and
+suppression activity of the regulators of g 0 is above its threshold.
+A run of (T, v) is a sequence of states σ0 , σ1 , . . . such that σn ∈ Σ(T ) for all
+n ≥ 0, and Φ(σ0 , σ1 ) ∧ Φ(σ1 , σ2 ) ∧ . . . is said to be the run constraint of the run.
+A run is feasible if its run constraint is satisfiable. We denote by J(T, v)K the set
+of feasible traces for (T, v). For a weight function w, let Φ(σ, σ 0 )[w/v] denote the
+formula obtained by substituting v by w and let (T, v)[w/v] = (Σ(T ), Φ0 ), where
+Φ0 (σ, σ 0 ) = Φ(σ, σ 0 )[w/v] for each σ, σ 0 ∈ Σ(T ).
+In the following text, we refer to the parametrized transition system (T, v)
+and an LTL property ϕ. Moreover, we denote the run constraint of run r =
+σ0 , σ1 , . . . ∈ J(T, v)K by cons(r).
+Lemma 1. For a weight function w, the set of feasible runs of (T, v)[w/v] is
+equal to J(T, w)K.
+The proof of the above lemma follows from the definition of the semantics for
+GRN-individual. Note that the run constraints are conjunctions of linear (non)strict inequalities. Therefore, we may apply efficient SMT solvers to analyze
+(T, v).
+
+function GenCons((T, v) = (Σ(T ), Φ), ϕ)
+begin
+1 goodCons := true
+2 for each σ ∈ Σ(T ) do
+3 goodCons := GenConsRec(σ, true, goodCons, Σ(T ), Φ, ϕ)
+4 done
+5 return goodCons
+end
+function GenConsRec(run.σ, runCons, goodCons, Σ(T ), Φ, ϕ)
+begin
+6 if |run.σ| < |Σ(T )| then
+for each σ 0 ∈ Σ(T ) do
+7
+runCons0 := runCons ∧ Φ(σ, σ 0 )
+8
+if goodCons ∧ runCons0 is sat then
+9
+if run.σσ 0 |= ¬ϕ then
+(∗ check may return undef ∗)
+10
+goodCons := goodCons ∧ ¬runCons0
+11
+else
+12
+goodCons := GenConsRec(run.σσ 0 , runCons0 , goodCons, Σ(T ), Φ, ϕ)
+13
+14
+done
+15 return goodCons
+end
+
+Fig. 2: Counterexample guided computation of the mutation space feasible wrt.
+ϕ. Let “.” be an operator that appends two sequences. run.σσ 0 |= ¬ϕ can be
+implemented by converting ¬ϕ into a Büchi automaton and searching for an
+accepting run over run.σσ 0 . However, a finite path may be too short to decide
+whether ϕ holds or not. In that case, the condition at line 10 fails. Since (T, v)
+is finite, the finite runs are bound to form lassos within |Σ(T )| steps. If a finite
+run forms a lasso, then the truth value of run.σσ 0 |= ¬ϕ will be determined.
+3.1
+
+Constraint generation via model checking
+
+Now our goal is to synthesize the constraints over v which characterise exactly
+the set of weight functions w, for which (T, w) satisfies ϕ. Each feasible run
+violating ϕ reports a set of constraints which weight parameters should avoid.
+Once all runs violating ϕ are accounted for, the desired region of weights is
+completely characterized. More explicitly, the desired space of weights is obtained
+by conjuncting negations of run constraints of all feasible runs that satisfy ¬ϕ.
+In Fig. 2, we present our algorithm GenCons for the constraint generation.
+GenCons unfolds (T, v) in depth-first-order manner to search for runs which
+satisfy ¬ϕ. At line 3, GenCons calls recursive function GenConsRec to do the
+unfolding for each state in Σ(T ). GenConsRec takes six input parameters. The
+parameter run.σ and runCons are the states of the currently traced run and its
+respective run constraint. The third parameter are the constraints, collected due
+to the discovery of counterexamples, i.e., runs which violate ϕ. The forth, fifth
+and sixth parameter are the description of the input transition system and the
+LTL property ϕ. Since GRN-individuals have deterministic transitions, we only
+
+need to look for the lassos upto length |Σ(T )| for LTL model checking. Therefore,
+we execute the loop at line 7 only if the run.σ has length smaller than |Σ(T )|. The
+loop iterates over each state in Σ(T ). The condition at line 9 checks if run.σσ 0
+is feasible and, if it is not, the loop goes to another iteration. Otherwise, the
+condition at line 10 checks if run.σσ 0 |= ¬ϕ. Note that run.σσ 0 |= ¬ϕ may also
+return undefined because the run may be too short to decide the LTL property. If
+the condition returns true, we add negation of the run constraint in goodCons.
+Otherwise, we make a recursive call to extend the run at line 13. goodCons
+tells us the set of values of v for which we have discovered no counterexample.
+GenCons returns goodCons at the end.
+Since run constraints are always a conjunction of linear inequalities, goodCons
+is a conjunction of clauses over linear inequalities. Therefore, we can apply efficient SMT technology to evaluate the condition at line 9. The following theorem
+states that the algorithm GenCons computes the parameter region which satisfies property ϕ.
+Theorem 1. For every weight function w ∈ W , the desired set of weight functions for which a GRN-individual satisfies ϕ equals the weight functions which
+satisfy the constraints returned by GenCons:
+(T, w) |= ϕ iff w |= GenCons((T, v), ϕ).
+Proof. The
+T statement amounts to showing that the sets A = {w | (T, w) |= ϕ}
+and B = r∈J(T,v)K∧r|=¬ϕ {w | w |= ¬cons(r)} are equivalent. Notice that
+W \ A = {w | ∃r ∈ J(T, v)K such that w |= cons(r) ∧ r |= ¬ϕ}
+[
+=
+{w | w |= cons(r)}
+r∈J(T,v)K∧r|=¬ϕ
+
+=W \
+
+\
+
+{w | w |= ¬cons(r)}.
+
+r∈J(T,v)K∧r|=¬ϕ
+
+We use the above presentation of the algorithm for easy readability. However, our implementation of the above algorithm differs significantly from the
+presentation. We follow the encoding of [7] to encode the path exploration as
+a bounded-model checking problem. Further details about implementation are
+available in Section 5. The algorithm has exponential complexity in the size of
+T . However, one may view the above procedure as the clause learning in SMT
+solvers, where clauses are learnt when the LTL formula is violated [23]. Similar
+to SMT solvers, in practice, this algorithm may not suffer from the worst-case
+complexity.
+Example 1. The GRN osc3 (shown in Fig. 3) was the model of a pioneering
+work in synthetic biology [12], and it is known to provide oscillatory behaviour:
+each gene should alternate its expression between ‘on’ and ‘off’ state:
+^
+ϕ3 =
+(v ⇒ ♦¬v) ∧ (¬v ⇒ ♦v).
+v∈{A,B,C}
+
+The solutions are the constraints:
+(T, w) |= ϕ3 iff (iA > tA ) ∧ (iB > tB ) ∧ (iC > tC )∧
+
+(iB − wAB ≤ tB ) ∧ (iC − wBC ≤ tC ) ∧ (iA − wCA ≤ tA ).
+
+4
+
+Computing Robustness
+
+In this section, we present an application of our parameter synthesis algorithm,
+namely computing robustness of GRNs in presence of mutations. To this end,
+we formalize GRN-population and its robustness. Then, we present a method to
+compute the robustness using our synthesized parameters.
+A GRN-population models a large number of GRN-individuals with varying
+weights. All the GRN-individuals are defined over the same GRN space, hence
+they differ only in their weight functions. The GRN-population is characterised
+by the GRN space T and a probability distribution over the weight functions. In
+the experimental section, we will use the range of weights W and the distribution
+π based on the mutation model outlined in the Appendix.
+Definition 6 (GRN-population) A GRN-population Z is a pair (T, π), where
+π : W → [0, 1] is a probability distribution over all weight functions from GRN
+space T .
+We write ϕ(Z) ∈ [0, 1] to denote an expectation that a GRN instantiated
+from a GRN-population Z = (T, π) satisfies ϕ. The value ϕ(Z) is in the interval
+[0, 1] and we call it robustness.
+Definition 7 (Robustness) Let Z = (T, π) be a GRN-population, and ϕ be
+an LTL formula which expresses the desired LTL property. Then, robustness of
+Z with respect to property ϕ is given by
+X
+ϕ(Z) :=
+π(w)
+{w|J(T,w)K|=ϕ}
+
+The above definition extends that of [10], because it allows for expressing any
+LTL property as a phenotype, and hence it can capture more complex properties
+such as oscillatory behaviour.
+In the following, we will present an algorithm for computing the robustness,
+which employs algorithm GenCons.
+4.1
+
+Evaluating robustness
+
+Let us suppose we get a GRN-population Z = (T, π) and LTL property ϕ as
+input to compute robustness.
+For small size of GRN space T , robustness can be computed by explicitly
+enumerating all the GRN-individuals from T , and verifying each GRN-individual
+against ϕ. The probabilities of all satisfying GRN-individuals are added up.
+
+However, the exhaustive enumeration of the GRN space is often intractable
+due to a large range of weight functions W in T . In those cases, the robustness
+is estimated statistically: a number of GRN-individuals are sampled from T
+according to the distribution π, and the fraction of satisfying GRN-individuals
+is stored. The sampling experiment is repeated a number of times, and the
+mean (respectively variance) of the stored values are reported as robustness
+(respectively precision).
+Depending on how a sampled GRN-individual is verified against the LTL
+property, we have two methods:
+– In the first method, which we will call execution method, each sampled GRNindividual is verified by executing the GRN-individual from all initial states
+and checking if each run satisfies ϕ;
+– In the second method, which we will call evaluation method, the constraints
+are first precomputed with GenCons, and each sampled GRN-individual is
+verified by evaluating the constraints.
+Clearly, the time of computing the constraints initially renders the evaluation
+method less efficient. This cost is amortized when verifying a GRN-individual by
+constraint evaluation is faster than by execution. In the experimental section, we
+compare the overall performance of the two approaches on a number of GRNs
+from literature.
+
+5
+
+Experimental results
+
+We implemented a tool which synthesizes the parameter constraints for a given
+LTL property (explained in Section 3), and the methods for computing the
+mutational robustness (explained in Section 4.1). We ran our tool on a set of
+GRNs from literature.
+5.1
+
+Implementation
+
+Our implementation does not explicitly construct the parametrised transition
+system described in Section 3 (Dfn. 5 and Alg. 2). Instead, we encode the
+bounded model-checking (Alg. 2) as a satisfiability problem, and we use an
+SMT solver to efficiently find goodCons. More concretely, we initially build a
+formula which encodes the parametrized transition system and it is satisfied if
+and only if some run of (T, v) satisfies ¬ϕ. If the encoding formula is satisfiable,
+the constraints cons(r) along the run are collected, and ¬cons(r) is added to
+goodCons. Then, we expand the encoding formula by adding ¬cons(r), so as to
+rule out finding the same run again. We continue the search until no satisfying
+assignment of the encoding formula can be found. The algorithm always terminates because the validity of the property is always decided on finite runs (as
+explained in Section 3).
+The implementation involves 8k lines of C++ and we use Z3 SMT solver as
+the solving engine. We use CUDD to reduce the size of the Boolean structure of
+
+Property
+
+Space size
+
+mi:
+
+Y
+
+Z
+
+(Y Z̄ =⇒ Y Z̄) ∧ (Z Ȳ =⇒ Z Ȳ )
+
+4225
+
+misa:
+
+Y
+
+Z
+
+(Y Z̄ =⇒ Y Z̄) ∧ (Z Ȳ =⇒ Z Ȳ )
+
+105625
+
+Y
+
+Z
+
+(Y S Z̄ R̄ =⇒ Y S Z̄ R̄) ∧
+(Ȳ S̄ZR =⇒ Ȳ S̄ZR)
+
+≈ 109
+
+♦X ∨ ♦X̄
+
+≈ 1010
+
+(Y QS Z̄ P̄ R̄ =⇒ Y QS Z̄ P̄ R̄) ∧
+(Ȳ Q̄S̄ZP R =⇒ Ȳ Q̄S̄ZP R)
+
+≈ 1018
+
+X1 =⇒ ♦X̄1 ∧ X̄1 =⇒ ♦X1 ∧
+X2 =⇒ ♦X̄2 ∧ X̄2 =⇒ ♦X2 ∧
+...
+XN =⇒ ♦X̄N ∧ X̄N =⇒ ♦XN
+
+3:274625
+5:≈ 109
+7:≈ 1012
+
+qi:
+R
+
+S
+X
+
+cc:
+S
+
+ncc:
+
+Z
+
+R
+
+Q
+
+S
+
+Y
+
+T
+
+Z
+P
+
+R
+X1
+
+oscN:
+X2
+
+XN
+
+Fig. 3: GRN benchmarks. mi, misa (mutual inhibition), qi (quad inhibition),
+and ncc (cell cycle switch) satisfy different forms of bistability. For the networks
+ci (cell cycle switch), the value of gene eventually stabilizes [9]. In osc3, also
+known as the repressilator [12], the gene values alternate. osc5 and osc7 (not
+shown) are generalizations of osc3, and also exhibit oscilating behavior.
+
+the resulting formula. We ran the experiments on a GridEngine managed cluster
+system. Our tool, as well as the examples and the simulation results are available
+online.1 .
+5.2
+
+Performance evaluation
+
+We chose eight GRN topologies as benchmarks for our tool. The benchmarks are
+presented in Fig. 3. The first five of the GRN topologies are collected from [8].
+On these benchmarks we check for the steady-state properties. On the final three
+GRN topologies, we check for the oscillatory behavior. The results are presented
+in Fig. 4.
+We ran the robustness computation by the evaluation and execution methods
+(the methods are described in Section 4.1). In order to obtain robustness and to
+estimate the precision, we computed the mean of 100 experiments, each containing a number of samples ranging from 103 to 106 . The total computation time
+in the execution methods linearly depends on the number of samples used. The
+total computation time in the evaluation method depends linearly on the number of samples, but initially needs time to compute the constraints. Technically,
+1
+
+http://pub.ist.ac.at/~mgiacobbe/grnmc.tar.gz
+
+10+1
+
+1.00
+0.82
+
+10+0
+
+0.57
+
+10-1
+10+5
+
+mi misa qi
+
+cc ncc osc3osc5osc7
+mi
+
+10
+
+10
+# of samples
+qi
+
+10+0
+10+5
+
++8
+
+10
+
++6
+
+10
+
++4
+
+10
+
++7
+
+10
+# of samples
+osc3
+
+10
+
++6
+
+10
+
+10
+
++7
+
+10
+# of samples
+osc5
+
+10
+
+evaluation
+execution
++6
+
+10
+
++7
+
+10
+# of samples
+
++8
+
+10
+
+10+7
+# of samples
+osc7
+
+10+8
+
+10+3
+
+10+2
+
+10+0
+10+5
+
+10
+
+10
+
+10+1
+
+10+0
+
+evaluation
+execution
++6
+
++4
+
+time[s]
+
+time[s]
+
+10+1
+
+10+2
+
+10+0
+10+5
+
++8
+
+10+3
+
+10+2
+
+10+8
+
+10+1
+evaluation
+execution
+
++4
+
+10+3
+
+10+7
+# of samples
+ncc
+
+10+3
+
+10+2
+
+10+0
+10+5
+
++8
+
+10
+
+10
+
+time[s]
+
+time[s]
+evaluation
+execution
+
+evaluation
+execution
++6
+
++4
+
+10+1
+
+10+0
+
+10-1
+10+5
+
+10
+
++7
+
+10+3
+
+10+1
+
+10-1
+10+5
+
++6
+
+10
+
+10+2
+
+10+2
+10+1
+
+evaluation
+execution
+
++4
+
+10+3
+time[s]
+
+10+3
+
+10+2
+
+time[s]
+
+time[s]
+
+~ratio execution/constraint evaluation
+
+1.62
+
+cc
+
+10+4
+
+10+3
+
+2.01
+
++4
+
+time[s]
+
+misa
+
+10+4
+
+3.08
+
+10+2
+10+1
+
+evaluation
+execution
++6
+
+10
+
++7
+
+10
+# of samples
+
++8
+
+10
+
+10+0
+10+5
+
+evaluation
+execution
++6
+
+10
+
+10+7
+# of samples
+
+10+8
+
+Fig. 4: The comparison in performance when mutational robustness is statistically estimated, and a property check is performed either by evaluation, or
+by execution (see Section 4.1 for the description of the two methods). The bar
+(top-left) shows the ratio of average times needed to verify the property of one
+sampled GRN-individual. For example, for osc7, the performance of evaluation
+method is more than three times faster. The other graphs show how the robustness computation time depends on the total number of sampled GRNs (in order
+to obtain robustness and to estimate the precision, we computed the mean of 100
+experiments, each containing a number of samples ranging from 103 to 106 ). The
+graph is shown in log-log scale. The non-linear slope of the evaluation method
+is most notable in examples mcc and osc7, and it is due to the longer time used
+for compute the constraints.
+
+the time needed to compute robustness by execution method is tex = kex p, and
+the time needed to compute robustness by evaluation approach tev = kev p + tc ,
+where p represents the total number of samples used, tc is the time to compute
+the constraints, and kex (resp. kev ) is the time needed to verify the property by
+evaluation (resp. execution). We used linear regression to estimate the paramein top-left position of Fig. 4. The
+ters kex and kev , and we present the ratio kkex
+ev
+results indicate that on six out of eight tested networks, evaluation is more efficient than execution. For some networks, such as osc7, the time for computing
+the constraints is large, and the gain in performance becomes visible only once
+the number of samples is larger than 106 .
+
+6
+
+Conclusion and discussion
+
+In this paper, we pursued formal analysis of Wagner’s GRN model, which allows
+symbolic reasoning about the behavior of GRNs under parameter perturbations.
+More precisely, for a given space of GRNs and a property specified in LTL, we
+have synthesized the space of parameters for which the concrete, individual GRN
+from a given space satisfies the property. The resulting space of parameters is
+represented by complex linear inequalities. In our analysis, we have encoded a
+bounded model-checking search into a satisfiability problem, and we used efficient SMT solvers to find the desired constraints. We demonstrated that these
+constraints can be used to efficiently compute the mutational robustness of populations of GRNs. Our results have shown the cases in which the computation
+can be three times faster than the standard (simulation) techniques employed in
+computational biology.
+While computing mutational robustness is one of the applications of our
+synthesized constraints, the constraints allow to efficiently answer many other
+questions that are very difficult or impossible to answer by executing the sampled
+GRNs. In our future work, we aim to work on further applications of our method,
+such as parameter sensitivity analysis for Wagner’s model. Moreover, we plan to
+work on the method for exact computation of robustness by applying the point
+counting algorithm [5].
+The Wagner’s model of GRN is maybe the simplest dynamical model of a
+GRN – there are many ways to add expressiveness to it: for example, by incorporating multi-state expression level of genes, non-determinism, asynchronous
+updates, stochasticity. We are planning to study these variations and chart the
+territory of applicability of our method.
+
+References
+1. R. B. R. Azevedo, R. Lohaus, S. Srinivasan, K. K. Dang, and C. L. Burch. Sexual
+reproduction selects for robustness and negative epistasis in artificial gene networks. Nature, 440(7080):87–90, Mar. 2006.
+2. C. Baier and J.-P. Katoen. Principles of model checking. MIT Press, 2008.
+
+3. C. Barrett, M. Deters, L. de Moura, A. Oliveras, and A. Stump. 6 years of SMTCOMP. Journal of Automated Reasoning, 50(3):243–277, 2013.
+4. C. W. Barrett, R. Sebastiani, S. A. Seshia, and C. Tinelli. Satisfiability modulo
+theories. Handbook of satisfiability, 185:825–885, 2009.
+5. A. Barvinok and J. E. Pommersheim. An algorithmic theory of lattice points in
+polyhedra. New perspectives in algebraic combinatorics, 38:91–147, 1999.
+6. G. Batt, C. Belta, and R. Weiss. Model checking genetic regulatory networks with
+parameter uncertainty. In Hybrid systems: computation and control, pages 61–75.
+Springer, 2007.
+7. A. Biere, A. Cimatti, E. M. Clarke, O. Strichman, and Y. Zhu. Bounded model
+checking. Advances in computers, 58:117–148, 2003.
+8. L. Cardelli. Morphisms of reaction networks that couple structure to function.
+9. L. Cardelli and A. Csikász-Nagy. The cell cycle switch computes approximate
+majority. Scientific reports, 2, 2012.
+10. S. Ciliberti, O. C. Martin, and A. Wagner. Robustness can evolve gradually in
+complex regulatory gene networks with varying topology. PLoS Computational
+Biology, 3(2), 2007.
+11. V. Danos and C. Laneve. Formal molecular biology. Theoretical Computer Science,
+325(1):69–110, 2004.
+12. M. B. Elowitz and S. Leibler. A synthetic oscillatory network of transcriptional
+regulators. Nature, 403(6767):335–338, 2000.
+13. J. Fisher and T. A. Henzinger. Executable cell biology. Nature biotechnology,
+25(11):1239–1249, 2007.
+14. T. S. Gardner, C. R. Cantor, and J. J. Collins. Construction of a genetic toggle
+switch in escherichia coli. Nature, 403(6767):339–342, 2000.
+15. S. K. Jha, E. M. Clarke, C. J. Langmead, A. Legay, A. Platzer, and P. Zuliani. A
+bayesian approach to model checking biological systems. In Computational Methods
+in Systems Biology, pages 218–234. Springer, 2009.
+16. M. Kwiatkowska, G. Norman, and D. Parker. Using probabilistic model checking in
+systems biology. ACM SIGMETRICS Performance Evaluation Review, 35(4):14–
+21, 2008.
+17. T. MacCarthy, R. Seymour, and A. Pomiankowski. The evolutionary potential of
+the drosophila sex determination gene network. Journal of Theoretical Biology,
+225(4):461468, 2003.
+18. R. Mateescu, P. T. Monteiro, E. Dumas, and H. De Jong. Ctrl: Extension of
+ctl with regular expressions and fairness operators to verify genetic regulatory
+networks. Theoretical Computer Science, 412(26):2854–2883, 2011.
+19. A. Rizk, G. Batt, F. Fages, and S. Soliman. A general computational method for
+robustness analysis with applications to synthetic gene networks. Bioinformatics,
+25(12):i169–i178, 2009.
+20. T. Schlitt and A. Brazma. Current approaches to gene regulatory network modelling. BMC bioinformatics, 8(Suppl 6):S9, 2007.
+21. A. Wagner. Does evolutionary plasticity evolve? Evolution, 50(3):1008–1023, 1996.
+22. B. Yordanov, C. M. Wintersteiger, Y. Hamadi, and H. Kugler. SMT-based analysis
+of biological computation. In NASA Formal Methods, pages 78–92. Springer, 2013.
+23. L. Zhang, C. F. Madigan, M. H. Moskewicz, and S. Malik. Efficient conflict driven
+learning in a boolean satisfiability solver. In Proceedings of the 2001 IEEE/ACM
+international conference on Computer-aided design, pages 279–285. IEEE Press,
+2001.
+
+1
+
+p
+
+p
+3
+
+A
+a)
+
+p
+3
+
+p
+3
+
+C
+
+1
+
+T
+
+…
+
+p
+
+1
+
+p
+b)
+
+no
+mutati
+on
+
+G
+
+p
+3
+
+mutati
+on
+
+p
+3
+
+Fig. 5: A model of changes of a single nucleotide from one generation to another
+
+Mutation model
+In this section, we present the mutation model that is grounded in evolutionary
+biology research. Genetic mutations refer to events of changing base pairs in the
+DNA sequence of the genes and they may disturb the regular functioning of the
+host cell. Such mutations affect the weight functions and we assume their range
+to be between a maximum weight and zero.
+Modeling mutations in a nucleotide. The mutations of a single nucleotide
+follow a discrete-time Markov chain (DTMC), illustrated in Fig. 5a). When the
+DNA is passed from the mother to the daughter cell, a ‘correct’ nucleotide (in
+figure it is the A) can mutate to each different value (T, C or G) with some
+probability. In the model in Fig. 5a), the probability of each possible mutation is
+p
+3 , and hence, the probability of retaining the same nucleotide is 1−p. In Fig. 5b),
+there is a process where all mutated states are lumped together - the probability
+to get to the ‘correct’ nucleotide is equal to p3 , and to remain mutated is therefore
+(1 − p3 ). We will refer to the general probabilities of the lumped process with a
+matrix
+
+
+p p
+P id = 00 01 ,
+p10 p11
+with the intuition 0 being the non-mutated state and 1 the mutated state. Let
+Xni ∈ {0, 1} be a process (DTMC) reporting whether the i-th nucleotide is
+in its ‘correct’ configuration, or mutated configuration at n-th generation. The
+number P (Xni = 1) can be interpreted also as that the fraction of mutated i-th
+nucleotides observed in the population at generation n. Notably, for the values
+shown in Fig. 5b), the stationary distribution of Xni is (0.75, 0.25), independently
+of the probability of a single mutation p.
+Modeling mutations in a single gene. Let us assume l to be the length of
+the DNA binding region of a gene 2 g, and P id to be specify the probabilities of
+single point mutations occurring in it. Moreover, we assume that the maximal
+2
+
+More precisely the length of the promoter of gene
+
+weight for influence of gene g to g 0 , i.e. w(g, g 0 ), is achieved for a single sequence
+of nucleotides, and that the weight will linearly decrease with the number of
+mutated nucleotides (where ‘mutated’ refers to being different to the sequence
+achieving the maximal weight). Therefore, if k out of l nucleotides in the promoter region of g 0 that is affected by g are mutated, the weight w(g, g 0 ) becomes
+wmax (g, g 0 )(1 − kl ).
+If the whole promoter sequence of one gene is modelled by a string a ∈
+{A, T, C, G}l , its changes over generations are captured by an l-dimensional random process (Xn1 , . . . , Xnl )(a) ∈ {0, 1}l . Mutation events Xn1 , Xn2 ,. . . , Xnl are
+assumed to happen independently within the genome, and independently of the
+history of mutations. Then, a random process Mn := Xn1 + . . . + Xnl , such that
+Mn = k ∈ {0, . . . , l}, denotes that the configuration at generation n differs from
+the optimal configuration in exactly k points. The following lemma defines the
+values of the transition matrix of the process {Mn }.
+Lemma 2. The process {Mn } is a DTMC, with transition probabilities P (Mn+1 =
+j | Mn = i) = T (i, j), where T : 0..l × 0..l → [0, 1] amounts to:
+T (i, j) :=
+
+
+
+
+i u i−u l − i j−u l−i−(j−u)
+p p
+p
+p
+.
+u 11 10 j − u 01 00
+
+min{i,j} 
+
+X
+
+u=0
+
+(3)
+
+Moreover, {Mn } converges to a unique stationary distribution, which is a
+i
+binomial,
+ probability β = limn→∞ P (Xn = 1). In a special case
+ with success
+1−p p
+3
+P̂ id =
+p , the stationary distribution is β = 4 , independently of the
+p
+1
+−
+3
+3
+value of p.
+Proof. (Lem. 2) It suffices to observe that u represents the number of mutated
+nucleotides which remain mutated at time (n + 1), and (j − u) is the number of
+unmated nucleotides which become mutated at time (n + 1). The existence and
+convergence of the stationary trivially follows from that {Mn } is regular (irreducible and aperiodic). Each process {Xni } at a stationary behaves as a Bernoulli
+process, with probability of being mutated equal to β = limn→∞ P (Xni = 1),
+and a probability of remaining un-mutated 1 − β. The claim follows as the sum
+of l independent Bernoulli processes is binomially distributed. The special case
+follows because matrix P̂ id has a unique stationary distribution (0.25, 0.75) (denoting by a and b its coordinates, we obtain equations a(1 − p) + b p3 = a and
+ap + b(1 − p3 ) = b, which can be satisfied only if a = 3b ).
+Remark that in a special case when p00 = 0.25, the transition matrix of the
+process {Mt } has the transition probabilities
+P (Kn+1 = j | Kn = i) = pj11 pl−j
+00
+
+
+i  
+X
+i
+l−i
+
+u j−u
+u=0
+ 
+l
+=
+0.75j 0.25l−j ,
+j
+
+which do not depend on i.
+The special case of matrix T for l = 2 is illustrated in Fig. 6.
+
+0 mutations 1 mutation
+2 mutations
+2 2
+3
+p00
+2p00 p01
+p201
+0 mutations
+4p00 p10 p00 p11 + p01 p10 p01 p11 5
+1 mutation
+2 mutations
+p210
+2p10 p11
+p211
+Fig. 6: The transition matrix for the evolutionary process of one gene with two
+nucleotides. The transition probabilities are computed based on the assumption
+that the single nucleotide mutations happen independently across the genome:
+for example, the transition from zero to two mutation is equal to p201 , because it
+occurs iff both nucleotides transition from a correct to a mutated state.
+
+Modeling mutations in a GRN. We assume that mutations happen independently across the genome, and therefore, if the genome is in the configuration
+k = (k1 , . . . , kd ), the probability that the next generation will be in the configuration k0 = (k10 , . . . , kd0 ) will be a product of transition probabilities from ki to
+ki0 , for i = 1, . . . , d.
+Each sequence k = (k1 , . . . , kd ) ∈ 0..l1 ×. . .×0..ld defines one weight function
+k
+wk , with wk (gi , gj ) = wmax (gi , gj )(1− ljj ). Hence, the domain of weight functions
+is given by
+W = {wk | k ∈ 0..l1 × . . . × 0..ld },
+and the distribution is given by
+π(wk ) =
+
+d  
+Y
+d
+β ki (1 − β)d−ki .
+k
+i
+i=1
+
+

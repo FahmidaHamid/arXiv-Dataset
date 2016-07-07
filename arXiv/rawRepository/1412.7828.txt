@@ -1,0 +1,328 @@
+Protein Secondary Structure Prediction with Long Short Term Memory
+Networks
+
+Søren Kaae Sønderby1
+
+SOREN . SONDERBY @ BIO . KU . DK
+
+arXiv:1412.7828v2 [q-bio.QM] 4 Jan 2015
+
+Ole Winther1,2
+
+OLWI @ DTU . DK
+
+1
+
+Bioinformatics Centre, Department of Biology, University of Copenhagen, Copenhagen, Denmark
+Department for Applied Mathematics and Computer Science, Technical University of Denmark (DTU), 2800 Lyngby,
+Denmark
+
+2
+
+Abstract
+Prediction of protein secondary structure from the amino acid sequence is a classical bioinformatics problem.
+Common methods use feed forward neural networks or SVM’s combined with a sliding window, as these models
+does not naturally handle sequential data. Recurrent neural networks are an generalization of the feed forward
+neural network that naturally handle sequential data. We use a bidirectional recurrent neural network with long
+short term memory cells for prediction of secondary structure and evaluate using the CB513 dataset. On the
+secondary structure 8-class problem we report better performance (0.674) than state of the art (0.664). Our model
+includes feed forward networks between the long short term memory cells, a path that can be further explored.
+
+1. INTRODUCTION
+Recently Long Short Term Memory (LSTM) [Hochreiter et al., 1997] recurrent neural networks (RNN) have shown good
+performance in a number of tasks, including machine translation [Sutskever et al., 2014], and speech recognition [Graves &
+Jaitly, 2014]. This paper uses the LSTM for prediction of protein secondary structure. Many machine learning algorithms
+have been applied to this problem: Qian & Sejnowski 1988 introduced neural networks, Jones 1999 discovered that the use
+of evolutionary information, through position specific scorring matrices, improved performance, and Baldi et al. 1999
+introduced RNN’s for secondary structure prediction. Recent work includes conditional random fields hybrid models
+[Maaten et al., 2011; Peng et al., 2009; Wang et al., 2011] and generative stochastic networks [Troyanskaya, 2014].
+A common approach to secondary structure prediction is to use a non-sequential model, typically feed-forward
+neural networks or SVM’s [Hua & Sun, 2001; Jones, 1999]. These models are not ideal for classifying data which cannot
+naturally be presented as a vector of fixed dimensionality, why a sliding window approach is typically used to circumvent
+this problem. Window based models can only learn dependencies within the input window, recent methods for learning
+other dependencies includes conditional random field hybrid models. RNN’s can be applied to sequential data of any length,
+and should theoretically be able to learn longterm dependencies. In practice RNN’s suffer from exploding or vanishing
+gradients [Bengio et al., 1994], and on a secondary structure prediction task Baldi et al. 1999 reported that their RNN’s
+were only able to learn dependencies of ±15 amino acids relative to the target. The LSTM cell was invented to solve the
+vanishing gradients problem and enables the network to learn dependenceis over 100’s of time steps. The contribution of
+this paper is the application of bidirectional LSTM networks [Graves, 2012] to protein secondary structure prediction. Our
+model architecture uses feed-forward neural networks for concatenation of predictions from the forward and backward
+networks in the bidirectional model and the model also includes feed-forward neural networks between hidden states in the
+recurrent network, See figure 1. The use of feed-forward neural networks ”inside” the reucrrent neural network has also
+been explored by [Pascanu et al., 2013]. This work primarily differs from the work by Baldi et al. 1999 in the introduction
+of the LSTM cell, the availability of much larger datasets and the possibility of training larger models by using a GPU.
+
+2. MATERIALS AND METHODS
+2.1. Model
+The LSTM cell is implemented as described in [Graves, 2013], however without peepholes, because recent papers have
+shown good performance without peepholes [Sutskever et al., 2014; Zaremba & Sutskever, 2014; Zaremba et al., 2014].
+When predicting target xt a (forwards) RNN only know the past sequence, x1 ...xt . In tasks where the entire sequence
+is known beforehand, e.g. secondary structure prediction, this is not desirable. Schuster & Paliwal 1997 introduced the
+bidirectional RNN as an elegant solution to this problem. One trains two separate RNN’s, the forward RNN starts the
+recursion from x1 and goes forwards, the backwards model starts at xn and goes backwards. The predictions from the
+forward and backward networks are combined and normalized, see Figure 1. The standard method for combining the forward
+and backward models is to normalize the activations from each layer in a softmax layer [Graves, 2012]. We expand the
+standard stacked bidirectional LSTM model by introducing a feed-forward network responsible for concatenating the output
+from the forward and backward networks into a single softmax prediction. Secondly we expand the model by inserting
+a feed-forward network between recurrent hidden states, see equation (7), along with shortcut connections between the
+recurrent hidden layers. Similar ideas have been explored for RNN’s by [Pascanu et al., 2013]. Figure 2 shows a LSTM cell.
+Equation (1) to equation (10) describes the forward recursions for a single LSTM layer, ht−rec is forwarded to the next time
+slice and ht is passed upwards in a multilayer LSTM.
+it = σ(xt Wxi + ht−1 Whi + bi )
+
+(1)
+
+ft = σ(xt Wxf + ht−1 Whf + bf )
+
+(2)
+
+ot = σ(xt Wxo + ht−1 Who + bo )
+
+(3)
+
+gt = tanh(xt Wxg + ht−1 Whg + bg )
+
+(4)
+
+ct = ft  ct−1 + it  gt
+
+(5)
+
+ht = ot  tanh(ct )
+
+(6)
+
+ht−rec = ht + f eedf orwardnet(ht )
+1
+σ(z) =
+1 + exp(−z)
+
+(7)
+(8)
+
+ : Elementwise multiplication
+xt : input from the previous layer:
+
+(9)
+hl−1
+t
+
+(10)
+
+2.2. Data
+We use the dataset from Troyanskaya 20141 . The dataset consists of amino acid sequences labeled with secondary structure.
+Sequences and structures were downloaded from PDB and annotated with the DSSP program [Kabsch & Sander, 1983]. In
+the literature it is common to map the 8-class DSSP output (Q8) to helix, sheets and coils (Q3), see Table 1. We use the
+original 8-class output, which is a harder problem. Each amino acid is encoded as an 42 dimensional vector, 21 dimensions
+for orthogonal encoding and 21 dimensions for sequence profiles. For further descriptions see Troyanskaya 2014. The full
+dataset has 6128 non-homologous sequences (identity less than 30%). This set is further filtered such that no sequences has
+more than 25% identity with the CB513 dataset [Cuff & Barton, 1999]. The dataset is divided into a training (n=5278) and a
+validation set (n=256), the CB513 dataset is used for testing.
+2.3. Experimental setup
+The LSTM is implemented in Theano [Bastien et al., 2012] using the Lasagne library2 . The model has 3 layers with either
+300 or 500 LSTM units in each layer. The feed-forward network, eq. (7), is a two layer ReLU network with 300 or 500
+units in each layer, this network has skip connections. The output from the bidirectional forwards and backwards networks
+are concatenated into a single vector which is passed through a two layer ReLU network with 200 or 400 hidden units in
+1
+2
+
+http://www.princeton.edu/˜jzthree/datasets/ICML2014
+https://github.com/benanne/Lasagne
+
+LSTM layer
+Feedforward net
+
+x1
+
+x2
+
+xt
+
+x1
+
+x2
+
+xt
+
+Figure 1. Unrolled recurrent neural networks. left: Unidirectional LSTM with a single layer. right: Bidirectional LSTM with single layer.
+The forward LSTM (red arrows) starts at time 1 and the backwards LSTM (blue arrows) starts at time n, then they go forwards and
+backwards respectively. The errors from the forward and backward nets are combined using a feed forward net and the result is used for
+back propagation. Note the feedforward nets between time slices. The figure shows a single layer model, but the model is easily extended
+with more layers. Adapted from [Graves, 2012].
+
+each layer. The concatenation network is regularized using 50% dropout. In the LSTM cells all initial weights are sampled
+uniformly between -0.05 and 0.05 and biases are initialized at zero. In the fully connected layers weights are initialized
+using Lasagne’s default settings. The LSTM initial hidden and cell states are learned. The learning rate is controlled with
+AdaDelta using default settings (ρ = 0.95,  = 10−6 )[Zeiler, 2012]. After each epoch we calculate the norm of the gradients
+updates divided by the batch size:
+
+
+
+updates 
+norm2 =  gradient
+batch size
+2
+If the norm exceeds 0.5 all gradients are scaled with
+
+0.5
+norm2 .
+
+The batch size is 128.
+
+Table 1. Description of protein secondary structure classes and class frequencies in the dataset. In the litterature the 8-class DSSP output
+is typically mapped to 3 classes. The 8 to 3 class mappings are included for reference.
+
+8-class (Q8)
+H
+E
+L
+T
+S
+G
+B
+I
+
+3 class (Q3)
+H
+E
+C
+C
+C
+H
+E
+C
+
+Frequency
+0.34535
+0.21781
+0.19185
+0.11284
+0.08258
+0.03911
+0.01029
+0.00018
+
+Name
+α-helix
+β-strand
+loop or irregular
+β-turn
+bend
+310 -helix
+β-bridge
+π-helix
+
+ht-1
+xt
+
+ht-1 xt
+
+ht-1 xt
+
+i
+
+o
+
+g
+
+c
+
+ht
+
+f
+ht-1 xt
+Figure 2. LSTM memory cell. i: input gate, f : forget gate, o: output gate, g: input modulation gate, c: memory cell. Blue arrow heads are
+ct−1 and red arrow heads are ct . The notation corresponds to equations (1) to (10) such that Wxo is wights for x to output gate and Whf
+is weigts for ht−1 to forget gates etc. Adapted from [Zaremba & Sutskever, 2014].
+
+Table 2. Test set per amino acid accuracy for CB513. ∗ Reported by Wang et al. 2011
+
+[Pollastri et al., 2002] (BRNN)∗
+Wang et al. 2011 (CNF - 5-model ensemble)
+Troyanskaya 2014 (GSN)
+LSTM small
+LSTM large
+
+Q8 accuracy
+0.511
+0.649
+0.664
+0.671
+0.674
+
+3. RESULTS
+The LSTM network has a correct classification rate of 0.674, better than current state of the art performance achieved by a
+generative stochastic network (GSN) [Bengio & Thibodeau-Laufer, 2013; Troyanskaya, 2014] and a conditional neural
+field (CNF) [Lafferty et al., 2001; Peng et al., 2009]. Furthermore the LSTM network performs significantly better than the
+bidirectional RNN (BRNN) used in SSpro8 having a correct classification rate of 0.511 [Pollastri et al., 2002], see Table 2.
+
+4. DISCUSSION AND CONCLUSION
+We used the LSTM RNN for prediction of protein secondary structure. To our knowlegde the CB513 performance of
+0.674 is currently state-of-the-art. Comparision with the SSpro8 method shows that the LSTM significantly improves the
+performance. Similarly the LSTM performs bettter than both Conditional neural fields and GSN methods. Inspired by
+Pascanu et al. 2013 we used a feedforward network between the recurrent connections. We showed that a LSTM with this
+architecture and a feedforward neural net for concatenation of the forward and backward nets performs significantly better
+than existing methods for secondary structure prediction. Future work includes investigation of different architectures for
+the feedforwards networks.
+
+5. AUTHORS CONTRIBUTIONS
+SS is PhD student under the supervision of OW. SS developed the model and performed the experiments. Both authors read
+and approved the final version of the article.
+
+6. ACKNOWLEDGEMENTS
+We gratefully acknowledge the support of NVIDIA Corporation with the donation of the Tesla K40 GPU used for this
+research. We wish to acknowledge funding from the Novo Nordisk Foundation.
+
+References
+Baldi, P, Brunak, S, and Frasconi, P. Exploiting the past and the future in protein secondary structure prediction. Bioinformatics, 15(11):
+937–946, 1999.
+Bastien, Frédéric, Lamblin, Pascal, Pascanu, Razvan, Bergstra, James, Goodfellow, Ian, Bergeron, Arnaud, Bouchard, Nicolas, WardeFarley, David, and Bengio, Yoshua. Theano: new features and speed improvements. arXiv preprint arXiv:1211.5590, November
+2012.
+Bengio, Y, Simard, P, and Frasconi, P. Learning long-term dependencies with gradient descent is difficult. Neural Networks, IEEE
+Transactions, 5(2):157–166, 1994.
+Bengio, Yoshua and Thibodeau-Laufer, Éric.
+arXiv:1306.1091, 2013.
+
+Deep Generative Stochastic Networks Trainable by Backprop.
+
+arXiv preprint
+
+Cuff, JA and Barton, GJ. Evaluation and improvement of multiple sequence methods for protein secondary structure prediction. Proteins:
+Structure, Function, and Bioinformatics, 34(4):508–519, 1999.
+Graves, A. Supervised sequence labelling with recurrent neural networks. Springer, 2012. ISBN 978-3-642-24797-2.
+Graves, A and Jaitly, N. Towards end-to-end speech recognition with recurrent neural networks. Proceedings of the 31st International
+Conference on Machine Learning (ICML-14), pp. 1764–1772, 2014.
+Graves, Alex. Generating sequences with recurrent neural networks. arXiv preprint arXiv:1308.0850, 2013.
+Hochreiter, S, urgen Schmidhuber, J, and Elvezia, C. LONG SHORT-TERM MEMORY. Neural Computation, 9(8):1735–1780, 1997.
+Hua, S and Sun, Z. A novel method of protein secondary structure prediction with high segment overlap measure: support vector machine
+approach. Journal of molecular biology, 308:397–407, 2001. ISSN 0022-2836. doi: 10.1006/jmbi.2001.4580.
+Jones, DT. Protein secondary structure prediction based on position-specific scoring matrices. Journal of molecular biology, 292(2):
+195–202, 1999.
+Kabsch, W and Sander, C. Dictionary of protein secondary structure: pattern recognition of hydrogen-bonded and geometrical features.
+Biopolymers, 22(12):2577–2637, 1983.
+Lafferty, John, McCallum, Andrew, and Pereira, Fernando C N. Conditional random fields: Probabilistic models for segmenting and
+labeling sequence data. ICML ’01 Proceedings of the Eighteenth International Conference on Machine Learning, pp. 282–289, 2001.
+ISSN 1750-2799. doi: 10.1038/nprot.2006.61.
+Maaten, L, Welling, M, and Saul, LK. Hidden-unit conditional random fields. In International Conference on Artificial Intelligence and
+Statistics, pp. 479–488, 2011.
+Pascanu, Razvan, Gulcehre, Caglar, Cho, Kyunghyun, and Bengio, Yoshua. How to Construct Deep Recurrent Neural Networks. arXiv
+preprint arXiv:1312.6026, pp. 1–10, 2013.
+Peng, J, Bo, L, and Xu, J. Conditional neural fields. In Advances in Neural Information Processing Systems 22, pp. 1419–1427, 2009.
+Pollastri, Gianluca, Przybylski, Darisz, Rost, Burkhard, and Baldi, Pierre. Improving the prediction of protein secondary structure in three
+and eight classes using recurrent neural networks and profiles. Proteins, 47:228–235, 2002. ISSN 1097-0134. doi: 10.1002/prot.10082.
+Qian, N and Sejnowski, T J. Predicting the secondary structure of globular proteins using neural network models. Journal of molecular
+biology, 202:865–884, 1988. ISSN 0022-2836.
+Schuster, M and Paliwal, KK. Bidirectional recurrent neural networks. Signal Processing, 45(11):2673–2681, 1997.
+Sutskever, I, Vinyals, O, and Le, QVV. Sequence to sequence learning with neural networks. Advances in Neural Information Processing
+Systems, pp. 3104–3112, 2014.
+Troyanskaya, Olga G. Deep Supervised and Convolutional Generative Stochastic Network for Protein Secondary Structure Prediction.
+Proceedings of the 31st International Conference on Machine Learning, 32:745–753, 2014.
+
+Wang, Zhiyong, Zhao, Feng, Peng, Jian, and Xu, Jinbo. Protein 8-class secondary structure prediction using conditional neural fields.
+Proteomics, 11:3786–3792, 2011. ISSN 16159853. doi: 10.1002/pmic.201100196.
+Zaremba, Wojciech and Sutskever, Ilya. Learning to Execute. arXiv preprint arXiv:1410.4615, October 2014.
+Zaremba, Wojciech, Kurach, Karol, and Fergus, Rob. Learning to Discover Efficient Mathematical Identities. In Advances in Neural
+Information Processing Systems, pp. 1278–1286, June 2014.
+Zeiler, Matthew D. ADADELTA: An Adaptive Learning Rate Method. arXiv preprint arXiv:1212.5701, December 2012.
+
+

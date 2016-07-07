@@ -1,0 +1,1180 @@
+arXiv:1003.5964v2 [q-bio.PE] 5 May 2011
+
+Fast Convergence of MCMC Algorithms for Phylogenetic
+Reconstruction with Homogeneous Data on Closely Related
+Species
+Daniel Štefankovič∗
+
+Eric Vigoda†
+
+November 22, 2010
+
+Abstract
+This paper studies a Markov chain for phylogenetic reconstruction which uses a
+popular transition between tree topologies known as subtree pruning-and-regrafting
+(SPR). We analyze the Markov chain in the simpler setting that the generating tree
+consists of very short edge lengths, short enough so that each sample from the generating tree (or character in phylogenetic terminology) is likely to have only one mutation,
+and that there enough samples so that the data looks like the generating distribution.
+We prove in this setting that the Markov chain is rapidly mixing, i. e., it quickly
+converges to its stationary distribution, which is the posterior distribution over tree
+topologies. Our proofs use that the leading term of the maximum likelihood function
+of a tree T is the maximum parsimony score, which is the size of the minimum cut
+in T needed to realize single edge cuts of the generating tree. Our main contribution
+is a combinatorial proof that in our simplified setting, SPR moves are guaranteed to
+converge quickly to the maximum parsimony tree. Our results are in contrast to recent
+works showing examples with heterogeneous data (namely, the data is generated from
+a mixture distribution) where many natural Markov chains are exponentially slow to
+converge to the stationary distribution.
+
+1
+
+Introduction
+
+We study Markov Chain Monte Carlo (MCMC) methods for Bayesian inference of phylogeny. We begin by presenting the relevant background material by defining phylogenetic
+trees, evolutionary models (in Section 1.1), and the associated MCMC methods (in Section
+1.2). We refer the interested reader to Semple and Steel [15] for a more comprehensive
+∗
+Department of Computer Science, University of Rochester, Rochester, NY 14627. Email: stefanko@cs.rochester.edu. Research supported in part by NSF grant CCF-0910415.
+†
+College of Computing, Georgia Institute of Technology, Atlanta GA 30332.
+Email:
+vigoda@cc.gatech.edu. Research supported in part by NSF grant CCF-0830298 and CCF-0910584.
+
+1
+
+introduction to the mathematics of phylogeny. Finally, we present our results and discuss
+related work in Section 1.3.
+A phylogenetic tree is an unrooted tree T on n leaves (called taxa, corresponding to
+n species) where internal vertices have degree three. Let E(T ) denote the edges of T
+and V (T ) denote the vertices. In the phylogenetic reconstruction problem, we observe a
+collection of labelings of the leaves of T from a set Ω, and our goal is to infer the tree T
+from which they were generated from. For example, if Ω = {A, C, G, T } then we are given
+(aligned) DNA sequences for n species, and we are trying to determine the tree describing
+the evolutionary history of the present-day species.
+
+1.1
+
+Evolutionary models and Maximum Likelihood
+
+The labelings on the leaves of T are the projection of labelings on all vertices of T , and
+these labelings of V are generated in the following manner. There is a stochastic process
+along edges of T (e. g., modeling the evolutionary process of DNA substitutions) which is
+defined by a continuous-time Markov chain. Thus, for each edge e ∈ T there is a |Ω| × |Ω|
+rate matrix Q and a time te > 0, which is called the branch length of e. In this paper,
+as is typical in the phylogenetic setting, we assume there is a single rate matrix Q that is
+common to all edges. The rate matrix is assumed to be reversible with respect to some
+distribution π on Ω. Hence, fix π as the stationary vector for Q (i. e., πQ = 0). (The
+matrix Q is usually scaled so that we expect one “substitution” (i. e., change) per unit of
+time.) The rate matrix Q defines a continuous time Markov chain, and together with te
+defines a transition matrix on edge e:
+Pe = exp(te Q) = I + te Q + t2e Q2 /2! + t3e Q3 /3! + . . .
+
+(1)
+
+The matrix Pe is a stochastic matrix of size |Ω| × |Ω|, and thus defines a discrete-time
+Markov chain, which is time-reversible with stationary distribution π, i. e., πPe = π, and
+πi (Pe )ij = πj (Pe )ji (for all i, j ∈ Ω).
+The simplest four-state (i. e., |Ω| = 4) evolutionary model has a single parameter for
+the off-diagonal entries of the rate matrix Q; this model is known as the Jukes-Cantor
+model. The most general reversible four-state model is the GTR (general time reversible)
+model. For |Ω| = 2 (often studied for mathematical interest), the model is binary and the
+rate matrix has a single parameter; this model is known as the CFN (Cavender-FarrisNeyman) model. See Felsenstein [6] or Yang [22] for an introduction to these evolutionary
+models.
+Given T , the rate matrix Q and the branch lengths t = (te )e∈E(T ) , we then define the
+following distribution on labelings of the vertices of T . Let Pe = exp(te Q) for e ∈ E(T ).
+We first orient the edges of T away from an arbitrarily chosen root r of the tree. (We
+can choose the root arbitrarily since each Pe is reversible with respect to π.) Then, the
+probability of a labeling ` : V (T ) → Ω is
+Y
+µ0T,Q,t (`) := π(`(r))
+Puv (`(u), `(v)).
+(2)
+−
+→
+uv∈E(T
+)
+
+2
+
+The distribution µ0T,Q,t can be generated in an equivalent algorithmic manner. Choose
+`(r) from π. Then for each edge e = (u, v) ∈ E(T ), given an assignment for exactly one
+of the endpoints, say `(u), choose `(v) from the distribution defined by the row of Pe
+corresponding to the label `(u).
+Let µT,Q,t be the marginal distribution of µ0T,Q,t on the labelings of the leaves of T
+(thus µT,Q,t is a distribution on Ωn where n is the number of leaves of T ). Fix T ∗ with
+parameters Q∗ and t∗ as the generating tree. The goal of phylogeny reconstruction is to
+reconstruct T ∗ (and possibly Q∗ and t∗ ) from µT ∗ ,Q∗ ,t∗ (more precisely, from independent
+samples from µT ∗ ,Q∗ ,t∗ ).
+Let Q denote a set of rate matrices with non-zero entries where Q∗ ∈ Q. The set Q is
+the set of possible rate matrices. The set can be arbitrary, usually it is determined by the
+model considered (e. g., for the Jukes-Cantor model Q would contain rate matrices whose
+off-diagonal entries are the same). One often assumes that the rate matrix Q∗ is known.
+In this case we would set Q = {Q∗ }. On the other hand, our results also apply if one sets
+Q to be the set of all rate matrices with non-zero entries.
+We consider the likelihood of a tree T as, the maximum over rate matrices Q ∈ Q
+and over assignments of non-zero branch lengths t to the edges of T , of the probability
+that the tree (T, Q, t) generated µ. More formally, the maximum expected log-likelihood
+of tree T for distribution µ∗ is defined by
+LT (µ∗ ) = sup sup LT,Q,t (µ∗ ),
+
+(3)
+
+t
+
+Q∈Q
+
+where
+LT,Q,t (µ∗ ) =
+
+X
+
+µ∗ (y) ln(µT,Q,t (y)).
+
+(4)
+
+y∈Ωn
+
+For a set of characters D = (D1 , . . . , DN ) where Di ∈ Ωn , define the log-likelihood of
+a tree T as
+LT (D) =
+=
+
+sup sup ln (µT,Q,t (D))
+Q∈Q
+
+t
+
+sup sup
+Q∈Q
+
+t
+
+N
+X
+
+ln (µT,Q,t (Di )) .
+
+i=1
+
+Our goal is to sample from the distribution on the set of phylogenetic trees with n
+leaves where the weight of a tree is LT (D). In Section 3 we will look at the straightforward
+extension to the setting where we are given a prior on trees and parameters Q, t, and our
+goal is to sample from the posterior distribution.
+
+1.2
+
+SPR Markov Chain
+
+We analyze a Markov chain using transitions made by subtree pruning-and-regrafting
+(SPR). SPR transitions are a natural combinatorial transition, which is also popular in
+3
+
+practice. In Section 4 we discuss several other well-studied choices for the transitions.
+Here we consider trees weighted by their maximum likelihood. In Section 3 we discuss
+how the Markov chain definition and our main result extends to sampling the posterior
+distribution.
+An SPR transition from a tree T works by choosing an (internal or terminal) edge
+e = (u, v). If e is an internal edge we consider one of the two subtrees in T \ e, either
+the subtree Su containing u or the subtree Sv containing v. Let Su denote the selected
+subtree. If e is a terminal edge, let Su be the endpoint of e that is a leaf. Let T 0 denote
+the tree formed by removing Su from T , in particular, we remove Su and edge e from T
+and “smooth away” the vertex v (that is, contract one of the two adjacent edges). We
+then choose an edge e∗ in T 0 and we attach S onto e∗ by adding a new intermediate vertex
+along e∗ . See Figure 1 for an illustration. Let SP R(T, Su , e∗ ) denote the tree resulting
+from the above transition.
+B
+A
+
+B
+
+C
+
+*
+
+C
+
+A
+E
+
+D
+
+E
+F
+
+D
+
+G
+
+F
+
+G
+
+Figure 1: Illustration of an SPR transition. The randomly chosen edge e is marked by
+an arrow. The subtree containing B and C is pruned, and then regrafted at the edge e∗
+marked by a starred arrow. The resulting tree is illustrated.
+
+We analyze the following Markov chain which chooses a random subtree S to prune, and
+then chooses an edge to regraft S along based on the maximum likelihood of the resulting
+tree. This Markov chain is an analogous to heat bath chains studied in Statistical Physics
+(as opposed to Metropolis chains), e.g., see [4], thus we refer to the below chain as the
+Heat Bath SPR Markov Chain. Here is the formal definition of the transitions Tt → Tt+1
+of the Heat Bath SPR Markov Chain.
+From a tree Tt at time t we proceed as follows.
+1. Choose a random subtree S of Tt , by choosing a random edge e and then choosing
+one of the two subtrees hanging off of e. Let T 0 denote the tree formed by deleting
+S and e from T .
+2. For each edge e∗ of tree T 0 , let w(e∗ ) = LTb (D) where Tb = SP R(T, S, e∗ ) is the tree
+4
+
+∗
+formed by pruning S from T and regrafting S onto
+Pedge e . Let0 ω be the distribution
+0
+∗
+∗
+on edges of T where ω(e ) = w(e )/Z and Z = e0 ∈E(T 0 ) w(e ).
+
+3. Sample an edge e∗ from the distribution ω on edges of T 0 .
+4. Graft S onto edge e∗ and move to this new tree, i. e., set Tt+1 = SP R(T, S, e∗ ).
+We now verify that the above Markov chain is ergodic and reversible with respect to
+the distribution π on trees where π(T ) ∝ LT (D), and thus π is also the unique stationary
+distribution. Let T1 and T2 be neighboring states of the Markov chain. Let S be the tree
+that is pruned and regrafted to obtain T2 from T1 . Note that the same tree S can be
+pruned and regrafted to obtain T1 from T2 . The transition probability from T1 to T2 is the
+probability of choosing S in step 1 times LT2 (D)/Z. Similarly the transition probability
+from T2 to T1 is the probability of choosing S in step 1 times LT1 (D)/Z (note that Z is
+the same in both cases since pruning S results in the same tree T 0 ). The detailed balance
+condition is satisfied for π(T ) ∝ LT (D) and hence it is the unique stationary distribution.
+Let dTV (µ, ν) denote the (total) variation distance between a pair of probability distributions µ and ν defined on the same finite, discrete space, and let P t (T0 , ·) denote the
+t-step distribution of the Markov chain from initial state T0 . The mixing time τmix is
+defined as
+τmix = max min{t : dTV (P t (T0 , ·), π) ≤ 1/2e},
+T0
+
+which is the time to reach variation distance ≤ 1/2e of the stationary distribution from
+the worst initial state. Note, it is straightforward to then “boost” so that for any δ > 0,
+after τmix ln(1/δ) steps we are within variation distance ≤ δ of π, from the worst initial
+state (see Aldous [1]).
+
+1.3
+
+Results on MCMC for Phylogenetic Reconstruction
+
+MCMC algorithms are an important tool for phylogenetic reconstruction. MrBayes [10]
+is a popular program that relies on MCMC methods for Bayesian inference of phylogeny.
+MrBayes uses a sophisticated variant of MCMC known as Metropolis-Coupled MCMC [8].
+For statistical inference problems, such as phylogenetic reconstruction, it is often easy
+to design appropriate MCMC algorithms, such as the above Markov chain we defined using
+SPR transitions, which converge in the limit over time to the desired posterior distribution.
+However, the computational efficiency of these methods rely on their fast convergence to
+the posterior distribution. Since theoretical results are typically lacking, heuristic methods
+are used to measure convergence to the desired distribution. Hence, there are often no
+rigorous guarantees on the scientific computations which rely on the random samples
+produced by the MCMC methods. Our goal is to provide some theoretical understanding of
+settings where MCMC methods for phylogenetic reconstruction are provably fast and hence
+yield accurate results, and settings where the MCMC methods are slow and consequently
+the samples may be misleading.
+5
+
+There are several works with computational experiments on the convergence rates
+of MCMC algorithms for phylogenetic reconstruction, e. g., see the recent works [3, 11].
+There is relatively little theoretical work. Diaconis and Holmes [5] proved fast convergence
+of a Markov chain to the uniform distribution over phylogenetic trees. Recently, several
+works have shown examples of heterogeneous data where MCMC algorithms are provably
+slow to converge. Mossel and Vigoda [13, 14] proved slow convergence for a class of
+examples with data arising from a uniform mixture of a pair of 5-taxa trees (with different
+topologies). Štefankovič and Vigoda [19, 20] proved slow convergence for a class of mixture
+examples from a pair of 5-taxa trees that share the same topology but differ in their branch
+lengths. In these slow mixing results, the convergence time is exponential in the number
+of characters (i. e., sequence length).
+In this paper we show fast convergence for data from a homogenous source of closely
+related species. In particular, for data generated from a single tree (of any size) when
+all the branch lengths are sufficiently short, we prove fast convergence. The requirement
+of sufficiently short branches is for our proof technique, but it is important to note that
+the slow mixing results mentioned earlier [13, 14, 19, 20] require, in an analogous manner,
+sufficiently short branches. If one searches for the tree with the maximum likelihood (or
+maximum a posteriori probability) our methods show that in our setting of very short
+branch lengths, the space of trees (connected by the SPR moves) has no local maxima and
+hence one can find the optimal tree using hill climbing.
+For simplicity, we present our results here for the case where the weight of a tree is the
+maximum likelihood of generating the given data D where the maximum is over a rate
+matrix Q (common to all edges) and a set of branch lengths t. This is closely related to
+the posterior distribution when the priors are uniformly distributed. Our results extend
+to δ-regular priors, which are priors that are lower bounded by some δ > 0, see Section 3
+for a discussion on the extension of our results to sampling the posterior distribution. We
+are interested in the mixing time τmix , defined as the number of steps until the chain is
+within variation distance ≤ 1/2e of the stationary distribution.
+We prove that the Heat Bath SPR Markov Chain converges quickly to its stationary
+distribution when the data is generated from a tree T ∗ where all of the branch lengths are
+sufficiently small, and there are sufficiently many samples generated from T ∗ . Here is the
+formal statement of our main result.
+Theorem 1. Consider any reversible 4-state model, any phylogenetic tree T ∗ on n taxa
+and any rate matrix Q∗ with no zero entries. For all αmin > 0, there exists 0 > 0, such
+that for all 0 < ε < ε0 and any choice of branch lengths t∗e ∈ (αmin , ) for e ∈ E(T ∗ ),
+there exists N0 > 0 where the following holds.
+For a data set with N > N0 characters, each
+√ chosen independently from the distribution
+µT ∗ ,Q∗ ,t∗ , then, with probability > 1 − exp(− N ) over the data generated, the Heat Bath
+SPR Markov Chain has mixing time ≤ 50n.
+Since there is considerable quantification in the above theorem we will take a moment
+to dissect it at a high-level. First off, the requirement that N > N0 comes from needing
+6
+
+the data to look very much like the generating distribution µ∗ = µT ∗ ,Q∗ ,t∗ . Therefore,
+how much data we need depends on several quantities, such as the minimum probability
+of a configuration arising in µ∗ , which depends on the minimum branch length and the
+minimum rate in Q∗ . Hence, N0 depends on αmin and Q∗ , and is exponential in n. A
+somewhat related question has been studied by Steel and Székely [16, 17, 18] on how large
+N needs to be so that the maximum likelihood tree is the generating tree T ∗ . In their
+results one also needs N to be exponential in n.
+Our proof uses the fact that in the setting of Theorem 1, where the branch lengths are
+sufficiently short, the leading term of the maximum likelihood function is actually maximum parsimony. Such a result is well-known in the mathematical phylogeny community,
+and was first observed by Felsenstein [7]. We require a more detailed statement of such
+a result, which we present in Lemma 2 in Section 2.2. Our main technical contribution
+is a combinatorial proof that, in the setting of Theorem 1, SPR moves can be used in a
+greedy manner to quickly find the maximum parsimony tree. This result is presented in
+Section 2.3. Finally, in Section 2.4 we show how Theorem 1 follows in a straightforward
+manner from these combinatorial results. In Section 3 we discuss how Theorem 1 extends
+to Bayesian inference. We make some concluding remarks in Section 4.
+
+2
+2.1
+
+Proof of Rapid Mixing
+Overview
+
+To prove Theorem 1 we will analyze, for every tree T , the maximum expected log-likelihood
+LT (µ∗ ) where µ∗ = µT ∗ ,Q∗ ,t∗ (recall that LT (µ∗ ) is the maximum expected log-likelihood
+of T maximized over all rate matrices Q and all edge lengths t, see (3)). To analyze LT (µ∗ )
+we will consider the dominant terms of the likelihood function. We will show that
+LT (µ∗ ) = E(π ∗ ) + A(T )ε ln ε + o(ε ln ε),
+where E(π ∗ ) is the entropy of the stationary distribution of Q∗ and thus is the same for
+every T . By taking ε sufficiently small the last term o(ε ln ε) can be ignored. Therefore,
+the dominant term is A(T )ε ln ε. We will prove that the function A(T ) decreases with each
+optimal SPR move. Hence, since ln ε is negative, we then have that T ∗ has the highest
+maximum expected log-likelihood, and as the Markov chain gets closer to T ∗ the maximum
+expected log-likelihood will increase. Theorem 1 will then follow in a straightforward
+manner.
+
+2.2
+
+Analyzing Likelihood
+
+Let T be a tree with leaves {1, . . . , n}. Let R be a partition of the leaves into two parts
+(R1 , R2 ). Note that we only consider the partition of the leaves without any regard for
+the internal vertices. Let cutR (T ) denote the size of the cut (i. e., a subset of edges) of
+minimum size that disconnects R1 from R2 . Tuffley and Steel [21] showed that the quantity
+7
+
+cutR (T ) is the parsimony score of the character corresponding to R (see also Semple and
+Steel [15, Proposition 5.1.6]), where the character corresponding to R = (R1 , R2 ) assigns
+all leaves in R1 some α ∈ Ω and assigns all leaves in R2 some β ∈ Ω, β 6= α.
+For an edge e ∈ T , the removal of e splits T into two components. This induces a
+partition of the leaves of T into two parts. We will call this partition R(T, e).
+The following is the main technical tool for our results. The lemma describes the highorder terms of the likelihood function as ε → 0. Throughout this paper, the asymptotic
+notations o() and O() are parameterized by ε → 0.
+Roughly speaking, the lemma shows there is a function A(T ) which plays a leading
+role in the maximum likelihood. In words, A(T ) looks at each partition R of leaves in the
+generating tree T ∗ realized by cutting a single edge e∗ . It then considers the minimum
+number of edges in T to realize this partition R times the branch length of e∗ in the
+generating tree. As mentioned in the introduction, there are earlier results which show
+that the leading term of the likelihood function is the parsimony score, e.g., Felsenstein [7],
+and in the below lemma, the function A is the leading term of the expected parsimony
+score. We require a more detailed statement than we found in the literature.
+Lemma 2. Let T ∗ , T be trees with leaves {1, . . . , n} and Q∗ be a rate
+P matrix reversible
+with respect to π ∗ . Assume that the matrix Q∗ is normalized (that is, i6=j πi∗ Q∗ij = 1) and
+∗ , α∗
+that Q∗ has no zero entries. Let T ∗ have branch lengths t∗e = αe∗ ε, where αe∗ ∈ [αmin
+max ],
+∗
+for all e ∈ E(T ), where αmin > 0. Let
+X
+A = AT ∗ ,α∗ (T ) =
+αe∗ cutR(T ∗ ,e) (T ).
+(5)
+e∈E(T ∗ )
+
+For µ∗ = µT ∗ ,Q∗ ,t∗ the following holds:
+LT (µ∗ ) = E(π ∗ ) + Aε ln ε + O(ε ln ln(1/ε)),
+
+(6)
+
+P
+where E(π ∗ ) = i∈Ω πi∗ ln πi∗ is the entropy of π ∗ , and the constant in the O(·) is indepen∗
+∗
+dent of the choice of the αe∗ (but does depend on αmin
+and αmax
+).
+As a consequence of the above lemma, to analyze the expected log-likelihood on the
+tree space, when ε is sufficiently small, we simply have to consider the function A = A(T ).
+In the next subsection we will investigate the combinatorial properties of A.
+Before presenting the proof of Lemma 2 we give a brief outline of its proof. Let µ∗
+denote the probability distribution defined by Q∗ and T ∗ on assignments of labels from
+Ω to the leaves. In this generating distribution µ∗ , to prove (6) we only need to consider
+two types of assignments. The first type are constant assignments where no substitutions
+occur and thus all leaves receive the same label i ∈ Ω, these are denoted as σi . The second
+type are assignments obtained by a substitution along just one edge e∗ . In this case, the
+cut obtained by deleting edge e∗ plays an important role. By deleting e∗ from T ∗ , the
+leaves are partitioned into two sets R1 and R2 , denoted as R(T ∗ , e∗ ). If a substitution
+only occurs along edge e∗ , then the leaves in R1 will receive the same label i ∈ Ω, and
+8
+
+the leaves in R2 will receive another label j ∈ Ω, j 6= i. We denote such an assignment
+e∗ . Any other type of assignment requires at least two substitutions, and hence has
+by σij
+probability at most O(ε2 ), which is dominated by the O(ε ln ln(1/ε)) term of (6).
+For any tree T , to prove that LT (µ∗ ) is lower bounded by the right-hand side of (6),
+we compute the expected log-likelihood of µ∗ for the rate matrix Q = Q∗ and the set of
+branch lengths t where te = ε for every edge e. For each edge e∗ and its corresponding
+e∗ , the quantity cut
+assignment σij
+R(T ∗ ,e) (T ) is the minimum number of edges which require
+e∗ on T . Hence, the quantity A = A(T ) plays
+a substitution to obtain the assignment σij
+an important role when we sum over all edges e∗ of T ∗ . In particular, by a calculation
+(as detailed in
+the expected log-likelihood LT,Q,t (µ∗ ), for this set of branch
+P (13) ∗below),
+∗
+lengths t, is i∈Ω πi ln πi + Aε ln ε + O(ε). Since O(ε) = O(ε ln ln(1/ε)), this implies the
+lower bound of (6).
+To obtain the upper bound of (6) we consider three cases: when the rate matrix Q has a
+stationary distribution different from Q∗ , when there is an edge e where te is long (namely
+≥ ε(ln(1/ε))2 ), and when all edges are short. In the first case of different stationary
+distributions, by considering the constant assignments it will be easy to establish that
+there is a difference in the first term of the right-hand side of (6). When there is a long
+edge, then the constant assignments are too unlikely to occur. Finally, if all edges are
+shorter than ε(ln(1/ε))2 , then, by calculation, we show that the expected log-likelihood is
+at most the right-hand side of (6).
+We now present the formal proof of Lemma 2.
+Proof of Lemma 2. We first make some observations about the distribution µ∗ . Let P ∗
+denote the transition matrix for Q∗ , as defined in (1).
+Note, for any e, any i, j ∈ Ω where i 6= j, we have
+(Pe∗ )ij = Q∗ij αe∗ ε + O(ε2 ).
+For any i ∈ Ω we have
+
+(Pe∗ )ii = 1 −
+
+X
+
+(7)
+
+(Pe∗ )ij = 1 + O(ε).
+
+j6=i
+
+For i ∈ Ω, let σi ∈ Ωn denote the constant assignment σi (v) = i for all leaves v. Note
+to achieve σi in µ∗ we assign label i to the root and then we have no substitutions, or we
+have at least two edges with substitutions. Thus,
+Y
+µ∗ (σi ) = πi∗
+(Pe∗ )ii + O(ε2 ) = πi∗ + O(ε).
+(8)
+e∈E(T ∗ )
+e ∈ Ωn denote the assignment of
+For an edge e ∈ E(T ∗ ) and i, j ∈ Ω where i 6= j, let σij
+∗
+label i to all leaves in one of the partitions of R(T , e) and label j to all leaves in the other
+partition of R(T ∗ , e). In this case we have:
+e
+µ∗ (σij
+) = πi∗ Q∗ij αe∗ ε + O(ε2 ).
+
+9
+
+(9)
+
+(To see why (9) is correct, w.l.o.g., assume that the root is a leaf in the first partition of
+R(T ∗ , e), and hence to achieve σij we need to label the root by i and have a substitution
+on e, or at least two edges with substitutions.)
+Now we compute LT,Q,t (µ∗ ) where te = ε for each edge e of T and Q = Q∗ . Again we
+will make some observations about µ = µT,Q,t . By the same reasoning as we used for (8),
+we obtain
+µ(σi ) = πi∗ + O(ε).
+(10)
+e on T using a substitution on cut
+We can obtain assignment σij
+R(T ∗ ,e) (T ) edges, and we
+cannot obtain this assignment with fewer substitutions. Hence,
+e
+µ(σij
+) = Θ(εcutR(T ∗ ,e) (T )) ).
+
+(11)
+
+e
+ln µ(σij
+) = Θ(1) + cutR(T ∗ ,e) (T ) ln ε.
+
+(12)
+
+Therefore,
+In order to compute the high-order terms of LT,Q,t (µ∗ ) we do not need to consider labelings
+e (the other labelings have probability O(ε2 ) in µ∗ ).
+other than σi and σij
+Combining (9), (8), (10), and (12) we obtain
+X
+LT,Q,t (µ∗ ) = O(ε2 ln ε) +
+(πi∗ + O(ε)) ln(πi∗ + O(ε))
+i∈Ω
+
++
+
+X X
+
+(πi∗ Q∗ij αe∗ ε + O(ε2 ))(Θ(1) + cutR(T ∗ ,e) (T ) ln ε)
+
+e∈E(T ∗ ) i6=j
+
+= O(ε) +
+
+X
+
+πi∗ ln πi∗ + Aε ln ε,
+
+(13)
+
+i∈Ω
+
+where in the last inequality we used the fact that Q∗ is normalized. This proves the lower
+bound in (6).
+It remains to prove the upper bound in (6). We will show that no rate matrix and
+no assignment of branch lengths can do better than the bound established in (13). Let
+Q be a rate matrix with stationary distribution π. If π 6= π ∗ then we bound LT,Q,t (µ∗ )
+as follows. First, note that the terms in the sum (4) are negative and hence to obtain an
+upper bound we will only consider the constant assignments. Second, the probability of
+constant assignment σi in µ∗ is µ∗ (σi ) ≤ πi∗ and similarly µ(σi ) ≤ π. Thus
+X
+X
+LT,Q,t (µ∗ ) ≤
+πi∗ ln πi =
+πi∗ ln πi∗ − DKL (π ∗ kπ),
+i∈Ω
+
+i∈Ω
+
+where DKL (π ∗ ||π) := i∈Ω πi∗ (ln(πi∗ /πi )) is the K-L divergence of π from π ∗ . Since, by
+the Gibbs’ inequality, the KL-divergence is positive when π 6= π ∗ , we have established the
+upper bound in (6) for the case π 6= π ∗ .
+Now we assume π = π ∗ . Let t be an assignment of branch lengths to T . Let µ = µT,Q,t .
+Suppose that there exists an edge f ∈ E(T ) with branch length tf > ε(ln(1/ε))2 . We are
+P
+
+10
+
+going to show that such a t has a tiny log-likelihood because of the constant leaf labelings
+(i. e., σi , i ∈ Ω). By (1), we have (Pf )ii ≤ 1 − qmin ε(ln(1/ε))2 + O(ε2 (ln(1/ε))4 ), where
+qmin = mini,j∈Ω |Q(i, j)|. Hence,
+
+µ(σi ) ≤ πi 1 − qmin ε(ln(1/ε))2 + O(ε2 (ln(1/ε))4 ) .
+Thus
+LT,Q,t (µ∗ ) ≤ O(ε) +
+
+X
+i∈Ω
+
+πi∗ ln(πi ) − qmin ε(ln(1/ε))2 + O(ε2 (ln(1/ε))4 )
+
+
+
+∗
+
+≤ E(π ) − qmin ε(ln(1/ε))2 + O(ε).
+
+(14)
+
+As ε → 0, (14) is smaller than the right-hand side of (6) and we are done.
+We are now left with the case in which all edges f ∈ E(T ) have branch lengths
+tf ≤ ε(ln(1/ε))2 . Since we can generate the leaf labelings starting from any vertex, then
+by starting at a leaf, we see that:
+ln µ(σi ) ≤ ln πi .
+
+(15)
+
+e , we need to have substitutions across all edges
+Moreover, for e ∈ E(T ∗ ), to generate σij
+in a cut that realizes R(T ∗ , e). Since the edges are short this happens with probability
+k
+≤ ε(ln(1/ε))2 where k is the size of the cut. Since there are at most 2n such cuts and
+each has size at least cutR(T ∗ ,e) (T ), we have that:
+e
+ln µ(σij
+) = cutR(T ∗ ,e) (T )(O(ln ln(1/ε)) + ln ε).
+
+(16)
+
+Hence,
+LT,Q,t (µ∗ ) ≤ O(ε2 ln ε) + E(π)
+X X
++
+(πi∗ Q∗ij αe∗ ε + O(ε2 ))cutR(T ∗ ,e) (T )(O(ln ln(1/ε)) + ln ε)
+e∈E(T ∗ ) i6=j
+
+= O(ε ln ln(1/ε)) + E(π) + Aε ln ε.
+
+2.3
+
+Analyzing the Cut-Distance A(T )
+
+In light of Lemma 2, we need to analyze how A(T ) changes with SPR moves. By taking N
+sufficiently large, for each subtree S, we will only need to analyze the effect of the optimal
+SPR move for S (optimal in terms of minimizing A(T 0 )).
+The quantity A(T ) looks at cuts obtained by single edges of T ∗ . For a tree T , we
+classify the edges of T ∗ as good or bad if their corresponding cut in T ∗ is realizable in T
+by cutting a single edge. More precisely, let
+GOODT ∗ (T ) = {e∗ ∈ E(T ∗ ) : there exists e ∈ E(T ) where R(T, e) = R(T ∗ , e∗ )},
+11
+
+be the set of good edges for T . Let BADT ∗ (T ) = E(T ∗ ) \ GOODT ∗ (T ).
+The following lemma says that for every tree T̃ obtained from T by an SPR move
+using S, if T̃ has more bad edges than T , then this was not the optimal SPR move using
+S. Namely, there is a tree T 0 which is also obtained from T by an SPR move using S, and
+T 0 is such that A(T 0 ) < A(T̃ ). (More precisely, each term in A(T 0 ) is less than or equal
+to the corresponding term in A(T̃ ) and there is a term in A(T 0 ) which is strictly smaller
+than the corresponding term in A(T̃ )). Our proof has some similarity to those of Bruen
+and Bryant [2] which connect the parsimony score of a character to the minimum number
+of SPR transitions needed to obtain the character.
+Lemma 3. For every generating tree T ∗ and all trees T, T̃ where T and T̃ differ by a
+prune-and-regraft of a subtree S and such that there exists f ∗ ∈ BADT ∗ (T̃ ) \ BADT ∗ (T )
+the following holds. There exists a tree T 0 which differs from T by a prune-and-regraft of
+S and such that cutR (T 0 ) ≤ cutR (T̃ ) for every partition R realized by single edges in T ∗
+and cutR (T 0 ) < cutR (T̃ ) for partition R realized by f ∗ in T ∗ .
+Proof. Suppose an edge f ∗ ∈ E(T ∗ ) is good for T and is bad for T̃ . Let L1 , L2 be the
+partition of the leaves induced by f ∗ in T ∗ . Thus, in T , there is an edge f = (v1 , v2 ) which
+partitions the leaves into L1 and L2 . See Figure 2 for an illustration of the setup.
+
+L1
+
+f∗
+
+L1
+
+L2
+
+f
+
+S1
+v1
+
+tree T ∗
+
+S2
+
+L2
+
+v2
+
+tree T
+
+Figure 2: Edge f ∗ is good for T .
+Let S1 denote the subtree “hanging off” of v1 in T . More precisely, after deleting f
+from T , let S1 be the subtree containing v1 . Let L1 denote the leaves in S1 . Similarly, let
+L2 denote the leaves and S2 denote the subtree hanging off of v2 . Let v denote the root
+of the subtree S.
+First we claim that f 6∈ S. Suppose f ∈ S and without loss of generality suppose
+S1 ⊂ S. See Figure 3 for an illustration of this case. Thus we must be grafting S into an
+edge of S2 \ S. After such a move, the edge f still separates L1 and L2 , and thus f ∗ is
+still good. Therefore, f 6∈ S.
+From now on, we assume, without loss of generality, that S ⊂ S1 where S 6= S1 . see
+Figure 4. We construct the tree T 0 by taking T , pruning S and then regrafting S along
+edge f , see Figure 5.
+Note that T̃ is obtained from T by regrafting S onto an edge in S2 (otherwise f ∗ would
+be good for T̃ ), see Figure 6.
+12
+
+tree T
+
+S
+f
+
+S1
+
+Figure 3: Case when f ∈ S, this scenario cannot occur.
+
+S
+
+f
+
+v
+
+L1
+
+v1
+
+S2
+v2
+
+L2
+
+S1
+
+Figure 4: Case when f 6∈ S, this must be the scenario.
+The following claim says that the tree T 0 satisfies the conclusion of the lemma.
+Claim 4. For every partition R = (R1 , R2 ) of leaves realized by edges of T ∗ , it holds that:
+cutR (T̃ ) ≥ cutR (T 0 ),
+Moreover, for the partition R∗ = (L1 , L2 ) (corresponding to f ∗ ), we have that:
+cutR∗ (T̃ ) > cutR∗ (T 0 ).
+The proof of the claim proceeds by constructing a cut in T 0 realizing (R1 , R2 ) by a
+small modification of a cut in T̃ realizing (R1 , R2 ). Assuming the claim, the proof of the
+lemma is now complete.
+We now prove the above claim.
+Proof of Claim 4. We continue using the setup and notation from the proof of Lemma 3
+in Section 2.3.
+Recall, the claim says that for every partition R = (R1 , R2 ) of leaves realized by edges
+of T ∗ that cutR (T̃ ) ≥ cutR (T 0 ) and for the partition R∗ = (L1 , L2 ), cutR∗ (T̃ ) > cutR∗ (T 0 ).
+
+13
+
+L1
+
+S1 \ S
+
+w
+
+v1
+
+v2
+
+f0
+
+f
+
+S2
+
+L2
+
+v
+S
+L1
+
+Figure 5: Construction of the tree T 0 .
+
+f
+L1
+
+S1 \ S
+
+S2
+v2
+
+v1
+
+L2
+
+v
+S
+L1
+
+Figure 6: In tree T̃ , S is regrafted into S2 .
+
+First we argue that cutR∗ (T̃ ) > cutR∗ (T 0 ). Note that cutR∗ (T̃ ) ≥ 2 since f ∗ is bad for
+T̃ . On the other hand, cutR∗ (T 0 ) = 1 since cutting f 00 separates L1 and L2 . Now we just
+need to argue that cutR (T̃ ) ≥ cutR (T 0 ).
+Let g ∗ ∈ E(T ∗ ) be an edge in T ∗ . Let R = (R1 , R2 ) be the corresponding partition in
+∗
+T . Note that if g ∗ is in the subtree with leaves L1 then
+R1 ⊆ L1 and R2 ⊇ L2 .
+
+(17)
+
+On the other hand, if g ∗ is in the subtree with leaves L2 then
+R2 ⊆ L2 and R1 ⊇ L1 .
+
+(18)
+
+Consider a minimum cut C ⊂ E(T̃ ) that realizes (R1 , R2 ) in T̃ and amongst these
+minimum cuts is the one with the fewest number of edges in subtrees S1 \ S and S.
+We claim that v1 is reachable from a leaf of S1 \ S in T̃ \ C and that v is reachable from
+a leaf of S in T̃ \ C. Suppose that v1 is not reachable from a leaf of S1 \ S. Let e0 be the
+edge in C ∩ (S1 \ S) closest to v1 . We claim that C 0 = (C \ {e0 }) ∪ {f } realizes (R1 , R2 ). If
+there was a pair of leaves in S1 \ S each in different Ri that are connected in T̃ \ C 0 then
+14
+
+by the choice of e0 one of those leaves would be connected to v1 in T̃ \ C, a contradiction
+with the assumption that v1 is not reachable from a leaf of S1 \ S in T̃ \ C. Thus R1 and
+R2 are still separated in S1 \ S in T̃ \ C 0 ; R1 and R2 are still separated by C 0 in S2 ∪ S
+since C = C 0 in this subtree; and f ∈ C 0 ensures that pairs across f are separated. Note
+that |C 0 | ≤ |C| and C 0 has fewer edges in S1 \ S and S, a contradiction with the choice of
+C. Thus v1 is reachable from some leaf of S1 \ S in T̃ \ C. The argument for S and v is
+the same.
+Since a leaf of S is reachable from v in T̃ \ C, then in other words a (non-empty) subset
+of R1 and/or R2 are reachable from v. Moreover, since C realizes the partition (R1 , R2 ),
+then a subset of only one of the Ri is reachable from v in T̃ \ C; we will say v is of type
+Ri to signify the Ri reachable from v. Analogously, we say vi is of type Ri for the set
+reachable from v1 .
+If v and v1 are of the same type Ri , let
+(
+C
+if f ∈
+/C
+C0 =
+0
+(C \ {f }) ∪ {f } if f ∈ C
+We claim C 0 realizes (R1 , R2 ) in T 0 . To see this, note that if a path (between a pair of
+leaves) exists in T 0 and does not exist in T̃ then it must include w which is the new vertex
+in T 0 where S is regrafted, see Figure 5 for an illustration. Now we argue that such a path
+can not connect a leaf in R1 with a leaf in R2 in T 0 \ C 0 . Note that only a subset of Ri is
+reachable from w in T 0 \ C 0 , since w can reach the same set of vertices (outside of S) in
+T 0 \ C 0 as v1 does in T̃ \ C, and only a subset of Ri is reachable from v in S \ C. Finally,
+since |C 0 | = |C| we have that cutR (T 0 ) ≤ cutR (T̃ ) which completes the proof in this case.
+Now suppose v1 is of type R1 and v is of type R2 . This means a leaf of S is in R2
+and since S ⊂ S1 , it is also in L1 and we are in case (17), thus R2 ⊇ L2 . Note C has
+to separate v1 from L2 by some set of edges Q ⊆ C. Let C 0 = (C \ Q) ∪ {f }. The new
+pairs of leaves that are connected in T 0 \ C 0 (but not in T̃ \ C) are either both from L2
+and hence R2 , or are connected by a path that exists in T 0 and does not exist in T̃ . As in
+the previous case, if a path (between a pair of leaves) exists in T 0 and does not exist in T̃
+then it must include w which is the new vertex in T 0 where S is regrafted. Note that w is
+disconnected from S1 \ S in T 0 \ C 0 (since f ∈ C 0 ). The leaves of S2 are from R2 and the
+leaves of S reachable from v in S \ C are also from R2 . Therefore the new paths do not
+connect leaves of R1 and R2 . This completes this case since |C 0 | ≤ |C|.
+Finally, suppose v1 is of type R2 and v is of type R1 . In this case a leaf of S1 \ S is in
+R2 and is also in L1 and therefore we are again in case (17), thus R2 ⊇ L2 . Note C has to
+separate v from L2 by some set of edges Q ⊆ C. Let C 0 = (C \ Q) ∪ {w, v}. Once again,
+the new pairs of leaves that are connected in T 0 \ C 0 (but not in T̃ \ C) are either both
+from L2 and hence R2 , or are connected by a path that exists in T 0 and does not exist in
+T̃ . Note that w is disconnected from the leaves of S in T 0 \ C 0 . The leaves of S2 are from
+R2 and the leaves of S1 \ S reachable from v1 are also from R2 . Therefore the new paths
+in T 0 \ C 0 do not connect leaves of R1 and R2 . This completes this case since |C 0 | ≤ |C|.
+15
+
+This completes the proof of the claim.
+Using Lemma 3, we will prove that for every subtree S the optimal SPR move using
+S does not increase the number of bad edges, and there is a subtree S where the optimal
+SPR move using S decreases the number of bad edges. It will then be straightforward to
+prove rapid mixing by analyzing the time until the number of bad edges is zero, and hence
+we have reached T ∗ .
+Lemma 5. For all trees T ∗ , every choice of parameters α : E(T ∗ ) → R+ , for all trees
+T 6= T ∗ the following holds, where A = AT ∗ ,α is defined in (5).
+1. For any subtree S of T the following holds. Let Tmin be any tree which minimizes
+A(Tmin ) amongst the SPR neighbors of T which differ by a prune-and-regraft of S.
+Then,
+BADT ∗ (Tmin ) ⊆ BADT ∗ (T ).
+(19)
+2. There exists a subtree S of T where the following holds. Let Tmin be any tree which
+minimizes A(Tmin ) amongst the SPR neighbors of T which differ by a prune-andregraft of S. Then,
+BADT ∗ (Tmin ) ( BADT ∗ (T ).
+(20)
+Part 1 of Lemma 5 follows immediately from Lemma 3. To prove part 2 we choose
+a particular ‘minimal’ subtree S. Roughly speaking, we consider the bad edge f ∗ that is
+closest to the leaves in T ∗ , and take the subtree S hanging off of f ∗ .
+Proof of Lemma 5. If (19) is violated then there exists f ∗ ∈ BADT ∗ (Tmin ) \ BADT ∗ (T ),
+and hence by Lemma 3, there exists T 0 (which differs from T and Tmin by a prune-andregraft of S) such that no cuts increased in size and the cut corresponding to f ∗ is smaller.
+Therefore, A(T 0 ) < A(Tmin ), contradicting the choice of Tmin . Therefore, part 1 holds.
+We now prove part 2. We first claim that there is an SPR move that decreases the
+number of bad edges.
+Claim 6. For every tree T , there is an SPR move resulting in a tree T 0 where
+BADT ∗ (T 0 ) ( BADT ∗ (T ).
+
+(21)
+
+Now we argue that part 2 of the lemma follows from the above claim and part 1. We
+then go back to prove the claim.
+Consider a subtree S of T . Let NS (T ) denote those trees obtainable from T by a
+prune-and-regraft of S. Note, for any T 0 ∈ NS (T ), we have that NS (T 0 ) = NS (T ), since
+when we prune S from T and T 0 we have the same subtree remaining.
+Let T 0 denote the neighboring tree from Claim 6 with fewer bad edges, and let S denote
+the subtree where T 0 ∈ NS (T ). Let Tmin denote the tree in NS (T ) which minimizes
+A(Tmin ). As noted above we must have that NS (T 0 ) = NS (T ). Thus, Tmin is also the
+neighbor of T 0 that minimizes A(Tmin ). Therefore, we can apply part 1 of the lemma for
+16
+
+tree T 0 and subtree S, and conclude that BADT ∗ (Tmin ) ⊆ BADT ∗ (T 0 ). Combined with
+(21) we then have that:
+BADT ∗ (Tmin ) ( BADT ∗ (T ),
+which proves part 2.
+We now prove Claim 6.
+Proof of Claim 6. Let f ∗ in T ∗ be an edge in BADT ∗ (T ) that is “closest” to the leaves in
+the following precise sense. Say f ∗ joins subtrees S ∗ and Z ∗ in T ∗ where the number of
+vertices in S ∗ is at most the number of vertices in Z ∗ . Then we say the distance of f ∗ to
+the leaves is the number of vertices of S ∗ .
+Note, by the choice of f ∗ , S ∗ contains no bad edges for T . First, note that S ∗ must
+contain at least two leaves because, in any tree, any single leaf can be separated from the
+rest of the leaves by deleting one edge (which would contradict that f ∗ is bad). Let S1∗
+and S2∗ denote the two subtrees of S ∗ hanging from the root of S ∗ in T ∗ . Both S1∗ and S2∗
+must exist since S ∗ contains at least two leaves.
+Let L1 and L2 denote the leaves in S1∗ and S2∗ , respectively. Since f ∗ is the closest bad
+edge to the leaves, there is a subtree S1 in T whose leaves are L1 , and also a subtree S2
+whose leaves are L2 . Moreover, by induction, S1 = S1∗ and S2 = S2∗ . In T , by pruning S2
+and then regrafting along the edge incident to S1 we obtain a copy of S ∗ in T . See Figure
+7 for an illustration. Let T 0 be the tree resulting from this SPR move. Note, f ∗ is now a
+good edge in T 0 .
+tree T 0
+
+tree T
+f1
+
+S1
+
+f10
+
+f30
+f3 f2
+
+f1
+
+S2
+
+S1
+
+f3
+
+f2
+S2
+
+Figure 7: Construction of the tree T 0 with fewer bad edges.
+It remains to argue that other edges of T ∗ did not change from good for T to bad for
+Note, edges in S1∗ and S2∗ remain good in T 0 since they are realizable in S1 and S2 ,
+respectively. Consider an edge e∗ of T ∗ where e∗ ∈
+/ S ∗ . Let (R1 , R2 ) be the partition of
+∗
+∗
+the leaves realized by e in T . Note that L1 , L2 are in the same partition, since tree S ∗ is
+not cut by e∗ . Let g be the edge in T that realizes (R1 , R2 ). After pruning-and-regrafting
+S2 (to form T 0 ), g still realizes the partition (R1 , R2 ) since L1 and L2 are in the same
+partition. Hence, e∗ is still good for T 0 . Therefore, GOODT ∗ (T 0 ) ⊇ GOODT ∗ (T ) ∪ {f ∗ },
+which completes the proof of the claim.
+
+T 0.
+
+17
+
+Finally, we prove that when the number of bad edges increases then A(T ) also increases
+by a significant amount. As a consequence, in our analysis of the Markov chain, by taking
+ε sufficiently small, we can focus on how a transition changes A(T ) and hence on the
+change in the number of bad edges.
+Lemma 7. For any trees T and T 0 which differ by one SPR move, if |BADT ∗ (T 0 )| >
+|BADT ∗ (T )| then
+A(T 0 ) ≥ A(Tmin ) + αmin .
+Proof. Let S be the subtree used to move between T and T 0 . Let NS (T ) denote those
+trees obtainable from T by a prune-and-regraft of S. Note NS (T ) = NS (T 0 ).
+Consider Tmin which minimizes A(Tmin ) amongst the SPR neighbors of T which differ
+by a prune-and-regraft of S. Since NS (T 0 ) = NS (T 0 ) then Tmin is also the neighbor of T 0
+that minimizes A(Tmin ). Fix e ∈ BADT ∗ (T 0 ) \ BADT ∗ (T ). By Part 1 of Lemma 5,
+BADT ∗ (Tmin ) ⊆ BADT ∗ (T ) ∩ BADT ∗ (T 0 ).
+
+2.4
+
+Proof of Rapid Mixing: Theorem 1
+
+The proof of our main theorem now follows from a straightforward argument. We show
+that the Heat Bath SPR Markov Chain behaves like a local search algorithm, and then a
+simple coupling argument gives the mixing result.
+Proof of Theorem 1. Let T denote the space of phylogenetic trees on n taxa. For a tree
+T ∈ T , and subtree S of T , let NS (T ) denote those trees obtainable from T by pruningand-regrafting S.
+Let C be the constant in the O(·) notation of (6) for the chosen αmin and αmax = 1.
+By choosing ε0 (note that ε0 is an upper bound on ε) sufficiently small then for every
+tree T , in (6), the Cε ln ln(1/ε) is smaller than |αmin (ε ln ε)/10| and therefore:
+LT (µ∗ ) = E(π ∗ ) + (A(T ) + δT )ε ln ε,
+
+(22)
+
+for some |δT | < αmin /10.
+Fix a tree T 6= T ∗ and a subtree S of T . By Lemma 7 and (22), for every T 0 ∈ NS (T )
+where |BADT ∗ (T 0 )| > |BADT ∗ (T )| we have:
+LT 0 (µ∗ ) < LTmin (µ∗ ) − (9/10)αmin ε ln(1/ε).
+For a character σ ∈ Ωn , let D(σ) = |{i : Di = σ}|. A straightforward application of
+Hoeffding’s inequality [9] and a union bound over σ ∈ Ωn implies, for all δ > 0:
+Pr (for all σ ∈ Ωn , |D(σ) − µ∗ (σ)N | ≤ δN ) ≥ 1 − 2 · 4n exp(−2δ 2 N ).
+18
+
+Let qmin = mini,j∈Ω:i6=j Qi,j denote a lower-bound on the off-diagonal entries in the rate
+matrix. For ε0 sufficiently small, every labeling of the leaves has probability at least ε2n ;
+this follows from the fact that for every edge, every transition has probability Ω(ε), see
+(7) for a precise statement. Hence, by choosing ε0 sufficiently small (relative to αmin , qmin
+and the constant in the error term of (7)), then for all σ ∈ Ωn , µ∗ (σ) ≥ ε2n . Let
+δ = αmin ε ln(1/ε)/(20 · 4n n ln ε).
+Then, for D ∼ µ∗ ,
+LT 0 (D) < LTmin (D) − (7/10)αmin ε ln(1/ε)N,
+√
+with probability ≥ 1 − exp(− N ) for N sufficiently large. The probability of moving from
+T to T 0 after choosing S in step 1 is at most:
+exp(LT 0 (D))
+< exp(−(7/10)αmin ε ln(1/ε)N ) < exp(−10n)
+exp(LTmin (D))
+
+(23)
+
+for N sufficiently large. Therefore, with probability ≥ 1 − 4n exp(−10n), the chain will
+move from T to some Tmin (where Tmin is a tree that can be obtained from T by an
+SPR move and such that it minimizes A(Tmin )), and thus by part 1 of Lemma 5 the
+number of bad edges will not increase. Moreover, if we choose the subtree S satisfying
+part 2 of Lemma 5 then the number of bad edges will decrease. Hence, with probability
+≥ 1/(4n) − 4n exp(−10n) ≥ 1/(5n) the number of bad edges decreases by at least one. In
+expectation, after ≤ 5n steps of the chain the number of bad edges will be zero, in which
+case we have reached T ∗ . By Markov’s inequality, with probability ≥ 9/10 after 50n steps
+we reach T ∗ . Once we reach T ∗ the probability of moving to a different tree within 50n
+steps is at most 50n(4n)2 exp(−10n) < 1/100. Hence the claimed mixing time follows by
+an elementary coupling argument (c.f., [12] for an introduction to the coupling technique)
+since from any pair of initial trees, both chains (run independently) reach T ∗ at time 50n
+with probability ≥ 1 − 1/2e.
+
+3
+
+Bayesian Inference
+
+The goal is often to randomly sample from the posterior distribution over trees. To do
+this, we consider a Markov chain whose stationary distribution is the posterior distribution
+and analyze the chain’s mixing time, which is a measure of the convergence time of the
+chain to its stationary distribution. Let Φ(T, Q, t) denote a prior density where
+Z
+XZ
+Φ(T, Q, t)dtdQ = 1.
+T
+
+Q∈Q
+
+t
+
+Our results extend to priors that are lower bounded by some δ > 0 as in Mossel and
+Vigoda [14]. In particular, for all trees T and all branch lengths t where te ≤ t0 for all
+edges e, we require Φ(T, Q∗ , t) ≥ δ. We refer to these priors as (δ, t0 )-regular priors.
+19
+
+Applying Bayes law we get the posterior distribution:
+Pr (T, Q, t | D) =
+where
+Pr (D) =
+
+XZ
+T0
+
+Z
+
+Q0 ∈Q
+
+t0
+
+µT,Q,t (D)Φ(T, Q, t)
+,
+Pr (D)
+
+µT 0 ,Q0 ,t0 (D)Φ(T 0 , Q0 , t0 )dt0 dQ.
+
+Each tree T then has a posterior weight
+Z
+Z
+µT,Q,t (D)Φ(T, Q, t)dtdQ.
+w(T ) =
+Q∈Q
+
+Finally, the posterior distribution µ on trees is defined as µ(T ) = w(T )/
+
+3.1
+
+(24)
+
+t
+
+P
+
+T0
+
+w(T 0 ).
+
+Extension of Theorem 1 to Sampling the Posterior
+
+To sample from the posterior distribution, the Markov chain is defined as in Section 1.2
+except that in step 2 the weight w(e∗ ) is now set as w(T ∗ ) defined in (24). This ensures
+that the Markov chain is reversible with respect to the posterior distribution, and hence
+this is the unique stationary distribution.
+Theorem 1 then extends to hold for any priors which are (δ, 2ε0 )-regular The proof
+easily extends to this case in the following manner.
+In particular, we need to modify the statement of Lemma 2 so that, for any tree T , (6)
+is achieved for Q = Q∗ and for every set of branch lengths t where te ∈ (ε/2, 2ε) for all
+edges e. Then we can use the same proof as Lemma 21 in Mossel and Vigoda [14] to get
+an analog of (23) to hold for the posterior weights defined in (24) in place of the maximum
+likelihood function exp(L(D)), and the remainder of the proof of Theorem 1 remains the
+same.
+
+4
+
+Discussion
+
+NNI Transitions: In a NNI transition, an internal edge e is chosen. Since internal
+vertices have degree three, there are four subtrees hanging off of e. There are three
+possible ways of attaching these four subtrees to e, and an NNI transition moves to one of
+these rearrangements. There are trees T (different from the generating tree T ∗ ) where no
+NNI neighbor (strictly) improves A(T ); moreover, there are cases where there is also no
+improvement in the next term of (6). We are uncertain as to whether Theorem 1 holds
+for a Markov chain based on NNI transitions. It would be especially intriguing if there
+are cases where chains based on NNI transitions are slow to converge (so-called torpidly
+mixing), whereas a chain based on SPR transitions is provably fast to converge (rapidly
+mixing).
+
+20
+
+Possible Future Work: There are now several works with proofs of convergence of
+MCMC algorithms for phylogenetic reconstruction in certain settings – rapid mixing results in this paper and torpid mixing results in Mossel and Vigoda [13, 14] and Štefankovič
+and Vigoda [19, 20]). All of these results require that the branch lengths are sufficiently
+small so that only the dominant terms of the likelihood function need to be considered.
+A natural avenue for extending this paper, is to allow arbitrary branch lengths on the
+terminal edges.
+Rapid or Torpid Mixing for General Pure Distributions: The most tantalizing
+question to the authors is whether there exists a pure distribution (i. e., a single generating
+tree as in the setting of this paper) where Markov chains based on all of the natural
+transitions (e. g., NNI, SPR and TBR transitions) are slow to converge to the stationary
+distribution (in other words, they are torpidly mixing). We expect simulations can be quite
+useful for finding such a bad example, if one exists; in fact, our previous work [19, 20] on
+this topic was inspired by some intriguing findings from some simple simulations.
+
+5
+
+Acknowledgements
+
+We are thankful to the anonymous referees for many useful comments on the manuscript.
+
+References
+[1] D. Aldous. Random walks on finite groups and rapidly mixing Markov chains. Lecture
+Notes Math, 986:243-297, 1983.
+[2] T. C. Bruen and D. Bryant. Parsimony via Consensus. Systematic Biology, 57(2):251256, 2008.
+[3] R. Beiko, J. Keith, T. Harlow, and M. Ragan. Searching for convergence in phylogenetic Markov Chain Monte Carlo. Systematic Biology, 55(4):553–565, 2006.
+[4] B. A. Berg. Introduction to Markov Chain Monte Carlo simulations and their statistical analysis. In Markov Chain Monte Carlo: Innovations and Applications, eds.,
+W. S. Kendall, F. Liang, and J.-S. Wang, World Scientific Publishing Co., Singapore.
+Pages 1-52, 2005.
+[5] P. Diaconis and S. P. Holmes. Random walks on trees and matchings. Electronic
+Journal of Probability, 7, article 6, 2002.
+[6] J. Felsenstein. Inferring Phylogenies. Sinauer Associates, Inc., Sunderland, MA, 2004.
+[7] J. Felsenstein. A likelihood approach to character weighting and what it tells us about
+parsimony and compatibility. Biological Journal of the Linnean Society, 16:183-196,
+1981.
+21
+
+[8] C. J. Geyer and E. A. Thompson. Annealing Markov Chain Monte Carlo with applications to ancestral inference. Journal of American Statistical Association, 90(431):909–
+920, 1995.
+[9] W. Hoeffding. Probability inequalities for sums of bounded random variables. Journal
+of the American Statistical Association, 58(301):13–30, 1963.
+[10] J. P. Huelsenbeck and F. Ronquist. MRBAYES: Bayesian inference of phylogenetic
+trees. Bioinformatics, 17(8):754-755, 2001.
+[11] C. Lakner, P. van der Mark, J. P. Huelsenbeck, B. Larget, and F. Ronquist. Efficiency
+of Markov Chain Monte Carlo tree proposals in Bayesian phylogenetics. Systematic
+Biology, 57(1):86–103, 2008.
+[12] D. A. Levin, Y. Peres and E. L. Wilmer. Markov Chains and Mixing Times. American
+Mathematical Society (AMS), Providence, RI, 2008.
+[13] E. Mossel and E. Vigoda. Phylogenetic Markov Chain Monte Carlo algorithms are
+misleading on mixtures of trees. Science, 309(5744):2207–2209, 2005.
+[14] E. Mossel and E. Vigoda. Limitations of Markov Chain Monte Carlo algorithms for
+Bayesian inference of phylogeny. Annals of Applied Probability, 16(4):2215–2234, 2006.
+[15] C. Semple and M. Steel. Phylogenetics. Oxford Lecture Series in Mathematics and its
+Applications, vol. 24, 2003.
+[16] M. A. Steel and L. A. Székely. Inverting random functions. Annals of Combinatorics,
+3(1):103-113, 1999.
+[17] M. A. Steel and L. A. Székely. Inverting random functions II: explicit bounds for the
+discrete maximum likelihood estimation, with applications. SIAM J. Discrete Math
+15(4):562-575, 2002.
+[18] M. A. Steel and L. A. Székely. Inverting random functions III: Discrete MLE revisited.
+Annals of Combinatorics, 13(3):365-382, 2009.
+[19] D. Štefankovič, and E. Vigoda. Pitfalls of heterogeneous processes for phylogenetic
+reconstruction. Systematic Biology, 56(1):113–124, 2007.
+[20] D. Štefankovič, and E. Vigoda. Phylogeny of mixture models: Robustness of maximum likelihood and non-identifiable distributions. Journal of Computational Biology,
+14(2):144–155, 2007.
+[21] C. Tuffley and M. Steel. Links between Maximum Likelihood and Maximum Parsimony under a Simple Model of Site Substitution. Bull. Math. Biology, 59(3):581-607,
+1997.
+22
+
+[22] S. Yang. Computational Molecular Evolution. Oxford University Press, New York,
+2007.
+
+23
+
+

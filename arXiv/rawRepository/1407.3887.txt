@@ -1,0 +1,1231 @@
+Computation of epidemic final size distributions
+Andrew J. Blacka,∗, J. V. Rossa
+a School
+
+of Mathematical Sciences, The University of Adelaide, Adelaide SA 5005, Australia.
+
+arXiv:1407.3887v3 [q-bio.PE] 5 Jan 2015
+
+Abstract
+We develop a new methodology for the efficient computation of epidemic final size distributions for a broad class of Markovian
+models. We exploit a particular representation of the stochastic epidemic process to derive a method which is both computationally
+efficient and numerically stable. The algorithms we present are also physically transparent and so allow us to extend this method
+from the basic SIR model to a model with a phase-type infectious period and another with waning immunity. The underlying theory
+is applicable to many Markovian models where we wish to efficiently calculate hitting probabilities.
+Keywords: Markov chain, degree-of-advancement, hitting probabilities, waning immunity
+
+1. Introduction
+Markov chains, in both discrete and continuous time, have
+found widespread use throughout biology (Renshaw, 1993;
+Sontag et al., 2006; Ross, 2010, 2011; Black and McKane,
+2012; Hauert and Imhof, 2012). They are useful as they are
+amenable to analysis due to the Markovian property but still
+incorporate the aspect of randomness which is vitally important
+to accurate modeling of many biological processes (Renshaw,
+1993; Black and McKane, 2012). In epidemiology, stochastic
+models are especially important when considering smaller
+populations such as households, schools, farms and workplaces
+(Halloran et al., 2008; Keeling et al., 2010; Fraser et al., 2011).
+The use of these types of models for inference is becoming
+more widespread, thus computational efficiency, as well as
+accuracy, is a primary concern (Demiris and O’Neill, 2006;
+Brooks et al., 2011; House et al., 2012). For many models,
+stochastic simulation has been the only way of calculating
+quantities, but this has the drawback of requiring averaging
+over many realizations for accuracy. With increasing computing resources, numerical methods of solution, exact to a
+given precision, are now an attractive proposition for these type
+of models (Keeling and Ross, 2009; Jenkinson and Goutsias,
+2012; Black et al., 2013; Black and Ross, 2013).
+In epidemiology, one of the most important quantities, for
+both inference and public health, is the epidemic final size distribution. The final size is the total number of individuals who
+have experienced infection over the course of the epidemic.
+Thus the final size distribution gives the probability of each of
+the possible outcomes of an epidemic. Calculating the final
+size distribution is the subject of a wide body of literature: see
+House et al. (2013) for a review. For the classic Markovian
+∗ Corresponding author: School of Mathematical Sciences, The University
+of Adelaide, Adelaide SA 5005, Australia. Phone: +61883134177
+Email address: andrew.black@adelaide.edu.au (Andrew J. Black)
+
+Preprint submitted to Journal of Theoretical Biology
+
+SIR model, Bailey’s (1953; 1975) method and in particular the
+implementation due to Neuts and Li (1996) has been shown to
+be superior, being both numerically stable and computationally
+efficient (House et al., 2013). The algorithm can be derived
+in a number of ways, but a clear physical interpretation has
+been lacking. There is also an implicit assumption that the
+infectious period is exponentially distributed which is known to
+be unrealistic (Keeling and Rohani, 2008). Another procedure
+which allows for more general infectious period distributions is
+due to Ball (1986). Unfortunately, this suffers from a number
+of numerical problems, even for moderate population sizes
+(House et al., 2013; Demiris and O’Neill, 2006).
+In this paper we present a new method for the computation of
+final size distributions—applicable to homogeneously-mixing
+Markovian models—which is both exact and numerically
+stable. It is also computationally efficient, and physically
+transparent, allowing us to calculate distributions for a range
+of more complex models. Our method is based around a
+particular representation of the stochastic process, know as
+the degree-of-advancement (DA) representation. This has
+been recently used in relation to continuous-time Markov
+chains (Sunkara, 2009; Jenkinson and Goutsias, 2012). It is
+based on counting events instead of population numbers and a
+lexicographical ordering of the state space.
+The basic idea behind our methodology is intuitively simple.
+The epidemic process can be considered as a random walk,
+ending in an absorbing state which then determines the final
+size. The probability of hitting that state is then just the sum
+of the probabilities of all possible paths of reaching that state.
+However, it can be difficult to enumerate all these paths and
+correctly sum them. In fact, in his original paper, Bailey (1953)
+considers a suggestion from a colleague for a scheme like
+this. He rejects the idea though, because ‘the summation may
+leave some doubt as to whether all relevant terms have been
+included’. We show that adopting the DA representation solves
+January 6, 2015
+
+Table 1: Transitions and rates defining the SIR model. R = N − S − I, where N
+is the size of the population.
+
+3
+
+The remainder of this paper is as follows. We begin by
+illustrating the fundamental idea using the SIR model. We
+discuss the methodology and algorithms in some detail because
+the models we consider later are generalizations of this. In
+particular we compute the final size distribution for an SIR
+model with a phase-type infectious period distribution and a
+model with waning immunity where the number of infections
+is potentially unbounded. Finally we give a discussion of our
+results and their other uses. In particular, we highlight the
+connection to the computation of hitting probabilities (Norris,
+1997). Although we have derived these results by considering
+models in epidemiology, the basic results are much more
+general. Stochastic models with a similar structure are now
+common tools in many areas (Black and McKane, 2012) and
+hence this methodology will be potentially useful in a wide
+range of disciplines. MATLAB code for generating all these
+results is provided in the supplementary material.
+
+R = Z2 ,
+
+8
+
+9
+
+5
+
+6
+
+7
+
+1
+
+2
+
+3
+
+4
+
+0
+
+1
+
+2
+
+3
+
+Z2
+1
+
+0
+
+Z1
+Figure 1: The state space of the SIR model in the DA representation. Z1 counts
+the number of infection events and Z2 counts the number of recovery events.
+The states are numbered i = 1, . . . , 10 according to their co-lexicographic order.
+Arrows denote possible transitions and the initial state, z2 = (1, 0), is colored
+in gray. The state z1 = (0, 0) corresponds to all individuals being susceptible.
+
+We index the states of the system by zi = (z1 , z2 ), i =
+1, . . . , Ψ, where Ψ = (N + 1)(N + 2)/2 is the size of the state
+space. Thus the elements of zi are the counts of events Z1 and
+Z2 that have occurred in reaching the state i. The states of the
+system are ordered, such that zi ≺ zi+1 . This means that,
+
+We illustrate the basic idea using the well known Markovian SIR model (Keeling and Rohani, 2008). The state of the
+process is X(t) = (S , I), the number of susceptible and infectious individuals at time t. The transitions and rates which
+define the model are given in Table 1. These transitions are
+given in terms of the population numbers, S and I, hence this
+is known as the population representation. Instead of this, we
+work with the DA representation (van Kampen, 1992; Sunkara,
+2009; Jenkinson and Goutsias, 2012). This involves counting
+the number of events of each type instead of the population
+numbers. We therefore define Z1 and Z2 as the number of infection and recovery events respectively, and hence the state
+of the process at time t is Z(t) = (Z1 , Z2 ). The random variable Z1 also counts the first infection events, which we take to
+have occurred from an outside source and hence sets the initial
+condition for the problem. The difference between these representations is that population numbers can both increase and
+decrease, whereas the transition counts can only ever increase.
+The number of susceptible, infectious and recovered individuals are then given by,
+I = Z1 − Z2 ,
+
+10
+
+2
+
+2. SIR final size distribution
+
+S = N − Z1 ,
+
+Rate
+βS I
+γI
+
+Transition
+(S , I) → (S − 1, I + 1)
+(S , I) → (S , I − 1)
+
+this problem and summing over all paths becomes trivial as
+the jump chain of the process resembles a probability tree.
+Our method is an advancement on Bailey’s method—and
+derivatives of it—as it is more transparent and can be extended
+to a range of more complex models; it allows us to calculate
+final size distributions for models which up until now have
+been intractable to all but simulation, such as those which
+include waning immunity.
+
+(z1 , z2 ) ≺ (z′1 , z′2 )
+
+iff
+
+z2 < z′2
+z2 =
+
+z′2
+
+or
+and z1 ≤ z′1 .
+
+(2)
+
+This is a co-lexicographic ordering, in contrast to that used by
+Jenkinson and Goutsias (2012), which is a lexicographic ordering. We choose this because it allows for a simplification of
+later parts of the algorithm needed to calculate the final size
+distribution. Figure 1 shows the DA state space for an SIR
+model with N = 3. The states are indexed linearly according
+to their co-lexicographic ordering and arrows indicate possible
+transitions between states. In practice, this ordering and the linear indexing of the states is most easily enumerated by using a
+simple nested loop system: the first loop iterates over values of
+Z2 = 0, . . . , N and then a second loop, nested inside the first,
+iterates over values of Z1 = z2 , . . . , N. The state index, i, is then
+simply assigned by keeping count of the number of states which
+have been iterated over.
+This ordering means that the stochastic transition matrix (the
+generator), and hence the jump chain of the process is upper triangular. The jump chain can now be thought of as a probability
+tree, where the probabilities at the leaves (i.e., the absorbing
+states) are found by multiplying and adding probabilities along
+the different branches. Given that the system starts in state i
+with probability bi we can simply write down equations for pi ,
+
+(1)
+
+respectively, where N is the total population size. Using these
+relations the rates of each type of transition can be calculated
+in terms of Z1 and Z2 .
+2
+
+the probability of visiting (or ending in) state i,
+X
+pi = bi +
+α ji p j
+
+we consider problems with a much larger state space. To
+see the intuition behind this, firstly note that this algorithm
+summarised in Eq. (7) is different to forward substitution.
+Each step of the above algorithm calculates the probabilities
+of transitioning to the connected states given that we are in
+state i. These parts are then added to any existing transition
+probabilities which have already been calculated. In this
+way, each pi is calculated piecewise in two steps but because
+of the ordering, once the algorithm reaches state i, all the
+contributions to pi will have been added and hence pi can be
+used to calculate further probabilities. Conversely, forward
+substitution calculates each pi in one step from probabilities
+already calculated as in Eq. (3). With the algorithm above,
+once it has iterated over state i then pi and the reaction rates
+a1 and a2 are no longer required for the rest of the calculation
+(unless i is an absorbing state, in which case pi forms part of
+the final size distribution). Hence memory which was used
+to store the probabilities p j , j ≤ i can be reused. This point
+underlies all the other algorithms presented in this paper.
+
+(3)
+
+j
+
+where the sum on j is over all states which lead to state i and
+α ji is the probability of entering state i from state j. More generally, this system of equations can be written as
+(I − A)p = b,
+
+(4)
+
+where A is the transpose of the jump chain matrix. As the matrix (I − A) is lower triangular, this system of equations is solved
+very efficiently via forward substitution. This is implemented
+automatically in MATLAB. Once we have solved Eq. (4) then
+the final size distribution, u = (u0 , . . . , uN ), is found by selecting the elements of p corresponding to absorbing states, i.e.
+those where Z1 = Z2 . For this model we can easily write down
+an expression for indices of these absorbing states,
+u j = p j(2N+3− j)/2+1 ,
+
+j = 0, . . . , N.
+
+(5)
+The observation just noted may be used to reduce the amount
+of memory needed for the algorithm as follows. The implementation here assumes that initially the system starts in a state with
+m infectious individuals. This is the most common situation,
+but can be extended to handle a situation where there is a distribution of starting states with the addition of some complexity.
+We first define the vector q which will hold working variables /
+probabilities. The size of this vector is |q| = N + 1 which corresponds to the total number of states for which Z2 = 0, i.e., the
+bottom row of states in Figure 1. Initially the elements of q are
+set to zero except qm+1 = 1, where m is the initial number of
+infectious individuals. The algorithm then proceeds as before,
+iterating over the states of the system in co-lexicographic order. For each state we calculate the rates as in Eq.(6) and then
+update the elements of q such that,
+
+Solving Eq. (4) gives the probabilities of visiting all states in
+the system, given that we start from a particular set of states.
+As the state space for these problems can become very large
+we might not want to store the elements of A. Instead, we
+can exploit the ordered structure of the state space to derive a
+simple recursive method for solving equation (3).
+Firstly we set p = b, the initial state of the system. Next, as
+described earlier, we use a pair of nested loops to iterate through
+the states of the system in co-lexicographic order. For each state
+we calculate the rates of the two possible events, infection and
+recovery respectively, as
+a1 =β(N − z1 )(z1 − z2 ),
+
+(6)
+
+a2 =γ(z1 − z2 ).
+
+qz1 +2 = qz1 +2 + qz1 +1 a1 /a0 , a1 > 0,
+qz1 +1 = qz1 +1 a2 /a0 , a2 > 0.
+
+Note that a1 and a2 are functions of the state, but we suppress
+this for clarity of the exposition. We then define the total rate as
+a0 = a1 + a2 . Remembering that the variable i indexes the states
+of the system, we then update the elements of p according to
+pi+1 = pi+1 + pi a1 /a0 ,
+pi+N−z2 = pi+N−z2 + pi a2 /a0 ,
+
+a1 > 0,
+a2 > 0.
+
+(8)
+
+We can see that once the probability stored in element
+qz1 +1 has been used to calculate the two new probabilities,
+it is replaced with a new probability (qz1 +1 a2 /a0 ). Once
+the algorithm has completed then q holds the probabilities
+of the final size distribution (u = q). Note that for the
+generalised algorithm in the next section this is not true and
+the required number of working variables is larger than the
+This version of the algorithm thus
+final size distribution.
+reduces the length of the vector needed to store probabilities from (N + 1)(N + 2)/2 to N + 1, although the running
+time is approximately the same as the previous algorithm as
+we still need to iterate over all the possible states of the system.
+
+(7)
+
+This reduces the overhead of the calculation because there
+is no need to store the elements of the jump matrix and their
+positions. This algorithm relies on being able to calculate
+the index of the states which state i feeds into efficiently
+without the need for complex search routines or pre-calculation
+of any quantities. The ordering of the state space makes
+what is potentially a difficult and inefficient procedure quite
+straightforward.
+
+As described above, this algorithm is not the most optimized
+version we can conceive of, but we have left it in this form
+because it is easier to see how this generalizes to models with
+many more events. For example, we can optimize this to remove the conditional statements, as we know where the absorb-
+
+If we do not wish to calculate the whole vector p, but only
+the probabilities of hitting the absorbing states (i.e., the final
+size distribution) then we can alter the algorithm to require
+even less storage. This will become important later when
+3
+
+ing and boundary states are, but this is more difficult for higherdimensional models. The simplicity of the algorithm makes
+this very computationally efficient. MATLAB code for evaluating this and the previous algorithm is given in the supplementary material. The implementation of Bailey’s method due
+to Neuts and Li (1996) is very similar to the first algorithm (7)
+for calculating the full vector p. Their method uses the population representation of the process hence it is more complicated
+(MATLAB code for this is presented in the supplementary material of House et al. (2013)). In contrast, the algorithm above
+is simpler, requiring less computational operations and memory. There is also a clear physical interpretation as to the action
+of the algorithm at each iteration, which is subtly different to
+that of basic forward substitution. As we will now show, it also
+allows us to efficiently compute final size distributions for much
+more complicated models.
+
+reduction in storage is accomplished, as in the previous section,
+by exploiting the structure of the state space. As can be seen in
+Figure 2, the slices of the state space for Z3 > 0 have the same
+structure as the top part of the Z3 = 0 slice. Thus we can map
+the probabilities of reaching these states back into the vector
+holding the Z3 = 0 slice probabilities, replacing elements of
+the vector which are no longer required for the calculation.
+Z2
+
+Z3=3
+
+3
+
+20
+
+3
+
+Z1
+
+20
+
+Z3=2
+
+3
+
+19
+
+Z2
+2
+
+3. Model with a phase-type infectious period distribution
+
+17
+
+18
+
+2
+
+3
+
+Z3=1
+
+We now consider a model with a phase-type distribution
+for the infectious period. This is achieved by splitting the
+infectious period up into k stages, hence these are known
+as SI(k)R models. These are widely used in epidemiology
+as they capture a more realistic infectious profile where the
+time an individual remains infectious exhibits less variation
+about the mean in comparison to an exponential distribution
+(Keeling and Rohani, 2008; Black et al., 2009). We do not
+consider models with a latent period (such as SEIR) because
+this has no effect on the final size distribution (Ball, 1986); for
+time dependent quantities this would not be true.
+
+19
+
+3
+
+16
+
+Z2
+
+18
+
+17
+
+2
+
+1
+
+14
+
+15
+
+11
+
+12
+
+13
+
+1
+
+2
+
+3
+
+Z3=0
+
+10
+
+15
+
+14
+
+2
+11
+
+1
+
+This is the number of ways of allocating N individuals to k + 2
+classes (S , I1 , . . . , Ik+1 , R). The state space and transitions for
+this model with N = 3, k = 2 are illustrated in Figure 2 by
+slicing the state space according to values of Z3 ; these should
+then be visualised as being stacked on top of each other.
+
+9
+
+8
+
+Z2
+
+0
+
+Z1
+
+16
+
+3
+
+If the infectious period is split into k stages then there will be
+k + 1 possible events. We label these from 1 to k + 1, with the
+first event being the infection and events 2 through k + 1 count
+progress through the infectious stages. The transition rates of
+each of the progression events is then kγ so that the mean duration of infection stays fixed at 1/γ. The transitions and rates
+are summarised in Table 2. The size of the state space is now,
+!
+N+k+1
+(N + k + 1)!
+=
+.
+(9)
+Φ(N, k) =
+(k + 1)! N!
+N
+
+Z1
+
+13
+
+12
+5
+
+6
+
+7
+
+1
+
+2
+
+3
+
+4
+
+0
+
+1
+
+2
+
+3
+
+Z1
+
+Figure 2: Illustration of the SI(2)R state space with N = 3 ‘sliced’ by values of
+Z3 . The states are numbered according to their co-lexicographic order. Possible
+transitions are shown by arrows with transitions between values of Z3 denoted
+by red arrows with the destination states also indicated. The algorithm to calculate the final size distribution only requires space to hold Φ(3, 1) = 10 variables,
+which corresponds to the number of states with Z3 = 0, i.e. the bottom slice.
+
+The final size distribution can then be found in the same
+way as for the SIR model, by forming the jump chain for the
+process and solving equation (4). An obvious problem with
+this approach is that with an increasing number of phases, k,
+or population size, N, Φ becomes very large. Thus computing
+and storing the matrix A becomes expensive, so we need to
+use a recursive algorithm as discussed in the previous section.
+In particular, we do not wish to retain the full vector p, but
+only wish to calculate u using the least memory possible. This
+
+For the SI(k)R model, the size of the vector, q, of working
+variables we need to store to compute the final size distribution
+is |q| = Φ(N, k − 1), which corresponds to the number of states
+of the system with Zk+1 = 0. For the basic SIR model (k = 1)
+Φ(N, 0) = N + 1, which coincides with the number of elements
+in the final size distribution. For k > 1 however, the algorithm
+requires more working variables so the mapping between the
+states of the system and the elements of q becomes more
+4
+
+Transition
+(S , I1 ) → (S − 1, I1 + 1)
+(I j−1 , I j ) → (I j−1 − 1, I j + 1)
+(Ik , R) → (Ik − 1, R + 1)
+
+Counter
+z1
+z j j = 2, . . . , k
+zk+1
+
+Rate
+β(N − z1 )(z1 − zk+1 )
+kγ(z j−1 − z j )
+kγ(zk − zk+1 )
+
+Table 2: Transitions and rates defining the SI(k)R model with an Erlang distribution. R = N − S −
+change in a transition are presented.
+
+complicated. The ratio of the number of states in the system to
+the number of elements of q is (k + 1)/(N + k + 1), so there is
+an increasing benefit to this formulation of the algorithm as N
+increases.
+
+ξ = Φ(N, 0) − Φ(N − z2 , 0) + 1 = z2 + 1,
+thus for each value of Z2 , ω would iterate over the values
+z2 + 1, . . . , N + 1. As Z1 already iterates over z2 , . . . , N, then we
+can simply set ω = z1 + 1, and remove the ω counter. Finally,
+the function l, given by Eq. (12), reduces to l = z1 + 2 as
+Φ(N − z1 , −1) = 1. Thus the update rules in Eqs. (11) and (13)
+reduce to those in Eq. (8).
+
+(10)
+
+The power of this recursive approach comes from the
+simplicity of the algorithm, and hence the speed of execution.
+Obviously, this relies on being able to calculate the indexes
+ω and l analytically, so this information does not need to be
+stored. Even though the size of the state space for such models
+can be into the hundreds of millions it can be processed very
+quickly and numerically it is very stable. This is in contrast
+to the method of Ball (1986) which, although it uses a much
+smaller set of equations and allows using any distribution for
+the infectious period, requires numbers retaining a high degree
+of accuracy which is harder for a computer to handle natively
+(Demiris and O’Neill, 2006).
+
+and then set ω = ξ. After each iteration, ω → ω + 1, except
+when Zk+1 changes, in which case it is re-calculated from
+Eq. (10). So for each value of Z3 , ω counts through the values
+ξ, . . . , Φ(N, k − 1).
+For each value of zi we then calculate the rates of all possible
+P
+events, a j , j = 1, . . . , k + 1, and their total a0 = k+1
+j=1 a j and
+update the elements of q as follows. For each event type
+j = 1, . . . , k we update
+a j > 0,
+
+where N is the size of the population. Only states that
+
+If k = 1 then the algorithm presented in this section simplifies
+as the counter, ω, becomes redundant. This is because,
+
+We now have to establish a mapping between a given state
+of the system zi and where the probability of reaching that state
+is stored within the vector q. This is by done by introducing
+another counter ω which indexes q. For each new value of Zk+1
+the algorithm loops over, we calculate
+
+ql = ql + qω a j /a0 ,
+
+j=1 I j ,
+
+Once the algorithm has iterated over all the states of the
+system, the elements of u can be extracted from q. Another
+way to find u is to extract the correct probabilities as the
+algorithm progresses: if it comes to a state which has zero
+probability of leaving (i.e., when Zk+1 = Z1 ), then it is an
+absorbing state corresponding to a final size, Z1 . Because of
+the chosen ordering, the order in which absorbing states are
+encountered matches that of the final size distribution. An example of the output is shown in Figure 3 for the SI(4)R model
+and compared with the standard SIR model in the inset. Full
+code for generating this is given in the supplementary materials.
+
+The algorithm proceeds as follows: Initialization is done by
+setting the elements of q to zero, apart from qm+1 = 1, where
+m is the initial number of infectious individuals. As before,
+we iterate through the states of the system in co-lexicographic
+order with the use of a nested loop system. Thus we first
+loop over values of Zk+1 = 0, . . . , N, which sets the limits
+for a second loop, nested within the first, which iterates over
+Zk = zk+1 , . . . , N, which sets the limits for a third loop et cetera.
+The state of the system is then zi = (z1 , . . . , zk+1 ), where i is the
+running total of the number of states which have been looped
+over so far. In fact i is not actually needed for any calculations
+in the algorithm, but is useful for its description.
+
+ξ = Φ(N, k − 1) − Φ(N − zk+1 , k − 1) + 1
+
+Pk
+
+(11)
+
+in order, where
+l = ω + Φ(N − z j , j − 2).
+
+(12)
+
+4. Model with waning immunity
+
+For the event of type k + 1, instead, we do
+qω = qω ak+1 /a0 ,
+
+ak+1 > 0.
+
+We now use the methodology developed in the previous sections to calculate the total number of infections in a stochastic epidemic model with waning immunity. The simplest such
+model is a susceptible-infected-recovered-susceptible (SIRS)
+model (Keeling and Rohani, 2008). The transitions defining
+this are as in Table 1 with the addition of
+
+(13)
+
+These operations are just a generalisation of those given in
+Eq. (8), where in the last step the probability stored in qω is
+replaced by qω ak+1 /a0 , which is the probability of a Zk+1 event
+from the current state.
+
+(S , R) → (S + 1, R − 1) at rate µR,
+5
+
+(14)
+
+18
+
+Z3=0
+3
+
+10
+
+15
+
+2
+
+3
+Z2
+
+12
+
+11
+
+1
+
+0
+
+1
+
+0
+
+5
+
+6
+
+7
+
+2
+
+3
+
+4
+
+1
+
+3
+
+2
+
+2
+
+1
+Z1
+
+22
+
+21
+
+13
+
+11
+
+1
+
+23
+
+15
+
+16
+
+17
+
+12
+
+13
+
+14
+
+3
+
+2
+
+4
+
+Z2
+
+2
+
+29
+
+28
+
+32
+
+31
+
+3
+
+Z1
+
+36
+
+35
+
+4
+
+19
+
+18
+
+30
+
+5
+26
+
+25
+
+9
+
+38
+
+Z3=2
+
+20
+
+16
+
+8
+
+Z2
+
+28
+
+Z3=1
+4
+
+33
+
+25
+
+26
+
+27
+
+21
+
+22
+
+23
+
+24
+
+2
+
+3
+
+4
+
+5
+
+Z1
+
+Figure 4: Illustration of the structure of state space for the SIRS model with N = 3 only showing the first three slices for Z3 = 0, 1, 2. States are labelled by their
+co-lexicographic order. For each value of Z3 the slice of state space has the same structure as the triangular state space of the SIR model in Figure 1. Possible
+transitions between slices of constant Z3 are shown with the red arrows along with the destination state.
+
+Eq. (4). A much better way is to exploit the ordered structure
+of the state space to create a recursive method. By ordering the
+states with respect to the number of Z3 events, as in Figure 4,
+we can use Eqs. (15) to derive limits on the possible number of
+Z1 and Z2 events,
+
+0.2
+0.05
+difference
+
+probability
+
+0.15
+
+0.1
+
+0
+−0.05
+−0.1
+−0.15
+
+0
+
+20
+
+40
+60
+final size
+
+80
+
+40
+
+60
+
+80
+
+0.05
+
+0
+
+0
+
+20
+
+100
+
+Z3 ≤ Z1 ≤ N + Z3 ,
+
+a1 = β(N − z′1 )(z′1 − z′2 ),
+a2 = γ(z′1 − z′2 ),
+
+Figure 3: Main plot shows the probability mass function for a SI(4)R model,
+with N = 100. The inset shows the difference between the pmfs for the Erlang(4) model and the basic exponential SIR model. Both epidemics start with
+1 infectious individual. Other parameters: β = 2/(N − 1) and γ = 1.
+
+a3 =
+
+R = Z2 − Z3 ,
+
+(17)
+
+µz′2 ,
+
+respectively. Note, that these rates are now independent of z3 .
+
+where R = N − S − I is the number of recovered individuals.
+The state space in the population representation now contains
+loops and there is only one absorbing state corresponding to
+(S = N, I = 0, R = 0). Thus, in this representation, we can no
+longer calculate the final size distribution (defined as the total
+number of infection events) from hitting probabilities. To move
+to the DA representation, we first denote the number of waning
+immunity events by Z3 . Such a model is different to the SIR
+model presented in Section 2 as there is no upper bound on the
+total number of infection events. Thus,
+I = Z1 − Z2 ,
+
+(16)
+
+This suggests we make a transformation of variables, Z1′ = Z1 −
+Z3 and Z2′ = Z2 −Z3 , so the rates of events Z1 , Z2 and Z3 become,
+
+100
+
+final size
+
+S = N − Z1 + Z3 ,
+
+and Z3 ≤ Z2 ≤ N + Z3 .
+
+To recursively compute the final size distribution (total number of Z1 events) we only need to store probabilities for the
+number of states in two slices of the state space. We denote these working variables as q and h, both of length Ψ =
+(N + 1)(N + 2)/2. We truncate the maximum number of Z1
+events, and hence the largest possible observed final size at Λ.
+We then define the vector u = (u0 , . . . , uΛ+1 ) which will hold
+the final size distribution. The last element of u will be probability of observing more than Λ infection events, which is also
+computed very naturally using this approach.
+We initialize q, h and u by setting all their elements to zero,
+apart from qm+1 = 1, where m is the initial number of infectious
+individuals. The algorithm then proceeds as follows: for each
+value Z3 = 0, . . . , Λ, we iterate over all possible values of Z1′
+and Z2′ in co-lexicographic order in exactly the same way as
+for the basic SIR model. As in the previous algorithm, we
+maintain a counting variable, ω, which counts the number of
+states that have been iterated over for a given value of Z3 . The
+maximum value of ω will be Ψ as this is the number of states
+in one slice of the state space.
+
+(15)
+
+and the state space is unbounded.
+The first part of the state space of this model, with N = 3,
+is illustrated in Figure 4. Each slice (constant value of Z3 )
+has the same structure as the SIR model shown in Figure 1.
+The red arrows indicate Z3 transitions between different slices.
+Importantly, there are no loops in this state space because the
+counts can only ever increase. Thus the absorbing states are
+when Z1 = Z2 = Z3 , which corresponds to a final size of Z1 .
+One way to calculate the final size distribution is to simply
+truncate the DA state space, form the jump chain and solve
+
+For each state we calculate the rates of the three events from
+6
+
+for calculating the final size distribution. Although similar
+methods have been proposed for the SIR model (Neuts and Li,
+1996), ours is both the simplest to implement and understand
+and is also more efficient computationally and in terms of
+memory usage. The biggest advantage of our method is its
+straightforward applicability to more complex models. We
+have demonstrated this by computing final size distributions
+for the SI(k)R model and the SIRS model, where the number of
+infection events is unbounded. This opens up these models for
+use in inference work using final size data (House et al., 2013).
+
+0.25
+
+probability
+
+0.2
+0.15
+0.1
+0.05
+0
+
+0
+
+10
+
+20
+30
+40
+number of infections
+
+50
+
+60
+
+Although we have derived and illustrated these methods using models within epidemiology, they are much more general.
+They are applicable to Markovian models in which we wish
+to calculate hitting probabilities (MacNamara and Burrage,
+2010) or where probabilities of given paths through a state
+space are required (Nowak and Chou, 2009; Williams et al.,
+2013). In ecology and epidemiology we are often interested in
+offspring distributions. This is the distribution of the number of
+secondary entities a single entity gives rise to over a particular
+lifetime. Ross (2011) has shown how offspring distributions
+for a stochastic model can be computed by recursively solving
+sets of linear equations. With the methodology presented here,
+these quantities could be computed more efficiently in much
+the same way as presented for the SIRS model.
+
+Figure 5: The probability mass function, u, for the total number of infections
+in an SIRS model with N = 30. The maximum number of infections, Λ, is
+set to 60. The bar at 61 is then the probability of Z1 > 60. Parameters are:
+β = 3/(N − 1), γ = 1 and µ = 0.1.
+
+Eq. (17). We then update the elements of q and h as follows:
+qω+1 = qω+1 + qω a1 /a0 ,
+
+a1 > 0,
+
+qω+N−z′2 = qω+N−z′2 + qω a2 /a0 ,
+hω−N+z′2 −2 = qω a3 /a0 ,
+
+a2 > 0,
+
+(18)
+
+a3 > 0,
+
+where a0 = a1 + a2 + a3 . The first two equations in (18) have
+the same form as for the SIR model given in Eq. (7). In determining the element of h to update we have taken into account
+the transformation of variables above. Once the algorithm has
+iterated over all values of Z1′ and Z2′ we can update u as,
+uz3 = q1 .
+
+A limitation on this method is that as more event types are
+added the size of the state space grows as described by Eq. (9).
+Thus although typically we are not limited by memory due to
+the recursive nature of the solutions, the time to compute a
+distribution will grown linearly with the size of the state space.
+As an example of times for computation, the SI(4)R model
+shown in Figure 3 has N = 100 and Φ ≈ 4.6 × 106; computation
+of the final size distribution is approximately 3.1 seconds using
+an algorithm programmed in C on a 2.5GHz machine. The
+same model with N = 200 has Φ ≈ 70 × 106 ; this took 1.8
+minutes to process. By normal standards, these are very large
+state spaces. One advantage of the Ball method is that it can
+handle any infectious period distribution for which we can
+write down the Laplace transform (Ball, 1986), whereas our
+method is limited to phase-type distributions.
+
+(19)
+
+This follows because, for a given value of Z3 , the absorbing
+state is when Z1′ = Z2′ = 0 which is stored in the first element
+of q. The algorithm then continues by setting q = h, then h =
+0 and looping to the next value of Z3 . Once all values of Z3
+have been iterated over, the probability of more than Λ infection
+events is simply
+Ψ
+X
+uΛ+1 =
+q j.
+(20)
+j=1
+
+This sum is over the elements of q because in the last step of the
+algorithm the probabilities stored in h are moved to q. AlternaP
+tively, uΛ+1 could be calculated as 1 − Λj=1 u j . Because of the
+ease with which we can calculate this probability, an alternative
+way to formulate the algorithm is to only terminate the recursion over Z3 once the probability of more than a given number
+of infections falls below some pre-defined threshold. Figure 5
+shows the probability mass function of the total number of infections for an SIRS model with N = 30.
+
+For very large values of k, the number of stages in the infectious period, Ball’s method combined with a variable precision
+arithmetic (Demiris and O’Neill, 2006) might outperform our
+method, depending on the implementation of the variable precision arithmetic. However, for values of k typically of interest,
+our method is the most efficient. Another important class of
+epidemic models are those with a structured population such as
+household or network models (Ball et al., 1997; Danon et al.,
+2011). These have such large state spaces, even for modest
+population sizes, that our method would become impractical.
+For such models a number of good techniques have been
+developed (O’Neill, 2009; Neal, 2012).
+
+5. Discussion and Conclusion
+We have presented a new method for computing the final
+size distribution for a number of epidemic models. Using the
+DA representation of the stochastic process means the jump
+chain has a particularly simple form resembling a probability
+tree. This structure allows the derivation of an iterative method
+
+Fundamentally the algorithm we have presented is a serial
+process, so there is little possibility of using parallel compu7
+
+tational resources to speed up the procedure. One promising
+direction which could allow even larger models is the use of
+an adaptive mechanism which limits the algorithm to the parts
+of the state space where most probability is concentrated. The
+ordering of the state space lends itself to a scheme like this
+so, especially as the dimensionality of the problem increases,
+this could provide large savings with little loss of accuracy.
+For larger values of N there is also the possibility of deriving
+approximate analytic solutions from asymptotic results.
+
+Black, A. J., Ross, J. V., 2013. Estimating a Markovian epidemic model using
+household serial interval data from the early phase of an epidemic. PLoS
+ONE 8, e73420.
+Brooks, S., Gelman, A., Jones, G. L., Meng, X.-L. (Eds.), 2011. Handbook of
+Markov Chain Monte Carlo. CRC Press.
+Danon, L., House, T., Jewell, C. P., Keeling, M., Roberts, G. O., Ross, J. V.,
+Vernon, M. C., 2011. Networks and the epidemiology of infectious disease.
+Interdiscip. Perspect. Infect. Dis. 2011, 1–28.
+Demiris, N., O’Neill, P. D., 2006. Computation of final outcome probabilities
+for the generalised stochastic epidemic. Statistics and Computing 16, 309–
+317.
+Fraser, C., Cummings, D. A. T., Klinkenberg, D., Burke, D. S., Ferguson,
+N. M., 2011. Influenza transmission in households during the 1918 pandemic. Am. J. Epidemiol. 174, 505–514.
+Halloran, M. E., Ferguson, N. M., Eubank, S., Longini, I. M., Cummings,
+D. T. A., Lewis, B., Xu, S., Fraser, C., Vullikanti, A., Germann, T. C.,
+2008. Modeling targeted layered containment of an influenza pandemic in
+the United States. Proc. Natl. Acad. Sci. USA 105, 4639–4644.
+Hauert, C., Imhof, L. A., 2012. Evolutionary games in deme structured, finite
+populations. J. Theor. Biol. 299, 106–112.
+House, T., Inglis, N., Ross, J. V., Wilson, F., Suleman, S., Edeghere, O., Smith,
+G., Olowokure, B., Keeling, M. J., 2012. Estimation of outbreak severity
+and transmissibility: Influenza A(H1N1)pdm09 in households. BMC Med.
+10, 117.
+House, T., Ross, J. V., Sirl, D., 2013. How big is an outbreak likely to be?
+methods for epidemic final size calculation. Proc. R. Soc. A 469, 20120436.
+Jenkinson, G., Goutsias, J., 2012. Numerical integration of the master equation
+in some models of stochastic epidemiology. PLoS ONE 7, e36160.
+van Kampen, N. G., 1992. Stochastic processes in physics and chemistry. Elsevier, Amsterdam.
+Keeling, M. J., Danon, L., Vernon, M. C., House, T. A., 2010. Individual identity and movement networks for disease metapopulations. Proc. Natl. Acad.
+Sci. USA 107, 8866–8870.
+Keeling, M. J., Rohani, P., 2008. Modeling Infectious Diseases in Humans and
+Animals. Princeton University Press, New Jersey.
+Keeling, M. J., Ross, J. V., 2009. Efficient methods for studying stochastic disease dynamics. Theor. Popul. Biol. 75, 133–141.
+MacNamara, S., Burrage, K., 2010. Stochastic modeling of nave T cell homeostasis for competing clonotypes via the master equation. Multiscale Model.
+Sim. 8 (4), 1325–1347.
+Munsky, B., Khammash, M., 2006. The finite state projection algorithm for the
+solution of the chemical master equation. J. Chem. Phys. 124, 044104.
+Neal, P. J., 2012. Efficient likelihood-free Bayesian computation for household
+epidemics. Stat. Comput. 22, 1239–1256.
+Neuts, M. F., Li, J., 1996. In: Heyde, C. C., Prohorov, Y. V., Pyke, R., Rachev,
+S. T. (Eds.), Athens Conference on Applied Probability and Time Series
+Analysis. Springer, New York, Ch. An algorithmic study of S-I-R stochastic
+epidemic models.
+Norris, J. R., 1997. Markov chains. Cambridge University Press, Cambridge.
+Nowak, S. A., Chou, T., 2009. Mechanisms of Receptor/Coreceptor-Mediated
+entry of enveloped viruses. Biophys. J. 96 (7), 26242636.
+O’Neill, P. D., 2009. Bayesian inference for stochastic multitype epidemics in
+structured populations using sample data. Biostat. 10, 779–791.
+Renshaw, E., 1993. Modelling Biological Populations in Space and Time. Cambridge University Press, Cambridge.
+Ross, J. V., 2010. Computationally exact methods for stochastic periodic dynamics: Spatiotemporal dispersal and temporally forced transmission. J.
+Theor. Biol. 262, 14–22.
+Ross, J. V., 2011. Invasion of infectious diseases in finite, homogeneous populations. J. Theor. Biol. 289, 83–89.
+Sontag, L., Lorincz, M., Luebeck, E., 2006. Dynamics, stability and inheritance
+of somatic DNA methylation imprints. J. Theor. Biol. 242, 890–899.
+Sunkara, V., 2009. The chemical master equation with respect to reaction
+counts. In: Proc. 18th World IMACS / MODSIM Congress. pp. 703–707.
+Waugh, W. A. O., 1958. Conditioned Markov processes. Biometrika 45, 241–
+249.
+Williams, B. P., Johnston, I. G., Covshoff, S., Hibberd, J. M., 2013. Phenotypic
+landscape inference reveals multiple evolutionary paths to C4 photosynthesis. eLife 2, e00961.
+
+There are two other areas where this methodology is
+potentially important. The DA representation was originally
+conceived as a way of speeding up the integration of the
+forward equation which describes the temporal dynamics
+of the system (Jenkinson and Goutsias, 2012). This method
+becomes slow as the size of the state space increases, thus
+it would be very beneficial to be able to restrict the state
+space to a smaller region as in finite-state projection methods
+(Munsky and Khammash, 2006). Our methodology provides
+a way to calculate which regions of the state space should be
+kept by solving for the vector p which provides information
+about the most probable paths through the system. Another
+potentially important use of this methodology is in computing
+the probability of hitting a fixed state from a given set of initial
+states (Norris, 1997). We often want to calculate these quantities when working with conditioned Markov chains (Waugh,
+1958). This quantity can be computed in a very similar way to
+the final size distribution except that the iteration over the states
+of the system proceeds backwards from the final state. Again
+the structure of the state space makes this straightforward to
+implement.
+
+Acknowledgements
+This research was supported under the Australian Research
+Council’s Discovery Project (DP110102893) and Future Fellowship (FT130100254) funding schemes. We would also like
+to thank the two anonymous referees whose extensive comments and careful reading have improved this paper.
+References
+Bailey, N. T., 1953. The total size of a general stochastic epidemic. Biometrika
+40, 177–185.
+Bailey, N. T., 1975. The mathematical theory of epidemics. Charles Griffin and
+company limited.
+Ball, F., 1986. A unified approach to the distribtuion of total size and total area
+under the trajectory of infectives in epidemic models. Adv. App. Prob. 18,
+289–310.
+Ball, F., Mollison, D., Scalia-Tomba, G., 1997. Epidemics with two levels of
+mixing. Ann. App. Prob. 7 (1), 46–89.
+Black, A. J., House, T., Keeling, M. J., Ross, J. V., 2013. Epidemiological consequences of household-based antiviral prophylaxis for pandemic influenza.
+J. R. Soc. Interface 10, 20121019.
+Black, A. J., McKane, A. J., 2012. Stochastic formulation of ecological models
+and their applications. Trends Ecol. Evo. 27, 337–345.
+Black, A. J., McKane, A. J., Nunes, A., Parisi, A., 2009. Stochastic fluctuations
+in the susceptible-infectious-recovered model with distributed infectious periods. Phys. Rev. E. 80, 021922.
+
+8
+
+

@@ -1,0 +1,3297 @@
+CLEVER: Clique-Enumerating Variant Finder
+Tobias Marschall1∗ , Ivan Costa2∗ , Stefan Canzar1 , Markus Bauer3 ,
+Gunnar Klau1 , Alexander Schliep5 , Alexander Schönhuth1†
+
+arXiv:1203.0937v2 [q-bio.GN] 16 Jul 2012
+
+1
+
+Centrum Wiskunde & Informatica, Amsterdam, Netherlands
+2
+Federal University of Pernambuco, Recife, Brazil
+3
+Illumina Inc., Cambridge, UK
+4
+Rutgers, The State University of New Jersey, Piscataway, NJ, USA
+∗
+Joint first authorship
+†
+Corresponding author
+alexander.schoenhuth@cwi.nl
+July 17, 2012
+
+Abstract
+Next-generation sequencing techniques have facilitated a large scale analysis of human genetic variation. Despite the advances in sequencing speeds, the computational discovery of structural variants is not
+yet standard. It is likely that many variants have remained undiscovered in most sequenced individuals.
+Here we present a novel internal segment size based approach, which organizes all, including also
+concordant reads into a read alignment graph where max-cliques represent maximal contradiction-free
+groups of alignments. A specifically engineered algorithm then enumerates all max-cliques and statistically evaluates them for their potential to reflect insertions or deletions (indels). For the first time in
+the literature, we compare a large range of state-of-the-art approaches using simulated Illumina reads
+from a fully annotated genome and present various relevant performance statistics. We achieve superior
+performance rates in particular on indels of sizes 20–100, which have been exposed as a current major
+challenge in the SV discovery literature and where prior insert size based approaches have limitations. In
+that size range, we outperform even split read aligners. We achieve good results also on real data where
+we make a substantial amount of correct predictions as the only tool, which complement the predictions
+of split-read aligners.
+CLEVER is open source (GPL) and available from http://clever-sv.googlecode.com.
+Keywords: Structural Variant Detection, Insertions and Deletions, Internal Segment Size, Read
+Alignment Graph, Maximal Cliques, Algorithm Engineering, Statistical Hypothesis Testing
+
+1
+
+Introduction
+
+The International HapMap Consortium [2005] and The 1000 Genomes Project Consortium [2010] have,
+through globally concerted efforts, provided the first systematic view into the gamut and prevalence of
+human genetic variation, including also larger genomic rearrangements. A staggering 8% of the general
+human population have copy number variants (CNV) affecting regions larger than 500kbp [Itsara et al.
+2009]. The technology enabling this advance was next-generation sequencing and the reduction in costs and
+increases of sequencing speeds it brought along [Bentley et al. 2008; AppliedBiosystems 2009; Eid et al.
+2009]. The analysis of structural variation however has not kept up with the advances in sequencing insofar
+as genotyping of human structural variation has not yet become a routine procedure [Alkan et al. 2011].
+Indeed it is likely that existing data sets contain structural variations indiscoverable by current methods.
+These limitations are likewise an obstacle to personalized genomics.
+Here, we target deletions or insertions (indels) between 20 and 50 000 base pairs (bp). In particular
+the discovery of indels smaller than 500 bp is still challenging [Alkan et al. 2011; Mills et al. 2011], even
+in non-repetitive areas of the genome. That the majority of structural variants resides in repetitive areas
+complicates the problem further due to the resulting read mapping ambiguities.
+Categorization of our and prior work. A (paired-end) read is a fragment of DNA both ends of which
+have been sequenced. We refer to the sequenced ends of the read as (read) ends and to the unsequenced
+part of the fragment between the two ends as internal segment or insert. An alignment A of a paired-end
+read is a pair of alignments of both ends. We say that a read has been multiply mapped if it aligns at
+several locations in the reference genome and uniquely mapped in case of only one alignment. Existing
+approaches for structural variant discovery can be classified into three broad classes: first, those based on
+the read alignment coverage, that is, the number of read ends mapping to a location [Campbell et al. 2008;
+Chiang et al. 2009; Alkan et al. 2009; Sudmant et al. 2010; Yoon et al. 2009; Abyzov et al. 2011], second,
+those analyzing the paired-end read internal segment size [Korbel et al. 2009; Hormozdiari et al. 2009;
+Chen et al. 2009a; Lee et al. 2009; Sindi et al. 2009; Quinlan et al. 2010], and third, split-read alignments
+[Mills et al. 2006; Ye et al. 2009]. Refer to Medvedev et al. [2009] as well as to Alkan et al. [2011] for
+reviews. A major difference is that the first two classes align short reads by standard read mappers, such as
+BWA [Li and Durbin 2009], Mr and MrsFast [Alkan et al. 2009; Hach et al. 2010] and Bowtie [Langmead
+et al. 2009]. Split-read aligners however compute custom alignments which span breakpoints of putative
+insertions and deletions. They usually have advantages over insert size based approaches on smaller indels
+while performing worse in predicting larger indels.
+It is common to many library protocols that internal segment size follows a normal distribution with
+machine- and protocol-specific mean µ and standard deviation σ. On a side remark we would like to point
+out that our approach does not depend on this assumption and that we also offer an interface for arbitrary
+internal segment size distributions (which may result from preparing libraries without a size selection step,
+as one example) to the user. One commonly defines concordant and discordant alignments: an alignment
+with interval length I(A) (see Figure 1) is concordant iff |I(A) − µ| ≤ Kσ and discordant otherwise. The
+constant K can vary among the different approaches. A concordant read is defined to concordantly align
+with the reference genome, that is, it should give rise to at least one concordant alignment.
+With only one exception [Lee et al. 2009, MoDIL], all prior approaches discard concordant reads. In
+this paper, we present CLEVER, a novel insert size based approach that takes all, also concordant reads
+into consideration. While a single discordant read is significantly likely to testify the existence of a structural variant, a single concordant read only conveys a weak variant signals if any. Ensembles of consistent
+concordant alignments however can provide significant evidence of usually smaller variants. The major
+motivation of this study is to systematically take advantage of such groups of alignments in order to not
+miss any significant variant signal among concordant reads.
+1
+
+Reference genome
+
+I(B) = yB − xB − 1
+
+xB
+
+C1 = (A1 , A2 , A3 )
+
+yB
+
+Reference genome
+
+1
+Alignment B
+
+A1
+A2
+A3
+
+2
+
+Paired-end read
+
+3
+4
+
+5
+
+I(A) = yA − xA − 1
+Reference genome xA
+yA
+
+C2 = (A5 , A6 , A7 )
+
+6
+7
+
+A4
+A5
+A6
+A7
+
+Alignment A
+Read alignment graph
+
+Paired-end read
+
+Alignments
+
+Figure 1: Left part: two read alignments. Assuming I(A) > µ > I(B) where µ is the mean of the true insert
+size distribution, alignment A is likely to indicate a deletion while alignment B may indicate an insertion.
+Right part: Read alignment graph for seven closely located read alignments. Note that 1/3(I(A5 )+I(A6 )+
+I(A7 )) > 1/3(I(A1 ) + I(A2 ) + I(A3 ). Assuming that all alignments have equal weight, C2 is more likely
+to indicate a deletion than C1 through a hypothesis test as in equations (3) and (2). Note that we have not
+marked cliques (A3 , A4 ) and (A4 , A5 ). See Fig. 2 for definition of edges.
+We employ a statistical framework, which addresses deviations in insert size, alignment quality, multiply
+mapped reads and coverage fluctuations in a principled manner. As a result, our approach outperforms all
+prior insert size approaches on both simulated and real data and also compares favorably with two stateof-the-art split-read aligners. Beyond its favorable results, our tool predicts a substantial amount of correct
+indels as the only tool (for example, more than 20% of true deletions of 20 − 49 bp in the simulated data).
+Overall, CLEVER’s correct calls beneficially complement those of the split-read aligner considered [Ye
+et al. 2009, PINDEL].
+Moreover, we need approximately 8 hours on a single CPU for a 30x coverage whole-genome dataset
+with approximately 1 billion reads, which compares favorably with estimated 7,000 CPU hours needed by
+MoDIL, the only method that also takes all reads into consideration.
+
+1.1
+1.1.1
+
+Approach and Related Work
+Graph-Based Framework
+
+Our approach is based on organizing all read alignments into a read alignment graph whose nodes are the
+alignments and edges reflect that the reads behind two overlapping alignments are, in rigorous statistical
+terms, likely to stem from the same allele. Accordingly, maximal cliques (max-cliques) reflect maximal
+consistent groups of alignments that are likely to stem from the same location in a donor allele. Since we
+do not discard alignments, the number of nodes in our read alignment graph is large: more than 109 nodes
+in the instances considered here. We determine all max-cliques in this graph by means of a specifically
+engineered, fast algorithmic procedure.
+The idea to group alignments into location-specific, consistent ensembles, such as max-cliques here,
+is not new. In fact, it has been employed in the vast majority of previous insert size based approaches.
+We briefly discuss related concepts of the three most closely related approaches, by Hormozdiari et al.
+[2009, VariationHunter (VH)], Sindi et al. [2009, GASV] and Quinlan et al. [2010, HYDRA]. Although
+not framing it in rigorous statistical terms, HYDRA is based on precisely the same concept of a maxclique as our approach. After constructing the read alignment graph from discordant reads alone, they
+employ a heuristic algorithm to find max-cliques. Since no theoretical guarantee is given, it remains unclear
+whether HYDRA enumerates them all. The definition of a ‘valid cluster’ in VH [Hormozdiari et al. 2009]
+
+2
+
+relaxes our definition of a clique in a subtle, but decisive aspect. As a consequence, each of our maxcliques forms a valid cluster, but the opposite is not necessarily true. The reduction in assumptions however
+allows VH to compute valid clusters as max-cliques in interval graphs, in a nested fashion, which yields a
+polynomial-runtime algorithm. Sindi et al. [2009, GASV] use a geometrically motivated definition which
+allows application of an efficient plane-sweep style algorithm. A closer look reveals that each geometric
+arrangement of alignments inferred by GASV constitutes a max-clique in our sense, but not necessarily vice
+versa, even if a max-clique is formed by only discordant read alignments. We recall that GASV, HYDRA
+and VH do not consider concordant read data hence consider read alignment graphs of much reduced sizes.
+Finding maximal cliques is N P-hard in general graphs. Based on the idea that the read alignment
+graph we consider still largely resembles an interval graph, we provide a specifically engineered routine that
+computes and tests all max-cliques in reasonable time—about 1h on a current 8 core machine for a whole
+human genome sequenced to 30x coverage—despite that we do not discard any read.
+1.1.2
+
+Significance Evaluation
+
+Commonly Concordant and Discordant Reads. Testing whether |I(A) − µ| ≤ K · σ, to determine
+whether a single alignment is concordant, is equivalent to performing a Z-test at significance level pK :=
+1 − Φ(K) where Φ is the standard normal distribution function. However, when determining whether m
+consistent alignments (such as a clique of size m) with mean interval length I¯ are commonly concordant, a
+Z-test for a sample of size m is required, which translates to
+√
+√
+|I¯ − µ|
+1 − Φ( m ·
+) ≥ pK ⇔ m · |I¯ − µ| ≤ K · σ.
+σ
+
+(1)
+
+√
+Due to the factor m, already smaller deviations |I¯ − µ| turn out to render the alignments commonly
+discordant. In our approach, we rigorously expand on this idea—in a rough description, each max-clique
+undergoes a Inequality-(1)-like hypothesis test.
+Multiply Mapped Reads. While we approach the idea of not “overusing” multiply mapped reads in an
+essentially different fashion, our routine serves analogous purposes as the set-cover routines of VH and
+HYDRA. The difference is that we statistically control read mapping ambiguity, but do not aim at resolving
+it.
+Following Li et al. [2008], we compute each alignment’s probability of being correctly placed. In case
+of a max-clique consisting of alignments A1 , ..., An (all from different reads) with probabilities p1 , ..., pn ,
+let AJ , J ⊂
+n} be the event that precisely the alignments Aj , j ∈ J are correct. We compute
+Q {1, ...,Q
+P(AJ ) = j∈J pj j6∈J (1 − pj ). Let H0 be the null hypothesis of that the allele in question—we recall
+that max-cliques just represent groups of alignments likely to be from the same allele—coincides with the
+reference genome. In correspondence to Inequality (1), we compute
+p |I¯J − µ|
+PHo (AJ ) := 1 − Φ( |J|
+)
+σ
+
+(2)
+
+P
+with I¯J = P 1 pj j∈J pj I(Aj ), which is the probability of observing Aj , j ∈ J when assuming the null
+j∈J
+hypothesis, given AJ . We further compute
+X
+PH0 (A1 , ..., An ) =
+P(AJ )PH0 (AJ )
+(3)
+J⊂{1,...,n}
+
+as the probability that max-clique A1 , ..., Am does not support an indel variant. We further correct
+PH0 (A1 , ..., An ) with a local Bonferroni factor to adjust for coverage-mediated fluctuations in the number
+3
+
+of implicitly performed tests. If the corrected PH0 (A1 , ..., An ) is significantly small, it is likely that (at
+least) one allele in the donor is affected by an indel at that location. See Methods for details. In a last
+step, we apply the Benjamini-Hochberg procedure to correct for multiple hypothesis testing overall. Note
+that among the prior approaches only MoDIL [Lee et al. 2009] addresses to correct for multiple hypothesis
+testing (also using Benjamini-Hochberg), although many others either explicitly (e.g. Chen et al. [2009b])
+or implicitly (e.g. Hormozdiari et al. [2009]; Korbel et al. [2009]; Quinlan et al. [2010]) perform multiple
+hypothesis tests.
+Among the statistically motivated approaches, Lee et al. [2009], after clustering, use KolmogorovSmirnov tests in combination with bimodality assumptions, Chen et al. [2009b] measure both deviations
+from Poisson-distribution based assumptions (BreakdancerMax) and use Kolmogorov-Smirnov (BreakdancerMin) tests to discover copy number changes.
+
+2
+2.1
+
+Methods
+Notations, Definitions and Background
+
+Reads and Read Alignments. Let R be a set of paired-end reads, stemming from a donor (genome) which
+have been aligned against the reference (genome). We write A for a paired-end alignment, that is a pair of
+alignments of the two ends of a read (see Fig. 1) and A(R) for the set of correctly oriented alignments
+which belong to read R. We neglect incorrectly oriented alignments and write A = ∪R A(R) for the set of
+all alignments we consider. We assume that |A(R)| ≥ 1; that is, each read we consider gives rise to at least
+one well-oriented alignment. We do not discard any reads.
+We write xA for the rightmost position of the left end and yA for the leftmost position of the right end.
+We write [xA + 1, yA − 1] and call this the interval of alignment A (in slight abuse of notation: intervals
+here only contains integers) and I(A) := yA − xA − 1 for the (alignment) interval length. When referring
+to alignment intervals, we sometimes call xA , yA the left and right endpoint. See Figure 1 for illustrations.
+Internal Segment Size Statistics. We write I(R) for the true (but unknown) internal segment size of
+paired-end read R which is the (unknown) length of the entire read R minus the (known) lengths of its two
+sequenced ends. In the datasets treated here, I(R) can be assumed normally distributed with a given mean µ
+and standard deviation σ [Li et al. 2008; Li and Durbin 2009; Hormozdiari et al. 2009; Lee et al. 2009], that
+is, I(R) ∼ N(µ,σ) . Estimation of mean µ and standard deviation σ poses the challenge that the empirical
+statistics on alignment length, further denoted as PEmp are fat-tailed, due to already reflecting structural
+variation between donor and reference. Here, we rely on robust estimation routines, as implemented by
+BWA [Li and Durbin 2009]. Note that in general we allow to deal with arbitrary internal segment size
+statistics.
+Alignment
+Scores and Probabilities. As described by Li et al. [2008], we determine log10 PPh (A) :=
+P
+− j Qj /10 where j runs over all mismatches in both read ends and Qj is the Phred score for position
+j, that is 10−(Qj /10) is the probability that the nucleotide at position j reflects a sequencing error. Hence
+PPh (A) is the probability that the substitutions in alignment A are due to sequencing errors. The greater
+PPh (A) the more likely that A is correct so PPh (A) serves as a statistical quality assessment of A. Note
+that to neglect SNP rates and indels reflects common practice [Li et al. 2008; Li and Durbin 2009], which is
+justified by that in Illumina reads substitution error rates are higher than SNP rates, indel sequencing error
+rates and DIP (deletion/insertion polymorphism) rates by orders of magnitude [Bravo and Irizarry 2010;
+Albers et al. 2011].
+
+4
+
+(1) No edge: length
+difference too large
+I(A) ≈ µ
+I(B) > µ
+
+A
+B
+
+(2) No edge: long insert
+lengths but small overlap
+I(A) > µ
+I(B) > µ
+
+(3) Edge: average insert
+lengths, small overlap
+I(A) ≈ µ
+
+A
+
+I(B) ≈ µ
+
+B
+
+O(A, B)
+
+¯
+I(A,
+B) > µ
+
+A
+B
+
+¯
+O(A, B) I(A, B) ≈ µ
+U (A, B) < µ
+
+U (A, B) > µ
+
+(4) Edge: long insert lengths,
+sufficient overlap
+I(A) > µ
+
+A
+
+I(B) > µ
+
+B
+
+O(A, B)
+
+¯
+I(A,
+B) > µ
+U (A, B)  µ
+
+Figure 2: Four scenarios of two overlapping alignment pairs A and B. In the read alignment graph, two
+alignments are connected by an edge if they are compatible, that is, they support the same phenomenon.
+(1) Alignment A has an insert length about the expected insert length µ, suggesting that there is no variation
+present but alignment B has an insert length much larger than µ suggesting a deletion. Hence, A and B are
+not compatible. (2) Both alignments have similar insert lengths larger than µ, both suggesting a deletion of
+size I(A) − µ ≈ I(B) − µ, but the overlap O(A, B) is too small to harbor a deletion of this size. Thus, they
+are incompatible. (3) Both alignments do not suggest any variation and are therefore compatible. (4) Similar
+to Case (2), but now the overlap is large enough to contain the putative deletion.
+Patterned according to Li et al. [2008]; Li and Durbin [2009], we integrate the empirical interval length
+distribution PEmp (I(A)) into an overall score S0 (A) := PPh (A)·PEmp (I(A)) and obtain as the probability
+that A is the correct alignment for its read, by application of Bayes’ formula
+S0 (A)
+.
+Ã∈A(R) S0 (Ã)
+
+P0 (A) = P
+
+(4)
+
+The Read Alignment Graph. We arrange all scored read alignments A in form of an undirected, weighted
+graph G = (A, E, w). Since we identify nodes with read alignments from A, we use these terms interchangeably. We draw an edge between alignments A, B ∈ A if we cannot reject the hypothesis that, in
+case they are both correct, their reads can stem from the same allele. See the subsequent paragraph for
+details. The weight function w : A → [0, 1] is defined by w(A) := P0 (A). We further label nodes by
+r : A → {1, ..., N } where r(A) = n iff A ∈ A(Rn ) that is alignment A is due to read Rn .
+As usual, we write δ(A) := |{B ∈ A | (A, B) ∈ E}| for the degree of node A. A clique C ⊂ A is
+defined as a subset of mutually connected nodes, that is, (A, B) ∈ E for all A, B ∈ C. A maximal clique C
+is a clique such that for every node A ∈ A \ C there is B ∈ C : (A, B) 6∈ E. Note that by our definition of
+edges, a clique is a group of alignments which can be jointly assumed to be associated with the same allele,
+or, in other words, to jointly support the same local phenomenon in the donor genome. Maximal cliques
+are obviously particularly interesting: while all alignments in the clique are likely to support the same local
+phenomenon, joining any other overlapping alignment may lead to conflicts.
+Edge Computation. See Figure 2 for illustrations of the following. Let A, B be two alignments. We
+define:
+- ∆(A, B) := |I(A) − I(B)| is the absolute difference of interval length.
+- O(A, B) := min(yA , yB ) − max(xA , xB ) − 1 where in case of O(A, B) ≥ 0 we refer to all positions
+between max(xA , xB ) and min(yA , yB ) as their common interval.
+¯ B) := (I(A) + I(B))/2 is the mean interval lengths.
+- I(A,
+¯ B) − O(A, B) is the difference of mean interval length and overlap. To motivate
+- U (A, B) := I(A,
+this quantity, note that, in case A and B overlap (hence length of common interval O(A, B) > 0) and are
+from the same allele, a deletion at that location can only happen to take place in their common interval. If
+¯ B) significantly deviates from µ and the common interval is not large enough to
+U (A, B) is large then I(A,
+explain this by a large enough deletion. Hence it is unlikely A, B are from the same allele.
+5
+
+Let X be N(0,1) -distributed and, as above, µ, σ be mean and variance of the insert size distribution. We
+draw an edge between alignments A, B in the read alignment graph iff the reads of A and B are different,
+O(A, B) ≥ 0 and
+1 ∆(A, B)
+P(|X| ≥ √
+) ≤ 0.05 and
+σ
+2
+√ (U (A, B) − µ)
+P(X ≥ 2
+) ≤ 0.05.
+σ
+
+(5)
+(6)
+
+Inequality (5) is a two-sided two sample Z-test to measure statistically compatible insert size. Inequality (6) reflects a one-sided one-sample Z-test for statistically consistent overlap [Wasserman 2004]. If two
+alignments A, B with O(A, B) ≥ 0 pass these tests, we have no reason to reject the hypothesis that the
+alignments are from the same allele so we draw an edge.
+
+2.2
+
+CLEVER: Algorithmic Workflow
+
+1. Enumerating Maximal Cliques: We compute all maximal cliques in the read alignment graph.
+2. We assign two p-values pD (C), pI (C) to each maximal clique C which are the probabilities that the
+alignments participating in C do not commonly support a deletion or insertion. So the lower pD (C) or pI (C),
+the more likely it is that C supports a deletion or insertion, respectively.
+3. For the thus computed p-value, we control the false discovery rate at 10 % by applying the standard
+Benjamini-Hochberg procedure separately for insertions and deletions. All cliques remaining after this step
+are deemed significant and processed further.
+4. Determining Parameters: We parametrize deletions D by their left breakpoint DB and their length
+DL , which denotes that reference nucleotides of positions DB , ..., DB + DL − 1 are missing in the donor.
+We parametrize insertions I by their breakpoint IB and their length IL such that before position IB in the
+reference there has been a sequence of length P
+L inserted in the donor. Depending on whether C represents a
+deletion or insertion, we determine [w(C) := A∈C w(A)]
+1 X
+w(A)(I(A) − µ) resp.
+w(C)
+A∈C
+
+1 X
+w(A)(µ − I(A))
+w(C)
+
+(7)
+
+A∈C
+
+as the length DL of the deletion resp. IL of the insertion. We determine breakpoints DB or IB such that
+the predicted deletion or insertion sits right in the middle of the intersection of all internal segments of
+alignments in C.
+Enumerating Maximal Cliques. We identify nodes of the read alignment graph with the intervals of the
+corresponding alignments. We first sort the 2m endpoints of these intervals, m := |A|, in ascending order
+of their positions. We then scan this list from left to right. We maintain a set of active cliques that could
+potentially be extended by a subsequent interval, which initially is empty. If the current element ` of the
+list is a left endpoint, we extend the set of active cliques according to the following rules. For the sake of
+simplicity, let us assume that a unique interval starts at `, corresponding to a vertex A in the read alignment
+graph G. Let N (A) be the open neighborhood of A. If C ∩N (A) = ∅ for all active cliques C, add a singleton
+clique {A} to the set of active cliques. Otherwise, for each active clique C,
+(i) if C ∩ N (A) = C, then C := C ∪ {A}, otherwise
+(ii) if C ∩ N (A) 6= ∅, add (C ∩ N (A)) ∪ {A} to the set of active cliques.
+
+6
+
+Finally, duplicates and cliques that are subsets of others are removed.
+If the current element ` of the list is a right endpoint, we output all cliques that contain at least one
+interval ending at `. These cliques go out of scope and are thus maximal. We remove intervals ending at `
+from active cliques. Cliques that become empty are removed from the set of active cliques.
+Runtime Analysis. Let k be an upper bound on local alignment coverage, c be the maximum number of
+active cliques and s be the size of the output. The detailed runtime analysis of section A in the Supplement
+gives a total running time of O(m(log m + kc2 ) + s). Despite these rather moderate worst case guarantees,
+however, our algorithm is very fast in practice. See again the supplementary section A for an analysis of the
+corresponding reasons.
+P-Values for Cliques. We proceed asPsketched in theP
+Section 1.1.2. Let C be a maximal clique in the
+read alignmentP
+graph and let w(C) := A∈C w(A) = A∈C P0 (A) be the the weight of the clique. Let
+1
+¯
+I(C)
+:= w(C)
+· A∈C w(A) · I(A) be the weighted mean of alignment interval length of the clique. Let Φ be
+the standard normal distribution function. Let ρ(C) be the number of alignments which are at the genomic
+location of the clique. For example, in Figure 1, ρ(C1 ) = ρ(C2 ) = 7 is just the number of alignments which
+overlap with one another at this position of the reference. We compute
+p(C)D := 2ρ(C)
+
+X
+J⊂C
+
+p(C)I := 2ρ(C)
+
+X
+J⊂C
+
+¯ −µ
+p I(C)
+PH0 (AJ )[1 − Φ( |J|
+)]
+σ
+
+(8)
+
+¯ −µ
+p I(C)
+)]
+PH0 (AJ )[Φ( |J|
+σ
+
+(9)
+
+just as in equations (3) and (2) with the difference that we distinguish between cliques which give rise to
+deletions and insertions. 2ρ(C) is the number of subsets of alignments one can test at this location, that is
+the virtual number of tests which we perform, so multiplying by 2ρ(C) is a Bonferroni-like correction. This
+correction accounts for coverage fluctuations.
+¯
+If p(C)D is significantly small then I(C)
+is significantly large, hence the alignments in C are deemed to
+commonly support a deletion. Analogously, if p(C)I is significantly small, then C is supposed to support an
+insertion. Refer to Supplement B for details on how the exponential sums in equations (8) and (9) can be
+computed efficiently.
+
+3
+
+Results and Discussion
+
+Simulation: Craig Venter Reads. We downloaded the comprehensive set of annotations of both homozygous and heterozygous structural variants (also including inversions and all other balanced re-arrangements)
+for Craig Venter’s genome, as documented by Levy et al. [2007] and introduced them into the reference
+genome, thereby generating two different alleles. If nested effects lead to ambiguous interpretations we
+opted for an order which respects the overall predicted change in copy number. We used UCSC’s SimSeq1
+as read simulator to simulate Illumina paired-end reads with read end length 100 at coverage 15x for each
+of the two alleles which yields 30x sequence coverage overall.
+Real Data: NA18507. We further were provided with reads of the genome of an individual from the
+Yoruba in Ibadan, Nigeria by Illumina. Reads were sequenced on a GAIIx and are now publicly available2 .
+1
+2
+
+https://github.com/jstjohn/SimSeq
+ftp://ftp.sra.ebi.ac.uk/vol1/ERA015/ERA015743/srf/
+
+7
+
+Table 1: This table shows benchmarking results for simulated (Venter) and real data (NA18507). Performance rates
+as recall, precision, exclusive predictions (Exc. which are true predictions, uniquely predicted by that tool) and Fmeasure are grouped by different indel size ranges. A dash resp. N/A indicates no prediction resp. not applicable in
+that category (GASV cannot report insertions and SV-seq can only predict insertion breakpoints but not their length
+such that one cannot evaluate them by common criteria). Insertions significantly exceeding the internal segment size
+(≈ 112 here) cannot be detected by insert size based approaches. PINDEL does not detect such insertions either.
+Data Set
+
+Venter Insertions
+Venter Deletions
+Prec. Rec. Exc. F
+Prec. Rec. Exc. F
+Length Range 20–49 (8,786 true ins., 8,502 true del.)
+CLEVER
+62.5 53.0 20.4 57.4
+60.4 66.8 15.9 63.4
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+–
+N/A
+0.0
+32.4
+
+5.1
+N/A
+0.0
+8.4
+
+0.1
+N/A
+0.0
+0.2
+
+–
+N/A
+–
+13.4
+
+75.5
+5.4
+–
+66.3
+
+7.5
+25.8
+0.1
+8.0
+
+0.0 13.6
+1.8 8.9
+0.0 –
+0.3 14.3
+
+PINDEL∗
+66.1 44.9 18.7 53.5
+49.5 55.8 12.1 52.5
+N/A N/A N/A N/A
+96.0 1.2 0.0 2.3
+SV-seq2∗
+Length Range 50–99 (2,024 true ins., 1,822 true del.)
+CLEVER
+60.4 86.6 7.3 71.2
+72.7 80.7 6.8 76.5
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+86.5
+N/A
+0.0
+55.8
+
+56.5
+N/A
+0.0
+76.6
+
+0.2
+N/A
+0.0
+1.4
+
+68.3
+N/A
+–
+64.5
+
+87.3
+46.1
+–
+66.5
+
+48.1
+35.0
+5.2
+65.8
+
+0.3 62.0
+1.5 39.8
+0.0 –
+1.5 66.1
+
+NA18507 Insertions NA18507 Deletions
+RPr. Rec. Exc.
+RPr. Rec. Exc.
+(2,295 true ins., 2,192 true del.)
+7.7 24.1 8.4
+8.9 44.7 6.6
+–
+N/A
+0.0
+0.8
+
+0.3
+N/A
+0.0
+3.8
+
+0.0
+N/A
+0.0
+0.4
+
+8.2
+1.0
+–
+4.6
+
+5.8
+20.1
+0.0
+4.6
+
+0.0
+2.0
+0.0
+0.3
+
+13.1 40.0 25.3
+9.3 64.9 26.3
+N/A N/A N/A
+15.2 1.6 0.2
+(303 true ins., 294 true del.)
+1.6 70.3 6.9
+5.5 79.6 12.2
+6.4
+N/A
+0.0
+1.4
+
+15.5
+N/A
+0.0
+62.7
+
+0.0
+N/A
+0.0
+2.3
+
+9.8
+2.3
+–
+4.3
+
+44.2
+34.7
+2.4
+57.1
+
+0.7
+1.0
+0.0
+1.4
+
+PINDEL∗
+77.5 20.5 0.3 32.5
+72.5 37.5 0.4 49.4
+SV-seq2∗
+N/A N/A N/A N/A
+83.6 19.8 0.2 32.0
+Length Range 100–50 000 (3,101 true ins., 2,996 true del.)
+CLEVER
+66.2 23.8 2.0 35.1
+87.6 69.9 4.1 77.7
+
+10.8 29.7 1.3
+8.3 43.9 0.3
+N/A N/A N/A
+9.9 28.6 0.3
+(165 true ins., 414 true del.)
+0.5 31.5 1.8
+4.8 70.3 2.7
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+61.0
+N/A
+0.0
+60.4
+
+0.9
+N/A
+0.0
+1.8
+
+PINDEL∗
+SV-seq2∗
+
+– 1.9 0.0 –
+N/A N/A N/A N/A
+
+17.6
+N/A
+0.0
+25.5
+
+3.0
+N/A
+0.0
+3.5
+
+27.4
+N/A
+–
+35.8
+
+65.8
+0.9
+72.8
+58.8
+
+57.7
+49.2
+56.8
+65.1
+
+0.0
+1.0
+0.4
+1.5
+
+61.5
+1.7
+63.8
+61.8
+
+84.7 39.5 0.1 53.9
+81.6 37.5 0.3 51.3
+
+23.0
+N/A
+0.0
+44.9
+
+1.8
+N/A
+0.0
+10.9
+
+– 0.6 0.0
+N/A N/A N/A
+
+5.2
+0.1
+2.0
+3.0
+
+62.1
+57.7
+65.5
+70.0
+
+0.5
+2.4
+0.5
+1.4
+
+5.9 51.9 0.2
+3.9 34.5 0.0
+
+Read ends are of length 101. Read coverage is 30x. For benchmarking purposes, we used annotations from
+[Mills et al. 2011, Gen.Res.] merged with “DIP” annotations from the HGSV Project3 database.
+Reference Genome and Alignments As a reference genome, we used version hg 18, as downloaded from
+the UCSC Genome Browser. All reads considered were aligned using BWA [Li and Durbin 2009] with the
+option to allow 25 alignments per read end, which amounts to a maximum of 252 alignments per paired-end
+read. BWA determined mean insert size µ ≈ 112 and standard deviation σ ≈ 15 for both simulated and
+NA18507 reads. Note that re-alignment of discordant reads with a slow, but more precise alignment tool,
+such as Novoalign4 can lead to subsequent resolution of much misaligned sequence and therefore has been
+suggested by Quinlan et al. [2010]. We are aware that all methods considered would benefit from such
+(time-consuming) re-alignment of reads.
+3
+4
+
+http://hgsv.washington.edu
+http://www.novocraft.com/main/index.php
+
+8
+
+Experiments. For benchmarking, we considered 5 different state-of-the-art insert size based approaches, 4
+of which are applicable for a whole-genome study: GASV [Sindi et al. 2009], VariationHunter [Hormozdiari
+et al. 2009, v3.0], Breakdancer [Chen et al. 2009a] and HYDRA [Quinlan et al. 2010]. We ran MoDIL [Lee
+et al. 2009] only on chromosome 1 of the simulated data which, on our machines required several hundred
+CPU hours. In contrast, we process chromosome 1 in less than one hour. We also consider the split-read
+aligners PINDEL [Ye et al. 2009] and SV-seq2 [Zhang et al. 2012]. Details on program versions and on how
+we ran each method are collected in Supplement C. In case of deletions, we define a hit as a pair of a true
+deletion and a predicted deletion which overlap and whose lengths do not differ by more than 100bp, which
+roughly is the mean of internal segment size. We say that a true insertion (B0 , L0 ) and a predicted insertion
+(B1 , L1 ), where B is for breakpoint, L is for length, hit each other if the intervals [B0 + 1, ..., B0 + L0 ]
+and [B1 + 1, ..., B1 + L1 ] overlap. This “overlap criterion” precisely parallels the one for deletions: if
+one views deletions in the reference as insertions in the donor then the deletions in the reference (relative
+to reference coordinates) hit if and only if the insertions in the donor hit (relative to donor coordinates).
+Again, we also require |L0 − L1 | ≤ 100. We also offer results on alternative hit criteria which, instead of
+overlap, depend on fixed thresholds on breakpoint distance and differences of indel length in Supplement D.
+As usual, recall = TP/(TP+FN) where TP (= True Positives) is the number of true deletions being hit and
+FN (= False Negatives) is the number of true deletions not being hit. For Precision = TP/(TP+FP) where
+here TP is the number of predicted indels being hit and FP is the number of predicted indels not being hit.
+We relate recall and precision to one another and also display F = 2*Recall*Precision/(Recall + Precision)
+[F-measure], as a common overall statistic for performance evaluation. We refer to Exc. (= exclusive) as the
+percentage of true annotations which were exclusively (and correctly) predicted by the method in question.
+Since the annotations for the real data set are obviously still far from complete, a false positive may in fact
+point out a missing annotation(!). We therefore call the ratio TP/(TP+FP) relative precision (RPr.). For recall
+on the real data note that a good amount of existing annotations may be of limited reliability. Therefore,
+we refrain from displaying the on real data meaningless F-measure rates. Last but not least, we present
+average deviation of breakpoint placement and differences in length for all tools in the Supplement E. In
+Supplement F, we present CLEVER’s results on simulated data when including true alignments in the BAM
+files, or even using only true alignments so as to analyze its behavior relative to removal of external sources
+of errors.
+Results. See Table 1 for performance figures. Boldface numbers designate the best approach, italic numbers the best insert size based approach (if not the best approach overall). Comparing absolute numbers of
+true indels in the real data with the simulated data points out immediately that the vast majority of annotations seemingly is still missing. Therefore, all results on the real data, in particular those on precision, can
+only reflect certain trends. For the simulated data, all values reflect the truth. As expected, performance rates
+greatly depend on the size of the indels. For prediction of indels of < 20 bp, split-read based approaches
+and/or read alignment tools themselves are the option of choice.
+20-49 bp. CLEVER outperforms all other approaches on the simulated data and is the best insert size
+based approach also on the real data. PINDEL achieves best rates on the real data. Also, CLEVER makes
+a substantial amount of exclusive calls in all categories. An additional look at the tables in the Supplement,
+subsection D.2 points out that 80 − 90% of CLEVER’s indel calls come significantly close to a real indel.
+Further analyses (Supplement, section F) demonstrate that 30% of CLEVER’s false positives are due to
+misalignments and mapping ambiguities (see also External Error Sources below). Obviously many of those
+extremely close, but not truly hitting calls are due to external errors. While Breakdancer makes little calls,
+it achieves high precision which comes at the expense of reduced accuracy in terms of indel breakpoint
+placement and length (see Supplement, section E).
+
+9
+
+50-99 bp. Here, CLEVER achieves substantially better recall and more exclusive calls than PINDEL also
+on the real data. On the simulated data, CLEVER again achieves best overall performance. In contrast
+to 20 − 49 bp however, Breakdancer and VariationHunter (VH) here already make significant contributions. While VH achieves good overall performance, Breakdancer mostly excels in precision. As before,
+when allowing a certain offset of breakpoints (Suppl. ssec. D.2) or when integrating correct alignments
+(Suppl. sec. F)), CLEVER’s precision substantially rises, from 60 − 72% to 72 − 96% across the categories.
+100-50000 bp. Also on indels ≥ 100 bp CLEVER achieves most favorable performance rates while also
+other tools (Breakdancer, Hydra, VariationHunter) make decisive contributions. This documents that the
+current challenges for indel discovery are rather have been the size range of 20 − 100 bp.
+MoDIL. We compared MoDIL with all other tools on chromosome 1 alone, because of the excessive runtime requirements of MoDIL. See Supplement, section G. Overall, MoDIL incurs certain losses in performance with respect to CLEVER, across all categories, but outperforms the other insert size based approaches
+apart from larger indels (≥ 100 bp). It is noteworthy that MoDIL makes a substantial amount of exclusive
+calls for insertions of 50 − 99 bp. In terms of runtime, CLEVER outperforms MoDIL by a factor of ≈ 1000.
+Accuracy of Breakpoint and Length Predictions. See section E for related numbers. The split-read
+based approaches outperform the insert size based approaches. Among the insert size based approaches,
+CLEVER and GASV are most precise for 20 − 49 and 100 − 50000 bp. For 50 − 99 bp calls, Breakdancer
+achieves favorable values.
+External Sources of Errors. See Supplement, section F for related results and a detailed discussion on to
+what degree misalignments and multiply mapped reads/alignment hamper computational SV discovery.
+Conclusion. We have presented a novel internal segment size based approach for discovering indel variation from paired-end read data. In contrast to all previous, whole-genome-applicable approaches, our tool
+takes all concordant read data into account. We outperform all prior insert size based approaches on indels
+of sizes 20 − 99 bp and we also achieve favorable values for long indels. We outperform the split-read
+based approaches considered on medium-sized (50 − 99 bp) and larger (≥ 100 bp) indels. In addition,
+our approach detects a substantial amount of variants missed by all other approaches, in particular in the
+smallest size range considered (20 − 49 bp). In conclusion, CLEVER makes substantial contributions to SV
+discovery in particular in the size range 20 − 99 bp.
+Our approach builds on two key elements: first, an algorithm that enumerates maximal, statistically
+contradiction-free ensembles as max-cliques in read alignment graphs in short time and, second, a sound
+statistical procedure that reliably calls max-cliques which indicate variants. Our approach is generic with
+respect to choices of variants; max cliques in the read alignment graphs can also reflect other variants such
+as inversions or translocations. As future work, we are planning to predict inversions and to incorporate split
+read information in a unifying approach.
+
+A
+
+Appendix: Engineering the CLEVER algorithm
+
+The key idea leading to a practically fast algorithm is to represent each active clique as a bitvector, where
+each bit indicates whether a particular node is part of the clique or not. We keep all nodes from active cliques
+in a binary search tree sorted by their segment length, such that vertices whose alignment satisfy condition
+(5) can be found efficiently. We test each one of these candidate vertices for condition (6) to identify the
+
+10
+
+100
+10-1
+
+Relative frequency
+
+10-2
+10-3
+10-4
+10-5
+10-6
+10-7
+
+1000
+
+2000
+3000
+4000
+Number of active cliques
+
+5000
+
+6000
+
+Figure 3: Histogram of active cliques for data set Venter.
+
+100
+10-1
+
+Relative frequency
+
+10-2
+10-3
+10-4
+10-5
+10-6
+10-7
+
+500
+
+1000
+1500
+Number of active nodes
+
+2000
+
+Figure 4: Histogram of active nodes for data set Venter.
+neighborhood of the current vertex u. With our representation of the current cliques as bitvectors, we can
+compute all the intersections with N (u) by a bitparallel boolean operation.
+In the following we call a node active if it is contained in at least one active clique, otherwise we call
+
+11
+
+100
+
+Relative frequency
+
+10-1
+10-2
+10-3
+10-4
+10-5
+10-6
+
+10
+
+20
+30
+40
+Capacity of bit-vectors [64-bit words]
+
+50
+
+Figure 5: Histogram of bit-vector capacities for data set Venter.
+
+100
+10-1
+
+Relative frequency
+
+10-2
+10-3
+10-4
+10-5
+10-6
+10-7
+10-8
+
+1000
+
+2000
+
+3000 4000 5000 6000
+Number of active cliques
+
+7000
+
+8000
+
+Figure 6: Histogram of active cliques for data set NA18507.
+it inactive. When nodes become inactive, a reorganization of all bitarrays is required and doing this in
+each iteration would cancel the benefits of the fast bitparallel operations. To have a good trade-off between
+not-too-frequent memory reorganizations and not-too-large active sets of nodes, we employ the following
+
+12
+
+100
+10-1
+
+Relative frequency
+
+10-2
+10-3
+10-4
+10-5
+10-6
+10-7
+10-8
+
+500
+
+1000
+1500
+Number of active nodes
+
+2000
+
+2500
+
+Figure 7: Histogram of active nodes for data set NA18507.
+
+100
+
+Relative frequency
+
+10-1
+10-2
+10-3
+10-4
+10-5
+10-6
+
+10
+
+20
+30
+40
+Capacity of bit-vectors [64-bit words]
+
+50
+
+Figure 8: Histogram of bit-vector capacities for data set NA18507.
+strategy. We start with a bitvector capacity equaling the machine word size (usually 64 bits) and reserve
+this amount of memory for each clique (although fewer nodes are active in the beginning). Whenever the
+number of active nodes reaches the capacity, we reorganize the data structure. That is, we discard all now
+
+13
+
+inactive nodes, set the new capacity to twice the size of the set of now active nodes, and repack all bitvectors.
+We bound local alignment coverage by first removing alignments of interval length ≥ 50, 000, due to
+that discovery of deletions of that size is considered rather easy Alkan et al. [2011]. We further remove
+alignments of weight P0 (A) < 1/625 if necessary, motivated by that we allow at most 25 alignments per
+read end that is 252 = 625 alignments per paired-end read (see Results). We found that these restrictions
+result in at most ≈ 500 alignments also in heavily repetitive areas.
+To complement the theoretical analysis in the following subsection A.1, we give histograms of observed
+numbers of active cliques, number of nodes in active cliques, and needed bit-vector capacities in the following. For each run of CLEVER, these three quantities were stored in each iteration (i.e. after processing
+another alignment pair) to obtain the shown histograms. Note that due to the delayed discard of inactive
+nodes and the doubling of the bitvector size as described above, active node capacities larger than 500 as
+can be seen in histograms 4 and 7.
+In our experiments, our algorithm computed 647,944,355 cliques from the Venter alignments and
+1,193,764,528 cliques from the NA18507 alignments.
+
+A.1
+
+Runtime Analysis
+
+Please revisit paragraph ’Enumerating Maximal Cliques’ in the main text for notations and definitions in the
+following.
+Sorting the nodes takes O(m log m) time. The intersection of the neighborhood of the current vertex
+with all active cliques can be determined by first iterating over all vertices in active cliques and then intersecting the resulting neighborhood with each active clique by iterating over all vertices contained in the
+clique. If we let k be an upper bound on the local alignment coverage and c be the maximum number of
+active cliques, computing the intersection of the neighborhood with all active cliques takes time O(kc).
+Similarly, to detect duplicates and cliques that are subsets of other cliques, we compute the intersection
+between all pairs of cliques modified according to rule (i) or added following rule (ii). Only among those
+cliques duplicates and subcliques can arise. Bounding the set of new cliques by c and by applying the same
+argument as above, all pairwise intersections can be computed in time O(kc2 ). This gives a total running
+time of O(m(log m + kc2 ) + s), where s is the size of the output.
+In our experiments we bound the local alignment coverage by k = 500, which we achieve almost
+entirely through a very weak restriction of read alignments, see above for details. Concerning the number of
+active cliques, we observe a rapid drop in relative frequency for larger sets (Supplementary Fig. 3 and 6). In
+particular, only in 1% of the cases the set of active cliques is larger than 268. Furthermore, our experiments
+show that the number of nodes per active cliques is typically considerably smaller than the upper bound of
+500 nodes imposed by the bound on the local alignment coverage (Supplementary Fig. 4 and 7). In fact, in
+more than 99% of the cases the number of nodes in active cliques is smaller than 236. These observations
+are one reason for the discrepancy between the moderate worst case guarantees of our algorithm and its
+excellent practical behavior.
+The other reason is a careful engineering of our algorithm that considerably improves its practical performance, although it has no or a rather limited effect on its worst case analysis (see Supplement A for details).
+For example, the read alignment graph is never constructed explicitly. Rather, we compute the edges on
+demand. Since the computation of intersections between sets of nodes, either between the neighborhood of
+a new node and the active cliques, or between pairs of new active cliques, is the key step of our algorithm,
+we use a binary search tree in combination with bit-parallel operations. The latter cause the time required
+to compute intersections between sets of nodes to drop by a factor w, the word size used in the bit-parallel
+operations. In other words, the time to compute N (A) and N (A) ∩ C for all active cliques C reduces to
+O(k + wk c), the time required to compute the intersections between all pairs of new active cliques reduces
+to O( wk c), resulting in a total running time of O(m(log m + k + wk c2 ) + s). In Figures 5 and 8, we plot the
+14
+
+0
+
+relative frequencies of different values of d kw e, where k 0 ≥ k takes into account our delayed update of data
+0
+structures, as detailed in Supplement A. In 99% of the cases d kw e ≤ 4. That is, only four machine words
+are used to store each clique and the intersection of two cliques can thus be computed with four elementary
+operations.
+
+B
+
+Appendix: Approximation of (8)
+
+In the following, we describe how to compute reasonable approximations P∗ (C) for PH0 (C) in polynomial
+time. Due to that we would like to ensure to keep false discovery rate under control when correcting for
+multiple testing, P∗ (C) should be an upper bound for PH0 (C).
+Let A be a set of alignments and wmax (A) := max{w(A) | A ∈ A} resp. wmin (A) := min{w(A) |
+A ∈ A} be the maximum resp. minimum weight of an alignment A ∈ A. As approximation scheme for (8),
+we first determine
+wmax (C) := max{w(A) | A ∈ C}
+(10)
+for the clique C in question and further (L for large, S for small weight)
+1
+CL := {A ∈ C | w(A) ≥ wmax (C)} and
+2
+1
+CS := {A ∈ C | w(A) < wmax (C)}.
+2
+
+(11)
+(12)
+
+Let further Ck ⊂ C be the k “most concordant” alignments in clique C, that is, A ∈ Ck iff
+|I(A) − µ| ≤ |I(B) − µ|
+
+(13)
+
+for at least |C| − k alignments B ∈ C. Let PH0 (Ck ) be the probability that the null hypothesis of no variant
+holds true given that precisely the k most concordant alignments Ck are correct. As in the main text, we
+assume that C = {A1 , ..., An } consists of n alignments and we write AJ , J ⊂ Nn := {1, ..., n} for the event
+that precisely the alignments Aj , j ∈ J are correct. By definition of Ck , for each J ⊂ Nn with cardinality
+|J| = k
+PH0 (AJ ) ≤ PH0 (Ck ).
+(14)
+Let further J ⊂ Nn be of cardinality |J| = k such that
+|{Aj , j ∈ J} ∩ CL | = l
+
+(15)
+
+that is l alignments of the AJ , j ∈ J are from
+translates to that they have comparatively large
+ CLS |which
+
+weight w(Aj ). If 0 ≤ l ≤ |CL | there are |ClL | · |C
+such
+subsets J. For each such subset, we compute
+k−l
+P(AJ ) ≤ wk,l (C) := wmax (CL )l wmax (CS )k−l · (1 − wmin (CL ))|CL |−l (1 − wmin (CS ))|CS |−(k−l) . (16)
+
+1
+We compute [ m
+m2 := 0, m2 > m1 ]
+X
+
+(14),(16)
+
+P(AJ )PH0 (AJ )
+
+≤
+
+PH0 (Ck ) ·
+
+|CL |
+X
+l=0
+
+J⊂Nn ,|J|=k
+
+15
+
+
+
+ 
+
+|CL |
+|CS |
+wk,l ·
+·
+l
+k−l
+
+(17)
+
+which overall amounts to
+PH0 (C) =
+
+X
+
+P(AJ )PH0 (AJ )
+
+J⊂Nn
+
+= P(A∅ ) + P(ANn ) +
+(17)
+
+≤
+
+n
+Y
+
+(1 − w(Aj ) +
+
+j=1
+
++
+
+n−1
+X
+
+X
+
+P(AJ )PH0 (AJ )
+
+k=1 J⊂Nn ,|J|=k
+
+(18)
+
+n
+Y
+
+w(Aj )
+
+j=1
+n−1
+X
+
+PH0 (Ck )
+
+k=1
+
+|CL |
+X
+l=0
+
+
+ 
+
+|CL |
+|CS |
+wk,l ·
+·
+l
+k−l
+
+This upper bound can be computed in polynomial time.
+As a motivation for our approximation, note that if all alignments A ∈ C have equal weight, for example
+most importantly in case of only uniquely mapped alignments, the approximation yields the exact value.
+
+C
+
+Appendix: Pipeline Details
+
+In the following, we give details on how we ran all structural-variation discovery tools, including commandline options, versions, and interpretation of output. We “force” every tool to make exact predictions. That
+is, for a deletion each tool has to predict a set of start and end coordinates and for an insertion each tool has
+to predict a breakpoint position and a length. If such “exact” calls are not provided by the specific tool, we
+compute them from the output as detailed below.
+
+C.1
+
+SamTools
+
+When speaking of SamTools below, we refer to version 0.1.16 (r963:234) downloaded from http://
+samtools.sourceforge.net.
+
+C.2
+
+Read Mapping with BWA
+
+We used BWA version 0.6.1-r104 obtained from https://github.com/lh3/bwa. First, an index
+was created by running bwa index with parameter -a bwtsw. The input files are two (gzipped) FASTQ
+files containing the first and second reads of all pairs, respectively. Each of both files was aligned by calling
+bwa aln with default parameters. The resulting sai files were combined by running bwa sampe with
+parameters -n 25 and -N 25 to allow up to 25 alignments per read end to be reported as XA tags.
+
+C.3
+
+Running HYDRA
+
+HYDRA version 0.5.3 was obtained from http://code.google.com/p/hydra-sv. To prepare a
+BAM file that only contains discordant read pairs, we ran
+samtools view -h -F2 bwa-out.bam | xa2multi.pl | samtools view -S -b > hydra-in.bam
+where xa2multi.pl is distributed along with BWA and expands XA tags indicating multiply mapped
+reads into multiple lines in the resulting BAM file; i.e. it has one line per alignments instead of one line per
+read (end). Next, we used BEDtools version 2.15.0 (obtained from https://code.google.com/p/
+bedtools) to create HYDRA input files as follows.
+16
+
+bamToBed -ed -i hydra-in.bam | pairDiscordants.py -i stdin -y 0 -z 0
+> hydra-in.bedpe
+dedupDiscordants.py -i hydra-in.bedpe -s 3 > hydra-in.dedup.bedpe
+The scripts pairDiscordants.py and dedupDiscordants.py are part of the HYDRA package.
+We then called HYDRA:
+hydra -in hydra-in.dedup.bedpe -out hydra-out.breaks -mld <mld>
+-mno <mno>
+where <mld> was set to 10 · σ and <mno> was set to 20 · σ and σ is the fragment size standard deviation as
+(robustly) estimated by BWA. The resulting file hydra-out.breaks.final was then used to extract
+predictions as follows. We only retain lines where both breakpoints lie on the same chromosome (i.e.
+field1 = field4) and breakpoint orientations are not equal (i.e. field9 6= field10). To decide
+whether a prediction corresponds to an insertion or to a deletion, we compare the difference of the start of
+second breakpoint (field5) and the end of first breakpoint (field3) to the mean internal segment size µ
+as estimated by BWA. If the difference is larger than µ, we interpret the prediction as a deletion from end of
+first breakpoint (field3) to the start of second breakpoint (field5). If it is smaller than µ, we interpret
+it as an insertion at position (field3 + field5)/2 of length µ − (field5 − field3).
+
+C.4
+
+Running GASV
+
+We used GASV version 1.5.1 as downloaded from http://code.google.com/p/gasv. The script
+BAM preprocessor.pl coming with GASV was run on the BAM file produced by BWA, resulting in
+files named dataset all.deletion, dataset all.divergent, dataset all.inversion,
+dataset all.translocation, and dataset.info. Then, the main GASV program was called:
+gasv --cluster --lmin <Lmin> --lmax <Lmax> --minClusterSize 2
+dataset_all.deletion
+where the values <Lmin> and <Lmax> were taken from dataset.info. GASV’s predictions were read
+from the produced file dataset all.deletion.clusters. Only lines with breakpoints on the same
+chromosome were used (i.e. field2 = field4). GASV does not predict insertions. To obtain deletion
+calls, we took the arithmetic mean for each of the two values given in each of the two fields 3 and 5 and
+used these two means as start and end positions of a called deletion.
+
+C.5
+
+Running PINDEL
+
+We used PINDEL version 0.2.4d obtained from https://trac.nbic.nl/pindel. As PINDEL requires sorted BAM files and the corresponding index in a bai file, these were produced using samtools
+sort and samtools index, respectively. PINDEL was then run using the following command line.
+pindel -T 8 -f hg18.fasta -i pindel.config -c ALL -o pindel-out
+where pindel.config contains the name of the sorted BAM file and the mean fragment length
+as estimated by BWA. Of the resulting files, we interpret only pindel-out D, pindel-out SI, and
+pindel-out LI. We only extract events of length larger or equal to ten (i.e. field3 ≥ 10). For deletions, we read the chromosome, start, and end coordinate from fields 8, 10, and 11, respectively. For
+insertions, we read the chromosome, breakpoint positions and length from fields 8, 10, and 3, respectively.
+
+17
+
+C.6
+
+Running Breakdancer
+
+We obtained BreakDancer version 1.1 2011 02 21 from http://sourceforge.net/projects/
+breakdancer. Like PINDEL, BreakDancer runs on sorted BAM files. First, we ran bam2cfg.pl
+to create a config file from the input BAM file. Then, breakdancer max was invoked on the config file
+without further parameters. We interpreted the resulting output file as follows. Again, we discarded all predictions with two breakpoints corresponding to different chromosomes (i.e. field1 6= field4). For all
+lines indicating a deletion (i.e. field7 = DEL), we extracted chromosome, start, and end coordinate from
+fields 1, 2, and 5, respectively. For all lines indicating an insertion (i.e. field7 = INS), we determined
+chromosome, breakpoint position, and length as field1, (field2 + field5)/2, and the negative of
+field8, respectively.
+
+C.7
+
+Running VariationHunter
+
+VariationHunter (VH) version 0.3 was downloaded from http://compbio.cs.sfu.ca/strvar.
+htm. We adapted the source code to allow parameters to be given at the command line. These changes do
+not influence the results in any way. VariationHunter expects a special input format called divet. We ran
+the BAM file produced by BWA through xa2multi.pl (see Section C.3 above) and used a custom script
+bam2divet.py to produce VH input.
+samtools view -h bwa-out.bam | xa2multi.pl | samtools view -S -b
+> input.bam
+bam2divet.py input.bam <min> <max> > vh-in.divet
+where <min> and <max> are the parameters defining the discordant reads, i.e. reads with internal length
+smaller (higher) than min (max). We set to µ−4·σ and µ+4·σ, respectively, following the study describing
+VariationHunter.
+The “pre-processing mapping prune probability” is set to 1.0 and the minimum support for a cluster
+to 2. VH writes insertions, deletions, and inversions to separate files. We only consider insertions and
+deletions. For deletions, we use the fields Inside End and OutSide Start as start and end of the
+predicted deletion, respectively. For insertions, we set the breakpoint position to (OutSide Start −
+Inside End)/2 and the length to µ − Avg Span.
+
+C.8
+
+MODIL
+
+Modil version 1.1 was obtained from http://compbio.cs.toronto.edu/modil/src/modil_
+beta_v2.tar.gz.
+Modil expects a special input format. We used a custom script to produce MODIL input from a sorted
+BAM file.
+samtools view -h bwa-out.bam | xa2multi.pl | samtools view -S -b
+> input.bam
+samtools sort input.bam input
+sortedbam2modil.py input.sorted.bam
+The script generates standard output files named by chromosome, which should be placed as indicated
+in the README.txt.
+We set parameters MEAN INSERT SIZE and STD INSERT SIZE in the MODIL input file
+mrfstructvar.properties to µ and σ, respectively. Again, we use the values estimated by BWA. All
+
+18
+
+other parameters used default values. Note that many parameters defines system specific and data location
+paths as described in README.txt from MODIL.
+Because of the high computational requirements, we ran MODIL on a grid engine by using a step size
+of 50.000 bases at MoDIL simple.py.
+
+C.9
+
+SV-seq2
+
+SV-seq version 2 was downloaded from http://www.engr.uconn.edu/˜jiz08001/svseq2.
+html. We converted the FASTA file of the reference genome such that all nucleotides where in upper
+case and all characters not in {A, C, G, T, N} were replaced by N. Again, we used the sorted BAM files as
+output by BWA as well as µ and σ as determined by BWA. SV-seq was invoked two times per chromosome,
+once for deletions and once for insertions, as follows.
+SVseq2 -r reference.fasta -b bwa-out.bam -c <chromosome>
+--is <mu> <sigma> --c 1 --o deletions-out.txt
+SVseq2 -insertion -r reference.fasta -b bwa-out.bam -c <chromosome>
+--is <mu> <sigma> --c 1 --o insertions-out.txt
+From the output file deletions-out.txt, we extracted all lines starting with range and used fields
+3 and 5 as start and end position of a predicted deletion. From the output file insertions-out.txt,
+we read all lines following a line consisting solely of hashes (#) and interpreted field 2 as the position of a
+predicted insertion. Note that SV-seq does not predict the length of insertions.
+
+C.10
+
+CLEVER
+
+The results reported in the paper correspond to using CLEVER 1.1 (available from http://code.
+google.com/p/clever-sv) and calling
+clever-all-in-one -B bwa-out.bam hg18.fasta <result-dir>
+where the switch -B indicates that BWA alignments are used and thus xa2multi.pl must
+be run by clever-all-in-one. The CLEVER documentation contains more details on what
+clever-all-in-one does and how a customized pipeline can be build.
+
+19
+
+D
+
+Appendix: Fixed-Distance Hits
+
+In the main text (Table 1), a predicted deletion was counted as a hit when it overlapped a true deletion and its
+length deviated by at most 100 bp. For insertions, we applied an analogous criterion: a predicted insertion
+was counted as a hit when the breakpoint position did not deviate by more than its length and when its
+length did not deviate by more than 100 bp. While overlap has been a most predominant criterion in the
+literature, there are other reasonable hit criteria, motivated by that predicted breakpoints can be far apart
+from true breakpoints for long indels, despite that they overlap. We therefore offer alternative statistics in
+the following.
+In this section, we define a hit in terms of the absolute distance of the breakpoints of a true and a
+predicted insertion. For deletions, we use the absolute distance of center points of truth and prediction. For
+long deletions whose length is larger than the distance threshold, this criterion is stricter than just requiring
+at least one base pair overlap as before. For short deletions, this criterion can be more relaxed as not
+overlapping but close hits might now be counted. As before, we still require the length deviation to be
+below a given threshold. In the following, we give two tables, one with high-accuracy calls and one with
+relaxed calls based on using threshold 20 and 100, respectively. In each case, the same threshold is used for
+allowed distance and allowed length deviation.
+Before showing results, we make some considerations regarding statistical significance of variant calls
+meeting these new criteria. For Venter’s genome, there is a total number of 32 737 insertions and 31 904
+deletions of length at least 10. All shorter variants were ignored in our evaluation. For threshold 20, there
+are thus at most 41 · 32 737 positions that qualify as correctly predicted insertion breakpoints. Guessing
+a breakpoint uniformly at random would thus be successful with a probability of at most 4.4 · 10−4 . For
+insertions, this value computes to 4.2·10−4 . Even for threshold 100, we obtain random success probabilities
+around 0.002 for both insertions and deletions. That means that even the indel calls made with the relaxed
+threshold of 100 are statistically significant. Note that this consideration does not take the length of the
+predictions into account. The probability of making a random prediction with valid distance and valid
+length difference is even smaller.
+
+20
+
+D.1
+D.1.1
+
+High-Accuracy Calls (Threshold 20)
+Venter
+
+Method
+∗ Split-read aligner
+
+Prec.
+
+Venter Insertions
+Rec.
+Exc.
+
+F
+
+Prec.
+
+Venter Deletions
+Rec.
+Exc.
+
+F
+
+Length Range 20–49 (8,786 true ins., 8,502 true del.)
+CLEVER
+
+39.6
+
+43.0
+
+24.5
+
+41.2
+
+40.2
+
+59.6
+
+21.6
+
+48.0
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+–
+N/A
+0.0
+4.9
+
+0.2
+N/A
+0.0
+0.7
+
+0.0
+N/A
+0.0
+0.1
+
+–
+N/A
+–
+1.2
+
+18.9
+4.3
+–
+16.1
+
+0.9
+19.8
+0.0
+2.2
+
+0.0
+2.3
+0.0
+0.3
+
+1.8
+7.0
+–
+3.9
+
+PINDEL∗
+SV-seq2∗
+
+53.3
+N/A
+
+38.9
+N/A
+
+20.6
+N/A
+
+45.0
+N/A
+
+41.9
+84.0
+
+45.5
+0.5
+
+13.2
+0.0
+
+43.7
+1.1
+
+Length Range 50–99 (2,024 true ins., 1,822 true del.)
+CLEVER
+
+19.7
+
+73.4
+
+22.3
+
+31.1
+
+26.4
+
+67.8
+
+30.8
+
+38.0
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+33.0
+N/A
+0.0
+11.1
+
+25.9
+N/A
+0.0
+42.0
+
+0.6
+N/A
+0.0
+2.7
+
+29.0
+N/A
+–
+17.5
+
+29.4
+18.2
+–
+18.7
+
+14.5
+15.6
+0.1
+13.1
+
+0.0
+1.0
+0.0
+0.6
+
+19.5
+16.8
+–
+15.4
+
+PINDEL∗
+SV-seq2∗
+
+42.4
+N/A
+
+9.0
+N/A
+
+0.4
+N/A
+
+14.8
+N/A
+
+40.8
+51.9
+
+25.9
+13.5
+
+1.0
+0.3
+
+31.7
+21.4
+
+Length Range 100–50 000 (3,101 true ins., 2,996 true del.)
+CLEVER
+
+19.3
+
+6.5
+
+2.6
+
+9.7
+
+47.7
+
+52.4
+
+8.4
+
+49.9
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+14.1
+N/A
+0.0
+21.6
+
+4.8
+N/A
+0.0
+3.1
+
+2.2
+N/A
+0.0
+0.4
+
+7.1
+N/A
+–
+5.4
+
+30.8
+0.6
+34.6
+24.2
+
+32.7
+32.5
+29.5
+29.1
+
+0.1
+0.3
+0.1
+0.5
+
+31.7
+1.1
+31.9
+26.4
+
+PINDEL∗
+SV-seq2∗
+
+–
+N/A
+
+0.0
+N/A
+
+0.0
+N/A
+
+–
+N/A
+
+76.1
+64.3
+
+36.8
+30.9
+
+0.4
+0.7
+
+49.6
+41.7
+
+21
+
+D.1.2
+
+NA18507
+Method
+∗ Split-read aligner
+
+NA18507 Insertions
+RPr.
+Rec.
+Exc.
+
+NA18507 Deletions
+RPr.
+Rec.
+Exc.
+
+Length Range 20–49 (2,295 true ins., 2,192 true del.)
+CLEVER
+
+5.7
+
+19.5
+
+7.9
+
+5.9
+
+39.7
+
+9.0
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+–
+N/A
+0.0
+0.2
+
+0.0
+N/A
+0.0
+0.4
+
+0.0
+N/A
+0.0
+0.1
+
+2.1
+0.7
+–
+1.6
+
+0.7
+11.2
+0.0
+1.2
+
+0.1
+1.5
+0.0
+0.1
+
+PINDEL∗
+SV-seq2∗
+
+12.0
+N/A
+
+37.4
+N/A
+
+25.9
+N/A
+
+8.8
+12.1
+
+61.3
+0.6
+
+29.1
+0.1
+
+Length Range 50–99 (303 true ins., 294 true del.)
+0.7
+
+55.8
+
+18.5
+
+1.9
+
+68.7
+
+28.6
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+1.9
+N/A
+0.0
+0.3
+
+3.3
+N/A
+0.0
+35.0
+
+0.3
+N/A
+0.0
+3.0
+
+3.4
+0.3
+–
+1.5
+
+14.3
+6.8
+0.0
+20.1
+
+0.0
+0.3
+0.0
+0.0
+
+PINDEL∗
+SV-seq2∗
+
+7.3
+N/A
+
+17.8
+N/A
+
+2.0
+N/A
+
+4.7
+6.3
+
+34.0
+22.8
+
+0.0
+0.3
+
+CLEVER
+
+Length Range 100–50 000 (165 true ins., 414 true del.)
+0.1
+
+7.3
+
+3.0
+
+3.3
+
+54.1
+
+3.6
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+0.1
+N/A
+0.0
+0.2
+
+3.6
+N/A
+0.0
+7.9
+
+1.2
+N/A
+0.0
+4.2
+
+2.5
+0.1
+0.8
+1.2
+
+38.6
+42.3
+33.1
+32.9
+
+0.2
+0.0
+0.0
+0.5
+
+PINDEL∗
+SV-seq2∗
+
+–
+N/A
+
+0.0
+N/A
+
+0.0
+N/A
+
+5.6
+3.5
+
+49.8
+31.4
+
+1.0
+0.2
+
+CLEVER
+
+22
+
+D.2
+D.2.1
+
+Relaxed Calls (Threshold 100)
+Venter
+
+Method
+∗ Split-read aligner
+
+Prec.
+
+Venter Insertions
+Rec.
+Exc.
+
+F
+
+Prec.
+
+Venter Deletions
+Rec.
+Exc.
+
+F
+
+Length Range 20–49 (8,786 true ins., 8,502 true del.)
+CLEVER
+
+94.3
+
+58.9
+
+14.3
+
+72.5
+
+93.2
+
+74.2
+
+6.4
+
+82.6
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+–
+N/A
+0.0
+61.5
+
+6.1
+N/A
+0.0
+11.6
+
+0.0
+N/A
+0.0
+0.2
+
+–
+N/A
+–
+19.5
+
+91.0
+10.3
+–
+82.9
+
+8.6
+45.8
+0.1
+11.3
+
+0.0
+1.3
+0.0
+0.3
+
+15.6
+16.8
+–
+20.0
+
+PINDEL∗
+SV-seq2∗
+
+95.5
+N/A
+
+63.2
+N/A
+
+25.3
+N/A
+
+76.1
+N/A
+
+68.4
+100.0
+
+73.9
+1.3
+
+9.7
+0.0
+
+71.1
+2.6
+
+Length Range 50–99 (2,024 true ins., 1,822 true del.)
+CLEVER
+
+72.7
+
+88.6
+
+6.1
+
+79.9
+
+84.9
+
+82.4
+
+2.3
+
+83.6
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+90.9
+N/A
+0.0
+63.1
+
+58.5
+N/A
+0.0
+80.8
+
+0.1
+N/A
+0.0
+1.3
+
+71.1
+N/A
+–
+70.9
+
+94.6
+51.5
+–
+76.4
+
+52.6
+39.3
+5.1
+77.4
+
+0.1
+2.2
+0.0
+1.4
+
+67.6
+44.6
+–
+76.9
+
+PINDEL∗
+SV-seq2∗
+
+87.1
+N/A
+
+24.6
+N/A
+
+0.3
+N/A
+
+38.3
+N/A
+
+76.5
+88.2
+
+40.0
+20.9
+
+0.3
+0.1
+
+52.5
+33.7
+
+Length Range 100–50 000 (3,101 true ins., 2,996 true del.)
+CLEVER
+65.1
+23.7
+2.0
+34.8
+
+86.0
+
+68.2
+
+3.8
+
+76.1
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+58.1
+N/A
+0.0
+58.6
+
+16.4
+N/A
+0.0
+25.5
+
+2.4
+N/A
+0.0
+3.5
+
+25.5
+N/A
+–
+35.5
+
+65.2
+0.8
+70.4
+55.9
+
+56.8
+47.9
+55.7
+63.2
+
+0.0
+0.6
+0.2
+1.2
+
+60.7
+1.6
+62.2
+59.4
+
+PINDEL∗
+SV-seq2∗
+
+–
+N/A
+
+2.2
+N/A
+
+0.0
+N/A
+
+–
+N/A
+
+84.1
+79.3
+
+39.4
+36.7
+
+0.1
+0.3
+
+53.6
+50.2
+
+23
+
+D.2.2
+
+NA18507
+Method
+∗ Split-read aligner
+
+NA18507 Insertions
+RPr.
+Rec.
+Exc.
+
+NA18507 Deletions
+RPr.
+Rec.
+Exc.
+
+Length Range 20–49 (2,295 true ins., 2,192 true del.)
+CLEVER
+
+10.9
+
+27.6
+
+7.4
+
+13.7
+
+49.6
+
+4.3
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+–
+N/A
+0.0
+1.9
+
+0.3
+N/A
+0.0
+6.4
+
+0.0
+N/A
+0.0
+0.5
+
+10.7
+2.5
+–
+6.8
+
+6.7
+41.8
+0.0
+6.4
+
+0.0
+3.9
+0.0
+0.3
+
+PINDEL∗
+SV-seq2∗
+
+15.6
+N/A
+
+49.1
+N/A
+
+29.8
+N/A
+
+10.7
+15.2
+
+67.9
+1.8
+
+17.7
+0.1
+
+Length Range 50–99 (303 true ins., 294 true del.)
+2.3
+
+73.3
+
+6.3
+
+6.8
+
+83.0
+
+3.7
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+6.4
+N/A
+0.0
+1.8
+
+16.2
+N/A
+0.0
+66.3
+
+0.0
+N/A
+0.0
+1.7
+
+10.8
+2.8
+–
+5.3
+
+52.7
+43.9
+2.0
+72.8
+
+0.0
+1.4
+0.0
+1.4
+
+PINDEL∗
+SV-seq2∗
+
+11.4
+N/A
+
+32.7
+N/A
+
+1.0
+N/A
+
+9.4
+10.4
+
+46.6
+29.2
+
+0.7
+0.0
+
+CLEVER
+
+Length Range 100–50 000 (165 true ins., 414 true del.)
+0.5
+
+30.9
+
+1.8
+
+4.7
+
+66.9
+
+2.9
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+0.9
+N/A
+0.0
+1.7
+
+19.4
+N/A
+0.0
+44.9
+
+0.0
+N/A
+0.0
+11.5
+
+5.1
+0.1
+1.6
+2.8
+
+58.9
+54.6
+60.9
+67.4
+
+0.0
+1.2
+0.5
+1.9
+
+PINDEL∗
+SV-seq2∗
+
+–
+N/A
+
+1.2
+N/A
+
+0.0
+N/A
+
+5.9
+3.8
+
+51.2
+33.6
+
+0.2
+0.5
+
+CLEVER
+
+24
+
+E
+
+Appendix: Statistics on Length Difference and Distance
+
+In this section, we ask how accurate the valid variant calls are for each tool. For each prediction counted
+as a true positive in Table 1 in the main text (that is true positives is defined by overlap), we computed the
+distance and length difference to the true indel. In case of deletions, distance is measured with respect to the
+center points: if (S0 , E0 ) and (S1 , E1 ) are two deletions, where S0 , S1 are start coordinates and E0 , E1 are
+end coordinates we define their distance by
+Dist := |C0 − C1 |
+
+where Ci :=
+
+Ei − Si
+, i = 0, 1
+2
+
+(19)
+
+Note that one can infer the distances between both start and end coordinates from the distance of the centerpoints and the difference in length. The table below shows the average distances and length differences for
+all tools. A dash indicates that the respective tool did not make any correct prediction in that category.
+In conclusion, split-read based approaches make most accurate predictions. Performance rates for insert
+size based approaches vary across the different categories. CLEVER usually has good rates in terms of
+length difference, but has does not achieve best values in terms of breakpoint distance.
+
+25
+
+E.1
+
+Venter
+Method
+∗ Split-read aligner
+
+Venter Insertions
+Dist.
+Len.Diff.
+
+Venter Deletions
+Dist.
+Len.Diff.
+
+Length Range 20–49 (8,786 true ins., 8,502 true del.)
+CLEVER
+
+16.5
+
+8.6
+
+14.7
+
+9.6
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+–
+N/A
+–
+27.1
+
+–
+N/A
+–
+28.0
+
+19.6
+13.3
+–
+19.7
+
+30.4
+7.8
+–
+32.1
+
+PINDEL∗
+SV-seq2∗
+
+11.5
+N/A
+
+3.2
+N/A
+
+10.3
+9.4
+
+4.2
+5.0
+
+Length Range 50–99 (2,024 true ins., 1,822 true del.)
+CLEVER
+
+28.9
+
+18.8
+
+27.0
+
+13.9
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+22.9
+N/A
+–
+32.8
+
+16.4
+N/A
+–
+28.2
+
+19.2
+23.3
+–
+22.9
+
+28.3
+15.1
+–
+29.6
+
+PINDEL∗
+SV-seq2∗
+
+19.8
+N/A
+
+9.0
+N/A
+
+16.3
+16.6
+
+10.4
+7.0
+
+Length Range 100–50000 (3,101 true ins., 2,996 true del.)
+CLEVER
+
+35.9
+
+23.8
+
+24.4
+
+13.0
+
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+44.9
+N/A
+–
+32.6
+
+23.9
+N/A
+–
+19.7
+
+23.1
+24.8
+24.5
+30.1
+
+33.7
+12.5
+27.8
+31.8
+
+PINDEL∗
+SV-seq2∗
+
+–
+N/A
+
+–
+N/A
+
+14.1
+21.1
+
+4.5
+6.4
+
+26
+
+F
+
+Appendix: External Error Sources
+
+The quality of the read alignments greatly influences the quality of results when predicting structural variations. For each read generated from Venter’s genome, the true origin and thus the correct mapping location
+is known. To assess the impact of false alignments on the reported results, we ran CLEVER on the true
+alignments. That is, we converted the position of a read from donor coordinates to reference coordinates,
+created a BAM file, and used it as input to CLEVER. The performance using these alignments is shown in
+the below table (rows labeled True). However, even a perfect read mapper cannot always uniquely find the
+correct mapping locations because of repetitive areas in the genome. To have a more realistic assessment
+of how the results would be for a “perfect” read mapper, we merged BWA alignments and true alignments.
+Whenever the true alignment of a read was not among the set of alignments reported by BWA, we added
+the true alignment. In this way, we obtained a BAM file that contains the true alignment for every read,
+but additionally contains (wrong) alternative alignments for those reads that map to multiple locations (rows
+labeled BWA+True). Losses in performance on this dataset can be mainly attributed to mistaken alignment
+quality scores which in turn point to the quality of the Phred scores involved, another potential source of
+errors, in particular when dealing with multiply mapped reads. The numbers reported in the table were
+computed in the same way as the numbers in Table 1 in the main text.
+Alignments
+
+Venter Insertions
+Prec.
+Rec.
+
+F
+
+Venter Deletions
+Prec.
+Rec.
+
+F
+
+Length Range 20–49 (8,786 true ins., 8,502 true del.)
+BWA
+BWA+True
+True
+
+62.5
+77.6
+95.8
+
+53.0
+35.9
+41.6
+
+57.4
+49.1
+58.1
+
+60.4
+76.4
+71.5
+
+66.8
+53.3
+68.6
+
+63.4
+62.8
+70.1
+
+72.7
+85.0
+96.1
+
+80.7
+75.5
+97.3
+
+76.5
+80.0
+96.7
+
+69.9
+75.7
+98.2
+
+77.7
+82.6
+96.9
+
+Length Range 50–99 (2,024 true ins., 1,822 true del.)
+BWA
+BWA+True
+True
+
+60.4
+64.2
+97.7
+
+86.6
+77.0
+93.8
+
+71.2
+70.1
+95.7
+
+Length Range 100–50 000 (3,101 true ins., 2,996 true del.)
+BWA
+BWA+True
+True
+
+66.2
+72.5
+97.3
+
+23.8
+18.4
+12.4
+
+35.1
+29.3
+22.0
+
+87.6
+90.9
+95.5
+
+The above table confirms that the quality of alignments is indeed important for the prediction of structural variations. Using the true alignments (row True) yields the best results in most cases, but—remarkably—
+not in all cases. We have not yet found an explanation for this phenomenon.
+Interestingly, the difference in overall performance (as given by the F-measure) between BWA and
+BWA+True is smaller than the difference between BWA+True and True in most cases. This suggests that the
+negative influence of the fact that the genome is repetitive (and reads can thus map to multiple locations) is
+much stronger than the influence of the imperfectness of the read mapper.
+
+27
+
+G
+
+Appendix: MoDIL Results on Chromosome 1
+
+MoDIL shows extraordinarily long runtimes. We therefore ran MoDIL only on simulated reads from chromosome 1 of Venter’s genome. To have an unbiased comparison, we show MoDIL’s results together with
+the results of the other tools when run on this restricted data set. Statistics were computed in the same way
+as for Table 1 in the main text.
+Method
+∗ Split-read aligner
+
+Venter Insertions (Chr. 1)
+Prec.
+Rec.
+Exc.
+
+F
+
+Venter Deletions (Chr. 1)
+Prec.
+Rec.
+Exc.
+
+F
+
+Length Range 20–49 (644 true ins., 640 true del.)
+MoDIL
+
+31.8
+
+50.5
+
+4.0
+
+39.0
+
+34.0
+
+50.3
+
+2.3
+
+40.5
+
+CLEVER
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+64.2
+–
+N/A
+0.0
+34.2
+
+52.6
+4.3
+N/A
+0.0
+7.8
+
+4.0
+0.0
+N/A
+0.0
+0.0
+
+57.9
+–
+N/A
+–
+12.7
+
+61.7
+78.8
+5.1
+–
+64.1
+
+68.1
+5.2
+27.7
+0.2
+9.5
+
+7.8
+0.0
+0.9
+0.0
+0.3
+
+64.7
+9.7
+8.6
+–
+16.6
+
+PINDEL∗
+SV-seq2∗
+
+65.5
+N/A
+
+48.1
+N/A
+
+15.8
+N/A
+
+55.5
+N/A
+
+51.8
+–
+
+58.3
+0.0
+
+10.5
+0.0
+
+54.8
+–
+
+Length Range 50–99 (153 true ins., 130 true del.)
+MoDIL
+
+41.9
+
+88.9
+
+5.9
+
+57.0
+
+39.0
+
+69.2
+
+1.5
+
+49.9
+
+CLEVER
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+56.1
+85.5
+N/A
+–
+50.4
+
+88.2
+57.5
+N/A
+0.0
+75.2
+
+0.6
+0.0
+N/A
+0.0
+0.6
+
+68.6
+68.8
+N/A
+–
+60.3
+
+72.3
+91.5
+51.3
+–
+67.0
+
+79.2
+42.3
+37.7
+6.9
+59.2
+
+3.8
+0.0
+1.5
+0.8
+0.8
+
+75.6
+57.9
+43.4
+–
+62.9
+
+PINDEL∗
+SV-seq2∗
+
+83.3
+N/A
+
+22.9
+N/A
+
+0.0
+N/A
+
+35.9
+N/A
+
+67.9
+–
+
+35.4
+0.0
+
+0.0
+0.0
+
+46.5
+–
+
+Length Range 100–50000 (223 true ins., 198 true del.)
+MoDIL
+
+43.1
+
+22.4
+
+4.0
+
+29.5
+
+60.0
+
+11.6
+
+1.5
+
+19.5
+
+CLEVER
+BreakDancer
+GASV
+HYDRA
+VariationHunter
+
+71.9
+58.6
+N/A
+–
+83.3
+
+15.7
+12.6
+N/A
+0.0
+20.2
+
+0.0
+2.2
+N/A
+0.0
+0.4
+
+25.8
+20.7
+N/A
+–
+32.5
+
+92.6
+67.8
+0.7
+69.3
+64.8
+
+70.2
+62.6
+50.0
+63.6
+65.7
+
+3.0
+0.0
+0.5
+1.0
+0.0
+
+79.9
+65.1
+1.4
+66.4
+65.2
+
+PINDEL∗
+SV-seq2∗
+
+–
+N/A
+
+1.4
+N/A
+
+0.0
+N/A
+
+–
+N/A
+
+86.2
+–
+
+48.5
+0.0
+
+0.0
+0.0
+
+62.1
+–
+
+References
+Abyzov, A., Urban, A. E., Snyder, M., and Gerstein, M. (2011). Cnvnator: an approach to discover, genotype, and characterize typical and atypical cnvs from family and population genome sequencing. Genome
+Res, 21(6), 974–984.
+
+28
+
+Albers, C. A., Lunter, G., MacArthur, D. G., McVean, G., Ouwehand, W. H., and Durbin, R. (2011). Dindel:
+accurate indel calls from short-read data. Genome Research, 21(6), 961–973. PMID: 20980555.
+Alkan, C., Kidd, J. M., Marques-Bonet, T., Aksay, G., Antonacci, F., et al. (2009). Personalized copy
+number and segmental duplication maps using next-generation sequencing. Nature Genetics, 41(10),
+1061–1067. PMID: 19718026.
+Alkan, C., Coe, B. P., and Eichler, E. E. (2011). Genome structural variation discovery and genotyping. Nat
+Rev Genet, 12(5), 363–376.
+AppliedBiosystems
+(2009).
+www.appliedbiosystems.com.
+
+The
+
+SOLID
+
+system:
+
+Next-generation
+
+sequencing.
+
+Bentley, D. R., Balasubramanian, S., Swerdlow, H. P., Smith, G. P., Milton, J., et al. (2008). Accurate whole
+human genome sequencing using reversible terminator chemistry. Nature, 456(7218), 53–59.
+Bravo, H. C. and Irizarry, R. A. (2010). Model-based quality assessment and base-calling for secondgeneration sequencing data. Biometrics, 66(3), 665–674. PMID: 19912177.
+Campbell, P. J., Stephens, P. J., Pleasance, E. D., O’Meara, S., Li, H., et al. (2008). Identification of somatically acquired rearrangements in cancer using genome-wide massively parallel paired-end sequencing.
+Nat Genet, 40(6), 722–729.
+Chen, K., Wallis, J. W., McLellan, M. D., Larson, D. E., Kalicki, J. M., et al. (2009a). Breakdancer: an
+algorithm for high-resolution mapping of genomic structural variation. Nat Methods, 6(9), 677–681.
+Chen, K., Wallis, J. W., McLellan, M. D., Larson, D. E., Kalicki, J. M., et al. (2009b). BreakDancer: an
+algorithm for high-resolution mapping of genomic structural variation. Nat Meth, 6(9), 677–681.
+Chiang, D. Y., Getz, G., Jaffe, D. B., O’Kelly, M. J. T., Zhao, X., et al. (2009). High-resolution mapping of
+copy-number alterations with massively parallel sequencing. Nat Methods, 6(1), 99–103.
+Eid, J., Fehr, A., Gray, J., Luong, K., Lyle, J., et al. (2009). Real-Time DNA sequencing from single
+polymerase molecules. Science, 323(5910), 133 –138.
+Hach, F., Hormozdiari, F., Alkan, C., Hormozdiari, F., Birol, I., et al. (2010). mrsfast: a cache-oblivious
+algorithm for short-read mapping. Nat Methods, 7(8), 576–577.
+Hormozdiari, F., Alkan, C., Eichler, E. E., and Sahinalp, S. C. (2009). Combinatorial algorithms for structural variation detection in high-throughput sequenced genomes. Genome Research, 19(7), 1270–1278.
+PMID: 19447966.
+Itsara, A., Cooper, G. M., Baker, C., Girirajan, S., Li, J., et al. (2009). Population analysis of large copy
+number variants and hotspots of human genetic disease. Am J Hum Genet, 84(2), 148–161.
+Korbel, J. O., Abyzov, A., Mu, X. J., Carriero, N., Cayting, P., et al. (2009). PEMer: a computational
+framework with simulation-based error models for inferring genomic structural variants from massive
+paired-end sequencing data. Genome Biology, 10(2), R23. PMID: 19236709.
+Langmead, B., Trapnell, C., Pop, M., and Salzberg, S. L. (2009). Ultrafast and memory-efficient alignment
+of short dna sequences to the human genome. Genome Biol, 10(3), R25.
+Lee, S., Hormozdiari, F., Alkan, C., and Brudno, M. (2009). MoDIL: detecting small indels from clone-end
+sequencing with mixtures of distributions. Nat Meth, 6(7), 473–474.
+29
+
+Levy, S., Sutton, G., Ng, P. C., Feuk, L., Halpern, A. L., et al. (2007). The diploid genome sequence of an
+individual human. PLoS Biol, 5(10), e254.
+Li, H. and Durbin, R. (2009). Fast and accurate short read alignment with Burrows-Wheeler transform.
+Bioinformatics (Oxford, England), 25(14), 1754–1760. PMID: 19451168.
+Li, H., Ruan, J., and Durbin, R. (2008). Mapping short dna sequencing reads and calling variants using
+mapping quality scores. Genome Res, 18(11), 1851–1858.
+Medvedev, P., Stanciu, M., and Brudno, M. (2009). Computational methods for discovering structural
+variation with next-generation sequencing. Nat Meth, 6(11s), S13–S20.
+Mills, R., Pittard, W., Mullaney, J., Farooq, U., Creasy, T., et al. (2011). Natural genetic variation caused by
+small insertions and deletions in the human genome. Genome Research, 21, 830–839.
+Mills, R. E., Luttig, C. T., Larkins, C. E., Beauchamp, A., Tsui, C., et al. (2006). An initial map of insertion
+and deletion (indel) variation in the human genome. Genome Res, 16(9), 1182–1190.
+Quinlan, A. R., Clark, R. A., Sokolova, S., Leibowitz, M. L., Zhang, Y., et al. (2010). Genome-wide
+mapping and assembly of structural variant breakpoints in the mouse genome. Genome Research, 20(5),
+623 –635.
+Sindi, S., Helman, E., Bashir, A., and Raphael, B. J. (2009). A geometric approach for classification
+and comparison of structural variants. Bioinformatics, 25(12), i222–i230. PMID: 19477992 PMCID:
+2687962.
+Sudmant, P. H., Kitzman, J. O., Antonacci, F., Alkan, C., Malig, M., et al. (2010). Diversity of human copy
+number variation and multicopy genes. Science, 330(6004), 641–646.
+The 1000 Genomes Project Consortium (2010). A map of human genome variation from population-scale
+sequencing. Nature, 467(7319), 1061–1073.
+The International HapMap Consortium (2005). A haplotype map of the human genome. Nature, 437(7063),
+1299–1320.
+Wasserman, L. (2004). All of Statistics. Springer.
+Ye, K., Schulz, M. H., Long, Q., Apweiler, R., and Ning, Z. (2009). Pindel: a pattern growth approach to
+detect break points of large deletions and medium sized insertions from paired-end short reads. Bioinformatics, 25(21), 2865–2871.
+Yoon, S., Xuan, Z., Makarov, V., Ye, K., and Sebat, J. (2009). Sensitive and accurate detection of copy
+number variants using read depth of coverage. Genome Res, 19(9), 1586–1592.
+Zhang, J., Wang, J., and Wu, Y. (2012). An improved approach for accurate and efficient calling of structural
+variations with low-coverage sequence data. BMC Bioinformatics, 13, S6.
+
+30
+
+

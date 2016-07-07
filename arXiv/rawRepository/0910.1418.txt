@@ -1,0 +1,774 @@
+Modelling an Ammonium Transporter with SCLS∗
+Mario Coppo1 , Ferruccio Damiani1 , Elena Grassi1,2 , Mike Guether3 and Angelo Troina1
+1 Dipartimento
+2 Molecular
+
+di Informatica, Università di Torino
+
+Biotechnology Center, Dipartimento di Genetica, Biologia e Biochimica, Università di Torino
+3 Dipartimento
+
+di Biologia Vegetale, Università di Torino
+
+{coppo,damiani,troina}@di.unito.it
+
+grassi.e@gmail.com
+
+mike.guether@unito.it
+
+The Stochastic Calculus of Looping Sequences (SCLS) is a recently proposed modelling language for
+the representation and simulation of biological systems behaviour. It has been designed with the aim
+of combining the simplicity of notation of rewrite systems with the advantage of compositionality. It
+also allows a rather simple and accurate description of biological membranes and their interactions
+with the environment.
+In this work we apply SCLS to model a newly discovered ammonium transporter. This transporter is believed to play a fundamental role for plant mineral acquisition, which takes place in the
+arbuscular mycorrhiza, the most wide-spread plant-fungus symbiosis on earth. Due to its potential
+application in agriculture this kind of symbiosis is one of the main focuses of the BioBITs project.
+In our experiments the passage of NH3 / NH4+ from the fungus to the plant has been dissected
+in known and hypothetical mechanisms; with the model so far we have been able to simulate the
+behaviour of the system under different conditions. Our simulations confirmed some of the latest
+experimental results about the LjAMT2;2 transporter. The initial simulation results of the modelling
+of the symbiosis process are promising and indicate new directions for biological investigations.
+
+1
+
+Introduction
+
+Given the central role of agriculture in worldwide economy, several ways to optimize the use of costly
+artificial fertilizers are now being actively pursued. One approach is to find methods to nurture plants
+in more “natural” manners, avoiding the complex chemical production processes used today. In the last
+decade the Arbuscular Mycorrhiza (AM), the most widespread symbiosis between plants and fungi, got
+into the focus of research because of its potential as a natural plant fertilizer. Briefly, fungi help plants to
+acquire nutrients as phosphorus (P) and nitrogen (N) from the soil whereas the plant supplies the fungus
+with energy in form of carbohydrates [32]. The exchange of these nutrients is supposed to occur mainly
+at the eponymous arbuscules, a specialized fungal structure formed inside the cells of the plant root. The
+arbuscules are characterized by a juxtaposition of a fungal and a plant cell membrane where a very active
+interchange of nutrients is facilitated by several membrane transporters. These transporters are surface
+proteins that facilitate membrane crossing of molecules which, because of their inherent chemical nature,
+are not freely diffusible.
+As long as almost each cell in the majority of multicellular organisms shares the same genome,
+modern theories point out that morphological and functional differences between them are mainly driven
+by different genes expression [2]. Thanks to the last experimental novelties [40, 30] a precise analysis
+of which genes are expressed in a single tissue is possible; therefore is possible to identify genes that
+are pivotal in specific compartments and then study their biological function. Following this route a new
+∗ This research is founded by the BioBITs Project (Converging Technologies 2007, area: Biotechnology-ICT), Regione
+Piemonte.
+
+R.J.Back, I.Petre, E. de Vink (Eds.): Computational
+Models for Cell Processes (CompMod 2009)
+EPTCS 6, 2009, pp. 77–92, doi:10.4204/EPTCS.6.6
+
+c M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+This work is licensed under the
+Creative Commons Attribution License.
+
+78
+
+Modelling an Ammonium Transporter with SCLS
+
+membrane transporter has been discovered by expression analysis and further characterized [18]. This
+transporter is situated on the plant cell membrane which is directly opposed to the fungal membrane,
+located in the arbuscules. Various experimental evidence points out that this transporter binds to an NH4+
+moiety outside the plant cell, deprotonates it, and mediates inner transfer of NH3 , which is then used
+as a nitrogen source, leaving an H + ion outside. The AM symbiosis is far from being unraveled: the
+majority of fungal transporters and many of the chemical gradients and energetic drives of the symbiotic
+interchanges are unknown. Therefore, a valuable task would be to model in silico these conditions and
+run simulations against the experimental evidence available so far about this transporter. Conceivably,
+this approach will provide biologists with working hypotheses and conceptual frameworks for future
+biological validation.
+In computer science, several formalisms have been proposed for the description of the behaviour of
+biological systems. Automata-based models [3, 28] have the advantage of allowing the direct use of
+many verification tools such as model checkers. Rewrite systems [11, 35, 8, 1] usually allow describing
+biological systems with a notation that can be easily understood by biologists. Compositionality allows
+studying the behaviour of a system componentwise. Both automata-like models and rewrite systems
+present, in general, problems from the point of view of compositionality, which, instead, is in general
+ensured by process calculi, included those commonly used to describe biological systems [36, 34, 9].
+The Stochastic Calculus of Looping Sequences (SCLS) [6] (see also [8, 7, 29]) is a recently proposed
+modelling language for the representation and simulation of biological systems behaviour. It has been
+designed with the aim of combining the simplicity of notation of rewrite systems with the advantage of a
+form of compositionality. It also allows a rather simple and accurate description of biological membranes
+and their interactions with the environment.
+In this work we apply SCLS to model the mentioned transporter. This transporter is differentially
+expressed in arbuscular cells and is believed to play a fundamental role in the nutrients uptake which
+takes place in the context of plants-fungi symbiosis at the root level. This symbiosis is one of the main
+focuses of the BioBITs project, due to its relevant role in agriculture.
+On these premises, the aim of this work is to model the interchange between the fungus-plant interface and the plant cells, using as a reference system the NH3 /NH4+ turnover. This could disclose which
+is the driving power of the net nitrogen flux inside plant cells (still unknown at the chemical level).
+Furthermore, this information may also be exploited to model other, and so far poorly characterized,
+transporters.
+Outline Section 2 introduces the syntax and the semantics of the SCLS and shows some modelling
+guidelines. Section 3 presents the SCLS representations of the ammonium transporter and our experimental results, discussed in Section 4. Section 5 concludes by outlining some further work.
+
+2
+
+The Stochastic Calculus of Looping Sequences
+
+In this section we briefly recall the Stochastic Calculus of Looping Sequences (SCLS) [6]. A SCLS
+(biological) model consists of a term, representing the structure of the modelled system and a set of
+stochastic rewrite rules which determine its evolution.
+Terms Terms of SCLS are defined from a set of atomic symbols representing the basic elements of the
+system under description, which could correspond, according to the level of the description, to genes,
+proteins, molecules or even single chemical elements. Terms are built from the atomic elements via
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+79
+
+the operators of sequencing (defining an ordered sequence of atomic elements), looping (defining membranes from looping sequences) and parallel composition (representing coexistence in the same biological ambient).
+Assuming a possibly infinite alphabet E of symbols ranged over by a, b, c, . . . the syntax of SCLS
+terms T and sequences S is defined by the grammar:
+
+
+T ::= S  (S)L c T  T | T
+
+
+S ::= ε  a  S·S
+where a is any element of E and ε is the empty sequence. We denote the infinite sets of terms and
+sequences with T and S , respectively.
+The SCLS terms are built from the elements of E by means of four syntactic operators: sequencing
+· , looping ( )L , parallel composition | , and the containment operator c . Sequencing is used to concatenate atomic elements. The looping operator transforms a sequence in a closed loop when combined
+with another term via the c operator. A term can then be either a sequence, or a looping sequence
+containing another term, or the parallel composition of two terms. By the definition of terms, we have
+that looping and containment are always associated, hence we can consider ( )L c as a single binary
+operator that applies to one sequence and one term.
+The biological interpretation of the operators is the following: the main entities which occur in
+cells are DNA and RNA strands, proteins, membranes, and other macro-molecules. DNA strands (and
+similarly RNA strands) are sequences of nucleic acids, but they can be seen also at a higher level of
+abstraction as sequences of genes. Proteins are sequences of amino acids which typically have a very
+complex three-dimensional structure. In a protein there are usually (relatively) few subsequences, called
+domains, which actually are able to interact with other entities by means of chemical reactions. SCLS
+sequences can model DNA/RNA strands and proteins by describing each gene or each domain with a
+symbol of the alphabet. Membranes are closed surfaces often interspersed with proteins, and may have
+a content. A closed surface can be modelled by a looping sequence. The elements (or the subsequences)
+of the looping sequence may represent the proteins on the membrane, and by the containment operator
+it is possible to specify what the membrane contains. Other macro-molecules can be modeled as single
+alphabet symbols, or as sequences of their components. Finally, juxtaposition of entities can be described
+by the parallel composition operator of their representations. More detailed description of the biological
+interpretation of the SCLS operators involved in the description of the system presented in this paper will
+be given at the end of this section.
+Brackets can be used to indicate the order of application of the operators. We assume that ( )L c
+has the precedence over | and · over | , therefore (S)L c T1 | T has to be read as ((S)L c T1 ) | T and
+a · b | c as (a · b) | c. An example of an SCLS term is a | b | (m · n)L c (c · d | e) consisting of three entities
+a, b and (m · n)L c (c · d | e). It represents a membrane with two molecules m and n (for instance, two
+proteins) on its surface, and containing a sequence c · d and a molecule e. Molecules a and b are outside
+the membrane. See Figure 1 for some graphical representations.
+
+Structural congruence As usual in systems of this kind, SCLS terms representing the same entity
+may have syntactically different structures. Such terms are thus identified by means of a structural
+congruence relation. In particular the structural congruence relations ≡S and ≡T are defined as the least
+
+80
+
+Modelling an Ammonium Transporter with SCLS
+
+Figure 1: (i) (a·b·c)L c ε; (ii) (a·b·c)L c (d·e)L c ε; (iii) (a·b·c)L c (((d·e)L c ε) | f ·g).
+congruence relations on sequences and on terms, respectively, satisfying the following rules:
+S1 ·(S2 ·S3 ) ≡S (S1 ·S2 )·S3
+
+S·ε ≡S ε ·S ≡S S
+
+S1 ≡S S2 implies S1 ≡T S2 and (S1 )L c T ≡T (S2 )L c T
+T1 | T2 ≡T T2 | T1 T1 | (T2 | T3 ) ≡T (T1 | T2 ) | T3 T | ε ≡T T
+T1 ≡T T2 implies (S)L c T1 ≡T (S)L c T2
+(ε)L c ε ≡T ε
+
+(S1 ·S2 )L c T ≡T (S2 ·S1 )L c T
+
+Structural congruence states the associativity of · and | , the commutativity of the latter and the neutral
+role of ε. Moreover, axiom (S1 ·S2 )L c T ≡T (S2 ·S1 )L c T says that looping sequences can rotate. In the
+following we will simply use ≡ in place of ≡T , ≡S .
+Rewrite Rules, Variables and Patterns A rewrite rule is defined as a pair of terms (possibly containing variables), which represent the patterns defining the system transformations, together with a rate
+representing the speed of the modelled reaction. Rules are applicable to all subterms, identified by the
+notion of reduction context introduced below, which match the left-hand side of the rule via a proper
+instantiation of its variables. The system transformation is obtained by replacing the reduced subterm by
+the corresponding instance of the right-hand side of the rule.
+Variables in patterns can be of three kinds: two are associated with the two different syntactic categories of terms and sequences, and one is associated with single alphabet elements. We assume a set of
+term variables TV ranged over by X,Y, Z, . . ., a set of sequence variables SV ranged over by xe, ye,e
+z, . . ., and
+a set of element variables X ranged over by x, y, z, . . .. All these sets are pairwise disjoint and possibly
+infinite. We denote by V the set of all variables TV ∪ SV ∪ X , and with ρ any variable in V . A pattern
+is a term which may include variables, i.e. patterns P and sequence patterns SP of SCLS are given by
+the following grammar:
+
+
+
+P ::= SP  (SP)L c P  P | P  X
+
+
+
+
+SP ::= ε  a  SP·SP  xe  x
+where a is an element of E , and X, xe and x are elements of TV, SV and X , respectively. The infinite set of
+patterns is denoted with P. The structural congruence relation can be be trivially extended to patterns.
+An instantiation is a partial function σ : V → T which preserves the type of variables, thus for X ∈
+TV, xe ∈ SV and x ∈ X we must have σ (X) ∈ T , σ (e
+x) ∈ S , and σ (x) ∈ E , respectively. Given P ∈ P, the
+expression Pσ denotes the term obtained by replacing each occurrence of each variable ρ ∈ V appearing
+in P with the corresponding term σ (ρ).
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+81
+
+Let Σ denote the set of all the possible instantiations and Var(P) the set of variables appearing in
+k
+
+P ∈ P. Then a rewrite rule is a triple (P1 , P2 , k), denoted with P1 7→ P2 , where k ∈ IR≥0 is the kinetic
+constant of the modeled chemical reaction, P1 , P2 ∈ P, P1 6≡ ε such that Var(P2 ) ⊆ Var(P1 ). A rewrite
+k
+
+rule P1 7→ P2 then states that a subterm P1 σ , obtained by instantiating variables in P1 by some instantiation
+function σ , can be transformed into the subterm P2 σ with kinetics given by the constant k.
+Contexts The definition of reduction for SCLS systems is completed by resorting to the notion of reduction context. To this aim, as usual, the syntax of terms is enriched with a new element  representing
+a hole. Reduction context (ranged over by C) are defined by:
+
+C ::=   C | T
+
+
+ T |C
+
+
+
+
+(S)L cC
+
+where T ∈ T and S ∈ S . The context  is called the empty context. We denote with C the infinite set
+of contexts.
+By definition, every context contains a single . Let us assume C,C0 ∈ C . Then C[T ] denotes the
+term obtained by replacing  with T in C; similarly C[C0 ] denotes context composition, whose result is
+the context obtained by replacing  with C0 in C. The structural equivalence is extended to contexts in
+the natural way (i.e. by considering  as a new and unique symbol of the alphabet E ).
+Note that the general form of rewrite rules does not permit to have sequences as contexts. A rewrite
+k
+rule introducing a parallel composition on the right hand side (as a 7→ b | c) applied to an element of a
+sequence (e.g., m·a·m) would result into a syntactically incorrect term (in this case m · (b | c) · m); which
+moreover does not seem to have any biological meaning, parallel and sequence represent orthogonal
+notions. Therefore to modify a sequence, a pattern representing the whole sequence must appear in the
+k
+rule. For example, rule a·e
+x 7→ a | xe can be applied to any sequence starting with element a, and, hence, the
+term a·b can be rewritten as a | b, and the term a·b·c can be rewritten as a | b·c. The notion of reduction
+context will forbid that a substitution like this is applied to looping sequences.
+Stochastic Reduction Semantics The operational semantics of SCLS is defined by incorporating a
+collision-based stochastic framework along the line of the one presented by Gillespie in [13], which is,
+de facto, the standard way to model quantitative aspects of biological systems. Following the law of mass
+action, it is necessary to count the number of reactants that are present in a system in order to compute the
+exact rate of a reaction. The same approach has been applied, for instance, to the stochastic π-calculus
+[33, 34]. The idea of Gillespie’s algorithm is that a rate constant is associated with each considered
+chemical reaction. Such a constant is obtained by multiplying the kinetic constant of the reaction by the
+number of possible combinations of reactants that may occur in the system. The resulting rate is then
+used as the parameter of an exponential distribution modelling the time spent between two occurrences
+of the considered chemical reaction.
+The use of exponential distributions to represent the (stochastic) time spent between two occurrences
+of chemical reactions allows describing the system as a Continuous Time Markov Chain (CTMC), and
+consequently allows verifying properties of the described system analytically and by means of stochastic
+model checkers.
+The number of reactants in a reaction represented by a reduction rule is evaluated considering the
+number of occurrences of subterms to which the rule can be applied and of the terms produced. For
+k
+instance in evaluating the application rate of the rewrite rule R = a | b 7→ c to the term T = a | a | b | b we
+
+82
+
+Modelling an Ammonium Transporter with SCLS
+
+must consider the number of the possible combinations of reactants of the form a | b in T . Since each
+occurrence of a can react with each occurrence of b, this number is 4. So the application rate of R is k · 4.
+The evaluation of the application rate of a reduction rule containing variables is more complicate
+since there can be many different ways in which variables can be instantiated to match the subterm to be
+reduced, and this must be considered to correctly evaluate the application rate. The technique to do this
+is described in [6]. With this technique, given two terms T, T 0 and a reduction rule R, we can compute
+the function O(R, T, T 0 ), defining the number of the possible applications of the rule R to the term T
+resulting in the term T 0 . We refer to [6] for more details and explanation.
+Given a finite set R of stochastic rewrite rules, then, the reduction semantics of SCLS is the least
+labelled transition relation satisfying the following rule:
+k
+
+R = P1 7→ P2 ∈ R
+
+T ≡ C[P1 σ ] T 0 ≡ C[P2 σ ]
+k·O(R,T,T 0 )
+
+T −−−−−−→ T 0
+The rate of the reduction is then obtained as the product of the rewrite rate constant and the number of
+occurrences of the rule within the starting term (thus counting the exact number of reactants to which
+the rule can be applied and which produce the same result). The rate associated with each transition in
+the stochastic reduction semantics is the parameter of an exponential distribution that characterizes the
+stochastic behaviour of the activity corresponding to the applied rewrite rule. The stochastic semantics is
+essentially a Continuous Time Markov Chain (CTMC). A standard simulation procedure that corresponds
+to Gillespie’s simulation algorithm [13] can be followed. The most recent implementation of SCLS,
+based on Gillespie’s algorithm, is described in [38].
+Modelling Guidelines SCLS can be used to model biomolecular systems analogously to what is done,
+e.g, by Regev and Shapiro in [37] for the π-calculus. An abstraction is a mapping from a real-world
+domain to a mathematical domain, which may allow highlighting some essential properties of a system
+while ignoring other, complicating, ones. In [37], Regev and Shapiro show how to abstract biomolecular systems as concurrent computations by identifying the biomolecular entities and events of interest
+and by associating them with concepts of concurrent computations such as concurrent processes and
+communications.
+The use of rewrite systems, such as SCLS, to describe biological systems is founded on a different
+abstraction. Usually, entities (and their structures) are abstracted by terms of the rewrite system, and
+events by rewrite rules. We have already recalled the biological interpretation of SCLS operators in the
+previous section.
+In order to describe cells, it is quite natural to consider molecular populations and membranes.
+Molecular populations are groups of molecules that are in the same compartment of the cell. As we
+have said before, molecules can be of many types: they could be classified as DNA and RNA strands,
+proteins, and other molecules. Membranes are considered as elementary objects, in the sense that we
+do not describe them at the level of the lipids they are made of. The only interesting properties of a
+membrane are that it may have a content (hence, create a compartment) and that it may have molecules
+on its surface.
+We give now some examples of biomolecular events of interest and their description in SCLS. The
+simplest kind of event is the change of state of an elementary object. Then, we consider interactions
+between molecules: in particular complexation, decomplexation and catalysis. These interactions may
+involve single elements of non-elementary molecules (DNA and RNA strands, and proteins). Moreover,
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+Biomolecular Event
+State change
+Complexation
+Decomplexation
+Catalysis
+Membrane crossing
+
+Catalyzed
+membrane crossing
+
+Membrane joining
+Catalyzed
+
+83
+
+Examples of SCLS Rewrite Rule
+a 7→ b
+xe· a · ye 7→ xe· b · ye
+a | b 7→ c
+xe· a · ye| b 7→ xe· c · ye
+c 7→ a | b
+xe· c · ye 7→ xe· a · ye| b
+c | P1 7→ c | P2
+(where P1 7→ P2 is the catalyzed event)
+L
+L
+a | (e
+x) c X 7→ (e
+x) c (a | X)
+L
+(e
+x) c (a | X) 7→ a | (e
+x)L c X
+xe· a · ye| (e
+z)L c X 7→ (e
+z)L c (e
+x · a · ye| X)
+L
+(e
+z) c (e
+x · a · ye| X) 7→ xe· a · ye| (e
+z)L c X
+a | (b · xe)L c X 7→ (b · xe)L c (a | X)
+(b · xe)L c (a | X) 7→ a | (b · xe)L c X
+xe· a · ye| (b · e
+z)L c X 7→ (b · e
+z)L c (e
+x · a · ye| X)
+(b · e
+z)L c (e
+x · a · ye| X) 7→ xe· a · ye| (b · e
+z)L c X
+(e
+x)L c (a | X) 7→ (a · xe)L c X
+(e
+x)L c (e
+y · a ·e
+z | X) 7→ (e
+y · a ·e
+z · xe)L c X
+(b · xe)L c (a | X) 7→ (a · b · xe)L c X
+
+Table 1: Guidelines for the abstraction of biomolecular events into SCLS.
+there can be interactions between membranes and molecules: in particular a molecule may cross or join
+a membrane.
+Table 1 lists the guidelines (taken from [6]) for the abstraction into SCLS rules of the biomolecular
+events we will use in our application.1 Entities are associated with SCLS terms: elementary objects are
+modelled as alphabet symbols, non-elementary objects as SCLS sequences and membranes as looping
+sequences. Biomolecular events are associated with SCLS rewrite rules.
+
+3
+
+Modelling the Ammonium Transporter with SCLS
+
+The scheme in Figure 2 (taken from [18]) illustrates nitrogen, phosphorus and carbohydrate exchanges at
+the mycorrhizal interface according to previous works and the results of [18]. In this paper we focus our
+investigation on the sectors labelled with (c), (a1) and (a2). Namely, we will present SCLS models for the
+equilibrium between NH4+ and NH3 and the uptake by the LjAMT2;2 transporter (c), and the exchange
+of NH4+ from the fungus to the interspatial level (a1-2). The choice of SCLS is motivated by the fact that
+membranes, membrane elements (like LjAMT2;2) and the involved reactions can be represented in it in
+a quite natural way.
+The simulations illustrated in this section are done with the SCLSm prototype simulator [38]. In
+the following we will use a more compact notation for the parallel composition operator, namely, we
+will write a × n to denote the parallel composition of n atomic elements a. Moreover, to simplify the
+counting mechanism, we might use different names for the same molecule when it belongs to different
+1 Kinetics
+
+are omitted from the table for simplicity.
+
+84
+
+Modelling an Ammonium Transporter with SCLS
+
+Figure 2: (a1-2) NH3 /NH4+ is released in the arbuscules from arginine which is transported from the extra- to the in-
+
+traradical fungal structures [16]. NH3 /NH4+ is released by so far unknown mechanisms (transporter, diffusion (a1) or
+vesicle-mediated (a2)) into the periarbuscular space (PAS) where, due to the acidic environment, its ratio shifts towards
+NH4+ (> 99.99%). (b) The acidity of the interfacial apoplast is established by plant and fungal H + -ATPases [21, 5] thus
+providing the energy for H + -dependent transport processes. (c) The NH4+ ion is deprotonated prior to its transport across the
+plant membrane via the LjAMT2;2 protein and released in its uncharged NH3 form into the plant cytoplasm. The NH3 /NH4+
+acquired by the plant is either transported into adjacent cells or immediately incorporated into amino acids (AA). (d) Phosphate is released by so far unknown transporters into the interfacial apoplast. (e) The uptake of phosphate on the plant side
+then is mediated by mycorrhiza-specific Pi-transporters [25, 18]. (f) AM fungi might control the net Pi-release by their own
+Pi-transporters which may reacquire phosphate from the periarbuscular space [5]. (g) Plant derived carbon is released into
+the PAS probably as sucrose and then cleaved into hexoses by sucrose synthases [22] or invertases [39]. AM fungi then acquire hexoses [41, 42] and transport them over their membrane by so far unknown hexose transporters. It is likely that these
+transporters are proton co-transporter as the GpMST1 described for the glomeromycotan fungus Geosiphon pyriformis [31].
+Exchange of nutrients between arbusculated cells and non-colonized cortical cells can occur by apoplastic (h) or symplastic
+(i) ways.
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+85
+
+Figure 3: Extracellular equilibrium between NH3 and NH4+ .
+compartments. For instance, occurrences of the molecule NH3 inside the plant cell are called NH3 inside.
+
+3.1
+
+NH3 /NH4+ Equilibrium
+
+We decided to start modelling a simplified pH equilibrium, at the interspatial level (right part of section
+(c) in Figure 2), without considering H2 O, H + and OH − ; therefore we tuned the reaction rates in order
+to reach the correct percentages of NH3 over total NH3 /NH4+ in the different compartments. Like these
+all the rates and initial terms used in this work are obtained by manual adjustments made looking at the
+simulations results and trying to keep simulations times acceptable - we plan to refine these rates and
+numbers in future works to reflect more deeply the available biological data. Following [18], we consider
+an extracellular pH of 4.5 [19]. In such conditions, the percentage of molecules of NH3 over the sum
+NH3 + NH4+ should be around 0.002. The reaction we considered is the following:
+k1
+
+NH3 
+ NH4+
+k2
+
+with k1 = 0.018 ∗ 10−3 and k2 = 0.562 ∗ 10−9 . One can translate this reaction with the SCLS rules.
+k
+
+NH3 7→1 NH4+
+k
+
+NH4+ 7→2 NH3
+
+(R1)
+(R2)
+
+In Figure 3 we show the results of this first simulation given the initial term T = NH3 × 138238 | NH4+ ×
+138238.
+This equilibrium is different at the intracellular level (pH around 7 and 8) [15], so we use two new
+rules to model the transformations of NH3 and NH4+ inside the cell, namely:
+k
+
+NH3 inside 7→1 NH4+ inside
+k0
+
+NH4+ inside 7→2 NH3 inside
+where k20 = 0.562 ∗ 10−6 .
+
+(R3)
+(R4)
+
+86
+
+Modelling an Ammonium Transporter with SCLS
+
+Figure 4: At high NH4+ concentration.
+
+Figure 5: At low NH4+ concentration.
+
+3.2
+
+LjAMT2;2 Uptake
+
+We can now present the SCLS model of the uptake of the LjAMT2;2 transporter (left part of section (c) in
+Figure 2). We add a looping sequence modelling an arbusculated plant cell. Since we are only interested
+in the work done by the LjAMT2;2 transporter, we consider a membrane containing this single element.
+The work of the transporter is modelled by the rule:
+k
+
+NH4+ | (L jAMT 2)L c (X) 7→t H + | (L jAMT 2)L c (X | NH3 inside)
+
+(R5)
+
+where kt = 0.1 ∗ 10−5 .
+We can investigate the uptake rate of the transporter at different initial concentrations of NH3 and
+NH4+ . Figure 4 and Figure 5 show the results for the initial terms
+T1 = NH3 × 776 | NH4+ × 276400 | (L jAMT 2)L c ε and T2 = NH3 × 276400 | NH4+ × 776 | (L jAMT 2)L c ε,
+respectively (the left one represents the whole simulations, while on the right there is a magnification of
+their initial segment).
+We can also investigate the uptake rate of the transporter at different extracellular pH. Namely, we
+consider an extracellular pH equal to the intracellular one (pH around 7 and 8), obtained by imposing
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+87
+
+Figure 6: At extracellular pH=7.
+R1 and R2 equal to R3 and R4, respectively, i.e. k2 = k20 . Figure 6 shows the results for the initial terms
+T1 = NH3 × 138238 | NH4+ × 138238 | (L jAMT 2)L c ε.
+Since now we modeled the transporter supposing that no active form of energy is required to do
+the actual work - which means that the NH4+ gradient between the cell and the extracellular ambient is
+sufficient to determine a net uptake. The predicted tridimensional structure of LjAMT2;2 suggests that
+it does not use ATP 2 as an energy source [18], nevertheless trying to model an “energy consumption”
+scenario is interesting to make some comparisons. Since this is only a proof of concept there is no need
+to specify here in which form this energy is going to be provided, furthermore as long as we are only
+interested in comparing the initial rates of uptake we can avoid defining rules that regenerate energy in
+the cell. Therefore, rule R5 modelling the transporter role can be modified as follows:
+k0
+
+NH4+ | (L jAMT 2)L c (ENERGY | X) 7→t H + | (L jAMT 2)L c (X | NH3 inside)
+
+(R5’)
+
+which consumes an element of energy within the cell. We also make this reaction slower, since it is
+now catalysed by the concentration of the ENERGY element, actually, we set kt 0 = 0.1 ∗ 10−10 . Given
+the initial term T = NH3 × 138238 | NH4+ × 138238 | (L jAMT 2)L c (ENERGY × 100000) we obtain the
+simulation result in Figure 7. Note that the uptake work of the transporter terminates when the ENERGY
+inside the cell is completely exhausted.
+
+3.3 NH4+ Diffusing from the Fungus
+We now model the diffusion of NH4+ from the fungus to the extracellular level (sections (a1), and (a2)
+of Figure 2). In section (a1) of the figure, the passage of NH4+ to the interfacial periarbuscular space
+happens by diffusion. We can model this phenomenon by adding a new compartment, representing the
+fungus, from which NH4+ flows towards the fungus-plant interface. This could be modelled through the
+rule:
+kf
+(FungMembr)L c (NH4+ | X) 7→ NH4+ | (FungMembr)L c X
+(R6)
+By varying the value of the rate k f one might model different externalization speeds and thus test
+different hypotheses about the underlying mechanism. In Figure 8 we give the simulation result, with
+2 ATP is the “molecular unit of currency” of intracellular energy transfer [26] and is used by many transporters that work
+against chemical gradients.
+
+88
+
+Modelling an Ammonium Transporter with SCLS
+
+Figure 7: LjAMT2;2 with active energy.
+
+Figure 8: Diffusing NH4+ from the fungus, k f = 1.
+three different magnification levels, going from the whole simulation on the left to the very first seconds
+on the right, obtained from the initial term T f = (FungMembr)L c (NH4+ × 2764677) | (L jAMT 2)L c ε
+with k f = 1. In the initial part, one can see how fast, in this case, NH4+ diffuses into the periarbuscular
+space (in the figure, NH4 represents the quantity of NH4+ in that part of the system). In Figure 9 we
+give the simulation result obtained from the same initial term T f with a slower diffusion rate, namely
+k f = 0.01 ∗ 10−3 (note that the magnification levels in the three panels are different with respect to those
+in Figure 8).
+Finally, we would like to remark, without going into the simulation details, how we can model in
+a rather natural way the portion (a2) of Figure 2 in SCLS. Namely, we need some rules to produce
+vesicle containing NH4+ molecules within the fungal cell. Once the vesicle is formed, another rule drives
+its exocytosis towards the interfacial space, and thus the diffusion of the previously encapsulated NH4+
+molecules. The needed rules are given in the following:
+k
+
+(FungMembr)L c (NH4+ | X) 7→c (FungMembr)L c (X | (Vesicle)L c NH4+ )
+k
+
+(FungMembr)L c (NH4+ |Y | (Vesicle)L c X) 7→a (FungMembr)L c (Y | (Vesicle)L c (NH4+ | X))
+k
+
+(FungMembr)L c (Y | (Vesicle)L c X) 7→e X | (FungMembr)L cY
+
+(R7)
+(R8)
+(R9)
+
+Where rule R7 models the creation of a vesicle, rule R8 model the encapsulation of an NH4+ molecule
+within the vesicle and rule R9 models the exocytosis of the vesicle content.
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+89
+
+Figure 9: Diffusing NH4+ from the fungus, k f = 0.01 ∗ 10−3 .
+
+4
+
+Discussion
+
+We dissected the route for the passage of NH3 / NH4+ from the fungus to the plant in known and hypothetical mechanisms which were transformed in rules. Further, also the properties of the different
+compartments and their influence on the transported molecules were included, thus giving a first model
+for the simulation of the nutrients transfer. With the model so far we can simulate the behaviour of the
+system when varying parameters as the different compartments pH, the initial substrate concentrations,
+the transport/diffusion speeds and the energy supply.
+We can start comparing the two simulations with the plant cell with the LjAMT2;2 transporter placed
+in different extracellular situations: low NH4+ concentration (Figure 5) or high NH4+ concentration (Figure 4). As a natural consequence of the greater concentration, the ammonium uptake is faster when
+the simulation starts with more NH4+ , as long as the LjAMT2;2 can readily import it. The real situation should be similar to this simulation, assuming that the level of extracellular NH4+ / NH3 is stable,
+meaning an active symbiosis.
+The simulation which represents an extracellular pH around 7 (Figure 6) shows a decreased internalisation speed with respect to the simulation in Figure 4, as could be inferred from the concentrations
+of NH4 inside and NH3 inside in the plots on the right (focusing on the initial activity): this supports
+experimental data about the pH-dependent activity of the transporter and suggests that the extracellular
+pH is fundamental to achieve a sufficient ammonium uptake for the plants. It’s noticeable how the initial
+uptake rate in this case is higher, despite the neutral pH, than the rate obtained considering an “energy
+quantum” used by the transporter (which has the same starting term), as could be seen in the right panels
+of Figure 7 and Figure 6. These results could enforce the biological hypothesis that, instead of ATP, a
+NH4+ concentration gradient (possibly created by the fungus) is used as energy source by the LjAMT2;2
+protein.
+The simulations which also consider the fungal counterpart are interesting because they provide an
+initial investigation of this rather poorly characterized side of the symbiosis and confirm that plants can
+efficiently gain ammonium if NH4+ is released from the fungi. This evidence supports the last biological
+hypothesis about how fungi supply nitrogen to plants [16, 10], and could lead to further models which
+could suggest which is the needed rate for NH4+ transport from fungi to the interfacial apoplast; thus
+driving biologists toward one (or some) of the nowadays considered hypotheses (active transport of
+NH4+ , vesicle formation, etc.).
+
+90
+
+5
+
+Modelling an Ammonium Transporter with SCLS
+
+Conclusions and Future Work
+
+This paper reports on the use of SCSL to simulate and understand some biological behaviour which is
+still unclear to biologists, and it also constitues a first attempt to predict biological behaviour and give
+some directions to biologists for future experiments.
+SCLS has been particularly suitable to model the symbiosis (where substances flow through different
+cells) thanks to its feature to model compartments, and their membranes, in a simple and natural way. Our
+simulations have confirmed some of the latest experimental results about the LjAMT2;2 transporter [18]
+and also support some of the hypotheses about the energy source for the transport. These are the first
+steps towards a complete simulation of the symbiosis and open some interesting paths that could be
+followed to better understand the nutrient exchange.
+As demonstrated by heterologous complementation experiments in yeast, mycorrhiza-specific plant
+transporters [20, 18] show different uptake efficiencies under varying pH conditions. Looking on this and
+the results from the simulations with different pH conditions in the periarbuscular space new experiments
+for a determination of the uptake kinetics (Km -values) under a range of pH seems mandatory. Another
+conclusion from the model is that, for accurate simulation, exact in vivo concentration measurements
+have to be carried out even though at the moment this is a difficult task due to technical limitations.
+As shown by various studies, many transporters on the plant side show a strong transcriptionally
+regulation and the majority of them are thought to be localized at the plant-fungus interface [17]. Consequently a quantification of these proteins in the membrane will be a prerequisite for an accurate future
+model.
+It is known that some of these transporters (e.g. PT4 phosphate transporters) obtain energy from
+proton gradients established by proton pumps (Figure 2) whereas others as the LjAMT2;2 and aquaporines [14] use unknown energy supplies or are simply facilitators of diffusion events along gradients.
+Thus they conserve the membranes electrochemical potential for the before mentioned proton dependent
+transport processes. To make the story even more complex some of these transporters which are known
+to be regulated in the AM symbiosis (e.g. aquaporines) show overlaps in the selectivity of their substrates [23, 24, 43, 31]. Consequently integration of interrelated transporters in a future model will be a
+necessary and challenging task. It is quite probable that also transporters for other macronutrients (potassium and sulfate) which might be localized in the periarbuscular membrane influence the electrochemical
+gradients for the known transport processes.
+With the ongoing sequencing work [27] on the arbuscular model fungus Glomus intraradices transporters on the fungal side of the symbiotic compartment are likely to be identified and characterized
+soon. Data from such future experiments could be integrated in the model and help to answer the question
+whether transporter mediated diffusion or vesicle based excretion events lead to the release of ammonium
+into the periarbuscular space [10].
+Further questions about the plant nutrient uptake and competitive fungal reimport process [10, 5]
+might be answered. Based on the transport properties of orthologous transporters from different fungal
+and/or plant species, theories could be developed which explain different mycorrhiza responsiveness of
+host plants; meaning why certain plant-AM fungus combinations have a rather disadvantageous than
+beneficial effect for the plant.
+In future research on AM and membrane transport processes in general values from measurements
+of concentrations or kinetics can and have to be included in the model and will show how the whole
+system is influenced by these values. Vice versa simulations could be the base for new hypotheses and
+experiments. As a future extension of the modelling technique, we plan to follow the direction taken in
+[12, 4] using type systems to guarantee that an SCLS term satisfies certain biological properties (enforced
+
+M. Coppo, F. Damiani, E. Grassi, M. Guether and A. Troina
+
+91
+
+by a set of typing rules), and also investigate how type systems could enrich the study of quantitative
+systems.
+
+Acknowledgements We thank the referees for their insightful comments. The final version of the
+paper improved due to their suggestions.
+
+References
+[1] A. Abate, Y. Bai, N. Sznajder, C. Talcott, and A. Tiwari. Quantitative and probabilistic modeling in Pathway
+Logic. In IEEE 7th International Symposium on Bioinformatics and Bioengineering. IEEE, 2007.
+[2] B. Alberts, A. Johnson, J. Lewis, M. Raff, K. Roberts, and P. Walter. Molecular Biology of the Cell. Garland
+Science, 2007.
+[3] R. Alur, C. Belta, and F. Ivancic. Hybrid modeling and simulation of biomolecular networks. In HSCC,
+volume 2034 of LNCS, pages 19–32. Springer, 2001.
+[4] B. Aman, M. Dezani-Ciancaglini, and A. Troina. Type disciplines for analysing biologically relevant properties. Electr. Notes Theor. Comput. Sci., 227:97–111, 2009.
+[5] R. Balestrini, J. Gomez-Ariza, L. Lanfranco, and P. Bonfante. Laser microdissection reveals that transcripts
+for five plant and one fungal phosphate transporter genes are contemporaneously present in arbusculated
+cells. Mol.Plant Microbe Interact., 20:1055–1062, 2007.
+[6] R. Barbuti, A. Maggiolo-Schettini, P. Milazzo, P. Tiberi, and A. Troina. Stochastic calculus of looping
+sequences for the modelling and simulation of cellular pathways. Transactions on Computational Systems
+Biology, IX:86–113, 2008.
+[7] R. Barbuti, A. Maggiolo-Schettini, P. Milazzo, and A. Troina. Bisimulation congruences in the calculus of
+looping sequences. In ICTAC, volume 4281 of Lecture Notes in Computer Science, pages 93–107. Springer,
+2006.
+[8] R. Barbuti, A. Maggiolo-Schettini, P. Milazzo, and A. Troina. A calculus of looping sequences for modelling
+microbiological systems. Fundam. Inform., 72(1-3):21–35, 2006.
+[9] L. Cardelli. Brane calculi. In CMSB, volume 3082 of LNCS, pages 257–278. Springer, 2005.
+[10] M. Chalot, D. Blaudez, and A. Brun. Ammonia: a candidate for nitrogen transfer at the mycorrhizal interface.
+Trends in Plant Science, 11:263–266, 2005.
+[11] V. Danos and C. Laneve. Formal molecular biology. Theor. Comput. Sci., 325(1):69–110, 2004.
+[12] M. Dezani-Ciancaglini, P. Giannini, and A. Troina. A type system for required/excluded elements in CLS.
+In DCM, page To appear, 2009.
+[13] D. Gillespie. Exact stochastic simulation of coupled chemical reactions. J. Phys. Chem., 81:2340–2361,
+1977.
+[14] T. Gonen and T. Walz. The structure of aquaporins. Q.Rev.Biophys., 39:361–396, 2006.
+[15] E. Gout, R. Bligny, and R. Douce. Regulation of intracellular pH values in higher plant cells. Carbon-13 and
+phosphorus-31 nuclear magnetic resonance studies. J. Biol. Chem., 267:13903–13909, 1992.
+[16] M. Govindarajulu, P.E. Pfeffer, H. Jin, J. Abubaker, D.D. Douds, J.W. Allen J.W., H. Bucking, P.J. Lammers,
+and Y. Shachar-Hill. Nitrogen transfer in the arbuscular mycorrhizal symbiosis. Nature, 435:819–823, 2005.
+[17] M. Guether, R. Balestrini, M.A. Hannah, M.K. Udvardi, and P. Bonfante. Genome-wide reprogramming of
+regulatory networks, transport, cell wall and membrane biogenesis during arbuscular mycorrhizal symbiosis
+in Lotus japonicus. New Phytol., 182:200–212, 2009.
+[18] M. Guether, B. Neuhauser, R. Balestrini, M. Dynowski, U. Ludewig, and P. Bonfante. A mycorrhizalspecific ammonium transporter from Lotus japonicus acquires nitrogen released by arbuscular mycorrhizal
+fungi. Plant Physiology, 150:73–83, 2009.
+
+92
+
+Modelling an Ammonium Transporter with SCLS
+
+[19] M. Guttenberger. Arbuscules of vesicular-arbuscular mycorrhizal fungi inhabit an acidic compartment within
+plant roots. Planta, 211:299–304, 2000.
+[20] M.J. Harrison, G.R. Dewbre, and J. Liu. A phosphate transporter from medicago truncatula involved in the
+acquisition of phosphate released by arbuscular mycorrhizal fungi. Plant Cell., 14:2413–2429, 2002.
+[21] B. Hause and T. Fester. Molecular and cell biology of arbuscular mycorrhizal symbiosis. Planta, 221:184–
+196, 2005.
+[22] N. Hohnjec, A.M. Perlick, A. Puhler, and H. Kuster. The Medicago truncatula sucrose synthase gene MtSucS1 is activated both in the infected region of root nodules and in the cortex of roots colonized by arbuscular
+mycorrhizal fungi. Mol.Plant Microbe Interact., 16:903–915, 2003.
+[23] L.M. Holm, T.P. Jahn, A.L. Moller, J.K. Schjoerring, D. Ferri, D.A. Klaerke, and T. Zeuthen. NH3 and NH+
+4
+permeability in aquaporin-expressing xenopus oocytes. Pflugers Arch., 450:415–428, 2005.
+[24] T.P. Jahn, A.L. Moller, T. Zeuthen, L.M. Holm, D.A. Klaerke, B. Mohsin, W. Kuhlbrandt, and J.K. Schjoerring. Aquaporin homologues in plants and mammals transport ammonia. FEBS Lett., 574:31–36, 2004.
+[25] H. Javot, N. Pumplin, and M.J. Harrison. Phosphate in the arbuscular mycorrhizal symbiosis: transport
+properties and regulatory roles. Plant Cell and Environment, 30:310–322, 2007.
+[26] JR. Knowles. Enzyme-catalyzed phosphoryl transfer reactions. Annu. Rev. Biochem., 49:877–919, 1980.
+[27] F. Martin, V. Gianinazzi-Pearson, M. Hijri, P. Lammers, N. Requena, I.R. Sanders, Y. Shachar-Hill,
+H. Shapiro, G.A. Tuskan, and J.P.W Young. The long hard road to a completed Glomus intraradices genome.
+New Phytologist, 180, 2008.
+[28] H. Matsuno, A. Doi, M. Nagasaki, and S. Miyano. Hybrid Petri net representation of gene regulatory network.
+In Prooceedings of Pacific Symposium on Biocomputing, pages 341–352. World Scientific Press, 2000.
+[29] P. Milazzo. Qualitative and quantitative formal modelling of biological systems. PhD thesis, University of
+Pisa, 2007.
+[30] J.C. Mills, K.A. Roth, R.L. Cagan, and J.I. Gordon. DNA microarrays and beyond: completing the journey
+from tissue to cell. Nat Cell Biol., 3(8):943, 2001.
+[31] C.M. Niemietz and S.D. Tyerman. Channel-mediated permeation of ammonia gas through the peribacteroid
+membrane of soybean nodules. FEBS Lett., 465:110–114, 2000.
+[32] M. Parniske. Arbuscular mycorrhiza: the mother of plant root endosymbioses. Nat. Rev. Microbiol., 6:763–
+775, 2008.
+[33] C. Priami. Stochastic pi-calculus. Comput. J., 38(7):578–589, 1995.
+[34] C. Priami, A. Regev, E. Y. Shapiro, and W. Silverman. Application of a stochastic name-passing calculus to
+representation and simulation of molecular processes. Inf. Process. Lett., 80(1):25–31, 2001.
+[35] G. Pǎun. Membrane computing. An introduction. Springer, 2002.
+[36] A. Regev and E. Shapiro. Cells as computation. Nature, 419:343, 2002.
+[37] A. Regev and E. Shapiro. The π-calculus as an abstraction for biomolecular systems, pages 219–266. Natural
+Computing Series. Springer, 2004.
+[38] G. Scatena. Development of a stochastic simulator for biological systems based on the calculus of looping
+sequences. Master’s thesis, University of Pisa, 2007.
+[39] S. Schaarschmidt, T. Roitsch, and B. Hause. Arbuscular mycorrhiza induces gene expression of the apoplastic
+invertase LIN6 in tomato (lycopersicon esculentum) roots. J.Exp.Bot., 57:4015–4023, 2006.
+[40] M. Schena, R.A. Heller, T.P. Theriault, K. Konrad, E. Lachenmeier, and R.W. Davis. Microarrays: biotechnology’s discovery platform for functional genomics. Trends Biotechnol., 17(6):217–218, 1999.
+[41] Y. Shacharhill, P.E. Pfeffer, D. Douds, S.F. Osman, L.W. Doner, and R.G. Ratcliffe. Partitioning of intermediary carbon metabolism in vesicular-arbuscular mycorrhizal leek. Plant Physiology, 108:7–15, 1995.
+[42] M.D.Z. Solaiman and M. Saito. Use of sugars by intraradical hyphae of arbuscular mycorrhizal fungi revealed
+by radiorespirometry. New Phytologist, 136:533–538, 1997.
+[43] S.D. Tyerman, C.M Niemietz, and H. Bramley. Plant aquaporins: multifunctional water and solute channels
+with expanding roles. Plant Cell Environ., 25:173–194, 2002.
+
+

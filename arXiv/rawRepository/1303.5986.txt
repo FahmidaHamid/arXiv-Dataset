@@ -1,0 +1,1593 @@
+Efficient Stochastic Simulation of Chemical Kinetics Networks Using A
+Weighted Ensemble Of Trajectories
+Rory M. Donovan, Andrew J. Sedgewick, James R. Faeder,∗ and Daniel M. Zuckerman†
+
+arXiv:1303.5986v2 [q-bio.MN] 28 Mar 2013
+
+Department of Computational and Systems Biology, University of Pittsburgh
+(Dated: April 1, 2013)
+We apply the “weighted ensemble” (WE) simulation strategy, previously employed in the context of molecular
+dynamics simulations, to a series of systems-biology models that range in complexity from one-dimensional to
+a system with 354 species and 3680 reactions. WE is relatively easy to implement, does not require extensive
+hand-tuning of parameters, does not depend on the details of the simulation algorithm, and can facilitate the
+simulation of extremely rare events.
+For the coupled stochastic reaction systems we study, WE is able to produce accurate and efficient approximations of the joint probability distribution for all chemical species for all time t. WE is also able to efficiently
+extract mean first passage times for the systems, via the construction of a steady-state condition with feedback.
+In all cases studied here, WE results agree with independent calculations, but significantly enhance the precision
+with which rare or slow processes can be characterized. Speedups over “brute-force” in sampling rare events via
+the Gillespie direct Stochastic Simulation Algorithm range from ∼1012 to ∼1020 for rare states in a distribution,
+and ∼102 to ∼104 for finding mean first passage times.
+
+I.
+
+Introduction
+
+Stochastic behavior is an essential facet of biological processes such as gene expression, protein expression, and epigenetic processes [1–14]. Stochastic chemical kinetics simulations are often used to study systems biology models of
+such processes [15–17]. One of the more common stochastic approaches, and the one employed in the present study, is
+the stochastic simulation algorithm (SSA), also known as the
+Gillespie algorithm [15, 18, 19].
+As stochastic systems biology models approach the true
+complexity of the systems being modeled, it quickly becomes intractable to investigate rare behaviors using naïve
+(“brute-force”) simulation approaches. By their very nature,
+rare events occur infrequently; confoundingly, rare events
+are often those of most interest. For example, the switching of a bistable system from one state to another may happen so infrequently that running a stochastic simulation long
+enough to see transitions is (extremely) computationally prohibitive [20]. This impediment only grows as model complexity increases, and as such it poses a serious hurdle for systems
+models as they grow more intricate.
+Several approaches to speeding up the simulation of rare
+events in stochastic chemical kinetic systems exist. A variety of “leaping” methods can, by taking advantage of approximate time-scale separation, accelerate the SSA itself [21–
+28]. Kuwahara and Mura’s weighted stochastic simulation
+(wSSA) method [29] was refined by Gillespie and Petzold et
+al. [30–33], and is based on importance sampling. The forward flux sampling method of ten Wolde et al. [20, 34–36]
+uses a series of interfaces in state-space to reduce computational effort, as does the non-equilibrium umbrella sampling
+approach [37, 38].
+Rare event sampling is also an active topic in the field of
+
+∗
+†
+
+faeder@pitt.edu; http://www.csb.pitt.edu/Faculty/Faeder/
+ddmmzz@pitt.edu; http://www.csb.pitt.edu/Faculty/zuckerman
+
+molecular dynamics simulations, and many approaches have
+been proposed. Of the approaches that do not irreversibly
+modify the free energy landscape of the system, some notable methods include dynamic importance sampling [39],
+milestoning [40], transition path sampling [41], transition
+interface sampling [42], forward flux sampling [36], nonequilibrium umbrella sampling [38], and weighted ensemble
+sampling [43–50]. For a summary of these methods, see [51].
+Many of the ideas behind these techniques are not exclusive to
+molecular dynamics simulations, and can be adapted to studying stochastic chemical kinetic models. For example, dynamic
+importance sampling seems to be closely related to wSSA.
+Because of its relative simplicity and potential simplicity
+in sampling rare events, we apply one of these methods, the
+weighted ensemble algorithm (WE) to well-established model
+systems of stochastic kinetic chemical reactions. These models range in complexity from one species and two reactions, to
+354 species and 3680 reactions. For the systems studied, WE
+proves many orders of magnitude faster than SSA simulation
+alone, offers linear parallel scaling, returns full distributions
+of desired species at arbitrary times, and can yield mean first
+passage times (MFPTs) via the setup of a feedback steadystate.
+
+II.
+
+Methodology
+
+The methods employed are described immediately below,
+while the models are specified in Sec. III.
+
+A.
+
+Stochastic Chemical Kinetics & BioNetGen
+
+Stochastic chemical kinetics occupies a middle-ground in
+the realm of chemical simulation, between very explicit, and
+costly, molecular dynamics (MD) simulations and the deterministic formalism of reaction rate equations (RRE). Stochastic chemical kinetics attempts to account for the randomness
+
+2
+inherent in chemical reactions, without trying to explicitly
+model the spatial structure of the reacting species. It is many
+orders of magnitude faster than MD simulations, but much
+slower than the RRE approach. It is an ideal method to use for
+modeling the effects of low concentrations (or copy numbers)
+of chemical reactants, while ignoring the effects of specific
+spatial distribution.
+Stochastic chemical kinetics models can be solved exactly
+for sufficiently simple systems using the Chemical Master
+Equation (CME), and approximately (for all systems) using
+Gillespie’s direct stochastic simulation algorithm (SSA) [15,
+18, 19]. The SSA samples the CME exact solution by modeling stochastic chemical kinetics in a straightforward manner, and yields trajectories of species concentrations that converge to the RRE method in the limit of large amounts of reactants. In brief, the SSA iteratively and stochastically determines which reaction fires when reactions occur, by sampling
+from the exponential distribution of waiting times between reactions. For a detailed explanation of the SSA, see [15].
+We employ the rule-based modeling and simulation package BioNetGen [52] to simulate both our toy and complex
+models. Rule-based modeling languages allow the specification of biochemical networks based on molecular interactions. Rules that describe those interactions can be used to
+generate a reaction network that can be simulated either as
+RREs or using the SSA, or the rules can be used directly to
+drive stochastic chemical kinetics simulations. BioNetGen
+has been applied to a variety of systems, such as the aggregation of membrane proteins by cytosolic cross-linkers in the
+LAT-Grb2-SOS1 system [53], the single-cell quantification of
+IL-2 response by effector and regulatory T cells [54], the analysis and verification of the HMGB1 signaling pathway [55],
+the role of scaffold number in yeast signaling systems [56],
+and the analysis of the roles of Lyn and Fyn in early events
+in B cell antigen receptor signaling [57]. We employ BioNetGen’s implementation of the direct SSA to propagate the dynamics in our systems.
+
+B.
+
+Weighted Ensemble (WE)
+
+WE is a general-purpose protocol used in molecular dynamics simulations [44–46, 48–50] that we adapt here to the
+efficient sampling of dynamics generated by chemical kinetic
+models. In brief, WE employs a strategy of “statistical natural
+selection” using quasi-independent parallel simulations which
+are coupled by the intermittent exchange of information. The
+intermittency leads directly to linear parallel scaling. Importantly, the simulations are coupled via configuration space (essentially the “phase space” of the system in physics language
+or the “state-space” in cell and population modeling). This
+type of coupling permits both efficiency and a large degree
+of scale independence. The efficiency results from distributing trajectories to typically under-sampled parts of the space,
+while scale independence is afforded because every type of
+system has a configuration or state-space.
+WE’s strategy of statistical natural selection or statistical
+ratcheting is schematized in Fig. 1. First, the space is divid-
+
+ed/classified into non-overlapping “bins” which are typically
+static, although dynamic and adaptive tessellations are possible [45]. A target number of trajectories, Mtarg , is set for each
+bin. Multiple trajectories are initiated and each is assigned a
+weight so that the sum of weights is one. Trajectories are then
+simulated independently according to the desired dynamics
+(e.g., molecular dynamics or SSA) and checked intermittently
+(every τ units of time) for their location. If a trajectory of
+weight w is found to occupy a previously unoccupied bin, that
+trajectory is replicated to obtain the target number of copies,
+Mtarg , for the bin. Daughter trajectories’ weights are set to
+w/Mtarg , to sum to the weight of the parent trajectory. If a
+bin is occupied by more than the target number, trajectories
+must be pruned in a statistical fashion maintaining the sum
+of weights. Specifically, the two lowest weight trajectories
+are “merged” by randomly selecting one of them to survive,
+with probability proportional to their weights, and the surviving trajectory absorbs the weight of the pruned one. This process is repeated as needed, and maintains an exact statistical
+representation of the evolving distribution of trajectories [45].
+Setting up a WE simulation requires selection of statespace binning, trajectory multiplicity, and timing parameters.
+In our simulations, we chose to divide the state-space of an
+N-dimensional system into one- or two-dimensional regular
+grids of non-overlapping bins. It is possible to use nonCartesian bins, and to adaptively change the bins during simulation [45, 48], but for simplicity we did not pursue any such
+optimization. Specific parameter choices for each model are
+given in Sec. III.
+The weighted ensemble algorithm can be outlined fairly
+concisely. Let Mtarg be the target number of segments in each
+bin, Nbins the number of bins, whose geometry are defined by
+the grid Ggrid , τ the time-step of an iteration of WE, and Niters
+the total number of iterations of WE. The WE procedure also
+requires an initial state of the system, x0 , which in our case is
+a list of the concentrations of all the chemical species in the
+system.
+procedure WE(Niters , τ, Ggrid , Mtarg , x0 )
+for i = 1 . . . Niters do
+for each populated bin in Ggrid do
+propagate dynamics for all trajectories
+for each bin in Ggrid do
+if bin population = 0 or Mtarg then
+do nothing
+else if bin population < Mtarg then
+replicate trajectories until bin pop. = Mtarg
+maintain sum of weights in each bin
+else if bin population > Mtarg then
+merge trajectories until bin pop. = Mtarg
+maintain sum of weights in each bin
+save coordinates and weights of each trajectory
+return trajectory coordinates & weights for each iter.
+The replicating and merging of trajectories in the above algorithm are done randomly, according to the weight of each
+trajectory segment in a given bin, which has been shown not
+to bias the dynamics of the ensemble [43, 46].
+When WE is used to manage an ensemble of trajectories,
+
+3
+t=0
+
+t=τ
+
+t = 2τ
+
+t = 3τ
+
+Time Propagation: Arbitrary Dynamics Engine
+
+bin 1
+
+bin 2
+
+n
+Dy
+
+bin 3
+
+bin 1
+
+x
+
+am
+
+x
+
+ics
+
+U(x)
+
+bin 1
+
+Probability:
+
+bin 2
+
+bin 3
+
+Dy
+
+bin 2
+
+bin 1
+
+x
+
+bin 3
+
+1
+
+na
+
+m
+
+ics
+U(x)
+
+bin 1
+
+x
+
+1/2
+
+1/4
+
+U(x)
+
+bin 2
+
+bin 3
+
+Dy
+
+bin 2
+
+1/8
+
+bin 1
+
+x
+
+WE
+
+bin 3
+
+WE
+
+U(x)
+
+bin 2
+
+WE
+
+Splitting/Merging: Weighted Ensemble
+
+bin 1
+
+U(x)
+
+bin 3
+
+na
+
+m
+
+x
+
+ics
+U(x)
+
+bin 1
+
+bin 2
+
+bin 3
+
+x
+
+bin 3
+
+x
+
+WE
+
+U(x)
+
+U(x)
+
+bin 2
+
+1/16
+
+FIG. 1. Weighted ensemble (WE) simulation depicted for a configuration/state-space divided into bins. Multiple trajectories are run using any
+dynamics software (here we use the SSA in BioNetGen) and checked every τ for bin location. Trajectories are assigned weights (symbols –
+see legend) that sum to one and are split and combined according to statistical rules that preserve unbiased kinetic behavior.
+
+there are two time-scales of immediate concern: the period
+at which trajectory coordinates are saved, and the period τ at
+which ensemble operations are performed. These two timescales can be different, but for simplicity we set them to be
+the same, and select τ such that it is greater than the average
+event firing rate for the SSA. When we refer to the time-step,
+or iteration of a process, we are referring to the τ of Fig. 1.
+WE can be employed in a variety of modes to address different questions. Originally developed to monitor the time
+evolution of arbitrary initial probability distributions [43], i.e.
+non-stationary non-equilibrium systems, WE was generalized
+to efficiently simulate both equilibrium and non-equilibrium
+steady-states [46]. In steady-state mode, mean first passage
+times (MFPTs) can be estimated rapidly based on simulations much shorter than the MFPT using a simple rigorous
+relation between the flux and MFPT [46]. Steady-states can
+be attained rapidly, avoiding long relaxation times, by using
+the inter-bin rates computed during a simulation to estimate
+bin probabilities appropriate to the desired steady-state; trajectories are then reweighted to conform to the steady-state
+bin probabilities [46]. Both of these methods are described in
+more detail below.
+1.
+
+Basic WE: Probability Distribution Evolving in Time
+
+Perhaps the simplest use of a weighted ensemble of trajectories is to better sample rare states as a system evolves
+in time, specifically the states corresponding to extreme values of the binning coordinate. The SSA itself samples the
+
+exact distribution, but its sampling is concentrated about the
+mode(s) of the distribution. The SSA naturally – and correctly
+– samples rare states infrequently. By using WE to split up the
+state-space, however, one can resample the distribution at every time step τ, selecting those trajectories that advance along
+a progress coordinate for more detailed study, but doing so
+without applying any forces or biasing the trajectories or the
+distribution. Essentially, WE appropriates much of the effort
+that brute-force SSA devotes to sampling the central component of the distribution, repurposing it to obtain better estimates of the tails.
+This basic use of WE requires none of the “tricks” we apply
+in later sections, such as using reweighting techniques to accelerate obtaining a steady-state. We apply basic WE to some
+of our systems – particularly, but not exclusively, to those that
+are not bistable.
+
+2.
+
+Steady-State
+
+The mean first passage time (MFPT) from state A to state
+B is a key observable. It is equal to the inverse of the flux
+(of probability density) from state A to state B in steady-state
+[58],
+MFPTA→B =
+
+1
+.
+Flux ss (A → B)
+
+(1)
+
+This relation provides the weighted ensemble approach the
+ability to calculate MFPTs in a straightforward manner. Dur-
+
+4
+ing a WE run, when any trajectories (and their associated
+weights) reach a designated target area of state-space (or
+“state B”), they are removed and placed back in the initial
+state (“state A”). Eventually, such a process will result in a
+steady-state flow of probability from state A to state B that
+does not change in time (other than with stochastic noise).
+Reweighting. The waiting time to obtain a steady-state
+constrains the efficiency of obtaining a MFPT by measuring
+fluxes via equation 1. This waiting time can vary from the
+relatively short time scale of intra-state equilibration for simple systems, to much longer time-scales, on the order of the
+MFPT itself for more complicated systems. To reduce this
+waiting time, we use the steady-state reweighting procedure
+of Bhatt et al. [46]. This method measures the fluxes between
+bins to obtain a rate-matrix for transitions between bins, and
+uses a Markov formulation to infer a steady-state distribution
+from the (noisy) data available.
+For instance, let {wi } be the set of bin weights (i.e the sum
+of the weights of the trajectories in each bin), and let {wiss } be
+the set of steady-state values of the bin weights. If fi j is the
+flux of weight into bin i from bin j, then in steady-state, since
+the flux out of a bin is equal to the flux into it,
+
+ X
+dwiss X  ss
+ss
+ki j w ss
+=0.
+fi j − f jiss =
+=
+j − k ji wi
+dt
+j
+j
+
+Estimation of Computational Efficiency
+
+Since it is important to assess new approaches quantitatively, we compare the speedup in computing time from
+weighted ensemble to a brute-force simulation, (i.e. SSA). For
+a given observable (e.g., the fraction of probability in a specified tail of the distribution) and a desired precision, we estimate the efficiency using the ratio:
+EB
+
+dynamics time in brute-force SSA
+dynamics time in WE-SSA
+
+dynamics time in brute-force SSA to get ± 50% exact
+.
+dynamics time in WE-SSA to get ± 50% exact
+(4)
+This is an assessment of how well WE can extract rough estimates of long time-scale behavior from simulations that are
+much shorter than those timescales.
+Brute-force SSA simulations can be run for long times
+without seeing a transition from one macro-state to another.
+To take account of the brute-force simulations where no transitions occurred we use a maximum likelihood estimator for
+the transition time, based on an exponential distribution of
+waiting times, which is a valid approximation for the onedimensional and two-state systems studied below:
+E50% B
+
+n
+
+n
+1X
+µ MLE = 1 −
+ti
+T+
+N
+n i=1
+µ MLE
+σµ = √
+n
+
+(2)
+
+Since the flux of weight into bin i from bin j is the product of a (constant) rate and the (current) weight in a bin, i.e.
+fi j = ki j w j (true for both steady state and not), we can use
+Eq. 2 to find the inter-bin rates. By measuring the inter-bin
+fluxes and the bin weights, we can approximately infer the
+transition rates, and then find a set of weights that satisfy Eq.
+2. Once the set of bin weights is found, the weights of the individual trajectories in the bins are rescaled commensurately.
+The steady-state distribution of weights thus inferred is not
+necessarily the true steady-state of the system, but it tends to
+be closer to it, and an iterative application of this procedure
+can converge to the true distribution fairly rapidly. In practice
+it has been shown to accelerate the system’s evolution to a true
+steady-state by orders of magnitude in some cases [46].
+
+C.
+
+ing the advantage of using WE to investigate the tails of probability distributions, as well as for finding MFPTs in bistable
+systems.
+Another measure of efficiency we employ for MFPT estimation gauges how fast WE attains a result that is within 50%
+of the true result (determined from exact or extensive bruteforce calculation):
+
+(3)
+
+Since both WE and brute-force use the same dynamics engine/software, we can estimate the speedup of WE over bruteforce by just keeping track of how much total “dynamics time”
+was simulated in each. We employ this measure when estimat-
+
+(5)
+
+where T is the length of the brute-force simulations, N is the
+number of these simulations performed, n is the number of
+these simulations in which a transition from one state to another is observed, and ti are the times at which the transition
+is observed.
+
+D.
+
+Limitations of Our Implementation
+
+We used two different implementations of the weighted
+ensemble framework: WESTPA, written in Python, is the
+most feature-rich and stable [50], which will be available at
+http://chong.chem.pitt.edu/WESTPA. Another, written by Bin Zhang [44] and modified by us, is written in C,
+and is faster though less robust, and is available at http:
+//donovanr.github.com/WE_git_code.
+Weighted ensemble (WE), as a scripting-level approach, inherently adds some unavoidable overhead to the runtime of the
+dynamics. This overhead, in theory, is quite minimal: stopping, starting, merging, and splitting trajectories are not computationally costly operations. A key issue in practical implementations, though, is how long the algorithm actually takes
+to run, i.e the wall-clock running-time for dynamics (here, the
+SSA).
+In practice, overhead can be significant for very simple systems, for the sole reason that reading and writing to disk takes
+so much time compared to how long it takes to run the dynamics of small models. In our implementation, data is passed
+from the dynamics engine to WE by reading and writing files
+to disk. This handicap is an artifact of our interface, which
+
+5
+could, with minimal work, be modified to something more efficient. As a proof-of-principle, the version of WE written in
+C was modified, for the Schlögl reactions and the futile cycle, to contain hard-coded versions of the Gillespie direct algorithm for those systems, so as to obviate the I/O between
+WE and BNG. With these modifications, it was difficult to
+ascertain any significant overhead costs at all, and our runs
+completed in a matter of seconds. We also note that as model
+complexity increases and more time is devoted to dynamics,
+the overhead problem becomes negligible. Practical applications of WE will, by nature, target models where dynamics
+are expensive, rather than toy models, where they are cheap.
+
+III.
+
+1.
+
+Enzymatic Futile Cycle
+Model
+
+The enzymatic futile cycle is a simple and robust model that
+can, in certain parameter regimes, exhibit qualitatively different behavior due to stochastic noise [59, 60]. This signaling
+motif can be seen in biological systems including GTPase cycles, MAPK cascades, and glucose mobilization [59, 61, 62].
+The enzymatic futile cycle studied here is modeled by:
+kf
+
+k
+
+s
+*
+E1 + S 1 −
+)
+− B1 −→ E1 + S 2
+
+kf
+
+kf
+
+(6)
+k
+
+s
+*
+E2 + S 2 −
+)
+− B2 −→ E2 + S 1
+
+kf
+
+where k f = 1.0 and k s = 0.1. Here S 1 can bind to its enzyme
+E1 , and in the bound form, B1 , (i.e. B1 = E1 · S 1 ), it can be
+converted to S 2 , and then dissociate (and similarly for S 2 →
+−
+S 1 ). The total amount of substrate, S 1 + S 2 , is conserved, as
+are the amounts of the different enzymes E1 and E2 , of which
+is supplied only one of each kind. Following Kuwahara and
+Mura [29], in the specific system we look at, we set S 1 + S 2 =
+100 and E1 + B1 = E2 + B2 = 1.
+Thus constrained, the above system of reactions can be
+solved by a 404-state chemical master equation (CME), to
+obtain an exact probability density for all times when initialized from an arbitrary starting point. We start the system at
+S 1 = S 2 = 50 and E1 = E2 = 1, and are interested in
+the probability distribution of S 1 after 100 seconds, that is,
+P(S 1 = x, t = 100).
+
+WE Parameters
+
+The WE data was generated using 101 bins of unit width on
+the coordinate S 1 . We employed 100 trajectory segments per
+bin that were run for 100 iterations of a τ = 1 s time-step, with
+no reweighting events. The brute-force data is from 10,200
+100-second runs, which is an equivalent amount of dynamics
+to compute as the single WE run, if all the bins were full all
+the time. However, since the bins take some time to fill up, the
+WE run employed only 840,000 one-second segments, which
+makes the comparison to brute-force SSA more than fair.
+
+3.
+
+Models & Results
+
+We study four different models, ranging in complexity from
+two chemical reactions governing one chemical species, to
+3680 reactions governing 354 species. The models we employ
+are coupled stochastic chemical reactions, which we implement and simulate in BioNetGen using the SSA [15, 18, 19].
+As depicted in Fig. 1, these simulations are, in turn, managed
+by a weighted ensemble procedure.
+
+A.
+
+2.
+
+Results
+
+Fig. 2 shows that the brute-force SSA is unable to sample
+values of S 1 much outside the range 30 < S 1 < 70, whereas
+the WE method is able to accurately sample the entire distribution. Waiting for the brute-force approach to sample the
+tails would take ∼ 1/P(tail) ∼ 1/10−23 ∼ 1023 brute-force
+runs. With a conservative estimate of ∼104 runs per second, it
+would take ∼1019 seconds, or many times the age of the universe, for brute-force SSA to sample the tails at all. WE takes
+2–3 seconds to sample them (note the comparison to exact distribution provided by the CME), for an approximate efficiency
+increase E ∼ 1018 .
+For the sake of clarity, error-bars were omitted from Fig. 2.
+Over most of the data range, the error is too small to see on the
+plot. In the tails (of both SSA and WE-SSA) the error is not
+computable from a single run, since there are plot points comprised of only a single trajectory. The error in the estimate of
+the distribution can be inferred visually from the data’s departure form the CME exact solution. For SSA, however, generating uncertainties far all values is essentially impossible.
+When computing quantitative observables reported below, we
+employ multiple independent runs to procure standard errors
+in our estimate.
+From the distribution, we are able to read off useful statistics. Instead of computing MFPTs, Kuwahara and Mura [29],
+and Petzold and Gillespie et al. [30] defined a related quantity,
+the probability of a system to pass from one state to another
+in a certain time: P(xi → x f |∆t) [29–33]. For instance, one
+might desire to know the probability of the futile cycle to have
+a value of S 1 > 90 at ∆t = 100. Since WE gives an accurate
+estimate of P(x, t), all that is required to find such statistics
+is to sum up the area under the state of interest. For the futile cycle, we find a value of 2.47 × 10−18 ± 3.4 × 10−19 at
+one standard error for P(S 1 > 90, t = 100 s), as computed
+from ten replicates of the single WE run plotted in Fig. 2. The
+CME equation gives an exact value of 2.72 × 10−18 . Sampling this tail of the distribution at all by brute-force would
+take ∼ 1/P(tail) ∼ 1/(2.72 × 10−18 ) ∼ 4 × 1017 brute-force
+runs. Using ten replicate runs, WE is able to sample it using 8,400,000 WE segments, which is equivalent to 83,170
+brute-force trajectories, resulting in an increase in sampling
+efficiency by a factor of E ∼ 4 × 1017 /83, 170 ∼ ×1012 for this
+observable.
+
+6
+0.1
+
+Probability
+
+10-6
+10-11
+10-16
+10-21
+10-26
+
+run for 500 iterations of that time-step. Reweighting events
+(see Sec. II B 2) were applied every 100, 5, and 2 iterations
+for the data labeled “RW-100”, “RW-5”, and “RW-2”, respectively.
+
+µµµµµ
+ÈÈÈÈÈ
+µµµ
+ÈÈÈ
+ÈÈ
+µµ
+Èµ
+Èµ
+µµ
+ÈÈ
+ÈÈ
+Èµ
+µµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+ÈÈ µ
+Èµ
+Èµ
+µÈÈÈ µ
+Èµ
+µ Èµ
+Èµ
+ÈÈ
+È
+ÈÈ
+È
+ÈÈ
+ÈÈ
+È
+È
+ÈÈ
+È
+ÈÈ
+È
+È
+È
+È
+È
+ÈÈ
+ÈÈ
+È
+È
+ÈÈ
+È
+ÈÈ
+È
+È
+ÈÈ
+È
+È
+ÈÈ
+È
+È
+CME
+È
+È
+È
+ÈÈ
+È
+È
+È
+È WE-SSA
+È
+È
+È
+È
+È
+ÈÈ
+È
+µ
+È
+SSA
+È
+È
+È
+È
+
+0
+
+20
+
+40
+
+60
+
+80
+
+3.
+
+100
+
+Population of S1 at t = 100 secs.
+
+FIG. 2. The probability distribution of S 1 in the Enzymatic Futile
+Cycle System, after t = 100 seconds, when initialized from a delta
+function at S 1 = 50, E1 = E2 = 1 at t = 0. The exact solution, procured via the chemical master equation (CME), is compared to data
+obtained using the SSA in a weighted ensemble run (WE-SSA), and
+to ordinary SSA, when each are given equal computation time. WE
+data is from a single run. Error bars are not plotted; for a discussion
+of uncertainties, see Sec. III A 3.
+
+B.
+1.
+
+Schlögl Reactions
+Model
+
+The Schlögl reactions are a classic toy-model for benchmarking stochastic simulations of bistable systems [63]. They
+are two coupled reactions with one dynamic species, X:
+k1
+
+−*
+A + 2X )
+− 3X
+k2
+
+k3
+
+(7)
+
+−*
+B)
+−X
+k4
+
+where k1 = 3 × 10−7 , k2 = 10−4 , k3 = 10−3 , k4 = 3.5, A =
+105 , and B = 2 × 105 . The species A and B are assumed to
+be in abundance, and are held constant. Both the mean first
+passage times and the time-evolution of arbitrary probability
+distributions can be computed exactly [64].
+
+2.
+
+WE Parameters
+
+The WE data in Fig. 3 was generated using 802 bins of unit
+width, 100 trajectory segments per bin, a time-step τ = 0.05 s,
+and run for 101 iterations of that time-step, with no reweighting events. The brute-force data is from 80,200 5-second runs,
+which is an equivalent amount of dynamics as a single WE
+run, if all bins are always full. Were that the case, the WE run
+would compute dynamics for 8,100,200 trajectory segments;
+in our case the WE simulation ran 7,047,300 trajectory segments, which makes the comparison to brute-force more than
+fair.
+The WE data in Fig. 4 was generated using 80 bins of width
+10, with 32 trajectory segments per bin, a time-step τ = 0.1 s,
+
+Results
+
+Fig. 3 shows how the results of both a brute-force (BF)
+approach, and the WE approach compare to the exact solution [64], when each employs the same amount of dynamics
+time. We start the Schlögl system with X = 82, i.e. the PDF
+is initially a delta function at X = 82. To investigate rare transitions, we study the PDF at time t = 5 s. WE is able to accurately sample almost the entire distributions, even over the potential barrier near X = 250, while the BF approach is limited
+to sampling only high probability states. The Schlögl system
+is bistable, with states centered at X = 82 and X = 563, and a
+potential barrier between them, peaked at X = 256. The bruteforce approach is unable to accurately sample values outside
+of the initial state, and cannot detect bistability in the model.
+For the sake of clarity, error-bars were omitted from Fig. 3.
+Over most of the data range, the error is too small to see on
+the plot. In the tails (of both SSA and WE-SSA) the error is
+not computable from a single run, since there are plot points
+comprised of only a single trajectory. Multiple runs are consistent with the data shown. The error in the estimate of the
+distribution can be inferred visually from the data’s departure
+form the CME exact solution. When computing quantitative
+observables below, we employ multiple independent runs to
+procure standard errors in our estimate.
+WE yields the full, unbiased probability distribution, but
+we again examine an observable investigated by Petzold and
+Gillespie et al. [29–33]. As such, the conversion to the
+rare event statistics of Gillespie et al. is a simple summation. From ten replicates of the Schlögl run plotted in Fig. 3,
+the probability that X ≥ 700 at t = 5 seconds, i.e.
+P(X ≥ 700, t = 5 s), is 1.143 × 10−9 ± 4.7 × 10−11
+at 1-σ. The CME exact value is 1.148 × 10−9 . Since it would
+take at least 1/(1.15 × 109 ) ∼ 109 brute-force trajectories to
+sample the probability that X ≥ 700 at t = 5, we can estimate
+an improvement in efficiency of using WE over brute-force of
+109 /802, 000 ∼ 103 .
+We also estimate the mean first passage time (MFPT) of
+the Schlögl system, which can be computed exactly [64].
+Weighted ensemble can estimate the MFPT using Eq. 1 when
+the system is put into a steady-state. For the run that was
+reweighted every 100 iterations, Fig. 4 shows the WE estimates of the flux from the initial state (X = 82) to the final
+state (X ≥ 563) converge to the exact value in about 100 iterations of weighted ensemble splittings and mergings, which is
+when the system relaxes from its delta-function initialization
+to a steady-state. The attainment of steady-state is accelerated
+by more frequent reweighting (see Sec. II B 2 on reweighting),
+as is shown in Fig. 4 in the runs that are reweighted every 2
+and 5 iterations. These more frequently reweighted runs yield
+fluxes close to the exact value within about 30 iterations.
+To quantify WE’s improvement over brute-force in the es-
+
+7
+1
+
+Probability
+
+0.001
+10-6
+10-9
+10-12
+10-15
+10-18
+
+C.
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+Èµ
+µ
+Èµ
+µ
+Èµ
+Èµ
+µ
+µ
+Èµ
+ÈÈÈ
+µ
+Èµ
+Èµ
+µ
+Èµ
+µ
+Èµ
+Èµ
+ÈÈ
+ÈÈµ
+Èµ
+µ
+µ
+µ
+È
+ÈÈµ
+Èµ
+µ
+µ
+È
+µ
+µ
+µ
+µ
+µ
+È
+ÈÈµ
+µ
+µ
+µÈµ
+µ
+µ
+µ
+µµ
+µ
+µÈ
+Èµ
+ÈÈµ
+µ
+µµ
+Èµ
+Èµ
+µµÈµ
+µ µ
+È
+Èµ
+ÈÈÈÈÈµ
+È
+ÈÈÈÈÈÈÈ
+ÈÈÈÈÈÈÈÈÈÈÈÈÈ
+ÈÈ
+È
+ÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈ
+È
+ÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈ
+ÈÈÈ
+È ÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈÈ
+ÈÈÈÈÈÈÈÈÈ
+È
+ÈÈ
+ÈÈÈÈÈÈÈÈ
+ÈÈÈÈÈÈ
+ÈÈ
+ÈÈÈÈÈÈÈ
+È
+ÈÈÈÈÈÈÈ
+ÈÈÈÈÈÈÈÈ
+ÈÈÈÈÈÈÈÈ
+CME
+ÈÈ È
+ÈÈ
+ÈÈÈÈÈÈÈÈÈÈÈÈÈ
+ÈÈÈÈÈ ÈÈ
+ÈÈ
+È WE-SSA
+ÈÈÈÈÈ
+ÈÈÈÈÈÈ È
+È
+ÈÈÈÈÈ
+µ SSA
+ÈÈÈÈ
+ÈÈÈÈ
+È
+È
+ÈÈ
+0ÈÈ
+200
+400
+600
+800
+
+Population of X at t = 5 secs.
+
+timate of the MFPT, we use the measure E50% defined in Sec.
+II C. A brute-force estimate of the MFPT would require, optimistically, computing an amount of dynamics on the order
+of the MFPT itself (approximately 5 × 104 ) seconds. Since
+transitions in this system follow an exponential distribution,
+the standard deviation of the first passage times is equal to the
+mean of them. WE’s estimate of the MFPT is within 50% of
+the exact value after about 30 iterations of WE simulation, at
+which point about 1100 trajectory segments have been propagated, which is equivalent to propagating about 110 seconds
+of brute-force dynamics. Thus we find E50% ∼ 5 × 104 /110 ≈
+500. As can be seen in Fig. 4, this value is about a 3–5 fold
+increase over the WE results when reweighting very infrequently (every 100 iterations).
+
+1
+0.01
+
+Flux
+
+10-4
+10-6
+
+WE-SSA, RW-100
+
+10-8
+
+WE-SSA, RW-5
+
+10-12
+
+WE-SSA, RW-2
+Exact
+
+0
+
+100
+
+200
+
+300
+
+400
+
+Model
+
+This model consists of two genes that repress each other’s
+expression. Once expressed, each protein can bind particular
+DNA sites upstream of the gene which codes for the other
+protein, thereby repressing its transcription [65]. If we denote
+the ith protein concentration by gi , the deterministic system is
+described by the equations:
+
+È
+
+FIG. 3. The probability distribution of X in the Schlögl system, at
+t = 5 seconds, when initialized from a delta function at X = 82. The
+exact solution from the chemical master equation is compared to data
+obtained using the SSA in a weighted ensemble run (WE-SSA), and
+to ordinary SSA. WE data is from a single run. For a discussion of
+uncertainties, see Sec. III B 3.
+
+10-10
+
+1.
+
+Epigenetic Switch
+
+500
+
+Iteration
+
+FIG. 4. The flux of probability into the target state (X ≥ 563) for
+the Schlögl system. The exact value is compared to WE results, for
+reweighting periods of every 100, 5, and 2 iterations. The inverse of
+the flux gives the mean first passage time by Eq. 1.
+
+dg1
+g1
+a1
+−
+=
+dt
+1 + (g2 /K2 )n
+τ
+(8)
+g2
+dg2
+a2
+−
+=
+m
+dt
+1 + (g1 /K1 )
+τ
+where a1 = 156, a2 = 30, n = 3, m = 1, K1 = 1, K2 = 1,
+τ = 1. In our stochastic model, our chemical reactions take
+the form of a birth-death process, the propensity functions of
+which are taken from the above differential equations:
+k1 (g2 )
+
+k0
+
+k2 (g1 )
+
+k0
+
+∅ −−−−→ g1 −→ ∅
+
+(9)
+
+∅ −−−−→ g2 −→ ∅
+where k0 = 1/τ, k1 (g2 ) = a1 /[1 + (g2 /K2 )n ], k2 (g1 ) = a2 /[1 +
+(g1 /K1 )m ].
+
+2.
+
+WE Parameters
+
+For this system we implemented 2-dimensional bins: 15
+along g1 and 31 along g2 , for a total of 465 bins. The bins
+along the g1 coordinate were of unit width on the interval
+[0, 10], and then of width 10 on the interval [10, 50], with one
+additional bin on [50, ∞]. The bins along the g2 coordinate
+were of unit width on the interval [0,30], with one additional
+bin on [30, ∞].
+The WE data in Fig. 5 was generated using 16 trajectory
+segments per bin, a time-step τ = 0.1 s, and run for 500 iterations of that time-step, with reweighting events applied every
+100 iterations. Fig. 5 shows six independent simulations using
+these parameters, as well as MLE statistics from our bruteforce computations. Were all the bins full at all iterations, WE
+would compute, for each of the six runs, 3,720,000 trajectory
+segments of length 0.1 seconds each, which is equivalent in
+cost to running 372,000 seconds of brute-force dynamics. In
+our case, most of the bins never get populated; we computed
+dynamics for 148,855, 149,516, 148,940, 147,351, 146,804,
+and 149,765 segments in the six different runs. In toto, this is
+equivalent to 89,123.1 seconds of brute-force dynamics.
+
+8
+3.
+
+D.
+
+Results
+
+Even the state-space of this two-species stochastic system is
+too large to solve exactly, necessitating the use of brute-force
+simulation as a baseline comparison. A brute-force computation was performed using the SSA as implemented in BNG.
+753 simulations of 106 seconds each were run, and using an
+exponential distribution of MFPTs, the MLE (see Eq. 5) of
+the mean and standard error of the mean, µMLE and σµ , were
+found to be 1.3 × 106 seconds and 6.5 × 104 seconds respectively.
+The WE results are plotted against the brute-force values in
+Fig. 5, where we have used the relation MFPT = 1/flux (Eq. 1)
+to plot the steady-state flux that brute-force predicts. We plot
+the net flux entering the target state as the simulation progresses, because this is what WE measures directly; we can
+infer the MFPT using the above relation. Taking the mean of
+each of the six WE runs after the simulation is in steady-state
+(we discard the first 100 iterations), and treating each of these
+means as an independent data point, WE gives a combined
+estimate for the MFPT of 1.3 × 106 ± 3 × 104 seconds at 1-σ.
+WE is able to find an estimate of the MFPT with greater
+precision than brute-force, using the equivalent of 89,123.1
+seconds of brute-force dynamics. The brute-force estimate
+uses 753 × 106 seconds of dynamics, yielding a speedup by a
+factor of E ∼ 104 when using WE compared to brute-force.
+WE is also able to quickly attain an efficient rough
+estimate of the MFPT. A brute-force estimate of the
+MFPT would require, optimistically, computing an amount
+of dynamics on the order of the MFPT itself (∼106 s).
+In the six different simulations, WE’s estimate of the
+MFPT is within 50% of the brute-force value after
+{52, 44, 37, 40, 43, 42} iterations of WE simulation, at which
+point {10238, 8400, 6177, 6819, 7141, 7750} trajectory segments have been propagated, which is equivalent to propagating {1023.8, 840.0, 617.7, 681.9, 714.1, 775.0} seconds of
+brute-force dynamics, the mean of which is approximately
+775. Thus we find a mean E50% ≈ 1.3 × 106 /775 ≈ 1725.
+
+Flux
+
+10-4
+10-6
+10-8
+10
+
+-10
+
+10
+
+-12
+
+WE-SSA 1
+
+WE-SSA 2
+
+WE-SSA 3
+
+WE-SSA 4
+
+WE-SSA 5
+
+WE-SSA 6
+
+SSA Hm ± 3sL
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+Iteration
+
+FIG. 5. Measurements of probability flux into the target state for
+the epigenetic switch system. Six independent WE simulations are
+plotted, as well as the 3-σ confidence interval for the brute-force
+data, which is from 753 trajectories of 106 seconds each. The inverse
+of the flux gives the mean first passage time by Eq. 1.
+
+1.
+
+FcεRI-Mediated Signaling
+Model
+
+To demonstrate the flexibility of the WE approach, we applied it to a signaling model that is, to our knowledge, considerably more complex than any other biochemical system
+to which rare event sampling techniques have been applied.
+The reaction network in this model (see supplementary material [URL will be inserted by AIP] fceri_ji.bngl) contains 354
+chemical species and 3680 chemical reactions [66].
+This model describes association, dissociation, and phosphorylation reactions among four components: the receptor
+FcεRI, a bivalent ligand that aggregates receptors into dimers,
+and the protein tyrosine kinases Lyn and Syk. The model also
+includes dephosphorylation reactions mediated by a pool of
+protein tyrosine phosphatases. These reactions generate a network of 354 distinct molecular species. The model predicts
+levels of association and phosphorylation of molecular complexes as they vary with time, ligand concentration, concentrations of signaling components, and genetic modifications
+of the interacting proteins.
+
+2.
+
+WE Parameters
+
+The WE data in Fig. 6 was generated using 60 bins of unit
+width, 100 trajectory segments per bin, a time-step τ = 0.6 s,
+and run for 100 iterations of that time-step, with no reweighting events. The brute-force data is from 1484 brute-force runs
+of 60 seconds each, which is equivalent to the dynamics time
+employed in attaining the WE data. No attempt was made to
+optimize sampling times or bin widths in WE.
+
+3.
+
+Results
+
+Fig. 6 shows the probability distribution of activated receptors in the FcεRI-Mediated Signaling model at time t = 60 s.
+The brute-force SSA approach is unable to sample out to likelihoods much below ∼10−3 , while WE gets clean statistics for
+likelihood values down to ∼10−15 , for an estimated improvement in efficiency E ∼ 1012 .
+
+IV.
+
+Discussion
+
+We applied the weighted ensemble (WE) [43–50] approach
+to systems-biology models of stochastic chemical kinetics
+equations, implemented in BioNetGen [17, 52]. Increases in
+computational efficiency on the order of 1020 were attained for
+a simple system of biological relevance (the enzymatic futile
+cycle), and on the order of 1012 for a large systems-biology
+model (FcεRI), with 354 species and 3680 reactions.
+WE is easy to understand and implement, statistically exact [45], and easy to parallelize. It can yield long-timescale
+information such as mean first passage times (MFPTs) from
+
+9
+
+0.001
+
+È
+
+Èµ
+Èµ
+µµµ
+Èµ
+Èµ
+Èµ
+Èµ
+ÈÈÈ
+ÈÈÈ
+µµ
+µµ È
+µµ
+ÈÈ
+Èµ
+ÈÈ
+µµ
+È
+È
+µ
+È
+µ
+µ
+µµ
+È
+È
+È
+
+Probability
+
+È
+
+ÈÈ
+
+È
+
+È
+
+10-6 È
+
+ÈÈÈ
+È
+
+È
+È
+
+10-9
+10-12
+
+È
+
+WE-SSA
+
+µ
+
+SSA
+
+È
+ÈÈ
+È
+È
+È
+
+0
+
+10
+
+20
+
+30
+
+40
+
+Population of RecSykPS at t = 60 secs
+
+FIG. 6. Comparison of WE and SSA for the FcεRI signaling model,
+which has 354 reactions and 3680 chemical species. The probability
+distribution is shown for the system reaching a specified level of Syk
+activation (the output of the model, which is a sum of 164 species
+concentrations) within one minute of system time after stimulation.
+Results of 1484 SSA simulations of one minute duration are compared with WE results generated with an equivalent computational
+effort (several CPU hours in each case).
+
+simulations of much shorter length. As in prior molecular
+simulations [44, 46], WE has been demonstrated to increase
+computational efficiency by orders of magnitude for models
+of non-trivial complexity, and offers perfect (linear) parallel
+scaling. It appears that WE holds significant promise as a tool
+for the investigation of complex stochastic systems.
+Nevertheless, a number of additional points, including limitations of WE and related procedures, merit further discussion.
+
+A.
+
+Strengths of WE
+
+Beyond the efficiency observed for the systems studied here, the WE approach has other significant strengths.
+Weighted ensemble is easy to implement: it examines trajectories at fixed time-intervals, and its implementation as
+scripting-level code makes it amenable to using any stochastic dynamics engine to propagate trajectories. WE also parallelizes well, and can take advantage of multiple cores on a
+single machine, or across many machines on a cluster; Zwier
+et al. have successfully performed a WE computation on more
+than 1,000 cores on the Ranger supercomputer [50]. Additionally, WE trajectories are unbiased and follow the natural
+dynamics of the system. WE also yields full probability distributions, and can find mean first passage times (MFPTs) and
+equilibrium properties of systems.
+
+into different regions, and are able to merge and split trajectories so as to enhance the sampling of rare regions of statespace. The approaches described differ slightly in the way the
+splitting and merging of trajectories is performed. WE also
+differs from FFS in that WE does not have to catch trajectories in the act of crossing a bin boundary; instead WE checks,
+at a prescribed time step, in which bin a trajectory resides.
+This can be advantageous in that no low-level interaction with
+the dynamics engine/software is required in WE.
+The central hurdle to improving efficiency using accelerating sampling techniques such as WE, FFS, and NEUS, is
+to adequately divide that state-space by selecting reaction coordinates that are both important to the dynamics of interest,
+and that are slowly sampled by brute-force approaches. Optimally and automatically dividing and binning the state-space
+is, to our knowledge, an open problem, and one that, for complex systems, where a target state is unknown, is not always a
+straightforward one to solve, though adaptive strategies have
+been suggested [45, 48, 67].
+The wSSA approach [29] differs from the above approaches. It does not use a state-space approach, but rather
+uses importance sampling to bias and then unbias the dynamics. WE seems to have comparable performance to wSSA for
+systems to which both can be applied. Since wSSA biases/unbiases reaction rates, while WE divides state-space, the advantage of one over the other may be situation-dependent. The
+ease of implementation of the WE framework would appear
+to scale better with model complexity than current versions of
+wSSA, though for very small models wSSA may outperform
+WE in measuring select observables.
+A limitation common to accelerated sampling techniques
+used to estimate non-equilibrium observables is the systemintrinsic timescale: “tb ”, or the “event duration” time [68].
+This timescale represents the time it takes for realistic trajectories to “walk” from one state to another, excluding the waiting time prior to the event. The event duration is often only
+a fraction of the MFPT, since it is the likelihood of walking
+this path that is low; the time to actually walk the path is often quite moderate. That is, the waiting time in an initially
+metastable state can greatly exceed tb . WE excels at overcoming the low likelihood of a transition, but no accelerated
+sampling technique can overcome tb .
+Finally, it should be noted that all state-space methods that
+branch trajectories, including WE, produce correlated trajectories, due to the splitting/merging events. While such correlations do not appear to have impeded the application of WE
+to the systems investigated here, future work will aim to quantify their effects and reduce their potential impact. The present
+work accounted for correlations by analyzing multiple fully
+independent WE runs.
+
+C.
+B.
+
+Future Applications
+
+Comparison to Other Approaches
+
+WE is most similar in spirit to recent versions of forward
+flux sampling (FFS) [36] and non-equilibrium umbrella sampling (NEUS) [37]. All of these methods divide up state-space
+
+Beyond potential applications to more complex stochastic
+chemical kinetics models, the weighted ensemble formalism
+could be applied to spatially heterogeneous systems. WE
+should be able to accelerate the sampling of models such as
+
+10
+those generated by MCell [69–71] or Smoldyn [72], perhaps
+using three-dimensional spatial bins.
+It may be possible to integrate WE with other methods. We
+note that the state-space dividing approaches of a number of
+methods (forward flux [20, 34–36], non-equilibrium umbrella
+sampling [37, 38], and weighted ensemble [43–50]), since
+they are dynamics-agnostic, could be combined with other
+methods that accelerate the dynamics engine itself, such as
+the τ-leaping modification of Gillespie’s SSA and its many
+variants and improvements [73–76], to yield multiplicative increases in runtime speedup.
+
+it does not bias dynamics, the trajectories it propagates could
+be suitable for replica exchange schemes.
+For complex models where exploring the state-space via
+brute-force is prohibitively expensive, WE could also be employed to search for bistability, or in a model-checking capacity [80–82] to search for pathological states.
+
+V.
+
+Acknowledgments
+
+More speculatively, WE could be combined with parallel
+tempering methods [77–79]. WE accelerates the exploration
+of the free-energy landscape at a given temperature, and since
+
+We gratefully acknowledge funding from NSF grant
+MCB-1119091, NIH grant P41 GM103712, NIH grant T32
+EB009403, and NSF Expeditions in Computing Grant (award
+0926181). We thank Steve Lettieri, Ernesto Suarez, and Justin
+Hogg for helpful discussions.
+
+[1] M. Esteller, The New England journal of medicine 358, 1148
+(2008).
+[2] H. H. McAdams and A. Arkin, Proceedings of the National
+Academy of Sciences of the United States of America 94, 814
+(1997).
+[3] A. Arkin, J. Ross, and H. H. McAdams, Genetics 149, 1633
+(1998).
+[4] W. J. Blake, M. Kaern, C. R. Cantor, and J. J. Collins, Nature
+422, 633 (2003).
+[5] J. M. Raser and E. K. O’Shea, Science (New York, N.Y.) 304,
+1811 (2004).
+[6] L. S. Weinberger, J. C. Burnett, J. E. Toettcher, A. P. Arkin, and
+D. V. Schaffer, Cell 122, 169 (2005).
+[7] M. Acar, J. T. Mettetal, and A. van Oudenaarden, Nature genetics 40, 471 (2008).
+[8] L. Cai, N. Friedman, and X. S. Xie, Nature 440, 358 (2006).
+[9] M. B. Elowitz, A. J. Levine, E. D. Siggia, and P. S. Swain,
+Science (New York, N.Y.) 297, 1183 (2002).
+[10] A. Raj and A. van Oudenaarden, Cell 135, 216 (2008).
+[11] N. Maheshri and E. K. O’Shea, Annual review of biophysics
+and biomolecular structure 36, 413 (2007).
+[12] B. B. Kaufmann and A. van Oudenaarden, Current opinion in
+genetics & development 17, 107 (2007).
+[13] V. Shahrezaei and P. S. Swain, Current opinion in biotechnology 19, 369 (2008).
+[14] A. Raj and A. van Oudenaarden, Annual review of biophysics
+38, 255 (2009).
+[15] D. T. Gillespie, Annual review of physical chemistry 58, 35
+(2007).
+[16] D. J. Wilkinson, Stochastic Modelling for Systems Biology, Second Edition, Vol. 2011 (CRC Press, 2011) p. 335.
+[17] M. L. Blinov, J. R. Faeder, B. Goldstein, and W. S. Hlavacek,
+Bioinformatics (Oxford, England) 20, 3289 (2004).
+[18] D. T. Gillespie, Journal of Computational Physics 22, 403
+(1976).
+[19] D. T. Gillespie, The Journal of Physical Chemistry 81, 2340
+(1977).
+[20] R. Allen, P. Warren, and P. ten Wolde, Physical Review Letters
+94, 018104 (2005).
+[21] W. Zhou, X. Peng, Z. Yan, and Y. Wang, Computational biology and chemistry 32, 240 (2008).
+[22] E. Mjolsness, D. Orendorff, P. Chatelain, and P. Koumoutsakos,
+The Journal of chemical physics 130, 144110 (2009).
+
+[23] D. D. Jenkins and G. D. Peterson, Computer Physics Communications 182, 2580 (2011).
+[24] A. Chatterjee, K. Mayawala, J. S. Edwards, and D. G. Vlachos,
+Bioinformatics (Oxford, England) 21, 2136 (2005).
+[25] B. Bayati, P. Chatelain, and P. Koumoutsakos, Journal of Computational Physics 228, 5908 (2009).
+[26] D. T. Gillespie and L. R. Petzold, The Journal of Chemical
+Physics 119, 8229 (2003).
+[27] H. Lu and P. Li, Computer Physics Communications 183, 1427
+(2012).
+[28] M. A. Gibson and J. Bruck, The Journal of Physical Chemistry
+A 104, 1876 (2000).
+[29] H. Kuwahara and I. Mura, The Journal of chemical physics 129,
+165101 (2008).
+[30] D. T. Gillespie, M. Roh, and L. R. Petzold, The Journal of
+chemical physics 130, 174103 (2009).
+[31] M. K. Roh, D. T. Gillespie, and L. R. Petzold, The Journal of
+chemical physics 133, 174106 (2010).
+[32] B. J. Daigle, M. K. Roh, D. T. Gillespie, and L. R. Petzold, The
+Journal of chemical physics 134, 044110 (2011).
+[33] M. K. Roh, B. J. Daigle, D. T. Gillespie, and L. R. Petzold, The
+Journal of chemical physics 135, 234108 (2011).
+[34] R. J. Allen, D. Frenkel, and P. R. ten Wolde, The Journal of
+chemical physics 124, 024102 (2006).
+[35] R. J. Allen, D. Frenkel, and P. R. ten Wolde, The Journal of
+chemical physics 124, 194111 (2006).
+[36] R. J. Allen, C. Valeriani, and P. Rein Ten Wolde, Journal of
+physics: Condensed matter 21, 463102 (2009).
+[37] A. Dickson, A. Warmflash, and A. R. Dinner, The Journal of
+chemical physics 130, 074104 (2009).
+[38] A. Warmflash, P. Bhimalapuram, and A. R. Dinner, The Journal
+of chemical physics 127, 154112 (2007).
+[39] D. M. Zuckerman and T. B. Woolf, The Journal of Chemical
+Physics 111, 9475 (1999).
+[40] A. K. Faradjian and R. Elber, The Journal of chemical physics
+120, 10880 (2004).
+[41] C. Dellago, P. G. Bolhuis, F. S. Csajka, and D. Chandler, The
+Journal of Chemical Physics 108, 1964 (1998).
+[42] T. S. van Erp, D. Moroni, and P. G. Bolhuis, The Journal of
+Chemical Physics 118, 7762 (2003).
+[43] G. A. Huber and S. Kim, Biophysical journal 70, 97 (1996).
+[44] B. W. Zhang, D. Jasnow, and D. M. Zuckerman, Proceedings
+of the National Academy of Sciences of the United States of
+
+11
+America 104, 18043 (2007).
+[45] B. W. Zhang, D. Jasnow, and D. M. Zuckerman, The Journal
+of chemical physics 132, 054107 (2010).
+[46] D. Bhatt, B. W. Zhang, and D. M. Zuckerman, The Journal of
+chemical physics 133, 014110 (2010).
+[47] M. C. Zwier, J. W. Kaus, and L. T. Chong, Journal of Chemical
+Theory and Computation 7, 1189 (2011).
+[48] J. L. Adelman and M. Grabe, The Journal of chemical physics
+138, 044105 (2013).
+[49] S. Lettieri, M. C. Zwier, C. A. Stringer, E. Suarez, L. T. Chong,
+and D. M. Zuckerman, “Simultaneous computation of dynamical and equilibrium information using a weighted ensemble of
+trajectories,” (2012), arXiv:1210.3094.
+[50] M. Zwier, J. Adelman, J. Kaus, S. Lettieri, E. Suarez, D. Wang,
+D. Zuckerman, M. Grabe, and L. Chong, “WESTPA: A
+portable, highly scalable software package for weighted ensemble simulation and analysis,” (2013).
+[51] M. C. Zwier and L. T. Chong, Current opinion in pharmacology
+10, 745 (2010).
+[52] J. R. Faeder, M. L. Blinov, and W. S. Hlavacek, Methods in
+molecular biology (Clifton, N.J.) 500, 113 (2009).
+[53] A. Nag, M. I. Monine, J. R. Faeder, and B. Goldstein, Biophysical journal 96, 2604 (2009).
+[54] O. Feinerman, G. Jentsch, K. E. Tkach, J. W. Coward, M. M.
+Hathorn, M. W. Sneddon, T. Emonet, K. A. Smith, and
+G. Altan-Bonnet, Molecular systems biology 6, 437 (2010).
+[55] H. Gong, P. Zuliani, A. Komuravelli, J. R. Faeder, and E. M.
+Clarke, BMC bioinformatics 11 Suppl 7, S10 (2010).
+[56] T. M. Thomson, K. R. Benjamin, A. Bush, T. Love, D. Pincus,
+O. Resnekov, R. C. Yu, A. Gordon, A. Colman-Lerner, D. Endy,
+and R. Brent, Proceedings of the National Academy of Sciences
+of the United States of America 108, 20265 (2011).
+[57] D. Barua, W. S. Hlavacek, and T. Lipniacki, Journal of immunology (Baltimore, Md. : 1950) 189, 646 (2012).
+[58] T. L. Hill, Free Energy Transduction And Biochemical Cycle
+Kinetics (Dover Publications, 2004) p. 119.
+[59] M. Samoilov, S. Plyasunov, and A. P. Arkin, Proceedings of the
+National Academy of Sciences of the United States of America
+102, 2310 (2005).
+[60] A. Warmflash, D. N. Adamson, and A. R. Dinner, The Journal
+of chemical physics 128, 225101 (2008).
+[61] B. N. Kholodenko, Nature reviews. Molecular cell biology 7,
+165 (2006).
+[62] L. Wang and E. D. Sontag, Journal of mathematical biology 57,
+29 (2008).
+
+[63] M. Vellela and H. Qian, Journal of the Royal Society, Interface
+/ the Royal Society 6, 925 (2009).
+[64] D. T. Gillespie, Markov Processes: An Introduction for Physical Scientist (Gulf Professional Publishing, 1992) p. 565.
+[65] D. Roma, R. O’Flanagan, A. Ruckenstein, A. Sengupta, and
+R. Mukhopadhyay, Physical Review E 71, 011902 (2005).
+[66] J. R. Faeder, W. S. Hlavacek, I. Reischl, M. L. Blinov, H. Metzger, A. Redondo, C. Wofsy, and B. Goldstein, J. Immunol.
+170, 3769 (2003).
+[67] D. Bhatt and I. Bahar, The Journal of chemical physics 137,
+104101 (2012).
+[68] B. W. Zhang, D. Jasnow, and D. M. Zuckerman, The Journal
+of chemical physics 126, 074504 (2007).
+[69] J. Stiles and T. Bartol, in Computational Neuroscience: Realistic Modeling for Experimentalists, edited by E. De Schutter
+(CRC Press, Boca Raton, 2001) Chap. Monte Carl, pp. 87–127.
+[70] R. A. Kerr, T. M. Bartol, B. Kaminsky, M. Dittrich, J.-C. J.
+Chang, S. B. Baden, T. J. Sejnowski, and J. R. Stiles, SIAM
+journal on scientific computing 30, 3126 (2008).
+[71] J. R. Stiles, D. Van Helden, T. M. Bartol, E. E. Salpeter, and
+M. M. Salpeter, Proceedings of the National Academy of Sciences of the United States of America 93, 5747 (1996).
+[72] S. S. Andrews, Methods in molecular biology (Clifton, N.J.)
+804, 519 (2012).
+[73] L. A. Harris and P. Clancy, The Journal of chemical physics
+125, 144107 (2006).
+[74] T. Tian and K. Burrage, The Journal of chemical physics 121,
+10356 (2004).
+[75] Y. Cao, D. T. Gillespie, and L. R. Petzold, The Journal of chemical physics 124, 044109 (2006).
+[76] D. T. Gillespie, The Journal of Chemical Physics 115, 1716
+(2001).
+[77] U. H. Hansmann, Chemical Physics Letters 281, 140 (1997).
+[78] Y. Sugita and Y. Okamoto, Chemical Physics Letters 314, 141
+(1999).
+[79] D. J. Earl and M. W. Deem, Physical Chemistry Chemical
+Physics 7, 3910 (2005).
+[80] E. M. Clarke, O. Grumberg, and D. A. Peled, Model Cheking
+(MIT Press, 1999) p. 314.
+[81] E. M. Clarke, J. R. Faeder, C. J. Langmead, L. A. Harris, S. K.
+Jha, and A. Legay, Computational Methods in Systems Biology
+Lecture Notes in Computer Science, 5307, 231 (2008).
+[82] S. K. Jha, E. M. Clarke, C. J. Langmead, A. Legay, A. Platzer,
+and P. Zuliani, Computational Methods in Systems Biology
+Lecture Notes in Computer Science, 5688, 218 (2009).
+
+

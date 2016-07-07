@@ -1,0 +1,1144 @@
+arXiv:1101.5091v2 [stat.CO] 27 Jan 2011
+
+Why approximate Bayesian computational (ABC) methods
+cannot handle model choice problems
+Christian P. Robert
+Université Paris Dauphine, CEREMADE,
+IUF, and CREST
+
+Jean-Michel Marin
+I3M, UMR CNRS 5149
+Université Montpellier 2
+
+Natesh S. Pillai
+Department of Statistics, Harvard University
+Abstract
+Approximate Bayesian computation (ABC), also known as likelihood-free methods,
+have become a favourite tool for the analysis of complex stochastic models, primarily
+in population genetics but also in financial analyses. We advocated in Grelaud et al.
+(2009) the use of ABC for Bayesian model choice in the specific case of Gibbs random
+fields (GRF), relying on a sufficiency property mainly enjoyed by GRFs to show that
+the approach was legitimate. Despite having previously suggested the use of ABC for
+model choice in a wider range of models in the DIY ABC software (Cornuet et al.,
+2008), we present theoretical evidence that the general use of ABC for model choice is
+fraught with danger in the sense that no amount of computation, however large, can
+guarantee a proper approximation of the posterior probabilities of the models under
+comparison.
+Keywords: likelihood-free methods, Bayes factor, DIYABC, Bayesian model choice,
+sufficiency.
+
+1
+
+Introduction
+
+Inference on population genetic models such as coalescent trees is one representative example of cases when statistical analyses like Bayesian inference cannot operate because
+the likelihood function associated with the data is not completely known, i.e. cannot be
+computed in a manageable time (Tavaré et al., 1997, Beaumont et al., 2002, Cornuet
+et al., 2008). The fundamental reason for this impossibility is that the statistical model
+associated with coalescent data needs to integrate over trees of extreme complexity.
+In such settings, traditional approximation tools based on Monte Carlo simulation
+(Robert and Casella, 2004) from the Bayesian posterior distribution are unavailable for
+all practical purposes. Indeed, due to the complexity of the latent structures defining the
+1
+
+likelihood (such as the coalescent tree), simulation of those structures is too unstable to
+be trusted to bring a reliable approximation in a manageable time. Such complex models
+call for a practical if cruder approximation method, the ABC methodology being a serious
+contender, where ABC stands for approximate Bayesian computation. Tavaré et al. (1997)
+and Pritchard et al. (1999) introduced ABC methods as a rejection technique bypassing
+the computation of the likelihood function via a simulation from the corresponding distribution. For recent reviews on ABC, see Beaumont (2010) and Lopes and Beaumont
+(2010). The wide and successful array of applications based on implementations of ABC in
+genomics and ecology is covered by Csillèry et al. (2010a), while the number of publications
+relying on this technique runs in the hundreds.
+Pritchard et al. (1999) describe the use of model choice based on ABC for distinguishing between different mutation models. The intuition behind the method is that
+the average ABC acceptance rate associated with a given model is proportional to the
+marginal likelihood corresponding to this approximative model, when identical summary
+statistics, distance, and tolerance level are used for all models. In practice, an estimate of
+the ratio of marginal likelihoods is given by the ratio of observed acceptance rates. Using Bayes formula, estimates of the posterior probabilities are straightforward to derive.
+This approach has been widely used in the literature (see, e.g., Estoup et al., 2004, Miller
+et al., 2005, and Pascual et al., 2007, Sainudiin et al., 2011). Note that Miller et al. (2005)
+is particularly influencial for the conclusion it derives from the ABC analysis: the focus
+of this Science paper is the European invasion of the western corn rootworm, which is
+North America’s most destructive corn pest. Because this pest was initially introduced in
+Central Europe, it was believed that subsequent outbreaks in Western Europe originated
+from this area. Based on this ABC model choice analysis of the genetic variability of the
+rootworm, the authors conclude that this belief is false: There have been at least three
+independent introductions from North America during the past two decades.
+An improvement to the above estimate is due to Fagundes et al. (2007), thanks to a
+regression regularisation. In this approach. model indices are processed as categorical variables in a formal multinomial (polychotomous) regression. For instance, when comparing
+two models, this leads to a standard logistic regression. Rejection-based approaches were
+lately introduced by Cornuet et al. (2008), Grelaud et al. (2009) and Toni et al. (2009), in
+a Monte Carlo perspective simulating model indices as well as model parameters. Those
+more recent extensions are already widely in use by the population genetics community, as
+exemplified by Belle et al. (2008), Cornuet et al. (2010), Excoffier et al. (2009), Ghirotto
+et al. (2010), Guillemaud et al. (2009), Leuenberger and Wegmann (2010), Patin et al.
+(2009), Ramakrishnan and Hadly (2009), Verdu et al. (2009), or Wegmann and Excoffier
+(2010). Another illustration of the popularity of this approach is given by the availability
+of three three softwares implementing an ABC model choice methodology:
+
+2
+
+• ABC-SysBio1 , developped by the Theoretical Systems Biology Group at Imperial
+College London, which implements a SMC-based ABC for inference in system biology, including model-choice (Toni et al., 2009).
+• DIYABC2 , developped by the Centre de Biologie et de Gestion des Populations, at
+INRA Montpellier, which implements a regularised ABC-MC algorithm on population history using molecular markers (Cornuet et al., 2008).
+• PopABC3 , developped by the School of Biological Sciences at the University of
+Reading, which implements a regular ABC-MC algorithm for genealogical simulation
+(Lopes et al., 2009).
+Grelaud et al. (2009) process via ABC the specific case of Gibbs random fields with
+missing normalising constants. They establish that exact Bayesian model selection can
+be implemented in this setting, deriving this result from the property that the concatenation of the sufficient statistics across models is also sufficient for model comparison. In
+a subsequent paper, Didelot et al. (2010) advocate the role of ABC approximations in
+general Bayesian model choice. The issue of sufficiency is covered in this paper, with a
+generic cross-model sufficiency completion leading the authors to validate the method in
+full generality, including in-sufficient cases.
+In this paper, we argue that ABC is a valid approximation method for conducting
+Bayesian inference in complex stochastic models, barring the limitation that it cannot
+discriminate between those complex stochastic models when based on summary statistics.
+In essence, we highlight the fact that, since ABC is conducting model choice based on
+in-sufficient statistics, the resulting inference is flawed in that the loss of information is
+severe to the point of inconsistency, namely that the ABC model selection cannot recover
+the proper model, even with an infinite amount of observation and computation. We
+demonstrate this inconsistency in the limiting (and more favourable) case of sufficient
+statistics.
+The conclusion of the current paper are thus quite negative in that we consider that
+conducting testing or model comparison using ABC does not carry any reliable weight of
+evidence and therefore should not be trusted. More empirical measures such as those proposed in Ratmann et al. (2009) and Drovandi et al. (2011) seem to be the only possibility
+at the current time for conducting model comparison. We are therefore at odds with the
+positive conclusion found in Didelot et al. (2010), as discussed below.
+We stress here that, while Templeton (2008, 2010) repeatedly expressed reservations
+about the formal validity of the ABC approach in statistical testing, those criticisms were
+addressed at the Bayesian paradigm per se rather than at the approximation method.
+1
+
+http://abc-sysbio.sourceforge.net
+http://www1.montpellier.inra.fr/CBGP/diyabc
+3
+http://code.google.com/p/popab
+2
+
+3
+
+Quite clearly, Templeton’s criticisms got rebutted in Beaumont et al. (2010), Csillèry
+et al. (2010b), Berger et al. (2010) and are not relevant for the current paper.
+The plan of the paper is as follows: in Section 2, we recall the basics of ABC as well
+as its justification; Section 4 exposes why a Bayes factor based on an ABC approximation
+is not converging to the true Bayes factor as the computational effort increases; Section
+5 explains the specificity of MRFs in this regard, while Section 6 illustrates the potential
+for divergence in examples. Sectoion 7 concludes the paper.
+
+2
+
+The ABC approach and its justifications
+
+The setting in which ABC operates is the approximation of the simulation from the posterior distribution π(θ|y) ∝ π(θ)f (y|θ) when both distributions associated with π and f
+can be simulated. The first ABC algorithm was introduced by Pritchard et al. (1999) in
+a genetic setting, as follows: given a sample y from a sample space D,
+Algorithm 1 ABC sampler
+for i = 1 to N do
+repeat
+Generate θ 0 from the prior distribution π(·)
+Generate z from the likelihood f (·|θ 0 )
+until ρ{η(z), η(y)} ≤ 
+set θ i = θ 0 ,
+end for
+The parameters of the ABC algorithm are the statistic η, the distance ρ{·, ·} ≥ 0, and
+the tolerance level  > 0. The approximation of the posterior distribution provided by the
+algorithm is that it samples from the marginal in θ of the joint distribution
+π (θ, z|y) = R
+
+π(θ)f (z|θ)IA,y (z)
+,
+A,y ×Θ π(θ)f (z|θ)dzdθ
+
+(1)
+
+where IB (·) denotes the indicator function of the set B and where
+A,y = {z ∈ D|ρ{η(z), η(y)} ≤ } .
+The basic justification of the ABC approximation is that, when using a sufficient statistic
+η and a small (enough) tolerance , we have
+Z
+π (θ|y) = π (θ, z|y)dz ≈ π(θ|y) ,
+the (correct) posterior distribution π(θ|y) being the limit as  goes to zero of π (θ|y).
+4
+
+In practice, the statistic η is not sufficient and the approximation then converges to
+π (θ|η(y)). This fact is appreciated by users in the field who see this loss of information as
+an unvoidable price to pay for the access to computable quantities. While acknowledging
+the gain brought by ABC in handling Bayesian inference in complex models, we will
+demonstrate below that the loss due to the ABC approximation may be arbitrary in the
+specific setting of Bayesian model choice and testing, whether or not η is sufficient.
+
+3
+
+ABC and model choice
+
+Testing and model choice constitute a highly specific domain of Bayesian analysis that
+involves conceptual and computational complexification since several models are simultaneously considered (Robert, 2001, Marin and Robert, 2010). Given that both inferential
+problems are processed the same way in a Bayesian perspective, we will only mention
+model choice in the remainder of the paper, but the reader must bear in mind that we
+cover testing as a particular case. The standard tool on which a Bayesian approach relies
+is the evidence (Jeffreys, 1939), also called the marginal likelihood,
+Z
+w(y) =
+π(θ)f (y|θ) dθ ,
+Θ
+
+that leads to the Bayes factor for comparing the evidences brought by the data on models
+with likelihoods f1 (z|θ 1 ) and f2 (z|θ 2 ),
+R
+π1 (θ 1 )f1 (y|θ 1 ) dθ 1
+w1 (y)
+B12 (y) =
+= RΘ1
+.
+w2 (y)
+Θ2 π2 (θ 2 )f2 (y|θ 2 ) dθ 2
+As detailed in the Bayesian literature (Berger, 1985, Robert, 2001, MacKay, 2002, Marin
+and Robert, 2010), this ratio provides an absolute criterion for model comparison that is
+naturally penalised for model complexity (Beaumont et al., 2010, Berger et al., 2010) and
+whose first order approximation is the Bayesian information criterion (BIC).
+Given that this issue is fundamental to our point, we recall that Bayesian model choice
+proceeds by creating a probability structure across models (or likelihoods). Namely, in
+addition to the parameters associated with each model, a Bayesian inference introduces
+the model index M as an extra parameter. It is associated with its own prior distribution,
+π(M = m) (m = 1, . . . , M ), while the prior distribution on the parameter is conditional
+on the value m of the model index, denoted by πm (θ m ) and defined on the parameter
+space Θm . The choice between those models is then driven by the posterior distribution
+of M,
+π(M = m)wm (y)
+P(M|y) = P
+k π(M = k)wk (y)
+where wk (y) denotes the marginal likelihood of y for model k.
+5
+
+While this distribution is well-defined and straightforward to interpret, it offers a
+challenging computational conundrum in Bayesian analysis. Moreover, the solutions found
+in the literature (Chen et al., 2000, Marin and Robert, 2010) do not handle the case when
+the likelihood is not available and ABC represents the almost unique alternative.
+As exposed in e.g. Grelaud et al. (2009), Toni and Stumpf (2010), and Didelot et al.
+(2010), once M is incorporated within the parameters, the ABC approximation to the
+posterior follows from the same principles as regular ABC. The corresponding implementation is as follows, using for the tolerance region a statistic η(z) = (η1 (z), . . . , ηM (z))
+that is the concatenation of the summary statistics used for all models (with an obvious
+elimination of duplicates).
+Algorithm 2 ABC model choice sampler (ABC-MC)
+for i = 1 to N do
+repeat
+Generate m from the prior π(M = m)
+Generate θ m from the prior πm (θ m )
+Generate z from the model fm (z|θ m )
+until ρ{η(z), η(y)} ≤ 
+Set m(i) = m and θ (i) = θ m
+end for
+The ABC estimate of the posterior probability π(M = m|y) is then the frequency of
+acceptances from model m in the above simulation
+N
+1 X
+\
+P(M|y) =
+Im(i) =m .
+N
+i=1
+
+This also corresponds to the frequency of simulated pseudo-dataset from model m that
+are closer to the data y than the tolerance . In order to improve the estimation by
+smoothing, Cornuet et al. (2008) follow the rationale that motivated the use of a local
+linear regression in Beaumont et al. (2002) and rely on a weighted polychotomous logistic
+regression to estimate π(M = m|y). This modelling is implemented in the DIYABC
+software.
+
+4
+
+The difficulty with ABC-MC
+
+Most perspectives on ABC do not question the role of the ABC distance nor of the statistic
+η in model choice settings. There is however a much stronger discrepancy between the
+genuine Bayes factor / posterior probability and the approximations resulting from ABC.
+
+6
+
+The ABC approximation to a Bayes factor, B12 say, resulting from Algorithm 2 is
+PN
+π(M = 2) i=1 Im(i) =1)
+d
+B12 (y) =
+PN
+π(M = 1
+i=1 Im(i) =2
+An alternative representation is given by
+PT
+π(M
+=
+2)
+t=1 Imt =1 Iρ{η(zt ),η(y)}≤
+d
+B
+,
+PT
+12 (y) =
+π(M = 1) t=1 Imt =2 Iρ{η(zt ),η(y)}≤
+where the pairs (mt , z t ) are simulated from the (joint) prior and T is the total number of
+simulations that are necessary for N acceptances in Algorithm 2. In order to study the
+limiting behaviour of this approximation, we first let T go to infinity. (For simplification
+purposes and without loss of generality, we choose a uniform prior on the model index.)
+d
+The limit of B
+12 (y) is then
+
+B12
+(y) =
+
+=
+=
+
+P[M = 1, ρ{η(z), η(y)} ≤ ]
+P[M = 2, ρ{η(z), η(y)} ≤ ]
+R
+I
+π1 (θ 1 )f1 (z|θ 1 ) dz dθ 1
+R ρ{η(z),η(y)}≤
+Iρ{η(z),η(y)}≤ π2 (θ 2 )f2 (z|θ 2 ) dz dθ 2
+R
+I
+π1 (θ 1 )f1η (η|θ 1 ) dη dθ 1
+R ρ{η,η(y)}≤
+,
+Iρ{η,η(y)}≤ π2 (θ 2 )f2η (η|θ 2 ) dη dθ 2
+
+where f1η (η|θ 1 ) and f2η (η|θ 2 ) denote the distributions of η(z) when z ∼ f1 (z|θ 1 ) and
+z ∼ f2 (z|θ 2 ), respectively. By L’Hospital formula, if we let  go to zero, the above
+converges to
+R
+π1 (θ 1 )f1η (η(y)|θ 1 ) dθ 1
+η
+B12 (y) = R
+,
+π2 (θ 2 )f2η (η(y)|θ 2 ) dθ 2
+which is precisely and exactly the Bayes factor for testing model 1 versus model 2 based
+on the sole observation of η(y). This result is completely coherent with the current
+perspective on ABC, namely that the inference derived from the ideal ABC output when
+ = 0 only uses the information contained in η(y). Thus, in the limiting case, i.e. when
+the ABC algorithm uses an infinite computing power, the ABC odds ratio does not take
+into account the features of the data besides the value of η(y), which is why the limiting
+Bayes factor only depends on the distributions of η under both models.
+In contrast with point estimation—where using a sufficient statistic has no impact on
+the inference in the limiting case—, the loss of information resulting from considering
+solely η seriously impacts the resulting inference on which model is best supported by
+the data. Indeed, as exhibited in a special case by Grelaud et al. (2009), the information
+contained in η(y) is almost always smaller than the information contained in y and this
+7
+
+even in the case η(y) is a sufficient statistic for both models. In other words, η(y) being
+sufficient for both f1 (y|θ 1 ) and f2 (y|θ 2 ) does not usually imply that η(y) is sufficient for
+{m, fm (y|θ m )}. To see why this is the case, consider the most favourable case, namely
+when η(y) is a sufficient statistic for both models. We then have by the factorisation
+theorem (Lehmann and Casella, 1998) that fi (y|θ i ) = gi (y)fiη (η(y)|θ i ), therefore that
+B12 (y) =
+=
+=
+=
+
+w1 (y)
+w2 (y)
+R
+η
+Θ1 π(θ 1 )g1 (y)f1 (η(y)|θ 1 ) dθ 1
+R
+η
+Θ2 π(θ 2 )g2 (y)f2 (η(y)|θ 2 ) dθ 2
+R
+g1 (y) π1 (θ 1 )f1η (η(y)|θ 1 ) dθ 1
+R
+g2 (y) π2 (θ 2 )f2η (η(y)|θ 2 ) dθ 2
+g1 (y) η
+B (y) .
+g2 (y) 12
+
+(2)
+
+Therefore, unless g1 (y) = g2 (y), the two Bayes factors differ by this ratio, g1 (y)/g2 (y),
+which is only equal to one in a very small number of known cases. This decomposition
+is a straightforward proof that a model-wise sufficient statistic is usually not sufficient
+across models, i.e. for model comparison. An immediate corollary is that the ABC-MC
+approximation does not converge to the exact Bayes factor.
+The discrepancy between the limiting ABC inference and the genuine Bayesian inference does not completely come as a surprise, because ABC is indeed an approximation
+method. Users of ABC algorithms are therefore prepared for some degree of imprecision in
+their final answer, a point stressed by Wilkinson (2008) or Fearnhead and Prangle (2010)
+when they qualify ABC as exact inference on a wrong model. However, the magnitude of
+η
+(y) expressed by (2) is such that there is no direct
+the difference between B12 (y) and B12
+connection between both answers. In a general setting, if η has the same dimension as
+one component of the n components of y, the ratio g1 (y)/g2 (y) is equivalent to a density
+ratio for a sample of size O(n), hence it can be arbitrarily small or arbitrarily large when
+η
+n grows. On the opposite, the Bayes factor B12
+(y) is based on what is equivalent to a
+single observation, hence does not necessarily converge with n, as shown by the Poisson
+and normal examples below. The conclusion derived from one Bayes factor may therefore
+completely differ from the conclusion derived from other one and there is no possibility of
+a generic agreement between both, or even of a manageable correction factor.
+For this reason, we conclude that the ABC approach cannot be used for testing nor for
+model choice, with the exception of Gibbs random fields as explained in the next section.
+In all cases when g1 (y)/g2 (y) is different from one and impossible to approximate, no
+inference on the true Bayes factor can be made based on the ABC-MC approximation
+without further information on the ratio g1 (y)/g2 (y), which is most often unavailable.
+We note that Didelot et al. (2010) also derived this relation between both Bayes factors
+8
+
+in their formula (18) but surprisingly concluded on advocating the use of ABC in complex
+models, where there are no sufficient statistics. We disagree with this perspective for
+reasons that will be made clear in the following sections.
+
+5
+
+The special case of Gibbs random fields
+
+Grelaud et al. (2009) showed that, for Gibbs random fields and in particular for Potts
+models, when the goal is to compare several neighbourhood structures, the computation
+of the posterior probabilities of the models/structures under competition can be operated
+by likelihood-free simulation techniques, in the sense that there exists a converging approximation to the true Bayes factor. The reason for this property is that, in the above
+ratio, g1 (y) = g2 (y) in this special model.
+Indeed, if we consider a Gibbs random field given by the likelihood function
+f (y|θ) =
+
+1
+exp{θ T η(y)} ,
+Zθ
+
+where y is a vector of dimension n taking values over the finite set X (possibly a lattice),
+η(·) is the potential function defining the random field, taking values in Rp , θ ∈ Rp is
+the associated parameter, and Zθ is the corresponding normalising constant, the potential
+function η is a sufficient statistic for the model. For instance, in Potts models, the sufficient
+statistic is the number of neighbours,
+X
+η(y) =
+I{yi =yi0 } ,
+i0 ∼i
+
+associated with a neighbourhood structure denoted by i ∼ i0 (meaning that i and i0 are
+neighbours).
+The property that validates an ABC resolution for the comparison of Gibbs random
+fields is that, due to their specific structure, there exists a sufficient statistic vector that
+runs across models and which allows for an exact (when  = 0) simulation from the
+posterior probabilities of the models. More specifically, consider M Gibbs random fields
+in competition, each one being associated with a potential function ηm (1 ≤ m ≤ M ),
+i.e. with corresponding likelihood
+
+	
+fm (y|θ m ) = exp θ T
+Zθm ,m ,
+m ηm (y)
+where θ m ∈ Θm and Zθm ,m is the unknown normalising constant. A Bayesian analysis
+operates on the extended parameter space Θ = ∪M
+m=1 {m} × Θm that includes both the
+model index M and the corresponding parameter space Θm . The inferential target is thus
+the model posterior probability
+Z
+P(M = m|y) ∝
+fm (y|θ m )πm (θ m ) dθ m π(M = m) ,
+Θm
+
+9
+
+i.e. the marginal in M of the posterior distribution on (M, θ 1 , . . . , θ M ) given y. Each
+model has its own sufficient statistic ηm (·). Then, for each model, the vector of statistics
+η(·) = (η1 (·), . . . , ηM (·)) is clearly sufficient; furthermore Grelaud et al. (2009) exposed
+the fact that η is also sufficient for the joint parameter (M, θ 1 , . . . , θ M ). That this concatenation of sufficient statistics is jointly sufficient across models is a property that is
+rather specific to Gibbs random field models, at least from a practical perspective (see
+below). Figure 1 shows an experiment from Grelaud et al. (2009) concluding rightly at
+the agreement between the exact Bayes factor and an ABC approximation.
+
+Figure 1: Comparison between the true Bayes factor and the ABC approximation in a
+Markov model selection of Grelaud et al. (2009), based on 2, 000 simulated sequences and
+4 × 106 proposals from the prior. The solid/red line is the diagonal. (Source: Grelaud
+et al., 2009.)
+Didelot et al. (2010) point out that this specific property of Gibbs random fields can
+be extended to any exponential family (hence to any setting enjoying sufficient statistics,
+see e.g. Casella and Berger, 2001). Their argument is an encompassing property: by
+including all sufficient statistics and all dominating measure statistics in an encompassing
+model, models under comparison become submodels of the encompassing model. They
+then conclude that the concatenation of those statistics is jointly sufficient across models.
+While this encompassing principle holds in full generality, in particular when comparing
+10
+
+models that are already embedded, we think it leads to a biased perspective about the
+merits of ABC for model choice: in practice, complex models do not enjoy sufficient
+statistics (if only because they are not exponential families). As demonstrated in the
+next section, there is more than a mere loss of information due to the use of insufficient
+statistics and looking at what happens in the limiting case when one is relying on a
+common sufficient statistic is a formal study that brings light on the potentially huge
+discrepancy between the ABC-based Bayes factor and the true Bayes factor. To study a
+solution to the problem in the formal case of the exponential families does not help in the
+understanding of the discrepancy in non-exponential models.
+
+6
+
+Arbitrary ratios
+
+η
+The difficulty with the arbitrary discrepancy between B12 (y) and B12
+(y) is that it is
+impossible to evaluate in a general setting, while there is no reason to expect a reasonable
+agreement between both quantities. A first illustration was produced by Marin et al.
+(2011) in the setting of M A(q) time series: a simulation experiment showed that, when
+comparing an M A(2) with an M A(1) model, the ABC approximation to the Bayes factor
+was stable (around 2.3) as  decreases, remaining far from the true Bayes factor 17.7 for
+an M A(2) simulated sample, while the approximation was 0.25 against a true value of
+0.004 in the case of a simulated M A(1) sample.
+
+6.1
+
+A Poisson-negative binomial illustration
+
+As a first illustration of the discrepancy due to the use of a sufficient statistic, consider
+the simple case when a sample y = (y1 , . . . , yn ) could come from either a Poisson P(λ)
+distribution or from a geometric G(p) distribution, already introduced in Grelaud et al.
+(2009) as a counter-example to Gibbs random fields and later reprocessed in
+PDidelot et al.
+(2010) to support their sufficiency argument. In this setting, the sum S = ni=1 yi = η(y)
+is a sufficient statistic for both models but not across models. The distribution of the
+sample given S is a multinomial M(S, 1/n, . . . , 1/n) distribution when the data is Poisson,
+since S is then a Poisson P(nλ) variable, while it is the uniform distribution with constant
+probability
+1
+S!(n − 1)! P
+I i yi =S
+ IPi yi =S =
+n+S−1
+(n
++
+S
+−
+1)!
+S
+in the geometric case, since S is then a negative binomial N eg(n, p) variable. The discrepancy ratio is therefore
+Q
+S!n−S / i yi !
+g1 (y)
+=
+
+
+g2 (y)
+1 n+S−1
+S
+
+11
+
+When simulating n Poisson or geometric variables and using prior distributions
+λ ∼ E(1) ,
+
+p ∼ U(0, 1) ,
+
+on the respective models, the exact Bayes factor can be evaluated and the range and
+distribution of the discrepancy are therefore available. Figure 2 gives the range of B12 (y)
+η
+η
+versus B12
+(y), showing that B12
+(y) is in this case absolutely un-related with B12 (y): The
+values produced by both approaches simply have nothing in common. As noted above,
+η
+the approximation B12
+(y) based on the sufficient statistic S is producing figures of the
+magnitude of a single observation, while the true Bayes factor is of the order of the sample
+size.
+
+Figure 2: Comparison between the true log-Bayes factor (first axis) for the comparison of
+a Poisson model versusPa negative binomial model and of the log-Bayes factor based on
+the sufficient statistic i yi (second axis), for Poisson (left) and negative binomial (left)
+samples of size n = 50, based on T = 104 replications.
+The discrepancy between both Bayes factors is in fact increasing with the sample size,
+as shown by the following result:
+Lemma 1. Consider performing model selection between model 1: P(λ) with prior distribution π1 (λ) equal to an E(1) distribution and model 2: G(p) with a uniform prior
+12
+
+distribution π2 P
+when the observed data y consists of iid observations with E[yi ] = θ0 > 0.
+Then S(y) = ni=1 yi is the minimal sufficient statistic for both models and the Bayes
+η
+factor based on the sufficient statistic S(y), B12
+(y), satisfies
+η
+lim B12
+(y) =
+
+n→∞
+
+(θ0 + 1)2 −θ0
+e
+θ0
+
+a.s.
+
+Therefore, the Bayes factor based on the sufficient statistic S(y) is not consistent; it
+converges to a non-zero, finite value almost surely.
+Proof. Under model 1, we have S ∼ P(nλ), with corresponding likelihood
+f1S (S|λ) =
+
+1
+(nλ)S e−nλ .
+Γ(S + 1)
+
+The marginal likelihood of S under the prior π1 is then
+Z
+0
+
+∞
+
+λS e−nλ
+e−λ dλ =
+Γ(S + 1) n−S
+=
+
+Z
+1 ∞ λS e−(n+1)λ
+dλ
+S 0
+Γ(S) n−S
+1
+nS
+1
+1 −S
+=
+1
++
+.
+S (n + 1)S
+S
+n
+
+(3)
+
+Under model 2, the sufficient statistic has a negative binomial distribution, S ∼ Neg(n, p)
+and thus
+
+
+n+S−1 S
+Γ(S + n)
+S
+pS (1 − p)n .
+f2 (S|p) =
+p (1 − p)n =
+Γ(S + 1) Γ(n)
+S
+The corresponding marginal likelihood under the prior π2 is
+Z 1
+Γ(S + n)
+Γ(S + n)
+pS (1 − p)n dp =
+Beta(S + 1, n + 1)
+Γ(S + 1) Γ(n) 0
+Γ(S + 1) Γ(n)
+n
+=
+.
+(S + n + 1)(S + n)
+
+(4)
+
+Therefore from (3) and (4), the Bayes factor based on the sufficient statistic is given by
+
+1 −S (S + n) (S + n + 1)
+η
+B12
+(y) = 1 +
+×
+n
+Sn
+
+(5)
+
+Since the yi ’s are iid with mean θ0 , the Law of Large Numbers implies that S/n → θ0
+almost surely, thus
+(S + n) (S + n + 1)
+(θ0 + 1)2
+lim
+=
+n→∞
+Sn
+θ0
+13
+
+since θ0 > 0. Furthermore,
+lim
+
+
+
+n→∞
+
+1+
+
+1 −S
+= lim e−S log(1+1/n) = e−θ0 .
+n→∞
+n
+
+Thus from (3)–(5) we deduce that
+η
+lim B12
+(y) = e−θ0
+
+n→∞
+
+(θ0 + 1)2
+θ0
+
+proving the result.
+Q
+In this specific setting, Didelot et al. (2010) show that adding P = i yi ! to the sufficient statistic S induces a statistic (S, P ) that is sufficient across both models. While this
+is a mathematically correct observation, we think it is not helpful for the understanding
+of the behaviour of ABC-model choice in realistic settings: outside toy examples as the
+one above and well-structured although complex exponential families like Gibbs random
+fields, it is not possible to come up with completion mechanisms that ensure sufficiency
+across models and it is therefore more fruitful to consider the diverging behaviour of the
+ABC approximation as given, rather than attempting at solving the problem.
+
+6.2
+
+A normal illustration
+
+First, note that, given a one-dimensional sufficient statistic S = η(y), the functions g1 (y)
+and g2 (y) can on principle be anything. For instance,
+g1 (y) =
+
+n
+Y
+
+ϕ(yi − S|σ12 ) IPi yi =nS
+
+i=1
+
+and
+g2 (y) =
+
+n
+Y
+
+ϕ(yi − S|σ22 ) IPi yi =nS
+
+i=1
+
+is a possible model. In other words, by a reparameterisation of the models, we could
+observe y = (y1 , . . . , yn−1 , S) with
+iid
+
+y1 , . . . , yn−1 |S ∼ N (S, σ12 )
+
+and
+
+iid
+
+y1 , . . . , yn−1 |S ∼ N (S, σ22 ) ,
+
+this independently of the distributions of S under both models. (This means that we
+can find two competing models where the distributions of S are not connected with σ1
+nor with σ2 .) Because they depend on the choice of those distributions, the true Bayes
+factor and the ABC-Bayes factor are unrelated and may as well diverge from one another.
+Admitedly, this construct is artificial in that there is no clear statistical setting when this
+14
+
+could occur, but the construct is both mathematically valid and informative about the
+lack of control over the diverging factor g1 (y)/g2 (y).
+If we look at a fully normal N (µ, σ 2 ) setting, we have
+(
+)
+n
+X
+f (y|µ) ∝ exp −nσ −2 (ȳ − µ)2 /2 − σ −2
+(yi − ȳ)2 /2 σ −n
+i=1
+
+hence
+
+(
+f (y|ȳ) ∝ exp −σ
+
+−2
+
+n
+X
+
+)
+(yi − ȳ) /2 σ −n IP yi =nȳ .
+2
+
+i=1
+
+If we reparameterise the observations into u = (y1 − ȳ, . . . , yn−1 − ȳ, ȳ), we do get
+
+	
+f (u|µ) ∝ σ −n exp −nσ −2 (ȳ − µ)2 /2
+
+"n−1 #2 
+n−1
+
+X
+X
+ 
+× exp −σ −2
+u2i /2 − σ −2
+ui
+2
+
+
+i=1
+
+i=1
+
+since the Jacobian is 1. Hence
+
+"n−1 #2 
+n−1
+
+
+X
+X
+f (u|ȳ) ∝ exp −σ −2
+u2i /2 − σ −2
+ui /2 σ −n
+
+
+i=1
+
+i=1
+
+Considering both models
+iid
+
+y1 , . . . , yn ∼ N (µ, σ12 )
+
+and
+
+iid
+
+y1 , . . . , yn ∼ N (µ, σ22 ) ,
+
+the discrepancy ratio is then given by
+
+h
+i2 
+−2 Pn−1
+−n+1
+−2 Pn−1
+2
+exp −σ1
+i=1 (yi − ȳ) /2 − σ1
+i=1 (yi − ȳ) /2 σ1
+g1 (y)
+
+=
+hP
+i2 
+P
+g2 (y)
+n−1
+2 /2 − σ −2
+exp −σ2−2 n−1
+(y
+−
+ȳ)
+(y
+−
+ȳ)
+/2 σ2−n+1
+i
+i
+2
+i=1
+i=1
+
+
+"n−1
+# 2 
+n−1
+
+
+n−1
+−2
+−2
+X
+X
+σ2 − σ1 
+σ2
+2
+
+= n−1 exp
+(yi − ȳ) +
+(yi − ȳ)
+
+
+2
+σ1
+i=1
+i=1
+and is connected with the lack of consistency of the Bayes factor:
+Lemma 2. Consider performing model selection between model 1: N (µ, σ12 ) and model 2:
+N (µ, σ22 ), σ1 and σ2 being given, with prior distributions π1 (µ) = π2 (µ) equal to a N (0, a2 )
+distribution and when the observed data y consists of iid observations with finite mean and
+15
+
+P
+variance. Then S(y) = ni=1 yi is the minimal sufficient statistic for both models and the
+η
+Bayes factor based on the sufficient statistic S(y), B12
+(y), satisfies
+η
+lim B12
+(y) = 1
+
+n→∞
+
+a.s.
+
+Proof. The marginal likelihood associated with S(y) and the prior µ ∼ N (0, a2 ) is
+Z
+√ −1
+2
+2
+2
+2
+η
+m (S) ∝ nσ1
+e−n(ȳ−µ) /2σ1 e−µ /2a dµ
+ q
+
+
+√ −1
+ȳ 2
+nσ1−1 + a−2 ,
+= nσ1 exp −
+2
+2
+2(a + σ1 /n)
+hence leading to the Bayes factor
+
+
+q
+ȳ 2
+exp −
+2
+nσ2−1 + a−2
+σ2
+2(a2 + σ1 /n)
+η
+q
+
+
+,
+(y) =
+B12
+σ1
+ȳ 2
+−1
+−2
+nσ
++
+a
+exp −
+1
+2(a2 + σ22 /n)
+which indeeds converges to 1 as n goes to infinity.
+Figure 3 illustrates the behaviour of the discrepancy ratio when σ1 = 0.1 and σ2 = 10,
+for datasets of size n = 15 simulated according to both models. The discrepancy (expressed
+on a log scale) is once again dramatic, in concordance with the above lemma.
+If we now turn to an alternative choice of sufficient statistic, using the pair (ȳ, S 2 ) with
+n
+X
+S =
+(yi − ȳ)2 ,
+2
+
+i=1
+
+we follow the solution of Didelot et al. (2010). Using a conjugate prior µ ∼ N (0, a2 ), the
+true Bayes factor is given by
+q
+−2
+−2
+−n
+2
+2
+2
+2
+2
+σ
+exp{−S /2σ1 } exp{−ȳ /2(a + σ1 /n)} a + σ2 n
+q
+B12 (y) = 1−n
+.
+σ2 exp{−S 2 /2σ12 } exp{−ȳ 2 /2(a2 + σ22 /n)} a−2 + σ −2 n
+1
+
+and it is equal to the Bayes factor based on the corresponding distributions of the pair
+(ȳ, S 2 ) in the respective models. Again, we do not think this coincidence brings the proper
+light on the behaviour of the ABC approximations in realistic settings.
+
+16
+
+Figure 3: Empirical distributions of the log discrepancy log g1 (y)/g2 (y) for datasets of size
+n = 15 simulated from N (µ, σ12 ) (left) and N (µ, σ22 ) (right) distributions when σ1 = 0.1
+and σ2 = 10, based on 104 replications and a flat prior.
+
+17
+
+7
+
+Conclusion
+
+Since its introduction by Tavaré et al. (1997) and Pritchard et al. (1999), ABC has been
+extensively used in several areas involving complex likelihoods, primarily in population
+genetics. In those domains, ABC has been used both for point estimation and testing of
+hypotheses. In realistic settings, with the exception of Gibbs random fields that satisfy
+a resilience property with respect to their sufficient statistics, the conclusions drawn on
+model comparison cannot alas be trusted per se but require further analyses as to the
+pertinence of the (ABC) Bayes factor based on the summary statistics. This paper has
+only examined in details the case when the summary statistics are sufficient for both
+models, while practical situations imply the use of in-sufficient statistics, and further research is needed for the latter case. However, this practical situation implies a wider loss
+of information compared with the exact inferential approach, hence a wider discrepancy
+between the exact Bayes factor and the quantity produced by an ABC approximation.
+It thus appears to us an urgent duty to warn the community about the dangers of this
+approximation, especially when considering the rapidly increasing number of applications
+using ABC for conducting model choice and hypothesis testing. As a final (and negative)
+point, we unfortunately do not see an immediate and generic alternative for the approximation of Bayes factors because importance sampling techniques are suffering from the
+same difficulty, namely they only depend on the summary statistics.
+As a final remark, we note that Sousa et al. (2009) advocate the use of full allelic
+distributions in an ABC framework, instead of resorting to summary statistics. They show
+that it is possible to apply ABC using allele frequencies to draw inferences in cases where
+it is difficult to select a set of suitable summary statistics (and when the complexity of
+the model or the size of dataset makes it computationally prohibitive to use full-likelihood
+methods). In such settings, were we to consider a model choice problem, the divergence
+exhibited in the current paper would not occur because the measure of distance does not
+rely on a reduction of the sample.
+
+Acknowledgements
+The first two authors’ work has been partly supported by the Agence Nationale de la
+Recherche (ANR, 212, rue de Bercy 75012 Paris) through the 2009-2012 project Emile,
+directed by Jean-Marie Cornuet.
+
+References
+Beaumont, M. (2010). Approximate Bayesian computation in evolution and ecology. Annual
+Review of Ecology, Evolution, and Systematics, 41:379–406.
+Beaumont, M., Nielsen, R., Robert, C., Hey, J., Gaggiotti, O., Knowles, L., Estoup, A., Mahesh,
+
+18
+
+P., Coranders, J., Hickerson, M., Sisson, S., Fagundes, N., Chikhi, L., Beerli, P., Vitalis, R.,
+Cornuet, J.-M., Huelsenbeck, J., Foll, M., Yang, Z., Rousset, F., Balding, D., and Excoffier, L.
+(2010). In defense of model-based inference in phylogeography. Molecular Ecology, 19(3):436–
+446.
+Beaumont, M., Zhang, W., and Balding, D. (2002). Approximate Bayesian computation in population genetics. Genetics, 162:2025–2035.
+Belle, E., Benazzo, A., Ghirotto, S., Colonna, V., and Barbujani, G. (2008). Comparing models
+on the genealogical relationships among Neandertal, Cro-Magnoid and modern Europeans by
+serial coalescent simulations. Heredity, 102(3):218–225.
+Berger, J. (1985). Statistical Decision Theory and Bayesian Analysis. Springer-Verlag, New York,
+second edition.
+Berger, J., Fienberg, S., Raftery, A., and Robert, C. (2010). Incoherent phylogeographic inference.
+Proc. Nat. Acad. Sci. USA, 107(41):E57.
+Casella, G. and Berger, R. (2001). Statistical Inference. Wadsworth, Belmont, CA, second edition.
+Chen, M., Shao, Q., and Ibrahim, J. (2000). Monte Carlo Methods in Bayesian Computation.
+Springer-Verlag, New York.
+Cornuet, J.-M., Ravigné, V., and Estoup, A. (2010). Inference on population history and model
+checking using DNA sequence and microsatellite data with the software DIYABC (v1.0). BMC
+Bioinformatics, 11:401.
+Cornuet, J.-M., Santos, F., Beaumont, M. A., Robert, C. P., Marin, J.-M., Balding, D. J., Guillemaud, T., and Estoup, A. (2008). Inferring population history with DIYABC: a user-friendly
+approach to Approximate Bayesian Computation. Bioinformatics, 24(23):2713–2719.
+Csillèry, K., Blum, M., Gaggiotti, O., and François, O. (2010a). Approximate Bayesian computation (ABC) in practice. Trends in Ecology and Evolution, 25:410–418.
+Csillèry, K., Blum, M., Gaggiotti, O., and François, O. (2010b). Invalid arguments against ABC:
+A reply to A.R. Templeton. Trends in Ecology and Evolution, 25:490–491.
+Didelot, X., Everitt, R., Johansen, A., and Lawson, D. (2010). Likelihood-free estimation of model
+evidence. Technical Report 10-12, CRiSM, University of Warwick.
+Drovandi, C., Pettitt, A., and Faddy, M. (2011). Approximate Bayesian computation using indirect
+inference. J. Royal Statist. Society Series A, 60(3):503–524.
+Estoup, A., Beaumont, M., Sennedot, F., Moritz, C., and Cornuet, J. (2004). Genetic analysis of
+complex demographic scenarios: spatially expanding populations of the cane toad, Bufo Marinus.
+Evolution, 58(9):2021–2036.
+Excoffier, C., D., L., and L., W. (2009). Bayesian computation and model selection in population
+genetics. arXiv:0901.2231.
+
+19
+
+Fagundes, N., Ray, N., Beaumont, M., Neuenschwander, S., Salzano, F., Bonatto, S., and Excoffier,
+L. (2007). Statistical evaluation of alternative models of human evolution. Proc. Nat. Acad. Sci.
+USA, 104(45):17614–17619.
+Fearnhead, P. and Prangle, D. (2010).
+arXiv:1004.1112.
+
+Semi-automatic approximate Bayesian computation.
+
+Ghirotto, S., Mona, S., Benazzo, A., Paparazzo, F., Caramelli, D., and Barbujani, G. (2010). Inferring genealogical processes from patterns of bronze-age and modern DNA variation in Sardinia.
+Mol. Biol. Evol., 27(4):875–886.
+Grelaud, A., Marin, J.-M., Robert, C., Rodolphe, F., and Tally, F. (2009). Likelihood-free methods
+for model choice in Gibbs random fields. Bayesian Analysis, 3(2):427–442.
+Guillemaud, T., Beaumont, M., Ciosi, M., Cornuet, J.-M., and Estoup, A. (2009). Inferring
+introduction routes of invasive species using approximate Bayesian computation on microsatellite
+data. Heredity, 104(1):88–99.
+Jeffreys, H. (1939). Theory of Probability. The Clarendon Press, Oxford, first edition.
+Lehmann, E. and Casella, G. (1998). Theory of Point Estimation (revised edition). Springer-Verlag,
+New York.
+Leuenberger, C. and Wegmann, D. (2010). Bayesian computation and model selection without
+likelihoods. Genetics, 184(1):243–252.
+Lopes, J. and Beaumont, M. (2010). ABC: a useful Bayesian tool for the analysis of population
+data. Infection, Genetics and Evolution, 10(6):825–832.
+Lopes, J. S., Balding, D., and Beaumont, M. A. (2009). PopABC: a program to infer historical
+demographic parameters. Bioinformatics, 25(20):2747–2749.
+MacKay, D. J. C. (2002). Information Theory, Inference & Learning Algorithms. Cambridge
+University Press, Cambridge, UK.
+Marin, J., Pudlo, P., Robert, C., and Ryder, R. (2011). Approximate Bayesian computational
+methods. arXiv:1011:0955.
+Marin, J. and Robert, C. (2010). Importance sampling methods for Bayesian discrimination between embedded models. In Chen, M.-H., Dey, D., Müller, P., Sun, D., and Ye, K., editors,
+Frontiers of Statistical Decision Making and Bayesian Analysis. Springer-Verlag, New York. to
+appear.
+Miller, N., Estoup, A., Toepfer, S., Bourguet, D., Lapchin, L., Derridj, S., Kim, K. S., Reynaud,
+P., Furlan, L., and Guillemaud, T. (2005). Multiple transatlantic introductions of the Western
+corn rootworm. Science, 310(5750):992.
+Pascual, M., Chapuis, M., Balanyà, J., Huey, R., Gilchrist, G., Serra, L., and Estoup, A. (2007).
+Introduction history of Drosophila subobscura in the New World: a microsatellite-based survey
+using ABC methods. Molecular Ecology, 16:3069–3083.
+
+20
+
+Patin, E., Laval, G., Barreiro, L., Salas, A., Semino, O., Santachiara-Benerecetti, S., Kidd, K.,
+Kidd, J., Van Der Veen, L., Hombert, J., et al. (2009). Inferring the demographic history of
+African farmers and pygmy hunter-gatherers using a multilocus resequencing data set. PLoS
+Genetics, 5(4):e1000448.
+Pritchard, J., Seielstad, M., Perez-Lezaun, A., and Feldman, M. (1999). Population growth of
+human Y chromosomes: a study of Y chromosome microsatellites. Molecular Biology and Evolution, 16:1791–1798.
+Ramakrishnan, U. and Hadly, E. (2009). Using phylochronology to reveal cryptic population
+histories: review and synthesis of 29 ancient DNA studies. Molecular Ecology, 18(7):1310–1330.
+Ratmann, O., Andrieu, C., Wiujf, C., and Richardson, S. (2009). Model criticism based on
+likelihood-free inference, with an application to protein network evolution. Proc. Nat. Acad.
+Sci. USA, 106:1–6.
+Robert, C. (2001). The Bayesian Choice. Springer-Verlag, New York, second edition.
+Robert, C. and Casella, G. (2004). Monte Carlo Statistical Methods. Springer-Verlag, New York,
+second edition.
+Sainudiin, R., Thornton, K., Harlow, J., Booth, J., Stillman, M., Yoshida, R., Griffiths, R.,
+McVean, G., and Donnelly, P. (2011). Experiments with the site frequency spectrum. Bulletin of Mathematical Biology. (To appear.).
+Sousa, V., Fritz, M., Beaumont, M., and Chikhi, L. (2009). Approximate Bayesian computation
+without summary statistics: the case of admixture. Genetics, 181(4):1507–1519.
+Tavaré, S., Balding, D., Griffith, R., and Donnelly, P. (1997). Inferring coalescence times from
+DNA sequence data. Genetics, 145:505–518.
+Templeton, A. (2008). Statistical hypothesis testing in intraspecific phylogeography: nested
+clade phylogeographical analysis vs. approximate Bayesian computation. Molecular Ecology,
+18(2):319–331.
+Templeton, A. (2010). Coherent and incoherent inference in phylogeography and human evolution.
+Proc. Nat. Acad. Sci. USA, 107(14):6376–6381.
+Toni, T. and Stumpf, M. (2010). Simulation-based model selection for dynamical systems in
+systems and population biology. Bioinformatics, 26(1):104–110.
+Toni, T., Welch, D., Strelkowa, N., Ipsen, A., and Stumpf, M. (2009). Approximate Bayesian
+computation scheme for parameter inference and model selection in dynamical systems. Journal
+of the Royal Society Interface, 6(31):187–202.
+Verdu, P., Austerlitz, F., Estoup, A., Vitalis, R., Georges, M., Théry, S., Froment, A., Le Bomin,
+S., Gessain, A., Hombert, J.-M., Van der Veen, L., Quintana-Murci, L., Bahuchet, S., and Heyer,
+E. (2009). Origins and genetic diversity of pygmy hunter-gatherers from western central africa.
+Current Biology, 19(4):312–318.
+
+21
+
+Wegmann, D. and Excoffier, L. (2010). Bayesian inference of the demographic history of chimpanzees. Molecular Biology and Evolution, 27(6):1425–1435.
+Wilkinson, R. D. (2008). Approximate Bayesian computation (ABC) gives exact results under the
+assumption of model error. arXiv:0811.3355.
+
+22
+
+

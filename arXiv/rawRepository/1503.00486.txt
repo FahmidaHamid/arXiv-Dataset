@@ -1,0 +1,712 @@
+HetFHMM: A novel approach to infer tumor heterogeneity
+using factorial Hidden Markov model
+Gholamreza Haffari∗1 , Zhaoxiang Cai†1 , Mohammad S. Rahman‡1 and Ann E.
+Nicholson§1
+1
+
+Clayton School of Information Technology, Monash University
+
+arXiv:1503.00486v1 [q-bio.GN] 2 Mar 2015
+
+March 3, 2015
+
+Abstract
+Cancer arises from successive rounds of mutations which generate tumor cells with different
+genomic variation i.e. clones. For drug responsiveness and therapeutics, it is necessary to identify
+the clones in tumor sample accurately. Many methods are developed to infer tumor heterogeneity
+by either computing cellular prevalence and tumor phylogeny or predicting genotype of mutations.
+All methods suffer some problems e.g. inaccurate computation of clonal frequencies, discarding
+clone specific genotypes etc. In the paper, we propose a method, called- HetFHMM to infer tumor
+heterogeneity by predicting clone specific genotypes and cellular prevalence. To infer clone specific
+genotype, we consider the presence of multiple mutations at any genomic location. We also tested
+our model on different simulated data. The results shows that HetFHMM outperforms recent
+methods which infer tumor heterogeneity. Therefore, HetFHMM is a novel approach in tumor
+heterogeneity research area.
+
+1
+
+Introduction
+
+Cancer is a disease, caused by somatic mutations that accumulate in the genome during the lifetime
+of human [11]. Somatic mutations generate tumor cells with different genomic variation within tumor
+to form carcinoma i.e. cancer. This phenomena is known as Intra Tumor Heterogeneity [4] [7] [14] [19]
+[20]. In tumor heterogeneity, each type of cells with distinct genomic structure are known as clones [9]
+[12]. Caraco et al. [1] identifies that drug responsiveness and cancer therapies are clone dependent. To
+develop more accurate drug and therapy, it is important to predict clonal subpopulations (i.e. clones)
+within tumor accurately.
+Each clone contains distinct genomic variation which is expressed by the precise order of nucleotides
+of DNA molecules, different from other clones [5] [11]. To predict the order of nucleotides of DNA
+molecules, several techniques are developed. These techniques are known as DNA sequencing. Sanger
+sequencing [18] is the first approach to predict precise order of nucleotides of DNA molecules. This
+technique cannot produce complete nucleotide sequence of a DNA molecule. Later a new technique
+is developed to predict complete nucleotides sequence from DNA molecule called Next Generation
+Sequencing in short NGS. NGS produces many short sequences of nucleotides to predict complete
+nucleotide sequence of a DNA molecule. These short sequences are known as short reads. During
+DNA sequencing, some short reads are deleted or amplified by E. coli which is used for cloning DNA
+fragments. Therefore, sometimes short reads cannot produce complete nucleotide sequence of a DNA
+molecule. It is a challenging task to infer clones from short reads.
+Many researches and methods are developed to infer clones from short reads. These methods
+detect clones by either estimating cellular prevalence1 and tumor phylogeny2 or inferring genotypes
+∗ gholamreza.haffari@monash.edu,
+
+corresponding author
+
+† zxcai1@student.monash.edu
+‡ msrah12@student.monash.edu
+§ ann.nicholson@monash.edu
+1 The
+
+fraction of tumor cell subpopulation represented by a specific clone [12]
+of clones of a population by mutational processes [12]
+
+2 Evolution
+
+1
+
+of all mutations. At first researchers develop many methods to infer genotypes of all mutations by
+considering genotype as the signature of a clone. GPHMM [13] and Apolloh [9] are the pioneer methods
+to infer clones from short reads. These methods detect only copy number variation (CNV) in form of
+genotypes to predict clones by assuming that only one clone exhibits one mutation which appears at
+a genomic location. Loss of heterogeneity (LOH)3 is not predicted together with CNV. TH-HMM [22]
+and CLImAT [24] detect LOH with CNV. But GPHMM [13], Apolloh [9], TH-HMM [22] and CLImAT
+[24] do not consider the presence of multiple clone which do not exhibit a mutation at a location in
+tumor sample. This important feature is considered in OncoSNP-SEQ [23] and TITAN [10] to infer
+genotypes. Above mentioned methods do not work on presence of multiple mutations at any location.
+Roy et al. [17] predicts the phylogeny relation between clones by using multicolor lineage tracing
+method alias Brainbow. To identify the phylogeny, it is necessary to cluster mutations. TITAN [10]
+clusters all mutations into several classes. Other than TITAN [10], PyClone [16], PhyloSub [12],
+PhyloWGS [3] and Rec-BTP [11] identify clusters of mutations by computing and clustering cellular
+frequencies of all mutations. But these methods cannot identify the clones with same cellular prevalence
+separately. Like GPHMM [13] and Apolloh [9], these methods consider the presence of one mutation
+at a genomic location.
+In real world, many mutations can appear at any genomic location. There are several scenarios
+appear at any genomic location. (a). Some clones have same mutation which is harboured by their
+ancestor clone. (b) One clone exhibits a mutation which is identical from others. Genotype of a genomic
+location cannot reveal types of mutation which appear at that location. Clone specific genotype is a
+special genotype which express the genotype of a mutation harboured by a clone. Clonal signature4 ,
+clusters of mutations and types of mutation of a location can be easily predicted by clone specific
+genotype. No existing method can detect clone specific mutation. This important feature is addressed
+in our proposed method- Heterogeneity Factorial Hidden Markov Model (HetFHMM). On the other
+hand, existing methods detect either cellular prevalence or genotypes. Genotype of a mutation and
+cellular prevalence combinely affect the count of short reads which are the inputs of existing methods.
+Our proposed HetFHMM infers clone specific genotypes and cellular prevalences together from the short
+reads to predict clonal subpopulations within tumor. It is a novel approach in tumor heterogeneity to
+predict clones within tumor.
+Our proposed HetFHMM is discussed in section 2. We tested our designed method with recent
+methods for simulated data. It is found that our method outperforms recent methods. We discuss our
+experiments and results in section 3.
+
+2
+
+HetFHMM
+
+To infer clone specific genotypes and cellular prevalence from short reads, we develop a factorial hidden
+Markov model (FHMM) which is first proposed by Ghahramani et al. [8]. In FHMM, there are n
+number of chains. Each chain for individual object. Ghahramani et al. [8] first develops FHMM to
+identify the multiple simultaneous potential speakers from speech signals. In this FHMM, each chain
+is dedicated for each speaker. In our problem, tumor sample contains multiple clones whose genotypes
+and cellular prevalence would be different from each other. Like Ghahramani et al. [8], we predict
+clones by n chains using FHMM. In HetFHMM, we consider first chain i.e. chain 0 as normal cells.
+Rest of other chains represent the clones within tumor sample.
+In the model, genotype Gt,n of any clone n at tth location is one of the hidden variables. Duan et
+al. [6] is found in their experiments that copy number varies upto 5. Copy number variation exhibits 21
+genotype states are shown in table- 2. In the model, we infer another latent variable- cellular prevalence
+vector Φ which contains cellular prevalence of all clones of tumor sample.
+Our model takes the number of total short reads Nt , reference read counts7 at and log ratio of
+tumor-normal reads depth lt at any mutant location t as inputs. Reference read counts at follows
+binomial distribution with total sequence reads Nt and Pbt (Gt , Φ). The parameter Pbt (Gt , Φ) computes
+
+3 Loss of heterozygosity (LOH) is a gross chromosomal event that results in loss of the entire gene and the surrounding
+chromosomal region.
+4 Expressed by genotypes
+5 Both alleles are missing at genomic location.
+6 One allele is missing at genomic location.
+7 The number of short reads which is matched with reference genome
+
+2
+
+Table 1: Genotype variable space
+copy number
+0
+1
+2
+
+3
+
+4
+
+4
+
+Genotype state
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+
+Genotype
+∅
+A
+B
+AA
+AB
+BB
+AAA
+AAB
+ABB
+BBB
+AAAA
+AAAB
+AABB
+ABBB
+BBBB
+AAAAA
+AAAAB
+AAABB
+AABBB
+ABBBB
+BBBBB
+
+Description
+Nullizygous5
+hemizygous6
+Copy neutral with LOH
+Normal copy
+Copy neutral with LOH
+Three copies with LOH
+Three copies with duplication of A allele
+Three copies with duplication of B allele
+Three copies with LOH
+Four copies with LOH
+Four copies with duplication of A allele
+Four copies with duplication of both alleles
+Four copies with duplication of B allele
+Four copies with LOH
+Five copies with LOH
+Five copies with duplication of A allele
+Five copies with duplication of both alleles
+Five copies with duplication of B allele
+Five copies with LOH
+
+probability of reference allele, as follows:
+PK
+Pbt (Gt , Φ) =
+
+k=0 φk .rgt,k .cgt,k
+PK
+k=0 φk .cgt,k
+
+(1)
+
+where K, rgt,k and cgt,k are the number of clones, reference allele ratio8 and copy number of clone k
+at mutant location t respectively. In the model we assume that log ratio of tumor-normal read depth
+is gaussian distributed with mean mt (Gt , Φ, o) and standard deviation σ. The number of short reads
+of tumor and normal cells are very large. As per central limit theorem, all large data are normally
+distributed. For this reason we consider log ratio of tumor-normal read depth is gaussian distributed.
+Mean of log ratio of tumor-normal read depth is:
+PK
+k=0 φk .cgt,k
+µt (Gt , Φ, o) =
+(2)
+PK
+φ0 .cgt,0 . k=1 φk .o
+Where o be tumor ploidy parameter which is set to 3. In addition, our proposed model can work on
+multiple samples x ∈ X of same patient. Probabilistic graphical model of HetFHMM is shown in fig-1.
+Factorial Hidden Markov Model contains transition and emission probabilities. Like FHMM, transition probability of HetFHMM has been expressed as P (Gt,k = i|Gt−1,k = j) = At,k (i, j). We employ
+transition probability from the study done by Colella et al.[2] which captures the position specific effects
+accurately, is as followed:
+
+ρt
+if i=j
+P (Gt,k = i|Gt−1,k = j) =
+(3)
+1−ρt
+Otherwise
+{z
+}
+|
+Dk −1
+At,k (i,j)
+
+where
+
+−dt
+1
+ρt = 1 − (1 − e L )
+2
+L, dt and Dk be the average length of the sequence reads9 , dimension of state space (in this model it is
+21) and distance between the mutant locations t and t−1 in clone k respectively. Emission probabilities
+for generating observation based on hidden variables Gt,k and Φ are as followed:
+
+8r
+gt,k
+
+=
+
+Ag t,k
+cgt,k
+
+P (at |Nt , Gt , Φ) = Bin(at |Nt , Pbt (Gt , Φ))
+
+(4)
+
+P (lt |σ, φ, Gt , Φ) = N (lt |µt (Gt , Φ, o), σ)
+
+(5)
+
+where Agt,k is the number of A allele of any genotype Gt,k . For an example, if genotype is AAB,
+
+Agt,k =2, cgt,k =3 and rgt,k = 23
+9 It was observed to be 2 Megabases (2 × 106 bases) in 104 breast tumors (rounded to the nearestMb.)
+
+3
+
+Figure 1: Probabilistic graphical model of HetFHMM
+In order to infer the hidden variables G and Φ, we use negative logarithm of likelihood function to
+pursue G and Φ which give the highest joint probability of the model.
+P (G, l, a, Φ|N, ) =
+
+T
+K Y
+Y
+
+At (Gt,k |Gt−1,k )
+
+k=0 t=0
+T
+YY
+
+Bin(at,x |Nt,x , Pbt,x (Gt , Φ))N (lt,x |µt,x (Gt , Φ, o), σ)
+
+(6)
+
+x∈X t=0
+
+Since the exact inference for FHMM is intractable [8], we use a sampling method to get an approximation. Markov chain Monte Carlo (MCMC) sampling is widely adopted for this task. Gibbs sample in
+one of the simple sampling schemes among MCMC methods. In order to run Gibbs sampling, we need
+to start with an initial model in which all genotypes are randomly generated. Except for the normal
+chain, we randomly choose a genotype for each variable based on the uniform distribution. Then, each
+hidden variable is sampled given the current state of rest of the variables. In our case, the probability
+of each genotype for a hidden variable Gt,k is :
+P (Gt,k ) ∝ At (Gt,k |Gt−1,k )At+1 (Gt,k |Gt−1,k )Bin(at,x |Nt,x , Pbt,x )N (lt,x |µt,x , σ)
+
+(7)
+
+We sample each current state given another four variables: the previous genotype Gt−1 , the next
+genotype Gt+1 and two observations lt and at .
+Having fixed all the values for genotype variables G, the negative log likelihood can be minimized
+using Exponentiated Gradient Descent, which is similar to normal Gradient Descent. Gradient Descent
+is an algorithm to find the minimum of a given objective function (target function) by gradually
+approaching the minimum along the direction of the gradient function. Exponentiated Gradient (EG)
+[?] algorithm is a variant of normal Gradient Descent. The difference is that the update for Gradient
+Descent is to subtract the gradient of a target function, where as in EG the update is done by multiplying
+the exponents of the negative gradient. So in EG we pursue:
+max −L(Φ)
+Φ∈4
+
+(8)
+
+P
+that is k φk = 1 and φk ≥ 0 where L denotes the objective function. In addition, it is proved to
+perform better when the target is sparse. In other words, it allows us to identify clones even if it
+4
+
+contains only a very small proportion of cells. In our case, the objective function is the log likelihood
+function of the model, i.e. L(Φ) = log(P (G, l, a, Φ|N, o)). To solve the above maximization problem,
+the EG updates are as follows:
+φnew
+= φk e−(η∇φk L(Φ))
+(9)
+k
+where η is the learning rate. After updating each component of the latent vector Φ, the values are
+normalized so that they sum to one. In our model, for the EG updates, we need the derivatives which
+are derived using the chain rule, as follows:
+ 
+X
+Nt
+L(Φ) =
+log
++ at log Pbt + (Nt − at ) log(1 − Pbt )
+at
+t
+(lt − µt )2
+1
++ const
++ log( √ ) −
+2σ 2
+σ 2π
+∇L(Φ) =
+
+X
+t
+
+[(
+
+at
+Nt − at
+lt − µt
+· µt ]
+−
+) · ∇µt +
+Pbt
+1 − Pb t
+σ2
+
+(10)
+(11)
+
+dPbt
+ct,k · (rt,k − Pbt )
+= PK
+dφk
+k=0 φk · ct,k
+
+(12)
+
+ct,0 · (1 − µt )
+dµt
+P
+=
+dφ0
+φ0 · ct,0 + k φk · o
+
+(13)
+
+dµt
+ct,0 · oµt
+P
+=
+dφk
+φ0 · ct,0 + k φk · φ
+
+(14)
+
+dP
+
+dµt
+back to L(Φ), we can get the gradient of the objective function with respect
+Substitute dφbkt and dφ
+k
+to variable Φ.
+It is known that Gibbs sampling stops when the convergence criteria is met. In our case, we
+define the number of times that each genotype and cellular prevalence of n clones are sampled as the
+convergence criteria.
+
+3
+
+Experiments and results
+
+We carry out several experiments to HetFHMM on simulated data to evaluate its inference of clone
+specific genotypes at any mutant location including cellular prevalence. We generate simulated data
+from factorial Hidden Markov model with the number of clones varies from 3, 4, 5 and 6. The cellular
+prevalence vector Φ is specified before generating FHMM. For each FHMM, we select the number of
+mutant location by random which varies from 1k to 10k. After selecting the location, first we proceed
+to chain 0 which represents as normal cells with genotype AB. We assume that hidden variables for
+all chains at first location are also AB. Next, the genotypes of each clone at all mutant locations are
+generated using equation-3. We set the expected probability of reference allele Pb and the mean µt of
+lt by using equations-2 and 1 respectively. Finally we generate observation variables: reference allele
+read counts and log ratio of tumor-normal contents by random production of total read counts which
+varies from 1k 10k.
+We implement our model HetFHMM on these simulated data. For comparing our model with recent
+methods, we also implement PyClone [16], PhyloSub [12] and Rec-BTP [11] on these data. HetFHMM
+gives two outputs: cellular prevalence and clone specific genotypes. Whereas PyClone [16], PhyloSub
+[12] and Rec-BTP [11] predict cellular prevalence and clusters of all mutations. No method infers clone
+specific genotypes from the short reads. Clusters of all mutations can be determined from clone specific
+genotypes. Similar types of output of HetFHMM are also generated by PyClone [16], PhyloSub [12]
+and Rec-BTP [11]. For this reason we compare the results of HetFHMM with PyClone [16], PhyloSub
+[12] and Rec-BTP [11].
+We use V -measure to assess the clusters of all mutation that are either generated from clone
+specific genotypes or PyClone [16], PhyloSub [12] and Rec-BTP [11] with gold standard. V -measure is
+an entropy-based external cluster validation measure to evaluate predicted clusters with respect to gold
+standard classes. It measures how successfully the criteria of homogeneity10 and completeness11 have
+10 Each
+11 All
+
+cluster contains only members of a single class [15].
+members of a given class are assigned to the same cluster [15].
+
+5
+
+been satisfied. V -measure is the only external entropy based measure which successfully and efficiently
+evaluate cluster prediction than any other cluster evaluation measures. It is also used in PyClone to
+evaluate its clustering methodology. Rosenberg et al. [15] defined homogeneity as followed:
+H(N |n)
+H(N )
+
+h=1−
+
+(15)
+
+where H(N |n) is the conditional entropy of the class N given the cluster n, as followed:
+H(N |n) = −
+
+K X
+C
+X
+ack
+k=1 c=1
+
+M
+
+ack
+log PC
+c=1
+
+ack
+
+and H(N ) is the entropy of the class N , as followed:
+PK
+C PK
+X
+ack
+k=1 ack
+H(N ) = −
+log k=1
+M
+M
+c=1
+C, K, M , N , and n and ac,k are the number of gold standard clones, the number of predicted
+clones, the number of mutations, a gold standard clone, a predicted clone and the number of mutations
+that are members of gold standard clones c and predicted clones k. They also defined the completeness
+as followed:
+H(n|N )
+c=1−
+(16)
+H(n)
+where H(n|N ) is the conditional entropy of the cluster n given the class N , as followed:
+H(n|N ) = −
+
+C X
+K
+X
+ack
+c=1 k=1
+
+M
+
+ack
+log PK
+k=1
+
+ack
+
+and H(n) is the entropy of the cluster N , as followed:
+H(n) = −
+
+K PC
+X
+
+c=1
+
+k=1
+
+M
+
+ack
+
+PC
+log
+
+c=1
+
+ack
+
+M
+
+V -measure is defined as the harmonic mean of distinct homogeneity and completeness scores by
+Rosenberg et al. [15]:
+2×h×c
+V -measure =
+(17)
+h+c
+The value of V -measure ranges from 0 to 1. If its value is 1, it means perfect matching; otherwise
+not. For assessing our inferred clone specific genotype with the clusters of mutations by V -measure,
+F
+in which if any mutation t is present in any clone k
+we generate a two dimensional matrix MK×T
+F
+means the genotype of t mutation in clone k is other than AB, Mk,t
+= 1; Otherwise zero. We also
+G
+RT
+PC
+PS
+produce similar matrices MK×T , MK×T , MK×T and MK×T for gold standard, Rec-BTP [11], PyClone
+[16] and PhyloSub [12] respectively. Generated genotypes that are used to produce simulated data, are
+considered as gold standard.
+Using these matrices, we compute V -measure of the clustered outputs of HetFHMM, PyClone [16],
+PhyloSub [12] and Rec-BTP [11] with respect to gold standard. The cluster validation result is shown
+in fig.-2. It clearly shows that HetFHMM outperforms Rec-BTP [11], PyClone [16] and PhyloSub [12].
+PyClone [16], PhyloSub [12] and Rec-BTP [11] produce more clones than original number of clones
+which affects the completeness and homogeneity of V -measure. More over, from fig.-2, it is also found
+that increasing number of clones inversely affects the V -measure of each method.
+We evaluate the clonal frequencies by using RM SD value after examining the clusters of mutation.
+Root mean square distance or RM SD is used to compute the distance/ gap between cellular prevalence
+of predicted clones and gold standard clones. Many predicted clones contains some of mutations of a
+gold standard clone. Among them, a predicted clone would contain maximal number of mutations of
+gold standard clones. This predicted clone is called significant clone of a gold standard clone. This is
+why, clonal frequencies of all predicted clones are not compared with gold standard. Before computing
+RM SD value, we obtain significant clones from predicted clones. For detecting significant clones, we
+6
+
+V -measure
+
+0.75
+0.5
+0.25
+0
+3 Clones
+
+4 Clones
+HetFHMM
+
+PhyloSub
+
+5 Clones
+PyClone
+
+6 Clones
+Rec-BTP
+
+Figure 2: V -measure result comparison among HetFHMM, Rec-BTP, PyClone and PhyloSub algorithms for 3, 4, 5 and 6 clones synthetic dataset.
+set a value called threshold. If V -measure of any predicted clone n and gold standard clone N is above
+threshold, the predicted clone n is considered as significant clone of gold standard clone N . RM SD
+value is calculated by:
+q P
+1
+2
+RM SD =
+∀signif icant clones kΦn − ΦN k
+S
+(18)
+if n is significant clone of N , detected by V -measure
+S be the number of significant predicted clones. The zero value of RM SD indicates the perfect
+computation of clonal frequencies. But, most of the cases, RM SD value of different methods changes
+significantly. For this reason, we use log RM SD instead of RM SD. log RM SD value which helps us
+to understand the cellular prevalence comparing results better than RM SD.
+
+log RM SD
+
+2.5
+2
+1.5
+1
+0.5
+0
+3 Clones
+
+4 Clones
+HetFHMM
+
+PhyloSub
+
+5 Clones
+PyClone
+
+6 Clones
+Rec-BTP
+
+Figure 3: log RM SD comparison among HetFHMM, PhyloSub, PyClone and Rec-BTP algorithms for
+3, 4, 5 and 6 clones synthetic dataset.
+In cellular prevalence evaluation, we set the value of threshold to 0.25. The comparative result of
+log RM SD of HetFHMM, Rec-BTP [11], PyClone [16] and PhyloSub [12] are shown in fig.-3. We find
+that HetFHMM produces less log RM SD value compare to Rec-BTP [11], PyClone [16] and PhyloSub
+[12]. The V -measure comparison shows that mutation clustering by Rec-BTP [11], PyClone [16] and
+PhyloSub [12] are not more accurate than HetFHMM. It affects the number of mutations in a clone
+which affects the cellular prevalence of recent methods.
+
+4
+
+Conclusion
+
+HetFHMM can detect clones by genotypes and cellular prevalence together. We develop HetFHMM
+by considering the presence of multiple clones and mutations at any genomic location which helps
+to find the more accurate clones and their cellular prevalence than existing methods: PyClone [16],
+PhyloSub [12] and Rec-BTP [11]. Therefore, it can be said that HetFHMM is a novel approach in
+tumor heterogeneity research to infer clones.
+7
+
+Despite improved performance of HetFHMM, it has some issues. We consider any mutation is
+dependant on previous mutation. In the real world, all previous mutations have position specific affects
+on one mutation which is not considered in this model. The number of clones within a tumor sample
+is predefined, but it needs to be predicted from tumor sample. On the other hand, we experiment our
+model only on simulated data. We have a plan in future to test our model on real large tumor sample.
+We also improve our HetFHMM by considering above mentioned important features.
+
+5
+
+References
+
+References
+[1] Caraco Y., Genetic determinants of drug responsiveness and drug interactions, in Journal
+of Therapeutic Drug Monitoring, 20 (5), 517-524, 1998.
+[2] Colella S., et al., Quantisnp: an objective bayes hidden-markov model to detect and accurately map copy number variation using snp genotyping data. in Nucleic Acid Research,
+35 (6), pp. 2013-2025, 2007.
+[3] Deshwar A.G., et al., Reconstructing subclonal composition and evolution from whole
+genome sequencing of tumors, in arXiv preprint arXiv:1406.7250, 2014.
+[4] Ding L., et al., Clonal evolution in relapsed acute myeloid leukaemia revealed by wholegenome sequencing, in Nature, 481, pp. 506-510, 2012.
+[5] Ding L., et al., Advances for studying clonal evolution in cancer, in Cancer Letter, 340 (2),
+pp. 212-219, 2013.
+[6] Duan J., et al. Comparative Studies of Copy Number Variation Detection Methods for
+Next-Generation Sequencing Technologies, in PLOS one, 8 (3): e59128., pp. 1-12, 2013.
+[7] Gerlinger M, et al., Intratumor heterogeneity and branched evolution revealed by multiregion sequencing, in The New England Journal of Medicine, 366, pp. 883-892, 2012.
+[8] Ghahramani Z., et al., Factorial Hidden Markov Models, in Journal of Machine Learning, 29
+(2), pp. 245-273, 1997.
+[9] Ha G., et al., Integrative analysis of genome-wide loss of heterozygosity and monoallelic
+expression at nucleotide resolution reveals disrupted pathways in triple-negative breast
+cancer, in Genome research, 22, pp. 1995-2007, 2012.
+[10] Ha G., et al., TITAN: inference of copy number architectures in clonal cell populations
+from tumor whole-genome sequence data in Genome Research, 24, pp. 1881-1893, 2014.
+[11] Hajirasouliha I., et al., A combinatorial approach for analyzing intra-tumor heterogeneity
+from high-throughput sequencing data, in Oxford Journal of Bioinformatics, 30 (12), pp. i78i86, 2014.
+[12] Jiao W., et al., Inferring clonal evolution of tumors from single nucleotide somatic
+mutations, in BMC Bioinformatics, 15 (35), pp. 1-16, 2014.
+[13] Li A., et al., GPHMM: an integrated hidden Markov model for identification of copy
+number alteration and loss of heterozygosity in complex tumor samples using whole
+genome SNP arrays, in Nucleic Acids Research, 39 (12), pp. 4928–4941, 2011.
+[14] Nik-Zainal S., et al., The life history of 21 breast cancers, in Cell, 149, pp. 994-1007, 2012.
+[15] Rosenberg A., et al., V-Measure: A conditional entropy-based external cluster evaluation, in In Proceedings of the 2007 Joint Conference on Empirical Methods in Natural Language
+Processing and Computational Natural Language Learning (EMNLP-CoNLL), pp. 410-420, 2007.
+[16] Roth A., et al. PyClone: statistical inference of clonal population structure in cancer
+in Nature Methods, 11, pp. 396-398, 2014.
+8
+
+[17] Roy E., et al., Understanding clonal dynamics in homeostasis and injury through multicolour lineage tracing, in Stem cells, (doi: 10.1002/stem.1804), 2014.
+[18] Sanger F., et al., A rapid method for determining sequences in DNA by primed synthesis
+with DNA polymerase, in Journal of Molecular Biology, 94 (3) pp. 441-448, 1975.
+[19] Schuh A., et al., Monitoring chronic lymphocytic leukemia progression by whole genome
+sequencing reveals heterogeneous clonal evolution patterns, in Blood, 120, pp. 4191-1496,
+2012.
+[20] Shah S.P., et al., The clonal and mutational evolution spectrum of primary triplenegative breast cancers in Nature, 486, 395-399, 2012.
+[21] Wang H., et al., Copy number variation detection using next generation sequencing
+read counts, in BMC Bioinformatics, 15 (109), pp. 1-14, 2014
+[22] Xia H., et al., A Novel HMM for Analyzing Chromosomal Aberrations in Heterogeneous
+Tumor Samples, in Proceedings of The 7th International Conference on Systems Biology (ISB),
+pp. 92-96, 2013.
+[23] Yau, C., OncoSNP-SEQ: a statistical approach for the identification of somatic copy
+number alternations from next generation sequencing of cancer genomes, in Oxford
+Journal of Bioinformatics, 29 (19), pp. 2482-2484, 2013.
+[24] Yu Z., et al., CLImAT: accurate detection of copy number alteration and loss of heterozygosity in impure and aneuploid tumor samples using whole-genome sequencing
+data, in Oxford Journal of Bioinformatics, 30 (14), pp. 2576-2583, 2014.
+[25] Zare H., et al., Inferring Clonal Composition from Multiple Sections of a Breast Cancer,
+in PLoS Computation Biology, 10 (7), e1003703, pp. 1-15, 2014.
+
+9
+
+

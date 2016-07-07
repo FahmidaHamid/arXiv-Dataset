@@ -1,0 +1,3643 @@
+MESOSCOPIC MODELING OF STOCHASTIC REACTION-DIFFUSION KINETICS IN
+THE SUBDIFFUSIVE REGIME
+
+arXiv:1503.07009v1 [math.AP] 24 Mar 2015
+
+EMILIE BLANC, STEFAN ENGBLOM, ANDREAS HELLANDER, PER LÖTSTEDT∗
+Abstract. Subdiffusion has been proposed as an explanation of various kinetic phenomena inside living cells. In order to
+fascilitate large-scale computational studies of subdiffusive chemical processes, we extend a recently suggested mesoscopic model
+of subdiffusion into an accurate and consistent reaction-subdiffusion computational framework. Two different possible models
+of chemical reaction are revealed and some basic dynamic properties are derived. In certain cases those mesoscopic models
+have a direct interpretation at the macroscopic level as fractional partial differential equations in a bounded time interval.
+Through analysis and numerical experiments we estimate the macroscopic effects of reactions under subdiffusive mixing. The
+models display properties observed also in experiments: for a short time interval the behavior of the diffusion and the reaction
+is ordinary, in an intermediate interval the behavior is anomalous, and at long times the behavior is ordinary again.
+Key words. continuous-time random walk, subdiffusion, fractional derivative, anomalous kinetics, multistate reactiondiffusion system.
+AMS subject classifications. 35K57, 60J60, 92C45
+
+1. Introduction. Quantitative models of reaction-diffusion systems are important tools to theoretically
+and computationally study the dynamics of intracellular control systems. Macromolecules such as proteins,
+mRNA and DNA interact in regulatory pathways in which each chemical reaction occurs in a certain part of
+the cell. Molecules are transported via diffusion or active transport to arrive at the subcellular location needed
+to fulfill their function. As an example, in many gene regulatory pathways, proteins called transcription
+factors will diffuse and search for the correct binding site on DNA, where they modulate the translation
+of DNA into mRNA, which in turn will be translated into proteins. Apart from the spatial dynamics,
+realistic models need to account for large fluctuations in the copy numbers of the species due to the small
+reaction volume and thus the small number of molecules of key species such as transcription factors. To
+that end, spatial stochastic models based on a Markov process formalism are popular due to their high level
+of biological realism compared to macroscopic partial differential equations (PDE), with only a moderate
+increase in computational complexity and cost. Such mesoscopic models, based on the so called ReactionDiffusion Master Equation (RDME), have recently been used to address different biological phenomena such
+as regulation of cell division in E. coli [11], yeast polarization [31] and genetic oscillators [50].
+A fundamental assumption in the RDME models is that molecules are point particles. Thus, the model
+does not account for molecular volume exclusion, something that can lead to anomalous diffusion in the
+crowded compartments of living cells. Especially on 2D membranes, crowding and anomalous diffusion
+behavior can be expected to have an impact on the reaction kinetics. For diffusion limited reactions, subdiffusion often results in a slower decay [54]. A reversible ligand binding bimolecular reaction on a 2D
+membrane is studied in [46] where anomalous diffusion is simulated with a continuous-time random walk
+(CTRW). The steady state distribution of the bound complex depends critically on the anomalous diffusion
+and its parameters. An irreversible bimolecular reaction is simulated in [1] with ordinary diffusion and a
+modified non-Fickian diffusion which is anomalous for intermediate time but tends to ordinary diffusion in
+the long term. The distribution of the reactant is sensitive to the type of diffusion. The conclusion in [40]
+is also that subdiffusion changes the reaction rate in a bimolecular reaction.
+To capture effects of subdiffusion due to molecular crowding in stochastic reaction diffusion simulations,
+detailed Brownian Dynamics (BD) models based on a hard-sphere assumption can be used instead of the
+mesoscopic RDME model, since they account for the volume exclusion of molecules. However, this comes
+at the price of a very large increase in computational cost, making simulations on the timescales of interest
+∗ Division of Scientific Computing, Department of Information Technology, Uppsala University, P. O. Box 337, SE-75105
+Uppsala, Sweden. (emilie.blanc@it.uu.se, stefane@it.uu.se, andreas.hellander@it.uu.se, perl@it.uu.se).
+
+1
+
+in systems biology (minutes to hours) challenging. Thus there is a need to investigate less computationally
+demanding approximations of mesoscopic subdiffusion. A promising approach for mesoscopic anomalous
+diffusion simulation was suggested recently by Mommer and Lebiedz [38], in which a stochastic CTRW
+model [39] is approximated by an internal states model where all transitions between states have exponentially
+distributed waiting times. Hence, the subdiffusive process is simulated as a coupled reaction-diffusion system
+with ordinary diffusion, making it easily implemented in software frameworks based on the RDME [8, 18, 22].
+Starting from the viewpoint that the mesoscopic model arises as an approximation of molecular crowding
+on the microscopic level, the internal states model can be viewed as a mathematical means to arrive at an
+approximate, faster simulation method. On a more general level, such internal states models arise also from
+the need to model for example conformational changes of macromolecules. Many proteins exist in a number
+of different states due to e.g. ligand binding, methylation, and conformational changes [4, 9]. In practical
+modeling, if each state is to be represented as a separate chemical species, an exponential growth in model
+complexity due to a combinatorial explosion in the number of states may be the consequence. To handle
+this from a practical point of view, special rule-based modeling languages have been developed, such as
+BioNetGen Language [3] and PySB [33]. This combinatorial explosion in states motivates the development
+of computational methods to simulate models with these types of molecules more efficiently [49]. In this case,
+we start with an internal states model naturally arising from the biological model, and are then interested in
+how this model can be approximated on a phenomenological, macroscopic level as a fractional PDE (FPDE).
+Molecules transported by subdiffusion move slower than with ordinary diffusion [36] which could be an
+effect of crowding in a biological cell. The governing equation for subdiffusion is a FPDE with a fractional
+time derivative and the Laplacian as the diffusive space operator. Chemical reactions can also be included
+in this framework. Three different models for monomolecular reactions with subdiffusion are derived and
+compared with analytical solutions in [21]. In one of the models where the fractional derivative acts only on
+the diffusion, the concentration of the species can become negative, making it less suitable. In the preferred
+model, where a special fractional derivative is derived for the diffusion, the equation for the homogeneous
+solution is recovered without a fractional derivative. The model where the fractional derivative is applied to
+both the diffusion and the reaction is used in [53] for a bimolecular reaction. A model with internal states is
+derived in [43] for the propagation of a reaction front in an inhomogeneous medium. The particles move by
+diffusion and react with each other at the front. Macroscopic equations are obtained after summation over
+the internal states. Analytical results show that the speed of the front depends on the type of reaction and
+the particle distribution between the internal states. That same model is suggested in [44] to explain the
+results in [46].
+In this paper, we develop theory to extend the mesoscopic anomalous diffusion internal states model
+[38] to account also for chemical reactions, making it possible to model general reaction-diffusion processes.
+In particular, we develop theory for the connection between the model framework that thus emerges and
+existing models of anomalous reaction-diffusion processes on the macroscopic, FPDE level. As we will see,
+the proposed reactive internal states model is quite general and can, depending on the involved parameters,
+result in different mean-field equations. Some of these mesoscopic equations have a simple interpretation
+at the macroscopic level as a FPDE but in general this is not possible. In numerical simulations, the
+reaction-diffusion systems have the same behavior as observed in many experiments: in a short time interval
+after start we see ordinary behavior, then there is an anomalous phase, and finally the behavior is ordinary
+again but with different diffusion and reaction coefficients. These conclusions are supported theoretically
+in [23, 25, 30, 41]. The reaction-diffusion equations encompass many of the known models of subdiffusive
+reaction systems, making it promising as a general modeling framework.
+The rest of the paper is organized as follows. In Section 2, we review some basic properties of stochastic
+models of diffusion and how they give rise to a phenomenological, macroscopic FPDE in the thermodynamic
+limit. Here, we will also see how the addition of chemical reactions on the macroscopic level can lead to two
+different, possible FPDE models. We introduce an internal states model of reaction-subdiffusion systems in
+Section 3 and analyze its mean field properties. In Section 4, we relate the models in Sections 2 and 3 to each
+2
+
+other for linear and non-linear chemical reactions, and in Setion 5, numerical experiments are presented.
+Finally, the paper is concluded in Section 6.
+2. Fractional partial differential equations as limits of continuous-time random walks. In
+this section, we recall some well-known facts about Brownian and, in particular, subdiffusive random movements. When approached in the proper macroscopic limit, FPDEs emerge as a convenient mathematical
+model for subdiffusion. Terms are added to the FPDEs to model chemical reactions.
+The CTRW model was introduced by Montroll and Weiss for hopping transport on a disordered lattice
+[39]. In this model in continuous space, the particle is assumed to traverse the space by a series of jumps.
+The displacement and the waiting time to perform the next jump are drawn from a given probability
+density function (PDF) Ψ(x, t). We assume that the jump length PDF λ(x) and waiting time PDF ψ(t) are
+independent random variables. Consequently, Ψ(x, t) is written
+Ψ(x, t) = ψ(t) λ(x).
+
+(2.1)
+
+Different diffusion processes can be categorized by the expected waiting time
+Z ∞
+τ∗ =
+t ψ(t) dt,
+
+(2.2)
+
+0
+
+and the jump length variance
+Σ2 =
+
+Z
+
+Rd
+
+kxk22 λ(x) dx,
+
+(2.3)
+
+where d is the dimension of the embedding space. If both Σ2 and τ ∗ are finite, the long-time limit corresponds
+to Brownian motion. A diverging τ ∗ with finite Σ2 gives rise to subdiffusion. On the contrary, a diverging
+Σ2 with a finite τ ∗ induces superdiffusion [23, 36], which is beyond the scope of this article.
+2.1. Brownian motion. We consider a Gaussian jump length PDF
+λ(x) =
+
+1
+
+2
+
+d/2
+(4 π σ 2 )
+
+e−kxk2 /(4 σ
+
+2
+
+)
+
+(2.4)
+
+and a Poissonian waiting time PDF
+ψ(t) =
+
+1 −t/τ
+e
+.
+τ
+
+(2.5)
+
+Equations (2.2)–(2.3) lead to Σ2 = 2 σ 2 < ∞ and τ ∗ = τ < ∞. Since Σ2 and τ ∗ are finite, the long-time limit
+thus corresponds to Brownian motion. At the macroscopic scale, we recover the classical diffusion equation
+[23, 36] for the concentration U of the chemical species A
+∂U
+= D ∆U,
+∂t
+
+(2.6)
+
+with
+D=
+
+Σ2
+σ2
+=
+.
+τ
+2τ
+
+The linear time dependence of the mean squared displacement
+
+
+
+kxk22 (t) = 2 d D t
+is characteristic of Brownian motion.
+
+3
+
+(2.7)
+
+(2.8)
+
+2.2. Subdiffusion. We consider now instead a Gaussian jump length PDF (2.4) and a waiting time
+PDF [28, 35]
+  α 
+t
+tα−1
+, 0 < α < 1,
+(2.9)
+ψ(t) = α Eα,α −
+τ
+τ
+where
+  α  X
+∞
+k
+t
+(−(t/τ )α )
+Eα,α −
+=
+τ
+Γ(α k + α)
+
+(2.10)
+
+k=0
+
+is the generalized Mittag-Leffler function. The Mittag-Leffler waiting time PDF has been observed experimentally, from polymer rheology [16], over ligand rebinding to proteins [15] and protein conformation
+dynamics [52], to financial market time series [34]. Equations (2.2)–(2.3) lead to Σ2 = 2 σ 2 < ∞ and τ ∗ = ∞,
+which give rise to subdiffusion. At the macroscopic scale, we obtain the FPDE [23, 36]
+∂αU
+= Kα ∆U,
+∂tα
+
+(2.11)
+
+with
+Kα =
+
+Σ2
+σ2
+=
+.
+α
+τ
+2 τα
+
+(2.12)
+
+At the boundary ∂Ω of the domain Ω, the molecules are reflected back implying homogeneous Neumann
+∂α
+boundary conditions at ∂Ω. The operator ∂t
+α involved in (2.11) is a Caputo fractional derivative in time of
+order α, generalizing the usual derivative. It is defined as [5, 37]
+Z t
+∂αU
+(t − τ )−α dU
+=
+(τ ) dτ.
+(2.13)
+∂tα
+0 Γ(1 − α) dt
+The mean squared displacement is given by the power law
+
+
+
+2 d Kα α
+kxk22 (t) =
+t .
+Γ(1 + α)
+
+(2.14)
+
+In the one dimensional (1D) case (d = 1) in free space, the Green’s function of the FPDE (2.11) is [36]
+
+ 
+
+
+ 1 − α, α
+2
+
+1
+x
+2
+
+
+U (x, t) = √
+(2.15)
+H 2,0 
+ ,
+4 π Kα tα 1,2 4 Kα tα 
+1
+,
+1
+(0, 1)
+2
+
+2,0
+where the Fox function H1,2
+is defined in Appendix A. In the particular case α = 1/2, the Green’s function
+(2.15) can be rewritten
+"
+#
+2  
+
+x2
+1
+1 1
+3,0
+
+,
+(2.16)
+G0,3
+U (x, t) = q
+ 0, 4 , 2
+16 K1/2 t1/2
+8 π 3 K1/2 t1/2
+
+where the Meijer-G function G3,0
+0,3 is also defined in Appendix A. The Green’s function (2.16) will be used in
+numerical experiments in Section 5 as a reference solution.
+
+2.3. Adding chemical reactions. In the following we discuss how chemical reactions can be added
+to the macroscopic subdiffusion model (2.11) for the cases of annihilation, reversible isomerization, and
+reversible bimolecular reactions. As we will see, in the first two cases two different FPDE models are
+possible, while only one of them turns out to be well defined for bimolecular association.
+4
+
+k
+
+∗
+∅. Two dif2.3.1. Annihilation. We first consider one species A and the annihilation process A −→
+ferent FPDEs can be used to model an annihilation process. If a constant proportion of walkers are removed
+instantaneously at the start of each step then the long-time asymptotic limit yields a fractional reactiondiffusion equation with a fractional order temporal derivative operating both on the standard diffusion term
+and on the linear reaction kinetics term [21, 24, 42]:
+
+∂U
+∂ 1−α
+= 1−α (Kα ∆U − k∗ U ) .
+∂t
+∂t
+
+(2.17)
+
+In what follows, (2.17) is referred to as model I. The total amount Ū of A in a bounded domain Ω with
+boundary ∂Ω is defined as
+Z
+U (x, t) dΩ.
+(2.18)
+Ū =
+Ω
+
+The equation (2.17) is integrated over Ω
+dŪ
+∂ 1−α
+= 1−α
+dt
+∂t
+
+
+
+Z
+Kα
+∆U dΩ − k∗ Ū .
+
+(2.19)
+
+Ω
+
+Since
+Z
+
+Ω
+
+∆U dΩ =
+
+Z
+
+∂Ω
+
+n · ∇U dS = 0
+
+(2.20)
+
+for Neumann conditions at ∂Ω with normal n, Ū satisfies the fractional ordinary differential equation (ODE)
+dα Ū
+= −k∗ Ū .
+dtα
+
+(2.21)
+
+Consequently, the total amount of A is also affected by the subdiffusion. This behavior is called anomalous
+kinetics. In the 1D case in free space, the Green’s function of (2.17) is [21]
+
+ 
+
+
+ 1 − α + α j, α
+∞
+α j
+2
+X
+
+(−k∗ t )
+x
+1
+2,0 
+2
+
+
+H1,2
+U (x, t) = √
+(2.22)
+ .
+j!
+4 Kα tα 
+4 π Kα tα j=0
+1
++
+j,
+1
+(0, 1)
+2
+In the particular case of α = 1/2, (2.22) can be rewritten as
+"
+#
+2  
+∞
+X
+
+(−2 k∗ t1/2 )j 3,0
+1
+x2
+j
+1
+1
+ 0, + ,
+.
+U (x, t) = q
+G0,3
+
+j!
+4 2 2
+16 K1/2 t1/2
+8 π 3 K t1/2 j=0
+
+(2.23)
+
+1/2
+
+If instead the walkers are removed at a constant per capita rate during the waiting time between steps
+then the long time asymptotic limit has a standard linear reaction kinetics term but a fractional order
+temporal derivative operating on a nonstandard diffusion term [21, 32, 45, 51]:
+
+∂ 1−α
+∂U
+= Kα e−k∗ t 1−α ek∗ t ∆U − k∗ U.
+∂t
+∂t
+
+This case is referred to as model II in what follows. Integrating (2.24) and using (2.20) leads to
+
+
+Z
+1−α
+∂ Ū
+−k∗ t ∂
+k∗ t
+= Kα e
+e
+∆U dΩ − k∗ Ū = −k∗ Ū .
+∂t
+∂t1−α
+Ω
+5
+
+(2.24)
+
+(2.25)
+
+Ordinary kinetics is recovered: the total amount of A is not affected by the subdiffusion. The change of
+variables Ũ = ek∗ t U in (2.24) leads to the FPDE (2.11). In the one dimensional case, the Green’s solution
+of (2.24) is then [21, 36]
+
+ 
+
+
+ 1 − α, α
+2
+
+x
+e−k∗ t
+2
+
+
+(2.26)
+H 2,0 
+U (x, t) = √
+ .
+4 π Kα tα 1,2 4 Kα tα 
+1
+,
+1
+(0, 1)
+2
+
+2.3.2. Monomolecular reactions. Let two species A and B undergo the monomolecular reversible
+k∗
+
+isomerization reaction A ⇋ B. We assume that the jump length variance and the time scale involved in
+ℓ∗
+
+(2.12) are the same for each species: Σ2A = Σ2B and τA = τB = τ . Consequently, the diffusion coefficients
+are also identical KAα = KBα = Kα . The concentrations of A and B are U and V , respectively. As in the
+case of annihilation, two different FPDEs can be used to model this reaction. Model I is here written
+∂U
+∂ 1−α
+(2.27)
+= Kα 1−α (∆U − R U ) ,
+∂t
+∂t
+
+
+k∗ −ℓ∗
+with U = (U V )T and R =
+. The reaction matrix R is diagonalizable, R = P Λr P −1 , with
+−k∗
+ℓ∗
+
+
+
+
+k∗ + ℓ∗ 0
+1 ℓ∗
+, Λr =
+.
+(2.28)
+P =
+0
+0
+−1 k∗
+By setting Ũ = P −1 U , the governing system of evolution equations decouples to
+
+∂ 1−α 
+∂ Ũ
+= Kα 1−α ∆Ũ − Λr Ũ .
+∂t
+∂t
+
+(2.29)
+
+In the 1D case without boundaries, the Green’s function of the FPDE (2.29) can be computed using (2.15)
+and (2.22).
+Model II is written
+
+∂ 1−α
+∂U
+(2.30)
+= Kα e−R t 1−α eR t ∆U − R U ,
+∂t
+∂t
+
+The change of variables Ũ = eR t U in (2.30) leads to the FPDE (2.11). The Green’s function of the FPDE
+(2.30) in 1D can be computed using (2.26).
+
+2.3.3. Bimolecular reactions. Finally, we consider three species A, B and C and the reversible
+k∗
+
+bimolecular reaction A + B ⇋ C. As previously, we assume that the jump length variance and the time
+ℓ∗
+
+scale involved in (2.12) are the same for all species, which implies that the diffusion coefficients are also
+identical. The concentrations of A, B and C are U , V and W , respectively. In the bimolecular case, due to
+the nonlinearity, only model I is defined. It is written
+
+∂ 1−α
+
+ ∂U
+= Kα 1−α (∆U − k∗ U V + ℓ∗ W ) ,
+
+
+
+∂t
+ ∂t
+
+
+∂V
+∂ 1−α
+(2.31)
+(∆V − k∗ U V + ℓ∗ W ) ,
+=
+K
+α
+
+∂t
+∂t1−α
+
+
+
+
+1−α
+
+
+ ∂W = Kα ∂
+(∆W + k∗ U V − ℓ∗ W ) .
+∂t
+∂t1−α
+No analytical solution is available in this case. Nevertheless, the quantity U − V satisfies the FPDE (2.11).
+Consequently, the analytical solution of U − V is given by (2.15).
+6
+
+3. The internal states model. In this section, we introduce an internal states model of subdiffusion
+on the mesoscale. The molecules jump on a lattice and can react with each other when they are in the same
+lattice cell. Diffusion is here modeled by discrete jumps with a waiting time PDF ψ(t) and a jump length
+depending on the nearest neighbors in the lattice.
+3.1. Mesoscopic diffusion and reactions. In the stochastic mesoscopic model, the state of the
+system at time t is given by the number of molecules of each one of the N species in the state vector
+y(t) ∈ ZN
++ . The domain is partitioned into non-overlapping voxels or compartments Vi , i = 1, . . . , M, with
+a mesh or a lattice. Each voxel has a vertex at xi in the center. The component yjk of yk is the number
+of molecules of species j in Vk . The states are changed randomly at discrete time points tℓ depending on
+chemical reactions or a jump to a neighboring voxel due to diffusion. Between tℓ and tℓ+1 , y is constant. The
+PDF is p(y, t) for the system to be in state y at time t, and satisfies a master equation [10, 26], commonly
+referred to as the Reaction-Diffusion Master Equation (RDME) in the context of chemical kinetics.
+The jump coefficient λji for a diffusive jump of a molecule A from Vj to Vi is determined from the
+coefficients of a discretized diffusion equation in [10]. The rate for a jump is λji yj where yj is the copy
+number of A in Vj . After the diffusive jump, yj and yi are updated: yj := yj − 1, yi := yi + 1.
+A bimolecular reaction between the molecular species A and B produces a C molecule in a voxel in
+κ
+
+A + B → C.
+
+(3.1)
+
+The propensity of the reaction is κ times the copy numbers y and z of A and B. If the reaction takes place at
++
+−
+tℓ , then the state before the reaction y(t−
+ℓ ) in the voxel is changed to y(tℓ ) = y(tℓ )+νr immediately after the
+reaction r, where νr is the stoichiometric vector associated with the reaction. In (3.1), y := y − 1, z := z − 1,
+and the copy number of C increases by one.
+A realization of the chemical system is generated by the stochastic simulation algorithm (SSA) [13] in
+a Monte Carlo method. In the limit of large copy numbers, the mean values of the concentrations of the
+species converge to the solution of the reaction rate equations [29]. These equations are stated in Section 3.3.
+In the next section, a master equation is derived for the PDF of a system with internal states. Internal
+states of the species are introduced in [38] to model subdiffusion. We will extend their model to include
+reactions between the species.
+3.2. A generalized master equation. As a generalization of the classical chemical master equation
+(CME), we let a chemical species A have a number N of internal states Al , l = 1, . . . , N . The state Al
+can model a conformational state that can be difficult to observe and that is more or less hidden from a
+practical point of view as in a hidden Markov model. On the molecular level, the hidden states can model
+different things, for example, they can represent different geometrical configurations of the molecule or the
+macromolecule can have different small molecules attached to it at different locations [4, 9].
+We now consider a general event q which could be a diffusive jump, a change of internal states or a
+reaction. Assume that the molecule in the state j has a PDF for the waiting time with density ψqj (t) for
+the
+P event q and that the molecule, due to the event, then changes state to i with probability πqij such that
+i πqij = 1. Although formally ψqj (t) here is slightly different from the one in Section 2, the notation is
+retained since the observed effects are the same. Usually, the waiting time is assumed to be exponentially
+distributed and dependent on reaction rates and diffusion propensities.
+The Laplace transform of a function f (t) is denoted by f˜(s). An auxiliary function φqj (t) is defined by
+its Laplace transform involving the Laplace transform of the waiting time PDF ψ̃qj (s)
+φ̃qj (s) = s ψ̃qj (s)/(1 − ψ̃qj (s))
+
+(3.2)
+
+Gillespie shows in [14] (see also [19, 27]) that there is a generalized master equation for the PDF pi of state
+i
+Z
+∂pi (t) X t X
+(πqij φqj (t − t′ ) pj (t′ ) − πqji φqi (t − t′ ) pi (t′ )) dt′
+(3.3)
+=
+∂t
+0
+q
+j
+7
+
+If ψqi (t) = aqi exp(−aqi t), then φqi (t) = aqi δ(t) where δ(t) is the Dirac delta and aqi is the reaction
+propensity. Then we obtain the usual master equation
+XX
+∂pi (t) X X
+(πqij aqj pj (t)) − aqi pi (t).
+(πqij aqj pj (t) − πqji aqi pi (t)) =
+=
+(3.4)
+∂t
+q
+q
+j
+j
+Let state i be y and let state j be y − νq in (3.4) and identify aq (y − νq ) with πqij aqj and aqi with
+aq (y) for event q. Let Q be the total number of events. If the waiting times are exponentially distributed
+then we recover the usual CME [26]
+Q
+
+∂p(y, t) X
+(aq (y − νq ) p (y − νq , t) − aq (y) p(y, t)).
+=
+∂t
+q=1
+
+Change of internal state
+Diffusion from voxel k to voxel ℓ
+Monomolecular reaction
+Bimolecular reaction
+Production of one molecule
+Annihilation
+
+event
+Aj → Ai
+Ajk → Ajℓ
+Aj → Bi
+Ai + Bj → Ck
+∅ → Ai
+Ai → ∅
+
+probability
+πij = µi
+πℓk = λℓk /λk
+πij = κji /κj
+πij = κijk /κij
+πi0 = µi
+π0i = 1
+
+(3.5)
+
+propensity
+aj = yj /τj
+2
+aj = σA
+λk yjk /τj
+aj = κj yj /τj
+aij = κij yi zj /τij
+ai = k/τi
+ai = k yj /τi
+
+Table 3.1
+Jump probabilities and propensities in (3.4) for different events.
+
+We consider six different elementary events listed in Table 3.1. The coefficients in (3.4) and waiting
+times in (3.2) defining the events are also found in Table 3.1. The copy numbers of the species Aj and Bi
+are yj and zi , respectively. The total rates away from the state in the table to all other states that can be
+reached are
+X
+X
+X
+X
+κji , κij =
+κijk
+µi = 1, λk =
+λℓk , κj =
+i
+
+i
+
+ℓ
+
+k
+
+P
+
+ensuring that i πij = 1. The waiting time distribution in the state is ψj (t) = aj exp(−aj t) when one
+molecule is transformed in Table 3.1. The time scale τj of the transformations depends on the internal state
+j of A. We will find that if τi 6= τj when i 6= j then the annihilation, diffusion, reaction, or production is
+anomalous at the macroscopic level. If τi = τ then the transformation between the states is the ordinary
+one with the same waiting time for all states.
+The scale τij of the bimolecular reaction depends on the states of A and B. By splitting the reaction
+rate into θκijk /τi + (1 − θ)κijk /τj with 0 6 θ 6 1, the time constant is τij = 1/(θτi−1 + (1 − θ)τj−1 ). This
+τij is in agreement with the time scale obtained from [6]. Let DAi and DBi be the diffusion coefficients of
+species A and B in state i, kb the microscopic reaction rate, and ρr the reaction radius. Then the reaction
+rate κijk in [6] follows from Smoluchowski’s rate law and is a function of DAi and DBj
+κijk =
+
+kb 4 π (DAi + DBj ) ρr
+.
+kb + 4 π (DAi + DBj ) ρr
+
+(3.6)
+
+2
+Let the diffusion coefficients of species A and B depend on the internal state such that DAi = σA
+/τi and
+2
+2
+2
+2
+DBj = σB /τj (2.7). Then with θ = σA /(σA + σB ) and for diffusion limited systems with a large kb compared
+to DAi + DBj , κijk is approximated by
+
+
+θ
+1−θ
+2
+2
+κijk ≈ 4 π (σA + σB )
+.
+(3.7)
++
+τi
+τj
+
+8
+
+When kb is small then the influence of the diffusion disappears in (3.6) and κijk ≈ kb without dependence
+on the states i and j.
+With the master equation (3.4) or (3.5), we can derive reaction rate equations approximately satisfied
+by the mean values as in [26, 38].
+3.3. Mean-field properties of the internal states model. The mean values of the concentrations
+of the species approximately satisfy a system of ODEs often denoted the reaction rate equations. These
+equations are derived from the PDF in the master equation (3.4) or (3.5), see [26]. When the reactions are
+such that all propensities are linear in the chemical system, see Table 3.1, then the solutions to the equations
+are the exact mean values. They are approximations if there is a bimolecular reaction in the chemical system.
+3.3.1. Diffusion. Let us first examine a system with one molecular species and N internal states. This
+is the problem investigated in [38]. We allow changes of internal state and diffusion between two voxels but
+without chemical reactions. The mean values of the concentrations of the N states ui (t) ∈ RN in voxel i are
+the solution of
+
+
+
+
+ni
+ni
+2
+X
+X
+∂ui
+λ
+σ
+λ
+i
+ij
+
+uj −
+ui  + A ui =
+λij uj − λi ui  + A ui .
+(3.8)
+= σ2 
+∂t
+τ
+τ
+τi j=1
+i
+i
+j=1
+
+The number of voxels directly connected to Vi is ni . Consequently, a diffusive jump between Vj and Vi is
+possible. The elements of A follow from Table 3.1 and are Aij = µi /τj , i 6= j, and Aii = (µi − 1)/τi . Let T
+be a diagonal matrix with Tii = 1/τi , µ a vector with non-negative components µi such that eT µ = 1 and
+e a vector with ei = 1 for all i. Then A in (3.8) can be written
+A = (µ eT − I) T .
+
+(3.9)
+
+The nullspace consists of one vector ũ∞ where
+ũ∞ = T −1 µ.
+
+(3.10)
+
+The left eigenvector of A corresponding to eigenvalue λ1 = 0 is e such that
+eT A = 0.
+
+(3.11)
+
+The diffusion jump coefficients in (3.8) are derived such that the Laplacian is approximated in voxel i
+∆u(x, t) ≈
+
+ni
+X
+j=1
+
+λij uj − λi ui .
+
+(3.12)
+
+On a Cartesian mesh with equal mesh spacing h, λji = 1/h2 and λi = 2d/h2 where d is the dimension.
+On an unstructured mesh, the coefficients can be derived by a finite element method as in [10]. With a
+continuous u(x, t) in space, the equation approximated by (3.8) is
+∂u
+= D ∆u + A u,
+∂t
+
+D = σ2 T .
+
+(3.13)
+
+The boundary conditions are of Neumann type at the boundary to preserve the total concentration of the
+species as in (2.20). The analysis is simplified in this section if we consider the solution u(x, t) of (3.13)
+instead of the discrete solutions ui (t) in the voxels in (3.8).
+With positive initial data, it is easy to see that there is a unique positive steady-state solution ũ∞ as
+t → ∞. This solution is space independent. We write this in the normalized form
+lim u(x, t) = ũ∞ = uu∞ ,
+
+t→∞
+
+9
+
+(3.14)
+
+where ku∞ k1 = 1 and u = ku(x, 0)k1 by the preservation of mass. Since ∆u∞ = 0 we have A u∞ = 0 and
+u∞ is given by (3.10) and (3.14).
+Expand the solution of (3.13) in a cosine series in 1D
+u(x, t) =
+
+∞
+X
+
+uω (t) cos(ωx),
+
+(3.15)
+
+ω=0
+
+with x in [0, 2π] and insert into (3.13). Then each mode uω satisfies
+∂uω (t)
+= (−ω 2 σ 2 T + A) uω (t).
+∂t
+
+(3.16)
+
+uω (t) = S exp(Λt) S −1 uω (t),
+
+(3.17)
+
+The solution to the equation is
+
+where S(ω) = (s1 , s2 , . . . , sN ) is the eigenvector matrix of −ω 2 σ 2 T + A and the eigenvalues λj (ω) are on the
+diagonal of Λ. By Gerschgorin’s theorem for the eigenvalues of a matrix, the eigenvalues all satisfy ℜλj 6 0
+for ω = 0 and ℜλj < 0 for ω > 0. Thus, as t increases all modes vanish except for one mode s1 (0) = u∞ at
+ω = 0 with eigenvalue λ1 = 0.
+The concentrations of the internal states are summed at the macroscopic level. Then U = eT u satisfies
+∂U (x, t)
+∂t
+
+= eT (σ 2 T ∆u + A u) = σ 2 eT T ∆u =
+= γ̄(x, t) eT ∆u = γ̄(x, t) ∆U,
+
+P
+
+ω
+
+−ω 2 σ 2 eT T uω (t) cos(ωx)
+
+(3.18)
+
+where
+
+γ̄(x, t) =
+
+∞
+P
+
+−ω 2 eT T uω (t) cos(ωx)
+
+σ 2 ω=0
+∞
+P
+
+ω=0
+
+.
+
+(3.19)
+
+−ω 2 eT uω (t) cos(ωx)
+
+The macroscopic U satisfies a diffusion equation with a diffusion coefficient varying in space and time. For
+large t, the dominant mode in the spatially non-constant part of the solution is damped by the eigenvalue
+λ1 = max λj (ω) < 0 at ω1 . Then uω ≈ s1 (ω1 ) eλ1 t and the steady-state macroscopic diffusion coefficient in
+j,ω
+
+(3.19) is
+
+γ̄ ≈ σ 2
+
+ω12 eT T s1 eλ1 t cos(ω1 x)
+eT T s 1
+= σ2
+= σ2 T
+2
+T
+λ
+t
+1
+ω1 e s1 e cos(ω1 x)
+e s1
+
+N
+P
+
+s1i /τi
+
+i=1
+N
+P
+
+.
+
+(3.20)
+
+s1i
+
+i=1
+
+3.3.2. A reversible reaction. Consider next the simple case of a reversible isomerization,
+κij
+
+Ai ⇋ Bj ,
+λji
+
+(3.21)
+
+which is to be understood in the sense that, for example, the rate for the jth internal state of a B-molecule
+to transform into the ith state of an A-molecule is λji . These are thus two monomolecular reactions with
+reaction rates in Table 3.1.
+10
+
+We assume that the variance of the jump length, the diagonal matrix T and the vector µ are the same
+for all species with identical matrices D and A. Taking the mean as in (3.8) we readily arrive at the coupled
+set of PDEs
+∂u
+= D ∆u + A u − K1 u + L2 v,
+∂t
+∂v
+= D ∆v + A v + K2 u − L1 v,
+∂t
+
+(3.22)
+(3.23)
+
+for some matrices K1 , K2 , and L1 , L2 whose precise form we now determine. Define positive rate matrices
+K and L with Kij = κij and Lij = λij . From the prescription (3.21) we find that in (3.22)–(3.23), the ith
+state is affected by the reaction terms
+(−K1 u + L2 v)i = −
+(+K2 u − L1 v)i = +
+
+N
+X
+
+N
+X
+
+κij ui +
+
+N
+X
+j=1
+
+λji vj ,
+
+(3.24)
+
+λij vi .
+
+(3.25)
+
+j=1
+
+j=1
+
+κji uj −
+
+N
+X
+j=1
+
+Identifying terms we obtain that
+K1 = diag(K e),
+
+K2 = K T ,
+
+(3.26)
+
+L1 = diag(L e),
+
+L2 = LT ,
+
+(3.27)
+
+where the notation diag(f ) denotes a diagonal matrix with fi on the diagonal.
+We are interested in the stable, space independent solutions to (3.22)–(3.23). Introduce
+
+
+A − K1
+L2
+.
+B=
+K2
+A − L1
+
+(3.28)
+
+By construction and using (3.11) we have the crucial properties that
+Bii = −
+
+M
+X
+
+Bki ,
+
+(3.29)
+
+k=1
+k6=i
+
+i 6= j.
+
+Bij > 0,
+
+(3.30)
+
+with M = 2N . Also, by inspection B is irreducible, i.e. there is no permutation matrix Q such that
+QBQ−1 =
+
+
+
+E
+0
+
+F
+G
+
+
+
+.
+
+(3.31)
+
+Taken together, B is a W-matrix and this provides us with certain general stability properties.
+Lemma 3.1 (W-matrix lemma). Suppose that a real, irreducible matrix H ∈ RM×M satisfies (3.29)–
+(3.31) (with B replaced by H). Then the system of ODEs
+ξ ′ (t) = H ξ(t)
+
+(3.32)
+
+has a single stable equilibrium solution ξ∞ as t → ∞. Moreover, if initial data ξ(0) with positive mass
+eT ξ(0) > 0 is given, then eT ξ(t) = eT ξ(0) > 0 for all t > 0.
+11
+
+This particular formulation is discussed in detail in [26, Chap. V.3] and we note that it can also be shown
+to follow from the Perron-Frobenius theorem. To get some further insight into the stability we present some
+alternative arguments as outlined in [26, Chap. V.9, p. 129].
+Proof. Consider the adjoint problem
+η ′ (t) = H T η(t),
+
+(3.33)
+
+such that
+η(0)T ξ(t) = η(t)T ξ(0).
+
+(3.34)
+
+Using (3.29) we see that
+ηi′ (t) =
+
+M
+X
+k=1
+k6=i
+
+Hki (ηk − ηi )(t).
+
+(3.35)
+
+By the irreducibility of H, the largest element in η decreases and the smallest element increases with time
+such that an all-constant vector η∞ emerges in the limit. With η(0) = ei , the ith unit vector, we recover
+from (3.34) the unique equilibrium solution ξ̃∞ . Also, with η(0) = e we have η(t) = e and mass is a
+preserved quantity.
+Apply the lemma to B in (3.28) with ξ T = (uT , vT ). Then it follows that there is a steady state
+(ũ∞ , ṽ∞ ) and the initial mass eT u(0) + eT v(0) is conserved for all t.
+We now turn our attention to the equivalent reaction rates as induced by the subdiffusive reactions
+(3.21). We write the unique equilibrium solution ũ∞ , ṽ∞ in the normalized form ũ∞ = u u∞ , ṽ∞ = v v∞ ,
+where ||u∞ ||1 = ||v∞ ||1 = 1. Using (3.26)–(3.27) we readily find in good agreement that
+keq := eT K1 u∞ = eT K2 u∞ ,
+
+leq := eT L1 v∞ = eT L2 v∞ .
+
+(3.36)
+
+Also, to mention just one example,
+keq eT ũ∞ = eT K1 ũ∞ ,
+
+(3.37)
+
+which can be understood as a kind of consistency result; at steady state the equivalent reaction rate applied
+to the sum of the internal states gives the same result as the sum of the individual subdiffusive rates.
+To conclude, using the subdiffusion steady state solutions, which remain valid also when the coupling
+reactions (3.21) are ‘turned on’, we can read off the equivalent reaction rates as a function of the corresponding
+subdiffusive rates. Insert u(x, t) = u(x, t) u∞ and v(x, t) = v(x, t) v∞ into (3.22) and (3.23). Then we have
+∂u
+= D u∞ ∆u + u A u∞ − u K1 u∞ + v L2 v∞ ,
+∂t
+∂v
+= D v∞ ∆v + v A v∞ + u K2 u∞ − v L1 v∞ .
+v∞
+∂t
+
+u∞
+
+(3.38)
+(3.39)
+
+Multiply by eT and in the long-time limit we thus arrive at the familiarly looking macroscopic reactiondiffusion PDE
+∂u
+= γu ∆u − keq u + leq v,
+∂t
+∂v
+= γv ∆v + keq u − leq v,
+∂t
+with γu = eT D u∞ and γv = eT D v∞ .
+12
+
+(3.40)
+(3.41)
+
+3.3.3. A bimolecular reaction. We finally consider the case of a reversible dimerization,
+κijk
+
+Ai + Bj ⇋ Ck .
+
+(3.42)
+
+λijk
+
+As in Section 3.3.2, the jump length variance, the diagonal matrix T and the vector µ are the same for each
+species and D and A are also identical. Due to the nonlinearities it is inconvenient to write this in a matrix
+form as in (3.22)–(3.23). Instead, for each internal state i we have the mean-field equations,
+N
+N
+N
+X
+X
+X
+∂ui
+= Di ∆ui +
+Aij uj −
+Kijk ui vj +
+Lijk wk ,
+∂t
+j=1
+j,k=1
+
+(3.43)
+
+j,k=1
+
+N
+N
+N
+X
+X
+X
+∂vi
+Aij vj −
+Kjik uj vi +
+Ljik wk ,
+= Di ∆vi +
+∂t
+j=1
+j,k=1
+
+(3.44)
+
+j,k=1
+
+N
+N
+N
+X
+X
+X
+∂wi
+Aij wj +
+Kjki uj vk −
+Ljki wi ,
+= Di ∆wi +
+∂t
+j=1
+j,k=1
+
+(3.45)
+
+j,k=1
+
+where for readability we write Kijk = κijk and Lijk = λijk . The difference ui − vi satisfies
+N
+N
+X
+X
+∂(ui − vi )
+Aij (ui − vi ) −
+Kijk ui vj − Kjik uj vi .
+= Di ∆(ui − vi ) +
+∂t
+j=1
+
+(3.46)
+
+j,k=1
+
+If Kijk = Kjik and Lijk = Ljik in (3.46) and ui (x, 0) = vi (x, 0) for all i, then it follows that ui (x, t) = vi (x, t)
+for t > 0.
+Assume that there is a positive steady state solution (ũ∞ , ṽ∞ , w̃∞ ) to (3.43)–(3.45) when t → ∞. Let
+(ũ∞ , ṽ∞ , w̃∞ ) = (u u∞ , v v∞ , w w∞ ) where ku∞ k1 = kv∞ k1 = kw∞ k1 = 1. Small perturbations around
+the equilibrium solution are evolved by the Jacobian of the system. For (3.43)–(3.45), it can be written in
+the form
+
+
+A − K11
+−K12
+L1
+.
+A − K22
+L2
+(3.47)
+B =  −K21
+K31
+K32
+A − L3
+
+We identify after some tedious work
+K11 = diag
+
+N
+X
+
+Kijk v∞j ,
+
+K22 = diag
+
+j,k=1
+
+(L1 )ij =
+
+N
+X
+
+Likj ,
+
+(K12 )ij =
+
+(L2 )ij =
+
+N
+X
+
+Lkij ,
+
+N
+X
+
+k=1
+
+L3 = diag
+
+N
+X
+
+Ljki ,
+
+(3.48)
+
+j,k=1
+
+(3.49)
+
+k=1
+
+Kijk u∞i ,
+
+(K21 )ij =
+
+k=1
+
+(K32 )ij =
+
+Kjik u∞j ,
+
+j,k=1
+
+k=1
+N
+X
+
+N
+X
+
+N
+X
+
+Kjik v∞i ,
+
+(3.50)
+
+Kjki v∞k .
+
+(3.51)
+
+k=1
+
+Kkji u∞k ,
+
+(K31 )ij =
+
+N
+X
+
+k=1
+
+The Jacobian B in (3.47) is not a W-matrix. To understand why, note in (3.42) that the total sum of
+molecules is not a preserved quantity. However, if each C-molecule is counted twice, this new weighted sum
+13
+
+is in fact preserved. Indeed, by inspection and after some work we find that multiplying B by a diagonal
+matrix with 1 on the diagonal in the first 2N rows and 2 in the last N rows we have a W-matrix. Using
+the W-matrix Lemma 3.1 it therefore follows that small perturbations around an equilibrium solution are
+stable.
+Equivalent reaction rates can be defined as follows,
+keq =
+
+N
+X
+
+Kijk u∞i v∞j ,
+
+leq =
+
+i,j,k=1
+
+N
+X
+
+Lijk w∞k .
+
+(3.52)
+
+i,j,k=1
+
+Insert u(x, t), v(x, t), and w(x, t) = w(x, t) w∞ into (3.43)–(3.45) as in (3.38) and let γw = eT D w∞ . As
+expected we recover the reaction-diffusion PDE for u, v, and w
+∂u
+= γu ∆u − keq u v + leq w,
+∂t
+∂v
+= γv ∆v − keq u v + leq w,
+∂t
+∂w
+= γw ∆w + keq u v − leq w.
+∂t
+
+(3.53)
+(3.54)
+(3.55)
+
+4. The internal states approximation of the FPDE. In this section we start off with the promising
+observation made in [38] that non-Markovian waiting times can be arbitrarily well approximated by a set of
+Markovian waiting times, each associated with its own internal state. In turn, those states are to be visited
+according to a certain random walk model which again can be taken as Markovian, all in all resulting in a
+computationally quite attractive modeling framework for subdiffusion and reactions.
+In Section 4.1, we recapitulate the basic internal states subdiffusive model and its relation to the FPDE,
+and in Section 4.2 we determine its asymptotic behavior for short and long times. In Section 4.3, we consider
+the same framework in the presence of reactions with two different mesoscopic models. In particular, we
+discuss the feasibility of obtaining coarse-grained macroscopic coefficients in a FPDE from observations of
+subdiffusive systems.
+4.1. Internal states diffusion system. The asymptotic behavior of the waiting time (2.9) at large
+time follows the power law
+ψ(t) ≈ Aα
+
+τα
+t1+α
+
+,
+
+(4.1)
+
+with
+Aα =
+
+sin(π α)
+Γ(1 + α).
+π
+
+(4.2)
+
+With a change of variable in the Euler’s Γ function, the diffusive representation of the totally monotone
+1
+in (4.1) is [7, 17, 20, 48]
+function t1+α
+Z ∞
+1
+1
+=
+sα e−s t ds.
+(4.3)
+t1+α
+Γ(1 + α) 0
+The diffusive representation of
+weights µ̃i and abscissae si :
+
+1
+t1+α
+
+(4.3) is approximated by using a quadrature formula in N points, with
+
+1
+t1+α
+
+≃
+
+N
+X
+i=1
+
+14
+
+µ̃i e−si t ,
+
+(4.4)
+
+leading to the diffusive approximation [2].
+Our objective is then to approximate the function Fex (t) =
+
+1
+t1+α
+
+by Fapprox (t) =
+
+εmod
+
+1
+tmax − tmin
+
+Z
+
+tmax
+
+tmin
+
+µ̃i e−si t in the time
+
+i=1
+
+interval [tmin , tmax ]. One possibility to quantify the error of the model εmod is
+
+
+ Fapprox (t)
+
+= 
+− 1 =
+Fex (t)
+
+N
+P
+
+2 !1/2
+
+
+ Fapprox (t)
+
+
+.
+ Fex (t) − 1 dt
+
+(4.5)
+
+Based on the error (4.5), a nonlinear optimization is shown in [2] to be a better way to determine the
+parameters µ̃i and si than Gaussian quadrature. Consequently, this method is used in all what follows.
+Setting
+
+τi = 1/si ,
+
+τ=
+
+Aα
+
+N
+X
+µ̃i
+i=1
+
+si
+
+!−1/α
+
+,
+
+µ̃i
+µi =
+si
+
+N
+X
+µ̃i
+i=1
+
+si
+
+!−1
+
+,
+
+(4.6)
+
+the approximation of the waiting time (4.1) is
+ψ(t) ≈
+
+N
+X
+
+µi τi−1 e−t/τi .
+
+(4.7)
+
+i=1
+
+The jump length variance Σ2 (2.3) is then computed using (2.12).
+The waiting time PDF (2.9) and its asymptotic expansion (4.1) are compared in Figure 4.1. The
+parameters are those used in the numerical experiments in Section 5.2 (Table 5.1, second set of parameters).
+Anomalous diffusion is expected in the time range of interest [tmin , tmax ]. In this time interval, the expansion
+(4.1) is already accurate as illustrated in Figure 4.1.
+
+t
+
+ψ(t)
+
+tmin
+
+max
+
+0
+
+10
+
+exact expression
+asymptotic behavior
+−4
+
+10
+
+−2
+
+0
+
+10
+
+10
+t (s)
+
+Fig. 4.1. Section 4.1. Waiting time PDF (2.9) (blue solid line), and its asymptotic expansion (4.1) (red dotted line). The
+scales are logarithmic on both axes.
+
+The CTRW algorithm in Section 2 is extended to a multistate CTRW (MCTRW) algorithm in [38] for a
+diffusive system with internal states. One diffusive jump in the algorithm is performed as follows. Firstly, a
+state i is drawn with probability µi . Secondly, the waiting time is sampled from an exponential distribution
+with the PDF ψi (t) = τi−1 e−t/τi . The PDF of the jump length in an internal state i is λi (x) as in (2.4) with
+variance σi2 . Finally, the length of the jump is drawn with the normal distribution of λi .
+15
+
+The combined PDFs for the jump length and the waiting time of the internal states are
+λ(x) =
+
+N
+X
+
+µi λi (x),
+
+ψ̃(t) =
+
+N
+X
+
+µi ψi (t) =
+
+µi τi−1 e−t/τi .
+
+(4.8)
+
+i=1
+
+i=1
+
+i=1
+
+N
+X
+
+The reaction-diffusion system (3.13) in [38] is derived from the MCTRW algorithm and the approximation
+(4.7). In the ith internal state, the diffusion of ui is ordinary, whereas the sum of the concentrations of the
+internal states at the macroscopic level U = eT u diffuses anomalously within the time range [tmin , tmax ].
+A collection of internal states with waiting times ψi (t) are here approximated by one state with the waiting
+time ψ(t) in (4.7).
+4.2. Diffusive behavior of the internal states model. To mimic a subdiffusive behavior and to
+define a Markov process, the waiting time PDF ψ(t) is approximated by a sum of N exponentials (4.7). Let
+us assume that τ1 < τ2 < · · · < τN . Equation (4.7) implies the following.
+• At small times, the Taylor expansion of ψ(t) is
+ψ(t) ≈ ψ̃(t) =
+with τeq =
+
+N
+P
+
+i=1
+
+N
+X
+
+µi τi−1 e−t/τi
+
+i=1
+
+≈
+
+N
+X
+
+µi τi−1
+
+i=1
+
+
+
+t
+t
+1−
+∼ 1−
++
+τi t→0
+τeq
+
+∼ e−t/τeq ,
+
+t→0+
+
+(4.9)
+
+
+ N
+P
+µi τi−2 . At small time, ψ(t) is therefore equivalent to a Poisson law
+µi τi−1 /
+i=1
+
+with parameter τeq . Hence, ordinary diffusion is expected for t ≪ τ1 ;
+• As we see in (3.18), the macroscopic U satisfies a diffusion equation with a diffusion coefficient γ̄(x, t)
+(3.19) varying in space and time. For large t, the long-time diffusion coefficient is given by (3.20).
+It does not depend on space and time. Consequently, a return to ordinary diffusion is expected.
+• For t ∈ [τ1 , τN ], a subdiffusive behavior is expected with subdiffusive exponent α.
+This is in agreement with observations in physical experiments [23, 25, 30, 41]. Numerical illustrations are
+found in Section 5.
+4.3. Internal states reaction-diffusion system. In this section, the mesoscopic model with N internal states of the participating molecules in Section 3 is compared to the macroscopic FPDE models I and
+II in Section 2.3. The annihilation reaction, monomolecular reactions and bimolecular reactions summarized
+in Table 3.1 are investigated. For mesoscopic models with certain reactions, there are corresponding FPDE
+models but in other cases the macroscopic level with summation over the internal states is not so easily
+expressed as a FPDE.
+4.3.1. Annihilation process. We consider one species A with N different internal states. Each internal state can be annihilated with rate ki
+k
+
+i
+∅,
+Ai −→
+
+i = 1, · · · , N.
+
+(4.10)
+
+The internal states diffusion system (3.22) without v is then modified as follows
+∂u
+= D ∆u + A u − K1 u.
+∂t
+
+(4.11)
+
+Let ki = k/τi in (4.10) as in Table 3.1. Then K1 = k T and (4.11) can be written
+∂u
+= T (σ 2 ∆u − k u) + A u.
+∂t
+1−α
+
+(4.12)
+
+∂
+In model I (2.17), the fractional order temporal derivative ∂t
+1−α acts on both the Laplace operator and the
+reaction term. In the internal states diffusion system (4.11) and (4.12), the diffusion matrix is scaled by the
+
+16
+
+waiting time matrix T to mimic an anomalous behavior. Scaling the reaction matrix K1 in the same way
+will approximate the macroscopic model I. The waiting time ψi (t) for diffusive and reactive events is the
+same for all internal states. The relation between k in (4.12) and k∗ in (2.17) is the same as between σ 2 and
+Kα in (2.12),
+σ2
+k∗
+= τ α.
+=
+k
+Kα
+
+(4.13)
+
+For an approximation of model II, take K and K1 to be k I in (3.26). This corresponds to an annihilation
+case in Table 3.1 with all τi = 1. The right hand side of (4.11) is with this K1
+∂u
+= σ 2 T ∆u + A u − k u.
+∂t
+
+(4.14)
+
+The waiting time ψi (t) for diffusive and reactive events is different for the internal states.
+If K1 and T and K1 and A commute then the equation for u in (4.14) can be written
+∂u
+= σ 2 eK1 t T e−K1 t ∆u + eK1 t A e−K1 t u − k u.
+∂t
+
+(4.15)
+
+This equation corresponds to model II in Section 2.3.1 at the macroscopic level. The relation between k in
+(4.14) and k∗ in (2.24) is
+k∗ = k.
+
+(4.16)
+
+After a change of variables Ũ = ek∗ t U in the model II FPDE (2.24), the FPDE (2.30) is obtained. In the
+same manner, introduce a change of variables ũ = eK1 t u in (4.11). Then
+∂ ũ
+= σ 2 T ∆ũ + A ũ.
+∂t
+
+(4.17)
+
+A sufficient condition for K1 to commute with T and A is that K1 = k I as is the case in (4.14). If K1
+does not commute with T and A, the macroscopic equation for U = eT u may not be as simple as (2.30).
+Consider ū, the total amount of A in the different states in Ω, defined by
+Z
+u(x, t) dΩ.
+(4.18)
+ū(t) =
+Ω
+
+Integrating (4.11) and using the Neumann boundary condition in (2.19) and (2.20) leads to
+dū
+= A ū − K1 ū.
+dt
+
+(4.19)
+
+ū(t) = e(A−K1 ) t ū(0).
+
+(4.20)
+
+The time evolution of ū is then
+
+By Gerschgorin’s theorem for the eigenvalues of a matrix, the eigenvalues of A − K1 are strictly in the left
+half plane. By (4.19), the equation for the sum over all internal states Ū = eT ū is
+dŪ
+= −eT K1 ū = −k ′ (t) Ū ,
+dt
+
+(4.21)
+
+with
+k ′ (t) =
+
+eT K1 ū
+eT K1 e(A−K1 ) t ū(0)
+=
+eT ū
+eT e(A−K1 ) t ū(0)
+17
+
+(4.22)
+
+In model I with K1 = kT , k ′ varies in time depending on ū, and the kinetics is then anomalous. Let λ1 be
+the eigenvalue of A − K1 with maximum real part and s1 the corresponding eigenvector. Then for large t
+P
+eT K1 s1 eλ1 t
+i s1i /τi
+P
+=
+k
+k ′ (t) ≈
+,
+(4.23)
+eT s1 eλ1 t
+i s1i
+
+cf. (3.20). On the contrary, in model II k ′ = k does not depend on time, and the kinetics is then ordinary.
+This conclusion agrees with the comments in Section 2.3.1.
+4.3.2. Monomolecular reactions. We study two species A and B with N different internal states
+and the reversible reactions in (3.21). The internal states diffusion system is found in (3.22) and (3.23). The
+aim of this section is to choose the reaction matrices K and L in (3.26) and (3.27) to mimic either model I
+(2.27) or model II (2.30) and to discuss other alternatives.
+The reaction rates are first chosen to be scaled by the waiting time matrix and one state i is transformed
+to the same state i in
+k/τi
+
+Ai ⇋ Bi , i = 1, . . . , N.
+ℓ/τi
+
+(4.24)
+
+Then Kii = k/τi and Lii = ℓ/τi , cf. Table 3.1. With K = k T and L = ℓ T in (3.22) and (3.23) we have
+∂u
+= T (σ 2 ∆u − k u + ℓ v) + A u,
+∂t
+∂v
+= T (σ 2 ∆v + k u − ℓ v) + A v.
+∂t
+
+(4.25)
+
+The diffusion and the reactions have the same waiting time as in model I in (2.27).
+The steady state of model I in (4.25) has an analytical solution. Let u∞ span the nullspace of A (see
+(3.10)) and insert the constant solutions in space u u∞ and v u∞ with ku∞ k1 = 1 as u and v in (4.25).
+Then the right hand sides are
+−k u T u∞ + ℓ v T u∞
+k uT u∞ − ℓ v T u∞
+
+= 0,
+= 0.
+
+(4.26)
+
+Both equations in (4.26) are satisfied if k u = ℓ v. Hence, the steady state solution is u(u∞ , (k/ℓ) u∞ ), where
+u depends on the initial data. By mass conservation in Lemma 3.1
+eT u(0) + eT v(0) = eT u(t) + eT v(t) = u(eT u∞ + (k/ℓ)eT u∞ ) = u(1 + k/ℓ).
+
+(4.27)
+
+The macroscopic reaction coefficients can be regarded as time and space dependent and the macroscopic
+equations can be expressed without fractional derivatives. Introduce small perturbations δu and δv around
+the steady state in (4.25)
+u(x, t) = u u∞ + δu(x, t),
+
+v(x, t) = v u∞ + δv(x, t).
+
+Then for U = eT u = u + O(kδuk) and V = eT v = v + O(kδvk) we derive
+∂U
+= σ 2 eT T ∆δu − k u eT T u∞ − k eT T δu + ℓ v eT T u∞ + ℓ eT T δv = −K ′ U + L′ V + O(kδuk),
+∂t
+∂V
+= σ 2 eT T ∆δv + k u eT T u∞ + k eT T δu − ℓ v eT T u∞ − ℓ eT T δv = K ′ U − L′ V + O(kδvk),
+∂t
+(4.28)
+18
+
+where
+K′ = k
+
+eT T (u u∞ + δu)
+= k eT T u∞ + O(kδuk),
+eT (u u∞ + δu)
+
+eT T (v u∞ + δv)
+= ℓ eT T u∞ + O(kδvk).
+L =ℓ T
+e (v u∞ + δv)
+
+(4.29)
+
+′
+
+The effective macroscopic reaction coefficients are K ′ and L′ when t ≫ 0, cf. (3.36) with K1 = kT .
+With more general K and L in (3.21), the structure of the equations is the same as in (4.25) but there
+is no corresponding macroscopic FPDE. For example, let K = T e f T T and L = T e gT T with f T T e > 0
+and gT T e > 0. Then K1 = k T with k = f T T e and L1 = ℓ T with ℓ = gT T e. The equations for u and
+v are
+∂u
+= T (σ 2 ∆u − k u + g eT T v) + A u,
+∂t
+∂v
+= T (σ 2 ∆v + f eT T u − ℓ v) + A v.
+∂t
+
+(4.30)
+
+The macroscopic waiting time for the reactions is not obvious in this case.
+As in (4.24), let one state i be transformed to the same state i and choose the reaction rates to be
+constant for all states Kii = k and Lii = ℓ with τi = 1 in Table 3.1. Insert K = k I and L = ℓ I into (3.22)
+and (3.23) to obtain
+∂u
+= σ 2 T ∆u + A u − k u + ℓ v,
+∂t
+∂v
+= σ 2 T ∆v + A v + k u − ℓ v.
+∂t
+
+(4.31)
+
+Only the diffusion has different waiting times in different states while the waiting times for the reactions are
+the same in all states. Let Mr and Md be the reaction matrix and the operator for the diffusion and the
+change of state in (4.31)
+
+
+ 2
+
+−k I ℓ I
+σ T ∆+A
+0
+Mr =
+, Md =
+.
+(4.32)
+k I −ℓ I
+0
+σ2 T ∆ + A
+There is a transformation from (4.14) via (4.15) to (4.17). Since Mr and Md commute in (4.32), there is a
+similar transformation for (4.31). As in (4.14), eT u and eT v approximate model II in (2.30).
+If the diffusion rate is independent of the state but the waiting time for the reactions depends on the
+state in (4.24) then Dii = σ 2 in (3.13), Kii = k/τi and Lii = ℓ/τi . The mesoscopic model is
+∂u
+= T (−k u + ℓ v) + A u + σ 2 ∆u,
+∂t
+∂v
+= T (k u − ℓ v) + A v + σ 2 ∆v.
+∂t
+
+(4.33)
+
+We have the ordinary diffusion but the reactions behave anomalously at the macroscopic level with the
+waiting time ψi (t) depending on the state.
+4.3.3. Bimolecular reactions. We consider three species A, B and C in N different internal states
+and the chemical reactions
+κi
+
+Ai + Bi ⇋ Ci ,
+λi
+
+19
+
+i = 1, · · · , N.
+
+(4.34)
+
+This is a less general set of reactions than in (3.42) in that only molecules in the same internal state react
+with each other. The internal states reaction-diffusion system (3.43)-(3.45) is then modified as follows for
+state i
+∂ui
+∂t
+
+= Di ∆ui +
+
+∂vi
+∂t
+
+= Di ∆vi +
+
+∂wi
+∂t
+
+= Di ∆wi +
+
+N
+X
+
+Aij uj − Kiii ui vi + Liii wi ,
+
+j=1
+
+N
+X
+j=1
+
+Aij vj − Kiii ui vi + Liii wi ,
+
+N
+X
+j=1
+
+(4.35)
+
+Aij wj + Kiii ui vi − Liii wi .
+
+The reaction coefficients in (4.35) are chosen to be Kiii = k/τi and Liii = ℓ/τi . Then at state i
+∂ui
+∂t
+
+=
+
+∂vi
+∂t
+
+=
+
+∂wi
+∂t
+
+=
+
+N
+ X
+1 2
+Aij uj ,
+σ ∆ui − k ui vi + ℓ wi +
+τi
+j=1
+N
+ X
+1 2
+Aij vj ,
+σ ∆vi − k ui vi + ℓ wi +
+τi
+j=1
+
+(4.36)
+
+N
+ X
+1 2
+Aij wj .
+σ ∆wi + k ui vi − ℓ wi +
+τi
+j=1
+
+The reactions and the diffusion have the same waiting time in each state in (4.36) as in (4.25). Hence, the
+equations will approximate model I at the macroscopic level in (2.31). By letting Kiii = k and Liii = ℓ
+independent of the internal state in (4.35), equations similar to the model II equations (4.31) are obtained
+but there is no transformation (4.15) with a constant K1 .
+We have found that certain annihilation, monomolecular, and bimolecular reactions at the mesoscopic
+level have a macroscopic counterpart as a FPDE. Furthermore, the long time behavior of the reactions tends
+to that of ordinary reactions without internal states. This will be confirmed in numerical examples in the
+next section.
+5. Numerical experiments. Since this paper focuses on the mesoscopic approximation of subdiffusion, we will investigate only the 1D reaction-diffusion system. However, the strategy proposed here can be
+extended straightforwardly to 2D and 3D geometries.
+The integration of the internal states systems (3.13), (3.22)–(3.23) and (3.43)–(3.45) is detailed in Section 5.1. The general configuration of the numerical experiments is introduced in Section 5.2: physical
+parameters, numerical parameters of the discretization, and initial conditions. Then the numerical experiments are described. In Section 5.3, both the diffusive approximation introduced in Section 4.1 and the
+numerical method introduced in Section 5.1 are verified in comparisons. In Sections 5.4 and 5.5, the method
+is applied to both model I and model II for reactive systems. The differences between the two models are
+also illustrated. Finally examples of bimolecular reactions, for which no analytical solutions are available,
+are presented in Section 5.6.
+5.1. Numerical modeling. In order to integrate the internal states systems (3.13), (3.22)–(3.23) and
+(3.43)–(3.45), a uniform grid is introduced with mesh size h and time step ∆t. The approximation of the
+exact solution u is denoted by unj at xj and tn . The Laplace operators involved in the internal states
+systems (3.13), (3.22)–(3.23) and (3.43)–(3.45) are discretized using second order centered finite differences
+20
+
+as in (3.12):
+∆u ≡
+
+∂2u
+1
+= 2 (uj+1 − 2 uj + uj−1 ) .
+2
+∂x
+h
+
+(5.1)
+
+The jump coefficients in (3.12) are λj1 = λj2 = 1/h2 and λj = 2/h2 . The resulting system of ODEs in time
+can be written
+∂uj
+= Fℓ (uj−1 , uj , uj+1 ) + Fnℓ (uj ) ,
+∂t
+
+(5.2)
+
+where Fℓ contains the discrete Laplacian and the linear reaction terms and the Fnℓ the nonlinear reaction
+terms. The system of ODEs (5.2) is discretized using the following finite difference scheme
+
+un+1
+− unj
+
+
+1
+j
+n+1
+n
+n
+n
++ Fnℓ unj .
+, un+1
+Fℓ un+1
+=
+j−1 , uj
+j+1 + Fℓ uj−1 , uj , uj+1
+∆t
+2
+
+(5.3)
+
+In the case of an annihilation process and a monomolecular reaction, there is no nonlinear reaction term.
+Hence, Fnℓ is zero, and (5.3) reduces to the Crank-Nicholson scheme. It is second-order accurate in space
+and time and it is unconditionally stable. In the case of a bimolecular reaction, because of the nonlinearities,
+the method is first order accurate in time.
+5.2. Configurations. In order to demonstrate the ability of the present method to be applied to a wide
+range of problems, we numerically test in Section 5.3 two different sets of parameters, given in Table 5.1.
+Then only the first set of parameters is used in Sections 5.4, 5.5 and 5.6. In our code, α, Kα , tmin , tmax are
+input parameters, and σ 2 , τ , N , τi , µi are ouput parameters. The quadrature coefficients τi and µi in (4.7)
+are determined by nonlinear optimization [2] and the corresponding model error εmod (4.5) is also given in
+the table.
+The computational domain is Ω = [−1, 1] in Figure 5.1 and [−10, 10] in Figure 5.2, is discretized with
+Nx = 128 grid points. Neumann boundary conditions are used. As the initial condition, we use a Gaussian
+g(x), centered at point (0 , 0) and of variance σg2 = 10−3 , rather than a Dirac distribution to avoid spurious
+numerical artifacts. Moreover, each internal state is initialized by the weight µℓ .
+Parameters
+Set 1
+Set 2
+α
+0.5
+0.5
+Kα (m2 s−α ) 0.04
+0.04
+tmin (s)
+10−4
+10−3
+tmax (s)
+5 · 10−2
+1
+2
+2
+σ (m )
+3.49 · 10−4
+7.18 · 10−4
+τ (s)
+7.62 · 10−5
+3.22 · 10−4
+Optimization
+N
+4
+5
+τ1 (s)
+9.51 · 10−5
+7.58 · 10−4
+τ2 (s)
+5.40 · 10−4
+3.55 · 10−3
+τ3 (s)
+3.09 · 10−3
+1.66 · 10−2
+τ4 (s)
+2.13 · 10−2
+7.89 · 10−2
+τ5 (s)
+4.78 · 10−1
+µ1
+4.96 · 10−1
+3.23 · 10−1
+µ2
+2.07 · 10−1
+1.48 · 10−1
+µ3
+8.80 · 10−2
+6.84 · 10−2
+µ4
+4.42 · 10−2
+3.24 · 10−2
+µ5
+1.85 · 10−2
+εmod
+5.25 · 10−2
+2.92 · 10−2
+Table 5.1
+Parameters used in the numerical experiments.
+
+Physical parameters
+
+21
+
+5.3. Subdiffusion. The aim of the first test is to check the accuracy of the numerical method above
+when no reaction occurs. The following initial conditions are used
+u(x, 0) = µ g(x).
+
+(5.4)
+
+Figure 5.1 compares the numerical solution U = eT u obtained with the PDEs in the internal state diffusion
+system (3.13) with the analytical solution of the FPDE (2.16). Figure 5.1-(a) corresponds to the first set of
+parameters, given in Table 5.1, at time t1 = 5 · 10−3 s and Figure 5.1-(b) corresponds to the second set of
+parameters at time t2 = 1.5 · 10−1 s. Note in Table 5.1 that the macroscopic parameters α and Kα , involved
+in (2.11), are the same for both sets of parameters. Consequently, they approximate the same macroscopic
+FPDE, but in two different time intervals [tmin , tmax ]. In both cases, the final time of the simulation in
+Figure 5.1 is inside this interval. Excellent agreement is found between the two solutions.
+Two errors should be mentioned here: the modeling error, defined as the difference between the internal
+states diffusion model and the FPDE model, and the numerical error εnum , resulting from the numerical
+discretization of the internal states diffusion system. The modeling error is dependent on εmod in (4.5). The
+error εmod is given in Table 5.1 and the total error εtot is measured in Figure 5.1 as the difference between the
+numerical solution obtained with the PDE model (red circles) with the analytical solution obtained with the
+FPDE model (black solid line). In Figure 5.1-(a) εtot ≃ 2.33 · 10−2 and in Figure 5.1-(b) εtot ≃ 3.65 · 10−2 .
+(a)
+
+(b)
+
+1
+
+1
+
+analytical FPDE
+numerical PDE’s
+
+0.6
+
+0.6
+U
+
+0.8
+
+U
+
+0.8
+
+analytical FPDE
+numerical PDE’s
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+0
+−1
+
+−0.5
+
+0
+x
+
+0.5
+
+0
+−1
+
+1
+
+−0.5
+
+0
+x
+
+0.5
+
+1
+
+Fig. 5.1. Section 5.3. Comparison between the numerical values (circle) and the analytical values (solid line) of the
+concentration U = eT u of A. (a): Set 1 of parameters at t1 = 5 · 10−3 s, (b): Set 2 of parameters at t2 = 1.5 · 10−1 s.
+
+Figure 5.2 shows the mean square displacement divided by the time, which is constant for ordinary
+diffusion, see (2.8). According to the analysis in Section 4.2, ordinary diffusion is observed for t ≪ min τℓ
+ℓ=1,...,N
+
+and for t ≫ max τℓ . For intermediate times, the diffusion is anomalous by construction, cf. Section 4.1.
+ℓ=1,...,N
+
+The subdiffusive exponent α is measured by linear regression: α ≃ 0.4997 in Figure 5.2-(a) and α ≃ 0.5454
+in Figure 5.2-(b). In both cases the measured subdiffusive exponent is close to the theoretical one.
+5.4. Annihilation process. The purpose of the second test is to investigate the accuracy of the
+numerical method in the case of an annihilation process. Two different models are possible in Section 2.3.1
+k/τi
+
+Model I
+
+Ai −→ ∅,
+
+Model II
+
+Ai −→ ∅.
+
+k
+
+22
+
+(5.5)
+
+(a)
+
+(b)
+
+1
+
+1
+
+10
+
+τ
+
+τ
+
+t
+
+10
+
+t
+
+τ
+
+τ
+
+t
+
+t
+
+max max
+
+min min
+
+max max
+
+min min
+
+<x(t)2> / t
+
+<x(t)2> / t
+
+0
+
+0
+
+10
+
+−1
+
+10
+
+10
+
+−1
+
+10
+
+−2
+
+−6
+
+10
+
+−4
+
+−2
+
+10
+
+10
+
+0
+
+10
+
+10
+
+−4
+
+−2
+
+10
+
+0
+
+10
+
+t
+
+10
+
+2
+
+10
+
+t
+
+Fig. 5.2. Section 5.3. Mean square displacement as a function of time. (a): Parameters set 1, (b): Parameters set 2.
+The scales are logarithmic on both axes.
+
+First run
+Model I
+k
+k∗
+
+Second run
+Model II
+
+Model I
+
+8.727 · 10−4 s−1
+5.729 · 10−3
+8.727 · 10−4 s−1
+50 s−α
+Table 5.2
+Reaction rates of annihilation process.
+
+0.1
+8.727 · 10−4 s−α
+
+Model II
+50 s−1
+50 s−1
+
+The reaction coefficient k used in the simulations and the corresponding macroscopic reaction rate k∗ (4.13)–
+(4.16) are given in Table 5.2. The rate k has been chosen such that the two models have the same macroscopic
+reaction rates in (4.13) and (4.16). Note the order-of-magnitude difference between the value of k in model
+I and II, which is explained by the fact that the units of k and k∗ are are different. The initial conditions
+are the same as in the previous test. Figure 5.3 compares the numerical solution U = eT u obtained with
+the internal state reaction-diffusion system (4.11) with the analytical solutions of the FPDEs in (2.22) and
+(2.26) at time t1 = 10−2 s. For both models, there is excellent agreement between the two solutions. The
+analytical solution is also given in the case where no reaction occurs (k = 0). For a small macroscopic
+reaction rate (first run, top of Figure 5.3), no reaction takes place yet in the case of model II. For large
+macroscopic reaction rate (second run, bottom of Figure 5.3), all particles have disappeared in model I. The
+differences between the two models are clearly illustrated in Figure 5.3.
+The time development of k ′ (4.22) is plotted in Figure 5.4. In model I (first run in Table 5.2), k ′ is almost
+constant at small t and at large t, meaning that the kinetics is ordinary there but at intermediate t k ′ varies
+in time implying that the kinetics is anomalous. This is illustrated in Figure 5.5, where the time evolution
+of the total amount of A, i.e. Ū in (4.21), is found. Exponential decay characterizing ordinary kinetics
+is observed for t < tmin and t > tmax . The exponential parameters are measured by linear regression in
+′
+≈ 674.08 when t → ∞. In both cases, the measured exponential
+Figure 5.5 resulting in k ′ (0) ≈ 28.97 and k∞
+parameter is close to the theoretical one in (4.22) (blue values in Figure 5.4). For tmin < t < tmax , Ū does not
+decrease exponentially. In model II (second run in Table 5.2), Figure 5.4 shows that k ′ = k does not depend
+on time and exponential decay is observed for all times in Figure 5.5. The measured exponential parameter
+k ′ ≈ 50.00 is close to the theoretical one. These observations agree with the analysis in Sections 2.3.1 and
+4.3.1.
+23
+
+Model I
+1
+
+Model II
+1
+
+analytical FPDE
+without reaction
+analytical FPDE
+with reaction
+numerical PDE’s
+with reaction
+
+0.8
+
+analytical FPDE
+without reaction
+analytical FPDE
+with reaction
+numerical PDE’s
+with reaction
+
+0.8
+
+U
+
+0.6
+
+U
+
+0.6
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+0
+−1
+
+−0.5
+
+0
+x
+
+1
+
+0.5
+
+0
+−1
+
+1
+
+0
+x
+
+1
+
+analytical FPDE
+without reaction
+analytical FPDE
+with reaction
+numerical PDE’s
+with reaction
+
+0.8
+
+−0.5
+
+1
+
+analytical FPDE
+without reaction
+analytical FPDE
+with reaction
+numerical PDE’s
+with reaction
+
+0.8
+
+U
+
+0.6
+
+U
+
+0.6
+
+0.5
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+0
+−1
+
+−0.5
+
+0
+x
+
+0.5
+
+0
+−1
+
+1
+
+−0.5
+
+0
+x
+
+0.5
+
+1
+
+Fig. 5.3. Section 5.4 Comparison between the numerical values (circles) and the analytical values (black line) of the
+conecntration U = eT u of A at time t = 10−2 s. Top: First run, bottom: Second run.
+Model I
+
+Model II
+
+1.719 · 103
+15 s−1
+3.437 · 103
+30 s−1
+15 s−α
+15 s−1
+−α
+30 s
+30 s−1
+8.698 · 10−3
+8.698 · 10−3
+4.349 · 10−3
+4.349 · 10−3
+1.047 · 106
+15
+2.094 · 106
+30
+Table 5.3
+Monomolecular reversible reaction. Reaction rates and theoretical steady state.
+k
+ℓ
+k∗
+ℓ∗
+u∞ (mol m−1 )
+v∞ (mol m−1 )
+keq (s−1 )
+ℓeq (s−1 )
+
+5.5. Monomolecular reaction. The numerical method is here applied to monomolecular reversible
+reactions. Consider the reactions
+k/τi
+
+Model I
+
+Ai ⇋ Bi ,
+
+Model II
+
+Ai ⇋ Bi ,
+
+ℓ/τi
+k
+
+(5.6)
+
+ℓ
+
+where the coefficients k and ℓ used in the simulations are given in Table 5.3. As discussed in Section 4.3.2,
+these cases correspond to the macroscopic FPDEs (2.27) and (2.30) with macroscopic reaction rates k∗ and ℓ∗
+24
+
+Model I
+
+Model II
+
+3
+
+3
+
+10
+
+10
+
+t
+
+t
+
+t
+
+max
+
+min
+
+tmax
+
+k’
+
+min
+
+k’
+
+673.85
+
+2
+
+10
+
+2
+
+10
+
+50
+
+1
+
+28.97
+−5
+
+10
+
+0
+
+10
+
+−5
+
+10
+
+0
+
+10
+
+10
+
+t
+
+t
+
+Fig. 5.4. Section 5.4 k ′ in (4.22) in terms of time. Left: Model I, right: Model II. The scales are logarithmic on both axes.
+
+short time
+
+intermediate time
+tmin
+
+−1.33
+
+10
+
+t
+
+long time
+t
+
+min
+
+max
+
+t
+
+0
+
+max
+
+10
+
+Ū
+
+Ū
+
+Ū
+
+−1.34
+
+10
+
+−100
+
+10
+
+−2
+
+10
+−1.35
+
+10
+
+−200
+
+10
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+t
+
+1
+
+0.0001
+
+−4
+
+0.01
+
+0.02
+
+t
+
+0.04
+
+0.05
+
+0.05
+
+2
+
+4
+
+6
+
+8
+
+10
+
+6
+
+8
+
+10
+
+t
+
+tmin
+
+min
+
+−1.33
+
+10
+
+0.03
+t
+
+x 10
+
+tmax
+
+0
+
+10
+
+t
+
+min
+
+Ū
+
+Ū
+
+Ū
+
+−1.34
+
+10
+
+−100
+
+10
+
+−2
+
+10
+−1.35
+
+10
+
+−200
+
+10
+
+0
+
+0.2
+
+0.4
+
+0.6
+t
+
+0.8
+
+1
+−4
+
+0.0001
+
+0.01
+
+0.02
+
+0.03
+
+0.04
+
+t
+
+x 10
+
+0.05
+
+2
+
+4
+t
+
+Fig. 5.5. Section 5.4. Total amount of A (4.21) in terms of time. Upper: Model I, lower: Model II. The scale is
+logarithmic on the y axis.
+
+given in Table 5.3. The rates k and ℓ have been chosen such that the two models have the same macroscopic
+reaction rates k∗ and ℓ∗ and the same steady states. Figure 5.6 then illustrates the differences between the
+two models. The following initial conditions are used
+u(x, 0) = v(x, 0) = µ g(x).
+
+(5.7)
+
+Figure 5.6 compares the numerical solutions of U = eT u and V = eT v obtained with the internal state
+reaction-diffusion system (3.22)–(3.23) with the analytical solutions of the FPDEs in Section 2.3.2. The
+difference between the models is obvious in Figure 5.6-(a) corresponding to model I at time t1 = 10−2 s and
+Figure 5.6-(b) with the model II at the same time. For both models, good agreement is found between the
+25
+
+mesoscopic PDE and the macroscopic FPDE solutions.
+The numerical solution of the internal states reaction-diffusion system at time t2 = 10 s is depicted in
+Figure 5.7 when the steady state is reached. We note that the numerical values of the steady states are close
+to the theoretical ones, given by the kernel of the matrix B in (3.28). Using (3.36), the equivalent reactions
+rates keq and ℓeq are computed, cf Table 5.3, and the property keq u∞ = ℓeq v∞ when t → ∞ in (3.40) and
+(3.41) is verified.
+
+Model I
+
+Model II
+U(x,t) analytical FPDE
+U(x,t) numerical PDE’s
+V(x,t) analytical FPDE
+V(x,t) numerical PDE’s
+
+0.1
+
+0.08
+
+0.06
+
+U, V
+
+U, V
+
+0.08
+
+0.06
+
+0.04
+
+0.04
+
+0.02
+
+0.02
+
+0
+−1
+
+−0.5
+
+0
+x
+
+0.5
+
+U(x,t) analytical FPDE
+U(x,t) numerical PDE’s
+V(x,t) analytical FPDE
+V(x,t) numerical PDE’s
+
+0.1
+
+0
+−1
+
+1
+
+−0.5
+
+0
+x
+
+0.5
+
+1
+
+Fig. 5.6. Section 5.5. Comparison between the numerical values (circles and triangles) and the analytical values (solid
+line and dashed line) of the concentration U = eT u, V = eT v of A and B at time t1 = 10−2 s.
+
+Model I
+
+Model II
+
+−3
+
+−3
+
+x 10
+
+8.698⋅10−3
+8
+
+8.698⋅10−3
+8
+
+U(x,t)
+V(x,t)
+
+7
+
+U, V
+
+U, V
+
+x 10
+
+6
+
+5
+−3
+4.349⋅10
+
+5
+−3
+4.349⋅10
+−0.5
+
+0
+x
+
+0.5
+
+4
+−1
+
+1
+
+V(x,t)
+
+7
+
+6
+
+4
+−1
+
+U(x,t)
+
+−0.5
+
+0
+x
+
+0.5
+
+1
+
+Fig. 5.7. Section 5.5. Numerical values of the concentration U = eT u, V = eT v of A and B at time t2 = 10 s.
+
+5.6. Bimolecular reaction. The purpose of the last example is to establish whether the numerical
+methods presented in this paper can be used to handle more complex reactions. As an example, we consider
+26
+
+Reaction I
+
+Reaction II
+
+Reaction III
+
+37.5
+7500 m mol−1 s−1
+0.25
+0.25
+5 s−1
+8.204 · 10−3
+5.826 · 10−3
+3.772 · 10−3
+6.573 · 10−3
+4.195 · 10−3
+2.141 · 10−3
+1.582 · 10−3
+3.959 · 10−3
+6.014 · 10−3
+2.450 · 103
+1.187 · 105
+2.483 · 101
+8.351 · 101
+7.328 · 102
+102
+Table 5.4
+Bimolecular reversible reaction. Reaction rates and theoretical steady states.
+k
+ℓ
+u∞ (mol m−1 )
+v∞ (mol m−1 )
+w∞ (mol m−1 )
+keq (m mol−1 s−1 )
+ℓeq (s−1 )
+
+37.5
+
+m mol−1
+
+m mol−1
+
+the following bimolecular reversible reactions
+k/τi
+
+Reaction I
+
+Ai + Bi ⇋ Ci ,
+ℓ/τi
+
+k
+2
+
+1
+τi
+
++ τ1
+
+Reaction II
+
+Ai + Bj
+
+Reaction III
+
+Ai + Bi ⇋ Ci .
+
+⇋
+ℓ/τk
+
+j
+
+
+
+Ck ,
+
+(5.8)
+
+k
+ℓ
+
+The reaction rates are found in Table 3.1 with τij for reaction II chosen as in (3.7) with θ = 1/2 since A and
+B diffuse with the same speed. The rates of reactions I and III are as in model I and II in Sections 4.3.1
+and 4.3.2 but reaction II is more general. The initial conditions are
+u(x, 0) =
+
+1
+µ g(x),
+2
+
+v(x, 0) =
+
+1
+µ g(x),
+4
+
+w(x, 0) = µ g(x).
+
+(5.9)
+
+The numerical solutions U = eT u, V = eT v and W = eT w of the internal states reaction-diffusion system
+are shown in Figure 5.6 at time t1 = 10−2 s (top) and at time t2 = 10 s (bottom) when the steady state
+is reached. For reaction I, we expect that the internal states model in (4.36) approximates the macroscopic
+FPDE model I (2.31). No analytical solution of the FPDE is available in this case. For reaction II and
+reaction III, the macroscopic level with summation over the internal states is not so easily expressed as a
+FPDE. Using (3.48)–(3.52), the equivalent reactions rates keq and ℓeq are computed in Table 5.4 and the
+property keq u∞ v∞ = ℓeq w∞ when t → ∞ in (3.53)–(3.55) is verified.
+6. Conclusion. A numerical method is presented here for simulating fractional-in-time reaction-diffusion
+1
+equations. A diffusive representation transforms the function tα+1
+, involved in the mesoscopic CTRW on
+a lattice, into a continuum of decreasing exponentials, approximated by quadrature formulae. The CTRW
+model is then replaced by an approximation, much more tractable numerically. Contrary to the approach
+used in [38], the coefficients of the diffusive approximation are determined by a nonlinear optimization procedure, leading to a smaller number of internal states. At the macroscopic level, the internal states diffusion
+system thus obtained corresponds to the fractional diffusion equation in a chosen time interval. In contrast
+to the FPDE model, the diffusion in the internal states model is ordinary at small and large times, but it
+is anomalous at intermediate times. This behavior can also be observed in crowded systems of hard-spheres
+due to caging effects, and hence the model used herein may actually be a better model for microscopic
+crowding than the traditional FPDE description.
+The internal states model for diffusion in [38] is here extended to account for chemical reactions. On the
+macroscopic FPDE level, two different models for reactions with subdiffusion are investigated. In model I
+the fractional derivative acts on both on the standard diffusion term and the reaction term, whereas in model
+II the fractional derivative acts only on the diffusion term. Both macroscopic FPDE models correspond to
+a mesoscopic internal states model with particular reaction coefficients. However, the opposite is not true;
+27
+
+Reaction I
+
+Reaction II
+U(x,t)
+V(x,t)
+
+W(x,t)
+
+W(x,t)
+0.1
+
+U, V, W
+
+0.04
+0.03
+
+V(x,t)
+W(x,t)
+
+0.06
+0.04
+
+0.05
+
+0.02
+
+0.02
+
+0.01
+0
+−1
+
+−0.5
+
+0
+x
+
+0.5
+
+0
+−1
+
+1
+
+−3
+
+10
+
+U(x,t)
+
+0.08
+
+V(x,t)
+
+U, V, W
+
+0.05
+U, V, W
+
+0.15
+
+U(x,t)
+
+0.06
+
+reaction III
+
+−0.5
+
+0
+x
+
+0.5
+
+0
+−1
+
+1
+
+−3
+
+x 10
+
+10
+
+8
+
+−0.5
+
+0
+x
+
+0.5
+
+−3
+
+x 10
+
+10
+
+U(x,t)
+V(x,t)
+
+8
+
+x 10
+
+U(x,t)
+V(x,t)
+
+8
+
+U(x,t)
+V(x,t)
+
+4
+
+W(x,t)
+U, V, W
+
+U, V, W
+
+U, V, W
+
+W(x,t)
+6
+
+1
+
+6
+4
+
+6
+4
+
+W(x,t)
+2
+0
+−1
+
+2
+
+−0.5
+
+0
+x
+
+0.5
+
+2
+
+0
+−1
+
+1
+
+−0.5
+
+0
+x
+
+0.5
+
+1
+
+0
+−1
+
+−0.5
+
+0
+x
+
+0.5
+
+1
+
+Fig. 5.8. Section 5.6. Numerical values of the concentration U = eT u, V = eT v, W = eT w of A, B and C at time
+t1 = 1 · 10−2 s (top) and t2 = 10 s (bottom).
+
+mesoscopic models with general reactions may not have a simple interpretation at the macroscopic level. In
+model I, the reactions are subdiffusion controlled, that is the reaction kinetics is ordinary at small and large
+times, whereas it is anomalous at intermediate times. In model II, the reaction kinetics is ordinary for all
+times. Which one of these models provides a better description of a reaction system subject to subdiffusion
+does not have a simple answer. In either case, the present work provids a theoretical foundation for practical
+and efficient mesoscopic simulations.
+
+Acknowledgment. This work was supported by the Swedish strategic research programme eSSENCE,
+the UPMARC Linnaeus center of Excellence, and the NIH grant for StochSS with number 1R01EB014877-01.
+
+Appendix A. Special functions.
+The Fox-H function is defined as a Mellin-Barnes integral [12]
+
+ 
+ (a , A ) (a2 , A2 )
+m,n
+Hp,q z  1 1
+(b1 , B1 ) (b2 , B2 )
+
+···
+···
+
+(ap , Ap )
+(bq , Bq )
+
+
+
+1
+=
+2iπ
+
+I
+
+L
+
+m
+Q
+
+j=1
+q
+Q
+
+j=m+1
+
+Γ(bj − Bj s) ×
+
+n
+Q
+
+j=1
+
+Γ(1 − aj + Aj s)
+
+Γ(1 − bj + Bj s) ×
+
+p
+Q
+
+j=n+1
+
+z s ds,
+
+Γ(aj − Aj s)
+
+(A.1)
+where L is a certain contour separating the poles of the two factors in the numerator. The special case for
+which the Fox-H function reduces to the Meijer-G function is Aj = Bk = C, C > 0 for j = 1, · · · , p and
+28
+
+k = 1, · · · , q [47]
+ 
+ (a , C) (a2 , C) · · ·
+m,n
+z  1
+Hp,q
+(b1 , C) (b2 , C) · · ·
+
+(ap , C)
+(bq , C)
+
+
+
+1
+=
+2iπC
+
+I
+
+m
+Q
+
+L
+
+j=1
+q
+Q
+
+j=m+1
+
+=
+
+Γ(bj − s) ×
+
+n
+Q
+
+j=1
+
+Γ(1 − aj + s)
+
+Γ(1 − bj + s) ×
+
+
+
+
+1 m,n 1/C  a1 , · · · , ap
+Gp,q z
+ b1 , · · · , bp .
+C
+
+p
+Q
+
+j=n+1
+
+z s/C ds,
+
+Γ(aj − s)
+
+(A.2)
+
+REFERENCES
+[1] Berkowitz, Y., Edery, Y., Scher, H., and Berkowitz, B. Fickian and non-Fickian diffusion with bimolecular reactions.
+Phys. Rev. E 87 (2013), 032812.
+[2] Blanc, E. Approximation of the diffusive representation by decreasing exponential functions. Tech. Rep. 2015-009,
+Department of Information Technology, Uppsala University, 2015.
+[3] Blinov, M. L., Faeder, J. R., Goldstein, B., and Hlavacek, W. S. BioNetGen: software for rule-based modeling of
+signal transduction based on the interactions of molecular domains. Bioinformatics 20, 17 (2004), 3289–3291.
+[4] Bray, D. Molecular prodigality. Science 299, 5610 (2003), 1189–1190.
+[5] Caputo, M. Linear models of dissipation whose Q is almost frequency independent, part 2. Geophys. J. R. Astr. Soc.
+13 (1967), 529–539.
+[6] Collins, F. C., and Kimball, G. E. Diffusion-controlled reaction rates. J. Colloid. Sci. 4 (1949), 425–437.
+[7] Desch, W., and Miller, R. Exponential stabilization of Volterra integral equations with singular kernels. J. Int. Eq.
+Appl. 1, 3 (1988), 397–433.
+[8] Drawert, B., Engblom, S., and Hellander, A. URDME: a modular framework for stochastic simulation of reactiontransport processes in complex geometries. BMC Syst. Biol. 6, 1 (2012), 76.
+[9] Endy, D., and Brent, R. Modelling cellular behaviour. Nature 409 (2001), 391–395.
+[10] Engblom, S., Ferm, L., Hellander, A., and Lötstedt, P. Simulation of stochastic reaction-diffusion processes on
+unstructured meshes. SIAM J. Sci. Comput. 31 (2009), 1774–1797.
+[11] Fange, D., and Elf, J. Noise induced Min phenotypes in E. coli. PLoS Comput. Biol. 2, 6 (2006), e80.
+[12] Fox, C. The G and H functions as symmetrical Fourier kernels. Trans. Am. Math. Soc. 98, 3 (1961), 395–429.
+[13] Gillespie, D. T. A general method for numerically simulating the stochastic time evolution of coupled chemical reactions.
+J. Comput. Phys. 22, 4 (1976), 403–434.
+[14] Gillespie, D. T. Master equations for random walks with arbitrary pausing time distributions. Phys. Lett. 64A (1977),
+22–24.
+[15] Glöckle, W., and Nonnenmacher, T. A fractional calculus approach to self-similar protein dynamics. Biophys. J. 68,
+1 (1995), 46–53.
+[16] Glöckle, W. G., and Nonnenmacher, T. F. Fractional integral operators and Fox functions in the theory of viscoelasticity. Macromol. 24, 24 (1991), 6426–6434.
+[17] Haddar, H., Li, J. R., and Matignon, D. Efficient solution of a wave equation with fractional-order dissipative terms.
+J. Comput. Appl. Math. 234, 6 (2010), 2003–2010.
+[18] Hattne, J., Fange, D., and Elf, J. Stochastic reaction-diffusion simulation with MesoRD. Bioinformatics 21, 12 (2005),
+2923–2924.
+[19] Haus, J. W., and Kehr, K. W. Diffusion in regular and disordered lattices. Phys. Rep. 150, 5 (1987), 263–406.
+[20] Heleschewitz, D. Analyse et simulation de système différentiels fractionnaires et pseudo-différentiels linéaires sous
+représentation diffusive. PhD thesis, ENST, France, 2000.
+[21] Henry, B. J., Langlands, T. A. M., and Wearne, S. L. Anomalous diffusion with linear reaction dynamics: From
+continuous time random walks to fractional reaction-diffusion equations. Phys. Rev. E 74 (2006), 031116.
+[22] Hepburn, I., Chen, W., Wils, S., and Schutter, E. STEPS: efficient simulation of stochastic reaction-diffusion models
+in realistic morphologies. BMC Syst Biol 6, 35 (2012).
+[23] Höfling, F., and Franosch, T. Anomalous transport in the crowded world of biological cells. Rep. Progr. Phys. 76
+(2013), 046602.
+[24] Hornung, G., Berkowitz, B., and Barkai, N. Morphogen gradient formation in a complex environment: An anomalous
+diffusion model. Phys. Rev. E 72 (2005), 041916.
+[25] Jeon, J.-H., Tejedor, V., Burov, S., Barkai, E., Selhuber-Unkel, C., Berg-Sørensen, K., Oddershede, L., and
+Metzler, R. In Vivo anomalous diffusion and weak ergodicity breaking of lipid granules. Phys. Rev. Lett. 106
+(2011), 048103.
+[26] van Kampen, N. G. Stochastic Processes in Physics and Chemistry, 2nd ed. Elsevier, Amsterdam, 2004.
+29
+
+[27] Kenkre, V. M., Montroll, E. W., and Shlesinger, M. F. Generalized master equations for continuous-time random
+walks. J. Stat. Phys. 9, 1 (1973), 45–50.
+[28] Klafter, J., Lim, S., and Metzler, R. Fractional Dynamics: Recent Advances. World Scientific, 2012.
+[29] Kurtz, T. G. Solutions of ordinary differential equations as limits of pure jump Markov processes. J. Appl. Prob. 7
+(1970), 49–58.
+[30] Kusumi, A., Nakada, C., Ritchie, K., Murase, K., Suzuki, K., Murakoshi, H., Kasai, R. S., Kondo, J., and
+Fujiwara, T. Paradigm shift of the plasma membrane concept from the two-dimensional continuum fluid to the
+partitioned fluid: High-speed single-molecule tracking of membrane molecules. Annu. Rev. Biophys. Biomol. Struct.
+34 (2005), 351–378.
+[31] Lawson, M. J., Drawert, B., Khammash, M., Petzold, L., and Yi, T.-M. Spatial stochastic dynamics enable robust
+cell polarization. PLoS Comput. Biol. 9, 7 (2013), e1003139.
+[32] Lomholt, M. A., Zaid, I. M., and Metzler, R. Subdiffusion and weak ergodicity breaking in the presence of a reactive
+boundary. Phys. Rev. Lett. 98 (2007), 200603.
+[33] Lopez, C. F., Muhlich, J. L., Bachman, J. A., and Sorger, P. K. Programming biological models in Python using
+PySB. Molecular Systems Biology 9, 1 (2013).
+[34] Mainardi, F., Raberto, M., Gorenflo, R., and Scalas, E. Fractional calculus and continuous-time finance II: the
+waiting-time distribution. Physica A: Stat. Mech. Appl. 287, 3–4 (2000), 468–481.
+[35] Marquez-Lago, T. T., Leier, A., and Burrage, K. Anomalous diffusion and multifractional Brownian motion: simulating molecular crowding and physical obstacles in systems biology. IET Syst. Biol. 6, 4 (2012), 134–142.
+[36] Metzler, R., and Klafter, J. The random walk’s guide to anomalous diffusion: a fractional dynamics approach. Phys.
+Rep. 339, 1 (2000), 1–77.
+[37] Miller, K. S., and Ross, B. An Introduction to the Fractional Calculus and Fractional Differential Equations. Wiley,
+New-York, 1993.
+[38] Mommer, M. S., and Lebiedz, D. Modeling subdiffusion using reaction diffusion systems. SIAM J. Appl. Math. 70, 1
+(2009), 112–132.
+[39] Montroll, E. W., and Weiss, G. H. Random walks on lattices. II. J. Math. Phys. 6, 2 (1965), 167–181.
+[40] Saxton, M. J. Chemically limited reactions on a percolation cluster. J. Chem. Phys. 116 (2002), 203–208.
+[41] Saxton, M. J. A biological interpretation of transient anomalous subdiffusion. I. Qualitative model. Biophys. J. 92
+(2007), 1178–1191.
+[42] Seki, K., Wojcik, M., and Tachiya, M. Fractional reaction-diffusion equation. The Journal of chemical physics 119, 4
+(2003), 2165–2170.
+[43] Shkilev, V. P. Effect of microscopic inhomogeneity of the medium on the reaction-diffusion front velocity. J. Exp. Theor.
+Phys. 108, 2 (2009), 356–363.
+[44] Shkilev, V. P. Comment on ”Anomalous versus slowed-down Brownian diffusion in the ligand-binding equilibrium”.
+Biophys. J. 106 (2014), 2541–2543.
+[45] Sokolov, I. M., Schmidt, M. G. W., and Sagués, F. Reaction-subdiffusion equations. Phys. Rev. E 73 (2006), 031102.
+[46] Soula, H., Caré, B., Beslon, G., and Berry, H. Anomalous versus slowed-down Brownian diffusion in the ligandbinding equilibrium. Biophys. J. 105 (2013), 2064–2073.
+[47] Srivastava, H., and Manocha, H. A treatise on generating functions. Ellis Horwood Series in Mathematics and its
+Applications. E. Horwood, 1984.
+[48] Staffans, O. J. Well-posedness and stabilizability of a viscoelastic equation in energy space. Trans. Amer. Math. Soc.
+345, 2 (1994), 527–575.
+[49] Stefan, M. I., Bartol, T. M., Sejnowski, T. J., and Kennedy, M. B. Multi-state modeling of biomolecules. PLoS
+Comput. Biol. 10, 9 (2014), e1003844.
+[50] Sturrock, M., Hellander, A., Aldakheel, S., Petzold, L., and Chaplain, M. The role of dimerisation and nuclear
+transport in the Hes1 gene regulatory network. Bull. Math. Biol. (2013), 1–33.
+[51] Yadav, A., and Horsthemke, W. Kinetic equations for reaction-subdiffusion systems: Derivation and stability analysis.
+Phys. Rev. E 74 (2006), 066118.
+[52] Yang, H., Luo, G., Karnchanaphanurach, P., Louie, T.-M., Rech, I., Cova, S., Xun, L., and Xie, X. S. Protein
+conformational dynamics probed by single-molecule electron transfer. Science 302, 5643 (2003), 262–266.
+[53] Yuste, S. B., Acedo, L., and Lindenberg, K. Reaction front in an A + B → C reaction-subdiffusion process. Phys.
+Rev. E 69 (2004), 036126.
+[54] Yuste, S. B., Lindenberg, K., and Ruiz-Lorenzo, J. J. Subdiffusion limited reactions. In Anomalous Transport:
+Foundations and Applications (Weinheim, 2007), R. Klages, G. Radons, and I. M. Sokolov, Eds., Wiley-VCH, pp. 3–
+33.
+
+30
+
+

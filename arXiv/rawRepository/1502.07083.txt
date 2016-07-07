@@ -1,0 +1,1616 @@
+arXiv:1502.07083v1 [q-bio.GN] 25 Feb 2015
+
+Approximating the Minimum Breakpoint Linearization
+Problem for Genetic Maps without Gene Strandedness
+Xin Chen
+Division of Mathematical Sciences
+School of Physical and Mathematical Sciences
+Nanyang Technological University, Singapore
+Abstract
+The study of genetic map linearization leads to a combinatorial hard problem, called the
+minimum breakpoint linearization (MBL) problem. It is aimed at finding a linearization of a
+partial order which attains the minimum breakpoint distance to a reference total order. The
+approximation algorithms previously developed for the MBL problem are only applicable to
+genetic maps in which genes or markers are represented as signed integers. However, current
+genetic mapping techniques generally do not specify gene strandedness so that genes can only
+be represented as unsigned integers. In this paper, we study the MBL problem in the latter
+more realistic case. An approximation algorithm is thus developed, which achieves a ratio
+of (m2 + 2m − 1) and runs in O(n7 ) time, where m is the number of genetic maps used to
+construct the input partial order and n the total number of distinct genes in these maps.
+
+Index terms — Comparative genomics, partial order, breakpoint distance, feedback vertex set.
+
+1 Introduction
+Genetic map linearization is a crucial preliminary step to most comparative genomics studies,
+because they generally require a total order of genes or markers on a chromosome rather than
+a partial order that current genetic mapping techniques might only suffice to provide [2, 6, 8, 9].
+One of the computational approaches proposed for genetic map linearization is to find a topological
+sort of the directed acyclic graph (DAG) that represents the input genetic maps while minimizing
+its breakpoint distance to a reference total order. It hence leads to a combinatorial optimization
+problem, called the minimum breakpoint linearization (MBL) problem [2], which has attracted
+great research attention in the past few years [2, 3, 4, 6].
+The MBL problem is already shown to be NP-hard [2], and even APX-hard [3]. The first algorithm proposed to solve the MBL problem is an exact dynamic programming algorithm running in
+exponential time in the worst case [2]. In the same paper, a time-efficient heuristic algorithm is also
+1
+
+presented, which, however, has no performance guarantee. The first attempt was made in [4] to
+develop a polynomial-time approximation algorithm. Unfortunately, the proposed algorithm was
+latter found invalid [3] because it relies on a flawed statement in [6] on adjacency-order graphs.
+To fix this flaw, the authors of [3] revised the construction of adjacency-order graphs and proposed
+three approximation algorithms, two of which are based on the existing approximation algorithms
+for a general variant of the feedback vertex set problem, and the third was instead developed in the
+same spirit as was done in [4], achieving a ratio of (m2 + 4m − 4) (only for m ≥ 2).
+As we shall show in Section 2.3, the above approximation algorithms are only applicable to the
+input genetic maps in which genes or markers are represented as signed integers, where the signs
+represent the strands of genes/markers. However, we note that the original definition of the MBL
+problem assumes unsigned integers for genes [2]. In fact, this is a more realistic case. Current
+genetic mapping techniques such as recombination analysis and physical imaging generally do not
+specify gene strandedness so that genes can only be represented as unsigned integers [8]. Based
+on this observation, whether the MBL problem can be approximated still remains a question not
+yet to be resolved.
+In this paper, we study the MBL problem in the more realistic case where no gene strandedness
+information is available for the input genetic maps. We revised the definition of conflict-cycle in
+[3], from which an approximation algorithm is hence developed also in the same spirit as done in
+[3, 4]. It achieves a ratio of (m2 + 2m − 1) (which holds for all m ≥ 1) and runs in O(n7 ) time,
+where m is the number of genetic maps used to construct the input partial order and n the total
+number of distinct genes occurring in these maps.
+The rest of the paper is organized as follows. We first introduce some preliminaries and notations in Section 2. In Section 3 we discuss a number of basic facts about the MBL problem, which
+leads to the formulation of the minimum breakpoint vertex set (MBVS) problem in Section 4. We
+present an approximation algorithm for the MBL problem via the approximation of the MBVS
+problem in Section 4, and then conduct performance analyses on both its approximation ratio and
+running time in Section 5. Finally, some concluding remarks are made in Section 6. For the sake
+of consistency, we borrowed many notations from [3] and [4] throughout the paper.
+
+2 Preliminaries and notations
+2.1 Genetic maps and their combined directed acyclic graph
+A genetic map is a totally-ordered sequence of blocks, each of which comprises one or more genes.
+It defines a partial order on genes, where genes within a block are ordered before all those in its
+succeeding blocks, but unordered among themselves.
+Today it is increasingly common to find multiple genetic maps available for a same genome.
+Combining these maps often provides a partial order with a higher coverage of gene ordering than
+an individual genetic map. To represent this partial order, we may construct a directed acyclic
+graph Π = (Σ, D), where the vertex set Σ = {1, . . . , n} is made of all the contributing genes and
+the arc set D made of all the ordered pairs of genes appearing in consecutive blocks of the same
+genetic map [7, 8]. Two properties can be deduced [3] from these genetic maps and their combined
+2
+
+5
+
+5
+4·5
+
+4·5
+
+4
+
+4
+Map 1: 2 4
+Map 2: 1 2 5 3
+
+3·4
+
+3·4
+
+4
+
+3
+
+3
+1
+
+2
+
+5
+
+2·3
+
+2·3
+
+3
+
+2
+
+2
+1·2
+
+1·2
+
+1
+
+1
+W
+(a) Original gene maps
+
+Σ
+
+(c) Vertices of GΠ
+
+(b) Combined DAG Π
+
+F
+
+D
+
+(d) Arces of GΠ
+
+Figure 1: The construction of an adjacency-order graph as proposed in [3]. The symmetric arcs in
+F are represented as double arrows.
+
+directed acyclic graph: (i) if there is an arc between two genes i and j in Π, then i and j appear in
+consecutive blocks of some genetic map, and (ii) if i and j appear in different blocks of the same
+genetic map, then there exists in Π a nonempty directed path either from i to j or from j to i. See
+Figure 1 for a simple example of Π constructed from two genetic maps.
+We say gene i is ordered before (resp. after) gene j by Π if there exists in Π a nonempty
+directed path from i to j (resp. j to i). We use i ≺Π j to denote the ordering relation that gene
+i is ordered before gene j by Π. Unlike in [5], we assume in this paper that combining multiple
+genetic maps would never create order conflicts, i.e., we could not have both i ≺Π j and j ≺Π i
+simultaneously.
+
+2.2 The minimum breakpoint linearization problem
+Let Π = (Σ, D) be a directed acyclic graph representing a partial order generated with m genetic
+maps of a same genome. A linearization of Π is a total order of genes π = π(1) · π(2) · · · π(n),
+i.e., a permutation on {1, 2, . . . , n}, such that, for all genes i, j, if i ≺Π j then i ≺π j. In this case,
+π is said to be compatible with Π. Let Γ denote another genome with the same set of genes in a
+total order. Without loss of generality, we assume that Γ is the identity permutation 1 2 · · · n. A
+pair of genes that are adjacent in π but not in Γ is called a breakpoint of π with respect to Γ, and
+the total number of breakpoints is thus defined as the breakpoint distance between π and Γ [1].
+Given a partial order Π and a total order Γ as described above, the minimum breakpoint linearization (MBL) problem is defined as to find a linearization π of Π such that the breakpoint
+distance between π and Γ is minimized [2]. This minimum breakpoint distance is further referred
+to as the breakpoint distance between Π and Γ, and denoted by db (Π, Γ).
+
+3
+
+2.3 Adjacency-Order Graph
+In this study we adopt the definition of adjacency-order graph introduced in [3]. To construct
+an adjacency-order graph for a partial order Π = (Σ, D), we first create a set W of vertices
+representing the adjacencies of the identity permutation Γ by W = {i · (i + 1)|1 ≤ i < n}, and
+let V = Σ ∪ W (see Figure 1c). We will not distinguish the vertices of Σ and their corresponding
+integers, which is always be clear from the context. Then, we construct a set of arcs F as
+F = {i · (i + 1) → i, i · (i + 1) → i + 1, i → i · (i + 1), i + 1 → i · (i + 1) | 1 ≤ i < n},
+where the arrow → is used to denote an arc. Note that every arc in F has one end in W and the
+other end in Σ. Let E = D ∪ F (see Figure 1d). Finally, we define the adjacency-order graph GΠ
+of Π by GΠ = (V, E).
+Note that in GΠ , the arcs of D may go either top-down or bottom-up. Let X[GΠ ] (or only X,
+if there is no ambiguity) be the set of arcs in D that go top-down, and Y [GΠ ] (or only Y ) the set
+of arcs in D that go bottom-up. Formally, we may write X[GΠ ] = {i → j ∈ D | i > j} and
+Y [GΠ ] = {i → j ∈ D | i < j}. It is easy to see that D = X ∪ Y and X ∩ Y = ∅.
+In [3], a conflict-cycle refers to a cycle that uses an arc from X. By this definition, a conflictcycle may not necessarily use any arc from Y and all its adjacencies might still co-exist in some
+linearization of Π, as we can see from the adjacency-order graph GΠ shown in Figure 1d. This
+adjacency-order graph contains a conflict-cycle 3 → 3 · 4 → 4 → 4 · 5 → 5 → 3 (as defined in
+[3]), for which both adjacencies 3 · 4 and 4 · 5 may occur in the linearization 1 2 5 4 3 of Π. Based
+on these observations, in this study we use a different definition of conflict-cycles as follows.
+Definition 2.1 A cycle in GΠ is called a conflict-cycle if it contains at least one arc from X and at
+least one arc from Y .
+This new definition has wide implications for the future approximation of the MBL problem, as
+we shall see latter. A quick look indicates that the example cycle mentioned above is no longer
+a conflict-cycle. In Theorem 3.10, we shall prove that the adjacencies involved in a conflictcycle could not co-exist in any linearization of Π. Consequently, we need to remove at least one
+adjacency from each of those cycles in order to obtain a linearization of Π.
+Most of the following notations are already introduced in [3]. An arc between u and v is
+written u → v, or u →A v if it belongs to some set A. A path P is a (possibly empty) sequence
+P
+P
+of arcs written u −
+→ ∗ v, or u −
+→ ∗A v if P uses arcs only from A. A nonempty path Q is written
+Q
+C
+as u −
+→ + v with a + sign. A cycle is a nonempty path u −
+→ + v with v = u. Given a path
+P = v0 → v1 → · · · → vl in GΠ , the following notations are used: l(P ) = l is the length of P ,
+V (P ) = {vh | 0 ≤ h ≤ l}, W (P ) = V (P ) ∩ W , Σ(P ) = V (P ) ∩ Σ, E(P ) = {vh → vh+1 | 0 ≤
+h < l}, F (P ) = E(P ) ∩ F , D(P ) = E(P ) ∩ D, X(P ) = E(P ) ∩ X, and Y (P ) = E(P ) ∩ Y .
+A cycle C is said to be simple if all vertices vh are distinct except v0 = vh , which implies that
+′
+l(C) = |V (C)| = |E(C)|. If a cycle C is not simple, then it contains a subcycle C such that
+′
+′
+′
+′
+V (C ) ⊆ V (C) and E(C ) ⊆ E(C). In this paper, we further require C 6= C when C is the
+subcycle of C.
+
+4
+
+3 Some basic facts
+Given a cycle C in GΠ , we may partition W (C) into a collection of disjoint subsets Wh (C) such
+that each of them can be written as {i·(i+1) | ah ≤ i < bh }, for some integers ah and bh . We denote
+such a collection of disjoint subsets with minimum cardinality by W(C) = {W1 (C), W2 (C), · · · , Wl (C)}.
+Note that, for every cycle C in GΠ , we have l = |W(C)| ≥ 1 because Π = (Σ, D) is a directed
+acyclic graph.
+Lemma 3.1 Let C be a (not necessarily simple) cycle with W1 (C) = {i · (i + 1) | a1 ≤ i < b1 }
+and W2 (C) = {i · (i + 1) | a2 ≤ i < b2 } being two distinct elements of W(C). Then, we have
+[a1 , b1 ] ∩ [a2 , b2 ] = ∅.
+Proof.
+By contradiction, suppose that [a1 , b1 ] ∩ [a2 , b2 ] 6= ∅, which implies that a1 ≤ b2 and
+′
+a2 ≤ b1 . Let a = min(a1 , a2 ) and b = max(b1 , b2 ), and let W1 (C) = {i · (i + 1) | a ≤ i < b}.
+′
+For ∀i ∈ [a1 , b1 ] ∪ [a2 , b2 ], we have i ∈ [a, b], which implies that W1 (C) ∪ W2 (C) ⊆ W1 (C). Next
+we show that, for ∀i ∈ [a, b), we have either i ∈ [a1 , b1 ) or i ∈ [a2 , b2 ). If i ∈
+/ [a1 , b1 ), then
+i ≥ b1 since i ≥ a1 and, further, i ≥ a2 since a2 ≤ b1 . On the other hand, we have i < b2
+because i < b = max(b1 , b2 ). It hence follows that i ∈ [a2 , b2 ) if i ∈
+/ [a1 , b1 ). No matter in
+′
+which case, i.e., either i ∈ [a1 , b1 ) or i ∈ [a2 , b2 ), we can have W1 (C) ⊆ W1 (C) ∪ W2 (C). Thus,
+′
+W1 (C) ∪ W2 (C) = W1 (C). Consequently, we can obtain a smaller-sized partition of W (C) by
+′
+replacing two sets W1 (C) and W2 (C) of the current partition W(C) with one set W1 (C), which
+however contradicts the fact that W(C) attains the minimum cardinality.
+Lemma 3.2 Let C be a (not necessarily simple) cycle with W1 (C) = {i · (i + 1) | a ≤ i < b} being
+an element of W(C). If there exists a vertex c ∈ Σ(C) such that c ∈
+/ [a, b], then C is a conflict-cycle.
+Proof.
+We first assume that c < a. Define a+ = {i|i ≥ a} ∪ {i · (i + 1)|i ≥ a} and
+a− = {i|i < a} ∪ {i · (i + 1)|i < a}. Then, a+ ∪ a− is a partition of V . Note that there exists
+in F exactly one arc from a+ to a− and exactly one arc from a− to a+ , i.e., a → (a − 1)F · a
+and (a − 1)F · a → a, respectively. Suppose that C does not contain any arc from X. Since C
+contains vertices in both a+ and a− (resp. b and c), it thus contains an arc u → v with u ∈ a+ and
+v ∈ a− . We must have u → v ∈ F ; otherwise, u → v ∈ D implies that u → v ∈ X since u > v.
+Consequently, we can only have u = a and v = (a − 1) · a by the definitions of a+ and a− . So, C
+uses the vertex (a − 1) · a. However, W1 (C) = {i · (i + 1) | a ≤ i < b} is an element of W(C),
+which, by definition, implies that C does not use the vertex (a − 1) · a; a contradiction. Therefore,
+C must contain an arc from X. Now we suppose that C does not contain any arc from Y . Once
+again, since C contains vertices in both a+ and a− , it thus contains an arc u → v with u ∈ a− and
+v ∈ a+ . We must have u → v ∈ F ; otherwise, u → v ∈ D implies that u → v ∈ Y since u < v.
+Consequently, we can only have u = (a − 1) · a and v = a. So, C also necessarily uses the vertex
+(a − 1) · a. As we show above, it would lead to a contradiction. Therefore, C must contain an arc
+from Y too. It turns out that C is a conflict-cycle.
+In case of c > b, we may define b+ = {i|i > b} ∪ {i · (i + 1)|i ≥ b} and b− = {i|i ≤
+b} ∪ {i · (i + 1)|i < b}. Then, by using the same arguments as above, we can also show that C is a
+conflict-cycle.
+
+5
+
+Lemma 3.3 Let π be a total order that contains every adjacency in the set {i · (i + 1) | a ≤ i < b}.
+Then, either the sequence a (a + 1) (a + 2) · · · b or b (b − 1) (b − 2) · · · a is an interval of π.
+Proof.
+Recall that an adjacency i · (i + 1) implies the occurrence of an interval either i (i + 1) or
+(i + 1) i, but not both, in π. We first consider the adjacency a · (a + 1), for which the interval either
+a (a + 1) or (a + 1) a would occur in π. We distinguish these two cases when the next adjacency
+(a + 1) · (a + 2) is considered. In the first case of the interval a (a + 1), in order to obtain the
+adjacency (a + 1) · (a + 2) in π, the element (a + 2) can only appear immediately after the element
+(a + 1), resulting in the interval a (a + 1) (a + 2). In the second case of the interval (a + 1) a, in
+order to obtain the adjacency (a+ 1) · (a+ 2) in π, the element (a+ 2) can only appear immediately
+before the element (a + 1), resulting in the interval (a + 2) (a + 1) a. Continue this process with
+the remaining adjacencies in the increasing order of elements. It would necessarily end up with an
+interval either a (a + 1) (a + 2) · · · b or b (b − 1) (b − 2) · · · a in π.
+Lemma 3.4 Let π be a total order that contains every adjacency in the set {i · (i + 1) | a ≤ i < b}.
+Assume that there exists in GΠ an arc i1 → i2 ∈ D, where a ≤ i1 ≤ b and a ≤ i2 ≤ b. If i1 < i2
+(resp., i1 > i2 ), then the sequence a (a + 1) (a + 2) · · · b (resp., b (b − 1) (b − 2) · · · a) is an
+interval of π.
+Proof.
+The proof is given only for the case of i1 < i2 . We know from Lemma 3.3 that π contains either the interval a (a + 1) (a + 2) · · · i1 · · · i2 · · · b or b (b − 1) (b − 2) · · · i2 · · · i1 · · · a.
+On the other hand, we have i1 ≺π i2 , since there exists an arc i1 → i2 ∈ D. Consequently, the
+interval b (b − 1) (b − 2) · · · i2 · · · i1 · · · a could not appear in π.
+We wish to distinguish two types of conflict-cycles. A conflict-cycle C is said to be of type I if
+there exist two vertices a and b in Σ(C) such that V (C) = {i · (i + 1) | a ≤ i < b} ∪ {i | a ≤ i ≤ b};
+otherwise, it is said to be of type II. For example, in the adjacency-order graph shown in Figure 1,
+the cycle 1 → 2 → 2 · 3 → 3 → 3 · 4 → 4 → 4 · 5 → 5 → 3 → 2 · 3 → 2 → 1 · 2 → 1 is a conflictcycle of type I, while both 2 → 5 → 3 → 2 · 3 → 2 and 2 → 4 → 4 · 5 → 5 → 3 → 2 · 3 → 2
+are conflict-cycles of type II. Lemmas 3.5 and 3.6 below follows from the above definitions in a
+straightforward way.
+Lemma 3.5 Let C is a (not necessarily simple) conflict-cycle of type 1. Then, |W(C)| = 1.
+Lemma 3.6 Let C is a (not necessarily simple) cycle with W1 (C) = {i · (i + 1) | a ≤ i < b} being
+an element of W(C). Then, C is a conflict-cycle of type II iff there exists a vertex c ∈ Σ(C) such
+that c ∈
+/ [a, b].
+By considering Lemmas 3.1 and 3.2, we can further obtain the following lemma.
+Lemma 3.7 Let C be a (not necessarily simple) cycle with |W(C)| ≥ 2. Then, C is a conflict-cycle
+of type II.
+The first implication of our new definition of conflict-cycle is that a conflict-cycle does not
+necessarily contain a simple conflict-subcycle.
+6
+
+Lemma 3.8 If C is a conflict-cycle of type I, then it cannot be a simple cycle.
+Proof.
+By contradiction, suppose that C is simple. By definition of a type I conflict-cycle, there
+exist two vertices a and b such that V (C) = {i · (i + 1) | a ≤ i < b} ∪ {i | a ≤ i ≤ b}. Since
+C is simple, every vertex in V (C) is adjacent to exactly two distinct vertices in C; therefore, every
+vertex has indegree and outdegree both exactly one in C. Knowing that every vertex i · (i + 1) ∈ W
+has only two distinct adjacent vertices in GΠ , i.e., i and (i+1), we can deduce that, for every vertex
+i such that a < i < b, it is adjacent to both (i − 1) · i and i · (i + 1) by using arcs from F . And,
+the vertex a is adjacent to a · (a + 1) and the vertex b is adjacent to (b − 1) · b, both using arcs also
+from F . Consequently, C shall contain an arc between a and b so that both vertices have degree
+two (because any other vertices can no longer be incident to an arc of D(C)). Moreover, this arc is
+the only arc that C has from D(C), which contradicts the fact that a conflict-cycle shall contain at
+least two arcs from D(C), i.e., at least one from X(C) and at least one from Y (C).
+Lemma 3.9 If C is a non-simple conflict-cycle of type II, then it must contain a simple conflictsubcycle of type II.
+Proof.
+Let W(C) = {W1 (C), W2 (C), · · · , Wl (C)}. Since C is not simple, there exists a vertex
+Q
+P
+u used twice in it such that C = u −
+→ +u −
+→ + u. We can further assume that u ∈ Σ(C). If initially
+we have u ∈ W (C) such that u = a · (a + 1), then C uses both vertices a and (a + 1) at least
+twice because it uses the vertex u = a · (a + 1) twice. So, we may substitute u by a to write
+Q
+P
+C=u−
+→ +u −
+→ + u.
+Q
+P
+Let C1 = u −
+→ + u and C2 = u −
+→ + u. Apparently, C1 and C2 are two subcycles of C, so we
+write W(C1 ) = {W1 (C1 ), W2 (C1 ), · · · , Wl1 (C1 )} and W(C2 ) = {W1 (C2 ), W2 (C2 ), · · · , Wl2 (C2 )},
+where l1 ≥ 1 and l2 ≥ 1. Note that every element of W(C1 ) and of W(C2 ) is a subset of an element
+of W(C). Below we distinguish two possible cases.
+In the first case, we assume that there exist an element of W(C1 ) and an element of W(C2 ) (say,
+W1 (C1 ) = {i · (i + 1) | a11 ≤ i < b11 } and W1 (C2 ) = {i · (i + 1) | a21 ≤ i < b21 }, respectively)
+such that both are the subsets of a same element of W(C) (say, W1 (C) = {i· (i+ 1) | a1 ≤ i < b1 }).
+It hence implies that a1 ≤ a11 < b11 ≤ b1 and a1 ≤ a21 < b21 ≤ b1 . Since C is a conflict-cycle of
+type II, by Lemma 3.6, there exists a vertex c1 ∈ Σ(C) such that c1 ∈
+/ [a1 , b1 ]. Thus, we have both
+c1 ∈
+/ [a11 , b11 ] and c1 ∈
+/ [a21 , b21 ]. Note that the vertex c1 appears on the cycle either C1 or C2 . If c1
+appears on C1 , then C1 is a conflict-cycle (by Lemma 3.2). Otherwise, c2 must appear on C2 . By
+Lemma 3.2 once again, C2 would be a conflict-cycle. Moreover, this conflict-cycle, no matter C1
+or C2 , is of type II (by Lemma 3.7).
+In the second case, we assume that no two elements of W(C1 ) and W(C2 ) are the subsets
+of a same element of W(C). Consider the first elements of W(C1 ) and W(C2 ), and write them
+as W1 (C1 ) = {i · (i + 1) | a11 ≤ i < b11 } and W1 (C2 ) = {i · (i + 1) | a21 ≤ i < b21 },
+respectively. Note that W1 (C1 ) and W1 (C2 ) are the subsets of two distinct elements (say, W1 (C) =
+{i · (i + 1) | a1 ≤ i < b1 } and W2 (C) = {i · (i + 1) | a2 ≤ i < b2 }) of W(C), respectively). Thus,
+we have [a11 , b11 ] ⊆ [a1 , b1 ] and [a21 , b21 ] ⊆ [a2 , b2 ] and, furthermore, [a11 , b11 ] ∩ [a21 , b21 ] = ∅
+since [a1 , b1 ] ∩ [a2 , b2 ] = ∅. It then follows that we have either u ∈
+/ [a11 , b11 ] or u ∈
+/ [a21 , b21 ]. If
+7
+
+u∈
+/ [a11 , b11 ], C1 would be a conflict-cycle of type II. If u ∈
+/ [a21 , b21 ], C2 would be a conflict-cycle
+of type II.
+In either case above, we already show that there exists a conflict-subcycle of type II for C. If
+this conflict-subcycle is not simple, we may apply the above process recursively, which necessarily
+ends up with a simple conflict-subcycle of type II.
+Although the following theorem appears as a verbatim account of Theorem 4 in [3], they are
+literally not the same because conflict-cycles are defined in different ways. Consequently, the
+corresponding proof given in [3] is not sufficient.
+Theorem 3.10 Let Π be a partial order, GΠ = (V, E) its adjacency-order graph (with V = Σ∪W
+′
+and E = D ∪ F ), and W ⊆ W . Then there exists a total order π over Σ, compatible with Π, and
+′
+′
+containing every adjacency from W iff GΠ [W ∪ Σ] has no conflict-cycle.
+′
+
+Proof.
+(⇒) Let π be a linearization of Π containing every adjacency of W . We suppose, by
+′
+contradiction, that there exists in GΠ [W ∪ Σ] a conflict-cycle C. Below we distinguish two cases,
+depending on whether C is of type I or of type II.
+In the first case, C is assumed to be of type I. By definition, there exist two integers a and b
+such that W (C) = {i · (i + 1) | a ≤ i < b} and Σ(C) = {i | a ≤ i ≤ b}. Since C is a conflict-cycle,
+there exists an arc i1 → j1 ∈ X such that a ≤ j1 < i1 ≤ b and an arc i2 → j2 ∈ Y such that
+a ≤ i2 < j2 ≤ b. By Lemma 3.4, the arc i1 → j1 implies that the sequence b (b − 1) (b − 2) · · · a
+appears as an interval of π, while at the same time the arc i2 → j2 implies that the sequence
+a (a + 1) (a + 2) · · · b appears as an interval of π; a contradiction.
+In the second case, C is assumed to be a conflict-cycle of type II. W.l.o.g, we may further
+assume that C is a simple conflict-cycle of type II (by Lemma 3.9). Let C = v0 → v1 → · · · →
+vl = v0 where all the vertices are pairwise distinct except v0 = vl . Let i0 = 0, i1 , . . . , ih−1 , ih = l
+be the increasing sequence of indices such that vij → vij +1 ∈ D for all j such that 0 ≤ j < h. Note
+that h ≥ 2 (because |D(C)| ≥ 2) and, for all j, we have vij ∈ Σ. Let us prove that for all j < h,
+the ordering relation vij ≺π vij+1 holds. The case where ij+1 = ij + 1 is easy, since the arc vij →
+vij +1 ∈ D implies that vij ≺Π vij+1 (by construction of GΠ ) and vij ≺π vij+1 (since π is compatible
+with Π). Now, assume there are several arcs between vij and vij+1 , i.e., vij+1 = vij +m with m ≥ 2.
+Let P = vij +1 → vij +2 → · · · → vij +m , in which all the arcs are from F and vij +1 , vij +m ∈ Σ. If
+vij +1 < vij +m , then W (P ) = {i· (i+ 1) | vij +1 ≤ i < vij +m } and Σ(P ) = {i | vij +1 ≤ i ≤ vij +m }.
+By Lemma 3.3, the sequence vij +1 (vij +1 + 1) (vij +1 + 2) · · · vij +m appears as an interval of π. If
+vij +1 > vij +m , then W (P ) = {i· (i+ 1) | vij +m ≤ i < vij +1 } and Σ(P ) = {i | vij +m ≤ i ≤ vij +1 }.
+Again, by Lemma 3.3, the sequence vij +m (vij +m − 1) (vij +m − 2) · · · vij +1 appears as an interval
+of π. In either case, all the vertices in Σ(P ) therefore appear as an interval of π. Note that vij is
+a vertex distinct from vij+1 (since h ≥ 2), and from other vertices in the set Σ(P ) as well (since
+each of them is the source of an arc from F in C, where vij+1 is the source of an arc from D in C).
+Consequently, vij cannot appear inside either of the intervals vij +1 (vij +1 + 1) (vij +1 + 2) · · · vij +m
+or vij +m (vij +m − 1) (vij +m − 2) · · · vij +1 of π. As vij precedes vij +1 in Π (and thus in π), we have
+vij ≺π vi for all i ∈ [ij + 1, ij + m], and particularly, vij ≺π vij+1 .
+
+8
+
+In conclusion, we have vij ≺π vij+1 for all j < h and vih = vi0 , leading to a contradiction since
+′
+there is no cycle in the ordering relation ≺π . Therefore, the subgraph GΠ [W ∪ Σ] does not contain
+any conflict-cycle.
+(⇐) (constructive proof) We use the following method to construct a linearization π of Π
+′
+′
+′
+containing all adjacencies of W , where the subgraph G = GΠ [W ∪ Σ], is assumed to contain
+′
+no conflict-cycles. We denote by V1 , . . . , Vk the strongly connected components of G , ordered
+by topological order (i.e., if u, v ∈ Vi , there exists a path from u to v; moveover, if u ∈ Vi and
+′
+v ∈ Vj and there exists a path u →∗ v in G , then i ≤ j). Then, we sort the elements of each
+set Vi ∩ Σ in descending order of integers if there exists an arc from X connecting two vertices
+in Vi ∩ Σ; otherwise, sort them in ascending order. The resulting sequence is denoted by µi , and
+the concatenation µ1 · µ2 · . . . gives π, a total order over Σ. We now check that π contains every
+′
+adjacency in W and is compatible with Π.
+′
+Let a · (a + 1) ∈ W . Vertices a and a + 1 are in the same strong connected component Vi ,
+due to the arcs a ↔ a · (a + 1) ↔ (a + 1). Those two elements are obviously consecutive in the
+corresponding µi , and appear as an adjacency in π.
+To show that π is compatible with Π, it suffices by showing that a ≺π b holds for every arc
+a → b ∈ D. By contradiction, suppose that there exist two distinct elements a, b ∈ Σ such that
+a → b ∈ D but b ≺π a. We denote by i and j the indices such that a ∈ Vi and b ∈ Vj . Since
+′
+b ≺π a, we have j ≤ i, and since a → b ∈ D (the arc a → b in G as well), we have i ≤ j. We thus
+deduce that i = j; therefore, a and b share the same strong connected component. If a → b ∈ X,
+then a > b and a ≺π b (by the construction of π); a contradiction. Therefore, a → b ∈ Y , which
+then implies that a < b. Since b ≺π a, by the construction of π once again, there must exist an
+arc c → d ∈ X such that c and d belong to the same strong connected component as a and b.
+′
+It hence follows that there exists a path P1 from b to c in G and also a path P2 from d to a in
+′
+P1 ∗
+P2 ∗
+G . Consequently, we obtain a cycle a →Y b −→
+c →X d −→
+a, which, by definition, is a
+′
+conflict-cycle in G ; a contradiction.
+
+4 Approximation
+4.1 Approximation of the MBL problem
+To assist in solving the minimum breakpoint linearization problem, the above theorem motivates
+us to formulate a new combinatorial optimization problem on an adjacency-order graph. Given an
+adjacency-order graph GΠ = (V, E), where V = Σ ∪ W with E = D ∪ F and D = X ∪ Y , a
+′′
+′′
+subset W of W is called a breakpoint vertex set if the deletion of vertices in W leaves the induced
+′′
+subgraph GΠ [V − W ] without any cycle using arcs from both X and Y . The minimum breakpoint
+vertex set (MBVS) problem is thus defined as the problem of finding a breakpoint vertex set with
+minimum cardinality. Theorem 3.10 leads to the following corollary.
+Corollary 4.1 The value k of an optimal solution of MBL(Π) is the size of the minimum breakpoint vertex set of GΠ .
+
+9
+
+Algorithm A PPROX -MBL
+input A directed acyclic graph Π = (Σ, D)
+output A linearization π of Π
+begin
+Create the adjacency-order graph GΠ = (V, E) of Π;
+′′
+W ← A PPROX -MBVS(GΠ );
+′
+′′
+W ←W −W ;
+′
+(V1 , V2 , . . . , Vh ) ← SCC-sort(GΠ [W ∪ Σ]);
+for i ← 1 to h
+µi ← sort(Vi ∩ Σ);
+π ← µ1 · µ2 · · · µh ;
+return π;
+end
+Table 1: An (m2 + 2m − 1)-approximation for the MBL problem.
+It implies that an approximation algorithm for the MBVS problem can be translated into an approximation algorithm for the MBL problem with the same ratio.
+As in [3], we denote by SCC-sort() an algorithm that decomposes a directed graph into its
+strong connected components and then topologically sorts these components. Also, let sort() denote an algorithm that sorts the integer elements in each strongly connected component either
+in a descending order or an ascending order, as we described in the constructive proof of Theorem 3.10. Note that a different definition of sort() was used in [3], which always sorts integers
+in an ascending order. Table 1 summarizes the algorithm that is used to approximate the MBL
+problem, A PPROX -MBL. It is derived from the constructive proof of Theorem 3.10, and relies
+on an approximation algorithm for the MBVS problem that we are going to describe in the next
+subsection. Its correctness follows from Theorem 3.10.
+
+4.2 Approximation of the MBVS problem
+We start this subsection by introducing several more definitions. As similarly defined in [3], a path
+R
+u−
+→ ∗D v in (Σ, D) is said to be a shortcut of a type II conflict-cycle C, if:
+P
+
+Q
+
+- u, v ∈ Σ(C) (we write P and Q the paths such that C = v −
+→ +u −
+→ + v),
+P
+
+R
+
+- the cycle C = v −
+→ +u −
+→ ∗D v is also a conflict-cycle of type II,
+′
+
+- W (Q) 6= ∅ (using the shortcut removes at least one adjacency).
+A type II conflict-cycle is said to be minimal if it has no shortcut. On the other hand, a type I
+conflict-cycle is said to be minimal if there does not exist another type I conflict-cycle with a strict
+subset of W (C). Note that the definition of shortcut does not apply to the conflict-cycles of type
+I. The following lemma ensures that removing minimal conflict-cycles is enough to remove all the
+conflict-cycles.
+10
+
+Lemma 4.2 If an adjacency-order graph contains a conflict-cycle, then it also contains a minimal
+conflict-cycle.
+Proof.
+Let C be a conflict-cycle. Suppose that C is not minimal. If it is a conflict-cycle of
+′
+′
+type I, by definition, we may find another type I conflict-cycle C with |W (C )| < |W (C)|; if it
+′
+is a conflict-cycle of type II, we may use the shortcut to create another conflict-cycle C of type I
+′
+also having |W (C )| < |W (C)|. Applied recursively, this process necessarily ends with a minimal
+conflict-cycle.
+Lemma 4.3 Let C be a minimal conflict-cycle. Then, C is simple if and only if it is of type II.
+Proof.
+(⇒) Since C is a simple conflict-cycle, by Lemma 3.8, C cannot be of type I. Therefore,
+C must be a conflict-cycle of type II.
+(⇐) By contradiction, suppose that C is not simple. Since C is of type II, by Lemma 3.9, it
+C
+
+′
+
+′
+
+Q
+
+→ +u −
+→ + u,
+must contain a simple conflict-subcycle C of type II. So, we may write C = u −
+where u ∈ Σ(C) (see the proof of Lemma 3.9). Let R = u →∅ u be a path with an empty arc set.
+C
+
+′
+
+R
+
+→ +u −
+→ ∗ u is a conflict-cycle and that W (Q) 6= ∅ (since Q is a cycle
+We can see that C = u −
+of C), so the path R is a shortcut of C. It hence leads to a contradiction that C is indeed given as a
+minimal conflict-cycle.
+′
+
+Let C be a cycle in GΠ with W(C) = {W1 (C), W2 (C), · · · , Wl (C)}, where Wh (C) = {i · (i +
+1) | ah ≤ i < bh }, for each 1 ≤ h ≤ l. We call the vertices ah and bh the joints of C and, in
+particular, ah the low joint. Given a vertex i · (i + 1) ∈ W (C), we say that ah and bh are the two
+joints associated to w in C if ah ≤ i < bh . Note that joints are also defined in [3], but not in the
+same way.
+Our approximation algorithm for the MBVS problem is summarized in Table 2. As we can
+see, it consists of two main phases. In the first phrase, the adjacency-order graph GΠ is repeatedly
+induced by deleting a set of low joints of a minimal type II conflict-cycle until there are no more
+minimal type II conflict-cycles (except for one case where m = 1 and |W(C)| = 1). In the second
+phase, the previously induced subgraph is further repeatedly induced by deleting the only two
+joints of a type I conflict-cycle until there are no more minimal type I conflict-cycles. It is worth
+noting that finding a minimal type II conflict-cycle is quite challenging, due to the presence of type
+I conflict-cycles in the adjacency-order graph. We will discuss the polynomial-time algorithms for
+finding type I and type II conflict-cycles in Subsection 5.2.
+
+5 Performance Analysis
+5.1 Approximation ratio
+If C is given as a minimal conflict-cycle of type II, it must be simple by Lemma 4.3. Hence, a joint
+e of C has exactly two incident arcs, one belonging to D(C) and the other belonging to F (C). In
+
+11
+
+Algorithm A PPROX -MBVS
+input An adjacency-order graph GΠ (V, E)
+′′
+output A breakpoint vertex set W
+begin
+′′
+W ← ∅;
+′′
+while there exists in GΠ [V − W ] a minimal type II conflict-cycle C
+if m = 1 and |W(C)| = 1
+J ← the set of joints of C;
+else
+J ← the set of low joints of C;
+′′
+′′
+W ← W ∪ {eF : e ∈ J};
+′′
+while there exists in GΠ [V − W ] a minimal type I conflict-cycle C
+J ← the set of joints of C;
+′′
+′′
+W ← W ∪ {eF : e ∈ J};
+′′
+return W ;
+end
+Table 2: An (m2 + 2m − 1)-approximation for the MBVS problem
+this case, we denote by eF the other vertex (rather than e) of the arc from F (C), and by eD the
+other vertex (rather than e) of the arc from D(C).
+As defined in [3], for each u ∈ Σ, we denote I(u) ⊆ {1, . . . , m} the number of the genetic
+maps in which u appears. Clearly, I(u) 6= ∅. For each arc u →D v ∈ D, we use η(u →D v) to
+denote the numbering of a genetic map in which u and v appear in consecutive blocks. So, η(u →D
+v) ∈ I(u) ∩ I(v). Given a minimal type II conflict-cycle C, we extend the notation η to each of its
+joints e: let η(e) = η(eD → e) if C uses the arc eD → e; otherwise, let η(e) = η(e → eD ).
+Lemma 5.1 [3] Let e → f be an arc of D, and let u ∈ Σ such that η(e →D f ) ∈ I(u). Then one
+of the paths e →∗ u or u →∗ f appears in the graph (Σ, D).
+Lemma 5.2 [3] Let C be a (not necessarily simple) cycle of GΠ . Let c ∈ Σ, such that there exists
+a, b ∈ Σ(C) with a ≤ c < b. Then, one of the following propositions is true:
+(i) C contains an arc u →X v with v ≤ c < u;
+(ii) C contains both arcs c + 1 →F c · (c + 1) and c · (c + 1) →F c.
+We can further obtain the following lemma, which can be proved by using the same arguments
+as those for proving the preceding lemma.
+Lemma 5.3 Let C be a (not necessarily simple) cycle of GΠ . Let c ∈ Σ, such that there exists
+a, b ∈ Σ(C) with a ≤ c < b. Then, one of the following propositions is true:
+(i) C contains an arc u →Y v with u ≤ c < v;
+12
+
+(ii) C contains both arcs c →F c · (c + 1) and c · (c + 1) →F c + 1.
+Proof.
+Define c+ = {d|d > c} ∪ {d · (d + 1)|d > c} and c− = {d|d ≤ c} ∪ {d · (d + 1)|d < c}.
++
+Then, c ∪ {c · (c + 1)} ∪ c− is a partition of V . We show that when proposition (i) is false,
+proposition (ii) is necessarily true. Assume that proposition (i) is false. Since C contains vertices
+in both c+ ∪ {c · (c + 1)} and c− (resp. b and a), it thus contains an arc u → v with u ∈ c−
+and v ∈ c+ ∪ {c · (c + 1)}. We must have u → v ∈ F ; if otherwise, u → v ∈ D implies
+u → v ∈ Y (since u < v), and proposition (i) would be true, a contradiction. Necessarily, u = c
+and v = c · (c + 1) (because there is no arc in F going out of c− into c+ ). So, C contains the arc
+′
+′
+c → c · (c + 1). Using the same argument, we can show that there is an arc u → v in C with
+′
+′
+′
+′
+u ∈ {c · (c + 1)} ∪ c− and v ∈ c+ . Since u → v cannot be in Y (since proposition (i) is false) nor
+′
+in X (since these arcs go from c+ to c− ), then it must be in F , and we can only have u = c · (c + 1)
+′
+and v = c + 1. So, C also uses the arc c · (c + 1) →F c + 1, and thus proposition (ii) is true.
+The following two lemmas already appeared verbatim in [3], except that a type II conflict-cycle
+is additionally imposed here. However, due to a different definition of conflict-cycles, the proofs
+as given in [3] are not sufficient 1 .
+Lemma 5.4 Let C be a minimal type II conflict-cycle where three vertices u, e, f ∈ Σ(C) are such
+that
+P
+
+P
+
+1 +
+2 +
+- C = u −→
+e →D f −→
+u;
+
+- Each of the paths P1 and P2 uses at least one vertex from W and at least one arc from D.
+Then η(e →D f ) ∈
+/ I(u).
+Proof.
+(We adapt the proof of Lemma 14 in [3] to our definition of conflict-cycles.) Since C
+is a minimal type II conflict-cycle, by Lemma 4.3, it must be simple. By contradiction, suppose
+that η(e →D f ) ∈ I(u). Then, by Lemma 5.1, there exists a path R in D connecting either
+P2 +
+e to u or u to f . In the first case, we write P = P1 and Q = e →D f −→
+u, and in the
+′
+P1 +
+P +
+R
+second, P = P2 and Q = u −→ e →D f , so that there exists a cycle C = u −
+→ e −
+→ ∗D u
+′
+P
+R
+(resp., C = f −
+→ +u −
+→ ∗D f ). Since C is a minimal type II conflict-cycle, then R cannot be
+′
+a shortcut, and with W (Q) not being empty, cycle C cannot be a conflict-cycle of type II. Let
+′
+′
+W1 (C ) = {i · (i + 1)|a ≤ i < b}. Thus, by Lemma 3.6, for all c ∈ Σ(C ), we have c ∈ [a, b], so
+′
+′
+′
+that Σ(C ) = {i|a ≤ i ≤ b} and |W(C )| = 1. It turns out that V (C ) ⊂ V (C). Note that R does
+′
+not use any arc from F , so the vertices in W1 (C ) all come from the path P . Moreover, because the
+′
+′
+path P is part of the simple conflict-cycle C and |W(C )| = 1, the path P (and, the cycles C and C
+too) must use a path either a →F b or b →F a. W.l.o.g, this path is assumed to be a →F b.
+′
+′
+Also note that P uses at least one arc from D(C). Let a →D b be such an arc, such that
+′
+′
+′
+′
+′
+′
+′
+′
+a ∈ Σ(C ) and b ∈ Σ(C ) (i.e., a ≤ a ≤ b and a ≤ b ≤ b). If a < b , we may write a
+1
+
+One might argue that the corresponding proofs given in [3] shall be sufficient since a type II conflict-cycle is
+always a conflict-cycle according to the definition in [3]. Note that, however, a minimal type II conflict-cycle may not
+be a minimal conflict-cycle as defined in [3]. Therefore, those proofs are still not sufficient.
+
+13
+
+P
+
+2 +
+cycle C = a →D b →∗F b →E(C) e →D f −→
+u →E(C) a , which does not use any vertices
+′
+′
+′
+′
+in W (P3) where the path P3 = b →F (P ) a . Otherwise, a > b , so we may write a cycle
+′′
+′
+′
+′
+C = a →D b →F (P ) a , which does not use any vertices in W (P2 ). In either case, we can see
+′′
+that C is a subcycle of C, implying that the latter is not a simple cycle; a contradiction.
+′′
+
+′
+
+′
+
+′
+
+Lemma 5.5 Let C be a minimal type II conflict-cycle, with λ ≥ 5 joints. Let e and f be two non
+consecutive joints of C. Then η(e) 6= η(f ).
+Proof.
+
+(Please refer to the proof of Lemma 15 in [3], together with Lemma 5.4 above.)
+
+Lemma 5.6 Let C be a minimal type II conflict-cycle with W1 (C) = {i · (i + 1) | a ≤ i < b} being
+an element of W(C). Then, we have aD ∈
+/ [a, b] and bD ∈
+/ [a, b].
+Proof.
+First note that a 6= aD . By definition, the cycle C uses an arc from D either a → aD or
+aD → a. W.l.o.g., we assume that this arc is a → aD ∈ D(C). Since C is a minimal type II conflictcycle, it must be simple (by Lemma 4.3). Moreover, W1 (C) = {i · (i + 1) | a ≤ i < b} ∈ W(C)
++
+implies that C uses a path either a →+
+F b or b →F a. In the current case, however, this path can
+D
+only be b →+
+F a since C uses the arc a → a too.
+D
+By contradiction, assume that a ∈ [a, b]; further, a < aD ≤ b since a 6= aD . It hence implies
+′
+that there exists a path aD →+
+a in C. We may write a cycle C = a → aD →+
+F
+F a, for which any
+′
+vertex e ∈ Σ(C ) is such that a ≤ e ≤ b. On the other hand, by Lemma 3.6, there exists a vertex
+′
+′
+c ∈ Σ(C) such that c ∈
+/ [a, b]. Thus, c ∈
+/ Σ(C ), so that C is a subcycle of C. It however contradicts
+the fact that C is a simple cycle. This proves aD ∈
+/ [a, b]. By using the same arguments above, we
+can also prove bD ∈
+/ [a, b].
+Lemma 5.7 Let C be a minimal type II conflict-cycle with |W(C)| ≥ 2 and W1 (C) = {i · (i +
+1) | a ≤ i < b} being an element of W(C). Let c be a vertex in Σ.
+(i) If a < c ≤ b and η(a) ∈ I(c), then aD and c appear in the same block of the genetic map
+η(a).
+(ii) If a ≤ c < b and η(b) ∈ I(c), then bD and c appear in the same block of the genetic map
+η(b).
+Proof.
+We present below the proof of (i) only, because (ii) can be proved similarly. Since
+W1 (C) = {i · (i + 1) | a ≤ i < b}, the cycle C uses either the path a →F b or b →F a. W.l.o.g.,
+we assume that C uses the path a →F b. Because a < c ≤ b, this path goes via the vertex c.
+Since C is a minimal type II conflict-cycle, by Lemma 5.6, we have aD ∈
+/ [a, b]. Moreover, by
+′
+′
+definition, W(C) shall contain another element W2 (C) = {i · (i + 1) | a ≤ i < b }, where both
+′
+′
+′
+vertices a and b shall be located on the path bD → aD . W.l.o.g., we assume that a is visited
+′
+before b in the path bD → aD . Thus, we may write P the path aD →D a →F c and Q the path
+′
+′
+∗ D
+c →∗F b →D bD →∗ a →+
+F b → a .
+Since η(a) ∈ I(c), aD and c (and a as well) appear in the same genetic map numbered η(a).
+So, we distinguish three cases below.
+14
+
+′
+
+Q
+
+R
+
+R
+
+P
+
+- In the first case, there exists the path R = aD →D c in (Σ, D). Let C = c −
+→ aD −
+→ c.
+′
+′
+Note that no vertex in W appears in R, so W2 (C) = {i · (i + 1) | a ≤ i < b } must appear
+′
+′
+′
+′
+as an element of W(C ). By Lemma 3.1, we have b ∈
+/ [a , b ]. Then, by Lemma 3.6, C is a
+conflict-cycle of type II. With W (P ) not being empty, it follows that R is a shortcut of C, a
+contradiction.
+′
+
+- In the second case, there exists the path R = c →D aD in (Σ, D). Let C = c −
+→ aD −
+→ c.
+′
+Note that no vertex in W appears in R, so W1 (C ) = {i · (i + 1) | a ≤ i < c} must appear as
+′
+an element of W(C ). By Lemma 5.6, we have aD ∈
+/ [a, b], which implies that aD ∈
+/ [a, c].
+′
+By Lemma 3.6, C is a conflict-cycle of type II. With W (Q) not being empty, it follows that
+R is a shortcut of C, a contradiction.
+- In the third case, aD and c are incomparable in (Σ, D). Since they appear in the same genetic
+map numbered η(a), they should appear in the same block of this map.
+
+It can be seen that the proof of the preceding lemma also implies the following lemma.
+Lemma 5.8 Let C be a minimal type II conflict-cycle with W1 (C) = {i · (i + 1) | a ≤ i < b} being
+an element of W(C). Let c be a vertex in Σ.
+(i) If a < c < b and η(a) ∈ I(c), then aD and c appear in the same block of the genetic map
+η(a).
+(ii) If a < c < b and η(b) ∈ I(c), then bD and c appear in the same block of the genetic map
+η(b).
+Lemma 5.9 Let w = v · (v + 1) ∈ W . Then, there exists at most one minimal type I conflict-cycle
+being considered during the execution of A PPROX -MBVS going via w.
+Proof.
+By contradiction, assume that C1 and C2 are two minimal type I conflict-cycles being
+considered during the execution of A PPROX -MBVS, in this order, such that w ∈ W (C1 ) ∩ W (C2 ).
+By definition, let W (C1 ) = {i·(i+1) | a1 ≤ i < b1 } and W (C2 ) = {i·(i+1) | a2 ≤ i < b2 }. Since
+w = v · (v + 1) ∈ W (C1 ) ∩ W (C2 ), we have a1 ≤ v < b1 and a2 ≤ v < b2 . On the other hand,
+because the vertices aF1 = a1 · (a1 + 1) and bF1 = (b1 − 1) · b1 are removed when C1 is considered,
+they cannot appear in C2 so that a1 < a2 and b1 > b2 . Thus, a1 < a2 < b2 < b1 , so that W (C2 )
+has a strict subset of W (C1 ). This, however, contradicts the fact that C1 is a minimal conflict-cycle.
+Lemma 5.10 Let w = v · (v + 1) ∈ W and m = 1. Then, there exists at most one minimal (type I
+or type II) conflict-cycle being considered during the execution of A PPROX -MBVS going via w.
+
+15
+
+Proof.
+By contradiction, assume C1 and C2 are two minimal conflict-cycles being considered
+during the execution of A PPROX -MBVS, in this order, such that w ∈ W (C1 ) ∩ W (C2 ). By
+definition, let W (C1 ) = {i · (i + 1) | a1 ≤ i < b1 } and W (C2 ) = {i · (i + 1) | a2 ≤ i < b2 }. Since
+w = v · (v + 1) ∈ W (C1 ) ∩ W (C2 ), we have a1 ≤ v < b1 and a2 ≤ v < b2 . On the other hand,
+because the vertex aF1 = a1 · (a1 + 1) is removed when C1 is considered, a1 cannot appear in C2 so
+that a1 < a2 . Thus, a1 < a2 ≤ v < b1 .
+By Lemma 5.9, C1 can only be of type II. By Lemma 5.7, we further know that |W(C1 )| = 1
+(since a1 < v < b1 ). So, the vertex bF1 = (b1 − 1) · b1 will be removed too when C1 is considered.
+Hence, b2 < b1 , so that a1 < a2 ≤ v < b2 < b1 .
+Next we show that there exists a path u →D v such that u ∈ [a2 , b2 ] and v ∈ [a2 , b2 ]. To this
+end, we distinguish two cases. In the first case, C2 is assumed to be of type I. By definition of
+the type I conflict-cycles, there must exist a desired path since Σ(C2 ) = {i|a2 ≤ i ≤ b2 }. In the
+second case, C2 is assumed to be of type II. If C2 uses the arc a2 → aD
+2 , then there must exist a
+→
+a
+,
+then
+there
+must
+exist
+a path b2 →D a2 . So,
+path a2 →D b2 . Otherwise, C2 uses the arc aD
+2
+2
+we can always find a path u →D v such that u ∈ [a2 , b2 ] and v ∈ [a2 , b2 ], regardless of the type of
+C2 . We further obtain a1 < u < b1 and a1 < v < b1 , since a1 < a2 ≤ v < b2 < b1 . By applying
+Lemma 5.8 with (C1 , u) and (C1 , v) successively, we obtain
+- aD
+1 and u appear in the same block of the only genetic map,
+- aD
+1 and v appear in the same block of the only genetic map.
+Therefore, u and v both come from the same block. However, the existence of the path u →D v
+instead implies that they shall not appear in the same block, a contradiction.
+Lemma 5.11 Let w = v · (v + 1) ∈ W , C1 , C2 and C3 three minimal (either type I or type II)
+conflict-cycles being considered during the execution of A PPROX -MBVS, in this order, such that
+w ∈ C1 ∩ C2 ∩ C3 . Denote respectively by a1 , a2 and a3 the low joints associated to w in C1 , C2 and
+C3 . Then we cannot have η(a1 ) = η(a2 ) = η(a3 ).
+Proof.
+By lemma 5.9, C1 and C2 must be conflict-cycles of type II, whereas C3 could be of
+either type I or type II.
+By contradiction, assume that η = η(a1 ) = η(a2 ) = η(a3 ). Vertices a1 , a2 and a3 are low
+joints associated to w = v · (v + 1), so a1 ≤ v, a2 ≤ v and a3 ≤ v. The vertex aF1 = a1 · (a1 + 1)
+is removed when C1 is considered, so it cannot appear in C2 or C3 . Thus, a1 < a2 and a1 < a3 .
+Similarly, we can have a2 < a3 . Let W1 (C1 ) = {i · (i + 1) | a1 ≤ i < b1 } (resp., W1 (C2 ) =
+{i · (i + 1) | a2 ≤ i < b2 }) be the element of W(C1 ) (resp., W(C2 )) that contains w = v · (v + 1).
+Thus, v < b1 and v < b2 , so a2 < b1 , a3 < b1 and a3 < b2 . Then, we may apply Lemma 5.8 with
+(C1 , a2 ), (C1 , a3 ) and (C2 , a3 ) successively to obtain
+- aD
+1 and a2 appear in the same block of genetic map η,
+- aD
+1 and a3 appear in the same block of genetic map η,
+- aD
+2 and a3 appear in the same block of genetic map η.
+16
+
+Therefore, a2 and aD
+2 both come from the same block of genetic map η, which contradicts η(a2 ) =
+η (in the genetic map η(a2 ), a2 and aD
+2 appear in consecutive blocks).
+Lemma 5.12 Let w = v · (v + 1) ∈ W , C1 and C2 two minimal conflict-cycles being considered
+during the execution of A PPROX -MBVS, in this order, such that w ∈ C1 ∩ C2 and |W (C1 )| ≥ 2.
+Denote respectively by a1 and a2 the low joints associated to w in C1 and C2 , and by b1 the other
+joint (rather than a1 ) associated to w in C1 . Then we cannot have η(a1 ) = η(b1 ) = η(a2 ).
+Proof.
+By lemma 5.9, C1 must be a conflict-cycle of type II, whereas C2 could be of either type
+I or type II.
+By contradiction, assume that η = η(a1 ) = η(b1 ) = η(a2 ). As shown in the preceding lemma,
+we have a1 < a2 ≤ v < b1 . Then, we may apply Lemma 5.7 to obtain
+- aD
+1 and a2 appear in the same block of genetic map η,
+- bD
+1 and a2 appear in the same block of genetic map η,
+- a1 and bD
+1 appear in the same block of genetic map η.
+Therefore, a1 and aD
+1 both come from the same block of genetic map η, which contradicts η(a1 ) =
+η (in the genetic map η(a1 ), a1 and aD
+1 appear in consecutive blocks).
+Lemma 5.13 Let w ∈ W and C the set of all the minimal conflict-cycles being considered during
+the execution of A PPROX -MBVS going via w. Let Jw denote the total number of joints being
+selected in these cycles (in order to remove adjacencies). Then, Jw ≤ m2 + 2m − 1.
+Proof.
+We write w = v · (v + 1) ∈ W , and C = {C1 , . . . , Cq } the set of the q conflict-cycles
+being considered, in this order, during the execution of A PPROX -MBVS. In each cycle Ch , w can
+be associated to a low joint vh and to the corresponding deleted vertex wh = vhF = vh · (vh + 1).
+We write λh the number of joints of Ch . If Ch is a minimal type II conflict-cycle, then λ2h is the
+number of low joints (and thus the maximum number of deleted vertices) in this cycle. Otherwise,
+it is of type I, so λ2h = 1, but the number of deleted vertices in this cycle could be up to 2. Since wh
+′
+is deleted while Ch is considered, we have wh ∈
+/ W (Ch′ ) and vh < vh′ ≤ v, for all h > h. Indeed,
+∀u ∈ {vh′ , . . . , v}, the vertex u · (u + 1) belongs to W (Ch′ ).
+By Lemma 5.9, there exists at most one minimal type I conflict-cycle being considered during
+the execution of A PPROX -MBVS going via w. Thus, the first q − 1 cycles must be all of type II,
+while the last cycle Cq may be of either type I or type II, depending on whether a minimal type I
+conflict-cycle is considered or not.
+Consider now the list hη(v1 ), η(v2 ), · · · , η(vq )i. Unlike in a set, duplicate values are allowed
+in a list. By Lemma 5.11, we know that no value can appear more than twice in the list. Hence,
+q ≤ 2m. Indeed, we can further show below that q ≤ 2m − 1 when λ1 ≥ 4 (i.e., when |W(C1 )| ≥
+2). By contradiction, suppose that q = 2m when λ1 ≥ 4. So, q ≥ 2, which implies that there
+are at least two minimal conflict-cycles being considered during the execution of A PPROX -MBVS
+going via w. By Lemma 5.9, the first conflict-cycle C1 must be of type II. Let e be the other joint
+rather than v1 in C1 associated to w. Because q = 2m, by Lemma 5.11, we can find exactly two
+17
+
+distinct vertices vi and vj such that η(e) = η(vi ) = η(vj ) and 1 ≤ i < j ≤ q = 2m. Recall that
+vi and vj are the respective low joints of Ci and Cj that are both associated to w. So, neither vi nor
+vj coincide with e (but vi might coincide with v1 ) and, moreover, v1 ≤ vi < vj < e. By using
+Lemma 5.7 with (C1 , vi ), (C1 , vj ) and (Ci , vj ) successively, we obtain
+- eD and vi appear in the same block of genetic map η,
+- eD and vj appear in the same block of genetic map η,
+- viD and vj appear in the same block of genetic map η.
+It turns out that both vi and viD come from the same block of genetic map η, which contradicts
+the fact that vi and viD shall appear in consecutive blocks. So, this proves that q ≤ 2m − 1 when
+λ1 ≥ 4.
+Consider now the list hη(vh+1), η(vh+2 ), · · · , η(vq )i. Let m1 and m2 denote respectively the
+number of unique values and the number of duplicate values in the above list (duplicated values
+being counted only once). By Lemma 5.11, we know that no value can appear more than twice in
+the list. Then, we obtain the following equation.
+m1 + 2m2 = q − h.
+
+(1)
+
+Let us assume for a moment that λh ≥ 5, i.e., Ch has more than four joints. Let e1 , e2 , e3 and e4
++
++
++
+be four joints such that Ch uses the path e1 →+
+D e2 →F w →F e3 →D e4 . Note that either e2 = vh
+′
+or e3 = vh . And, for all h > h, the vertex vh′ appears between joints e2 and e3 , so we may write
++
++
++
++
+′
+C = e1 →+
+D e2 →F vh →F e3 →D e4 → e1 . Consider a joint ei rather than e1 , e2 , e3 and e4 ,
++
++
++
++
+D
+for all i ∈ [5, λh ]. We have either C = e1 →+
+D e2 →F vh′ →F e3 →D e4 → ei →D ei → e1 or
++
++
++
++
+C = e1 →D e2 →F vh′ →F e3 →D e4 →+ eD
+i →D ei → e1 . In either case, using Lemma 5.4 with
+′
+three vertices vh′ , ei and eD
+,
+we
+have
+η(e
+)
+/ I(vh′ ), for all i ∈ [5, λh ] and all h > h. In other
+i ∈
+i
+words, for each value η counted into m1 or m2 , we cannot have any joint ei for i ∈ [5, λh ] such
+that η = η(ei ).
+Consider now the list hη(e1 ), η(e2 ), η(e3 ), η(e4)i. Let m3 and m4 denote the number of values
+(duplicated values being counted only once) in this list that appear or do not appear in the preceding
+list hη(vh+1 ), η(vh+2), . . . , η(vq )i, respectively. First, note that e1 and e3 are two non consecutive
+joints of Ch . By Lemma 5.5, we cannot have η(e1 ) = η(e3 ), which implies that
+m3 + m4 ≥ 2.
+
+(2)
+
+Then, consider each value η counted into m2 . By definition of m2 , we have two distinct vertices vi
+and vj such that η = η(vi ) = η(vj ) and h < i < j ≤ q. By using the same arguments above as in
+the preceding paragraph, we can show that this value η won’t be counted into m3 . It hence follows
+that
+m3 ≤ m1 .
+(3)
+In addition, for each value η counted into m4 , by Lemma 5.5, we cannot have two distinct joints ei
+and ej for i, j ∈ [5, λh ] such that η = η(ei ) = η(ej ).
+18
+
+To summarize, for each value η counted into m1 or m2 , there is no joint ei for i ∈ [5, λh ] such
+that η = η(ei ). For each value η counted into m4 , there exists at most one joint ei for i ∈ [5, λh ]
+such that η = η(ei ). For any other possible value η, there exist at most two joints ei and ej for
+i, j ∈ [5, λh ] such that η = η(ei ) = η(ej ); moreover, the total of such possible η values (i.e., all the
+η values attained by the joints other than e1 , e2 , e3 and e4 ) is no more than m − m1 − m2 − m4 .
+Based on these observations, we can deduce the following inequality:
+λh − 4 ≤ 2(m − m1 − m2 − m4 ) + m4 .
+
+(4)
+
+Note that λh is always even. Then, by using the above Equality 1 and Inequalities 2, 3, and 4, we
+obtain the following inequality for λh ≥ 5:
+
+
+λh
+q−h
++ 1.
+(5)
+≤m−
+2
+2
+This inequality also holds when λh = 2 because q ≤ 2m and h ≥ 1. When λh = 4, it does not
+hold only when q = 2m and h = 1. However, this condition will never be met because we have
+shown above that q ≤ m − 1 when λ1 = 4. To summarize, the above inequality holds for all
+λh ≥ 2, although it is initially derived based on the assumption that λh ≥ 5. Further note that the
+above inequality holds for all m ≥ 1.
+Let us assume for a moment
+
+ that m ≥ 2. By Lemma 5.5, we have that λh ≤ 2m when m ≥ 2.
+Thus, λ2h ≤ min m, m − q−h
++ 1 holds for all the conflict-cycles being considered during the
+2
+execution of A PPROX -MBVS, regardless of their types.
+Recall that, for a possible minimal type I conflict-cycle Cq , the algorithm will select two joints
+rather than one joint (as computed by λ2q ). By incorporating this, we then obtain (assume that
+
+19
+
+m ≥ 2)
+Jw = max{2, λ2q } +
+≤ m+
+
+q−1
+P
+
+q−1
+P
+
+h=1
+
+λh
+2
+
+min m, m −
+
+h=1
+
+= m+
+
+q−1
+P
+
+m−
+
+h=1
+
+≤ m+
+
+2m−1
+P
+
+m−
+
+h=1
+
+= m+
+
+h
+
+2m−1
+P
+
+2
+
++1
+
+h
+2
+
+(m + 1) −
+
+h=1
+
+ q−h 
+2
+
++1
+
+
+
+
+
++1
+
+
+
+2m−1
+P 
+h=1
+
+h
+2
+
+
+
+
+
+m−1
+P
+h
+= 2m + 2m − 1 − m + 2
+2
+
+h=1
+
+= m2 + 2m − 1.
+In case of m = 1, by Lemma 5.10, we have q = 1 (we assume here that at least one conflictcycle being considered going via w; otherwise, Jw = 0). No matter whether this cycle C1 is of type
+I, of type II with |W(C1 )| = 1, or of type II with |W(C1 )| ≥ 2, the algorithm will select exactly
+two joints only, thereby making Jw ≤ m2 + 2m − 1 still true. In conclusion, Jw ≤ m2 + 2m − 1
+holds for all m ≥ 1.
+Corollary 5.14 Let w ∈ W and C the set of all the conflict-cycles being considered during the
+execution of A PPROX -MBVS going via w. Then, the total number of vertices in W to be removed
+from cycles of C is bounded from the above by m2 + 2m − 1.
+Theorem 5.15 Algorithm A PPROX -MBVS achieves an (m2 + 2m − 1)-approximation for the
+MBVS problem, where m is the number of genetic maps used to create the input adjacency-order
+graph.
+Proof.
+Correctness of Algorithm A PPROX -MBVS follows from Corollary 5.14, since the algorithm removes at least one vertex from each conflict-cycle. Let W o = {w1o, . . . , wko } be an
+optimal solution of size k, i.e., a minimum breakpoint vertex set of GΠ . For each wio , the algorithm
+deletes at most (m2 + 2m − 1) adjacencies of W (by Corollary 5.14). Since every cycle being
+considered by the algorithm goes through some wio , the total size of the output solution is at most
+k · (m2 + 2m − 1). The next subsection shows that the algorithm can be executed in polynomial
+time.
+
+20
+
+5.2 Running time
+The remaining question in the algorithm A PPROX -MBVS is whether there exists any polynomial′
+time algorithm to find a minimal conflict-cycle from an induced subgraph GΠ [W ∪ Σ]. Since the
+algorithm considers all the type II conflict-cycles before any type I conflict-cycle is considered, we
+present first the algorithm to find a minimal conflict-cycle of type II in the below.
+5.2.1 Finding a minimal type II conflict-cycle
+First of all, we can develop a procedure to determine whether a given cycle is a conflict-cycle (following the definition) and, if it is, further determine whether it is of type I or of type II (following
+Lemma 3.6). We denote this procedure by CCII -check(), and note that it can be executed in O(n)
+time.
+′
+
+′
+
+Lemma 5.16 Let W be a subset of W . If GΠ [W ∪ Σ] contains a type II conflict-cycle, then it
+Q
+P
+also contains a type II conflict-cycle C = a −
+→c−
+→ b →+
+F a such that (i) a, b, c ∈ Σ, (ii) neither
+a ≤ c ≤ b nor b ≤ c ≤ a, and (iii) P and Q are the respective shortest paths between two vertices
+′′
+′′
+′
+in the induced subgraph GΠ [W ∪Σ] where W = W −{(a−1)·a, a·(a+1), (b−1)·b, b·(b+1)}.
+′
+
+Proof.
+Since GΠ [W ∪ Σ] contains a conflict-cycle of type II, by Lemma 3.9, it also contains a
+′
+′
+simple conflict-cycle of type II. Let this simple conflict-cycle be C , with W1 (C ) = {i·(i+1)|a1 ≤
+′
+i < b1 }. By Lemma 3.6, there exists a vertex c ∈ Σ(C ) such that c ∈
+/ [a1 , b1 ]. So, we have either
+′
+′
++
++
+C = a1 → c → b1 →F a1 or C = a1 →F b1 → c → a1 . In the first case, we let a = a1 and
+′
+b = b1 ; in the second case, let a = b1 and b = a1 . In both cases, C uses the path R = a → c → b.
+′
+Recall that C is simple, so R won’t traverse any vertices from the set {(a − 1) · a, a · (a +
+1), (b − 1) · b, b · (b + 1)}. It turns out that the path R is fully contained in the induced subgraph
+′′
+′′
+′
+GΠ [W ∪ Σ] where W = W − {(a − 1) · a, a · (a + 1), (b − 1) · b, b · (b + 1)}. Since there exists in
+′′
+GΠ [W ∪ Σ] an path from a to c and also an path from c to b, we may write their respective shortest
+Q
+Q
+P
+P
+paths a −
+→ c and c −
+→ b. Thus, we obtain a new cycle C = a −
+→c−
+→ b →+
+F a. Note that the path
+P
+
+Q
+
+a−
+→c−
+→ b could not traverse any vertex from the set {(a − 1) · a, a · (a + 1), (b − 1) · b, b · (b + 1)},
+so that {i · (i + 1)|a1 ≤ i < b1 } is also an element of W(C) and, moreover, c ∈
+/ [a1 , b1 ]. It hence
+follows from Lemma 3.6 that C is a conflict-cycle of type II.
+Based on the above lemma, we propose a procedure to determine whether a given graph
+′
+GΠ [W ∪ Σ] contains a type II conflict-cycle and, if any, to report one. It is done by conducting four tests for all triples of distinct vertices ha, b, ci ∈ Σ × Σ × Σ: (i) whether c ∈
+/ [a, b]
+if a < b and c ∈
+/ [b, a] if b < a (taking O(n) time), (ii) whether there exist all the vertices of
+′
+{i · (i + 1)|a ≤ i < b or b ≤ i < a} in GΠ [W ∪ Σ] (taking O(n) time), (iii) whether there exists a
+′′
+P
+shortest path a −
+→ c between a and c in GΠ [W ∪ Σ] (taking O(n2 ) time), and (iv) whether there
+Q
+′′
+exists a shortest path c −
+→ b between c and b in GΠ [W ∪Σ] (taking O(n2 ) time). If a triple ha, b, ci
+Q
+P
+passes all the four tests, then we find a type II conflict-cycle C = a −
+→c−
+→ b →F a. If, instead, no
+′
+triples in Σ × Σ × Σ can pass them, then we know that GΠ [W ∪ Σ] contains no conflict-cycles of
+type II. We denote this procedure by CCII -seed(), and note that it can be executed in time O(n5 ).
+21
+
+It is worth noting that the conflict-cycle C found by the above procedure CCII -seeding() is
+not necessarily simple. If C is not simple, by Lemma 3.9 we know that there must exist a simple
+type II conflict-subcycle of C. To find it, we propose a procedure, called CCII -simplify(), which
+works by mainly applying CCII -check() to every simple subcycle of C. Note that the procedure
+CCII -simplify() can also be executed in O(n) time.
+By applying the procedures CCII -seed() and CCII -simplify() successively, we may obtain a
+′
+simple type II conflict-cycle (if any) from GΠ [W ∪ Σ]. The next lemma then tells us how to find
+a minimal conflict-cycle of type II.
+Lemma 5.17 Let C be a simple conflict-cycle of type II. If it has a shortcut, then it also contains a
+R1 ∗
+R2 ∗
+shortcut R = u −→
+→ D v such that (i) u, v ∈ Σ(C), (ii) w ∈ Σ, and (iii) R1 and R2 are the
+Dw −
+respective shortest paths between two vertices in (Σ, D).
+′
+
+Proof.
+
+R
+
+Since C has a shortcut, let this shortcut be the path u −→ +
+D v (note that u 6= v because C
+P
+
+Q
+
+is simple). By definition, we know that (i) u, v ∈ Σ(C) , so we may write C = v −
+→ +u −
+→ + v, (ii)
+P
+
+′
+
+R
+
+the cycle C = v −
+→ + u −→ ∗D v is also a conflict-cycle of type II, and (iii) W (Q) 6= ∅.
+′
+′
+Let W1 (C ) = {i · (i + 1)|a1 ≤ i < b1 }. Since C is a conflict-cycle of type II, by Lemma 3.6,
+′
+′
+′
+′
+there exists a vertex w ∈ Σ(C ) such that w ∈
+/ [a1 , b1 ]. If w is located on the path P , then let
+′
+′
+′
+w = b; otherwise, w is located on the path R , and we instead let w = w . We can see that, in
+both cases, there exits in (Σ, D) at least one path from u to w and also at least one path from w to
+R1 ∗
+R2 ∗
+v. Let u −→
+→ D v denote their respective shortest paths, so we may write the path
+D w and w −
+′′
+R1 ∗
+R2 ∗
+P
+R
+R = u −→ D w −→ D v. Thus, we obtain a new cycle C = v −
+→ +u −
+→ ∗D v. To show R is a
+′′
+shortcut of C, it suffices by showing that the cycle C is a conflict-cycle of type II, as done below.
+′
+′′
+′
+Note that W (C ) = W (C ), since neither R nor R use any vertex from W . Consequently,
+′
+′′
+′′
+W(C ) = W(C ), which implies that {i · (i + 1)|a1 ≤ i < b1 } is also an element of W (C ). Further
+′
+′′
+note that, no matter in which case the vertex w is defined, the vertex w is always in Σ(C ) so that
+′
+′′
+w ∈
+/ [a1 , b1 ]. Thus, it follows from Lemma 3.6 that C is a conflict-cycle of type II.
+′
+
+Based on the above lemma, we propose a procedure 2 to determine whether a given simple
+′
+type II conflict-cycle C is minimal and, if it is not minimal, to report a type II conflict-cycle C
+′
+with W (C ) < W (C). It is done by conducting four tests for all triples of vertices hu, v, wi ∈
+Q
+P
+Σ(C) × Σ(C) × Σ: (i) whether W (Q) 6= ∅ where C = v −
+→ +u −
+→ + v (taking O(n) time), (ii)
+R1 ∗
+2
+whether there exists a shortest path u −→
+D w between u and w in (Σ, D) (taking O(n ) time),
+R2 ∗
+2
+(iii) whether there exists a shortest path w −→
+D v between w and v in (Σ, D) (taking O(n ) time),
+′
+P
+R1 ∗
+R2 ∗
+and (iv) whether the cycle C = v −
+→ + u −→
+→ D v is a conflict-cycle of type II by using
+Dw −
+the procedure CCII -check() (taking O(n) time). If a triple hu, v, wi passes all the four tests, then
+′
+′
+R1 ∗
+R2 ∗
+we find a type II conflict-cycle C such that W (C ) < W (C) (i.e., the path u −→
+→ D v is a
+Dw −
+shortcut of C). If, instead, no triples in Σ(C) × Σ(C) × Σ can pass them, then we know that C is
+2
+
+The main challenge in developing such a procedure is to ensure that it would not end up with a conflict-cycle of
+type I.
+
+22
+
+Algorithm F IND - A -M INIMAL -T YPE -II-C ONFLICT-C YCLE
+′
+input An induced adjacency-order subgraph GΠ [W ∪ Σ]
+output A minimal type II conflict-cycle C
+begin
+C ← CCII -seed();
+′
+C ← C;
+′
+while C 6= ∅
+′
+C←C;
+C ← CCII -simplify(C);
+′
+C ← CCII -reduce(C);
+return C;
+end
+Table 3: A polynomial-time algorithm for finding a minimal type II conflict-cycle from an induced
+′
+′
+′
+adjacency-order subgraph GΠ [W ∪ Σ]. Note that GΠ [W ∪ Σ] = GΠ if W = W .
+already minimal. We denote this procedure by CCII -reduce(), and note that it can be executed in
+time O(n5 ).
+We present in Table 3 the algorithm used to find a minimal type II conflict-cycle from an
+′
+adjacency-order (sub)graph. Note that W (C ) < W (C) holds after each execution of the while
+loop, so that the while loop cannot be repeated more than n times. Thus, we can see that this
+algorithm can be executed in O(n6 ) time.
+5.2.2 Finding a minimal type I conflict-cycle
+The algorithm A PPROX -MBVS starts the search for the minimal type I conflict-cycle only when
+′
+there are no longer any type II conflict-cycles contained in the subgraph GΠ [W ∪Σ]. The following
+′
+lemma assists us in developing an algorithm to find a minimal type I conflict-cycle from GΠ [W ∪
+Σ].
+′
+
+′
+
+Lemma 5.18 Let W be a subset of W . If GΠ [W ∪ Σ] contains a type I conflict-cycle, then it also
+e1
+e2
+contains a type I conflict-cycle C = a1 −
+→ b1 →∗F a2 −
+→ b2 →∗F a1 such that (i) the arcs e1 ∈ X
+and e2 ∈ Y , (ii) V (C) = {i · (i + 1) | a ≤ i < b} ∪ {i | a ≤ i ≤ b} where a = min{a1 , b1 , a2 , b2 }
+and b = max{a1 , b1 , a2 , b2 }, and (iii) D(C) = {e1 , e2 }.
+′
+
+Proof.
+Since GΠ [W ∪ Σ] contains a type I conflict-cycle, by definition, it shall use one arc
+e1 = a1 → b1 ∈ X, one arc e2 = a2 → b2 ∈ Y , and all the vertices of {i · (i + 1) | a ≤ i <
+b} ∪ {i | a ≤ i ≤ b} if we let a = min{a1 , b1 , a2 , b2 } and b = max{a1 , b1 , a2 , b2 }. With these
+arcs and vertices, we are able to construct a desired type I conflict-cycle C through a case study, as
+illustrated in Figure 2.
+Based on the above lemma, we propose the following algorithm to find a minimal type I
+conflict-cycle (if any). For all pairs of arcs he1 , e2 i ∈ X × Y , where e1 = a1 → b1 ∈ X and
+23
+
+a1
+
+b2
+
+a1
+
+b2
+
+b2
+
+a1
+
+b1
+
+a2
+
+b2
+
+a1
+
+a1
+
+b2
+
+b2
+
+a1
+
+b1
+
+a2
+
+b1
+
+a2
+
+b1
+
+a2
+(1)
+
+(2)
+
+b1
+
+a2
+(3)
+
+(4)
+
+a2
+(5)
+
+b1
+(6)
+
+Figure 2: A conflict-cycle of type I can be formed for each of the six general cases as follows:
+(1) a1 →X b1 →∗F b2 →F a2 →Y b2 →∗F b1 →F a1 , (2) a1 →X b1 →F a1 →∗F a2 →Y
+b2 →F a2 →∗F a1 , (3) a1 →X b1 →F a2 →Y b2 →∗F b1 →∗F b2 →F a1 , (4) a1 →X b1 →F
+a2 →∗F a1 →∗F a2 →Y b2 →F a1 , (5) a1 →X b1 →F a1 →F b1 →∗F a2 →Y b2 →∗F a1 , (6)
+a1 →X b1 →∗F a2 →Y b2 →F a2 →F b2 →∗F a1 .
+
+e2 = a2 → b2 ∈ Y , first compute a = min{a1 , b1 , a2 , b2 } and b = max{a1 , b1 , a2 , b2 } and then test
+if there exists a path a →F b from a to b using arcs all from F (each taking O(n) time). Among all
+those pairs that passed the test, the one that attains the smallest value of (b − a) will be returned as
+a minimal type I conflict-cycle. Note that this algorithm can be executed in O(n5 ) time since the
+total number of arc pairs is no more than O(n4 ).
+Consider now the whole execution of the algorithm A PPROX -MBVS. Note that two while
+loops of A PPROX -MBL cannot each be repeated more than n times because we delete at least one
+vertex in F for each minimal conflict-cycle C to be considered. Therefore, the algorithm A PPROX MBVS (and hence Algorithm A PPROX -MBL) can be executed in O(n7 ) time. The main result of
+this paper thus follows (the approximation ratio follows from Theorem 5.15).
+Theorem 5.19 Algorithm A PPROX -MBL achieves an approximation ratio of (m2 + 2m − 1) for
+the MBL problem and runs in O(n7 ) time, where m is the number of genetic maps used to create
+the input partial order and n the total number of distinct genes appearing in these maps.
+
+6 Conclusions
+In this paper, we have studied the MBL problem in its original version, i.e., it assumes that gene
+strandedness is not available in the input genetic maps. We found that the approximation algorithm
+proposed in [3] for the MBL problem is not applicable here because it implicitly requires the
+availability of gene strandedness. Therefore, we revised the definition of conflict-cycle in the
+adjacency-order graphs, and then developed an approximation algorithm by basically generalizing
+the algorithm in [3]. It achieves a ratio of (m2 + 2m − 1) and runs in O(n7 ) time, where m is the
+24
+
+number of genetic maps used to construct the input partial order and n the total number of distinct
+genes in these maps. We believe that the same approximation ratio also applies to the special
+variant of the MBL problem studied in [3], thereby achieving an improved approximation ratio
+over the previous one (m2 + 4m − 4) given in [3]. In the future, it is very interesting to investigate
+whether an O(m)-approximation can be achieved for the MBL problem.
+
+References
+[1] V. Bafna and P. A. Pevzner. Genome rearrangements and sorting by reversals. In SFCS ’93:
+Proceedings of the 1993 IEEE 34th Annual Foundations of Computer Science, pages 148–157,
+1993.
+[2] Guillaume Blin, Eric Blais, Danny Hermelin, Pierre Guillon, Mathieu Blanchette, and Nadia
+El-Mabrouk. Gene Maps Linearization using Genomic Rearrangement Distances. Journal of
+Computational Biology, 14(4):394–407, 2007.
+[3] Laurent Bulteau, Guillaume Fertin, and Irena Rusu. Revisiting the minimum breakpoint linearization problem. In TAMC, pages 163–174, 2010.
+[4] Xin Chen and Yun Cui. An approximation algorithm for the minimum breakpoint linearization
+problem. IEEE/ACM Trans. Comput. Biol. Bioinformatics, 6(3):401–409, 2009.
+[5] Xin Chen and Jian-Yi Yang. Constructing consensus genetic maps in comparative analysis.
+Accepted by Journal of Comput. Biol., 2010.
+[6] Zheng Fu and Tao Jiang. Computing the breakpoint distance between partially ordered
+genomes. Journal of Bioinformatics and Computational Biology, 5(5):1087–1101, 2007.
+[7] Immanuel V. Yap, David Schneider, Jon Kleinberg, David Matthews, Samuel Cartinhour, and
+Susan R. McCouch. A Graph-Theoretic Approach to Comparing and Integrating Genetic,
+Physical and Sequence-Based Maps. Genetics, 165(4):2235–2247, 2003.
+[8] Chunfang Zheng, Aleksander Lenert, and David Sankoff. Reversal distance for partially ordered genomes. Bioinformatics, 21(suppl 1):i502–508, 2005.
+[9] Chunfang Zheng and David Sankoff. Genome rearrangements with partially ordered chromosomes. Journal of Combinatorial Optimization, 11(2):133–144, 2006.
+
+25
+
+

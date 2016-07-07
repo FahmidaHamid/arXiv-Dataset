@@ -1,0 +1,843 @@
+Modeling ant battles by means of a diffusion-limited
+Gillespie algorithm
+Short title: Diffusion-limited ant battles model
+Gianluca Martelloni1,4 *, Alisa Santarlasci2,4, Franco Bagnoli1,4,5, Giacomo Santini3
+1
+
+Department of Physics and Astronomy, University of Florence, via G. Sansone, 1 50019 Sesto Fiorentino,
+Firenze (Italy).
+2
+
+Department of Information Engineering, University of Florence, via S. Marta, 1 50139 Firenze, Italy.
+
+3
+
+Department of Biology, University of Florence, via Madonna del Piano, 6 50019 Sesto Fiorentino, Firenze
+(Italy).
+4
+
+Center for the Study of Complex Dynamics, University of Florence.
+
+5
+
+INFN, Florence
+
+Abstract
+We propose two modeling approaches to describe the dynamics of ant battles, starting from
+laboratory experiments on the behavior of two ant species, the invasive Lasius neglectus and the
+authocthonus Lasius paralienus. This work is mainly motivated by the need to have realistic models
+to predict the interaction dynamics of invasive species. The two considered species exhibit different
+fighting strategies. In order to describe the observed battle dynamics, we start by building a
+chemical model considering the ants and the fighting groups (for instance two ants of a species and
+one of the other one) as a chemical species. From the chemical equations we deduce a system of
+differential equations, whose parameters are estimated by minimizing the difference between the
+experimental data and the model output. We model the fluctuations observed in the experiments by
+means of a standard Gillespie algorithm. In order to better reproduce the observed behavior, we
+adopt a spatial agent-based model, in which ants not engaged in fighting groups move randomly
+(diffusion) among compartments, and the Gillespie algorithm is used to model the reactions inside a
+compartment.
+Keywords: Ants behavior, Battle modeling, Gillespie algorithm, Agent-based modeling
+
+1. Introduction
+Eusociality is a characteristic of some insect species, such as bees and ants, and is the basis of their
+ecological success. Ants, in particular, with their worldwide distribution, are among the most
+abundant and ecologically relevant terrestrial group: they contribute up to 15–20% of the total
+*
+
+email: gianluca.martelloni@unifi.it
+
+terrestrial animal biomass and, due to the ability to modify their environment, are considered
+“ecosystem engineer” [1]. This point becomes particularly important in the case of invasive species,
+whose control is difficult and their eradication often practically impossible. Invasive ants are able to
+form vast colonies, which in some cases may merge into a single large “supercolony” of
+interconnected nests [2,3]. Among the key features characterizing the ecology and behavior of
+invasive ants, an important role is played by their ability to adopt mass fighting strategies that allow
+easily defeating their opponents. A deeper comprehension of the fighting behavior of invasive ant is
+thus needed to formulate reliable mathematical models to predict the dynamics of invasive ants
+spread in an ecological system.
+The features of invasive ants are deeply study by many points of view. Many studies take into
+consideration the typical aspects of invasive ants: the spatial distribution of the interconnected nests
+with the genetic and chemical relationships among ants [4]. The development of a spatial colony
+structure related to the invasive capacity of the ant species is schematized by Cremer et al., [2] .
+Furthermore, they report a correlation analysis between the geographical distance and the
+dissimilarities in cuticular hydrocarbons for each pair of nests considered. Killion and Grant [5]
+proposed a colony-growth model for the invasive fire ant (Solenipsis invicta) to test the limit of its
+expansion range in the central United States. Fitzgerald et al., [6] developed a grid-based model to
+predict the course of a fine-scale invasion of the invasive Argentine ants (Linepithema humile) from
+the suburban matrix to the country side. This model is based on observations of the
+presence/absence of ants in a given location and incorporates the invasion process from neighboring
+areas.
+During group combats social animals may adopt different fighting strategies. In the simplest case, a
+battle is a sequence of duels: each individual of a group face a single opponent of the other group.
+In more organized armies, however, the individuals of a species can cooperate to attack a single
+opponent. In the latter case, group size may have a disproportionate importance over the individual
+fighting ability.
+To describe the battles between two opposing groups, Lanchester (1916) [7] proposed two simple
+mathematical models, known as the “linear” and the “square” law, respectively. Under the linear
+law it is assumed that the battle consists of a series of duels. On the contrary, the square law
+considers that members of the more numerous group gang together to attack a single opponent of
+the less numerous group. According to the linear law, the death rates of the two species depend
+mainly on the fighting ability of the opponent’s abundance. Under the “square law”, on the
+contrary, the death rate of one species depends more on opponent’s abundance. The Lanchester
+
+model was originally developed to model military combats, and was first applied to describe animal
+contests by Franks and Patridge [8]. See also [9-14].
+The original Lanchester equations do not consider the spatial dimension of the battlefield.
+Protopopescu et al.,[15] included for the first time one–dimensional spatial effects in the Lanchester
+equations. This approach was followed by Cosner et al., [16] who used a parabolic system with
+nonlinear interactions. Spradlin and Spradlin [17] and Keane [18,19] applied Protopopescu et al.,
+approach to two dimensions [15]. In all these papers the conflicts are modeled by means of
+reaction-diffusion partial differential equations. A general formulation for a spatial Lanchester
+model is reported by Gonzalez and Villena [20]. In their work, they pay attention to the explicit
+balance of forces taking into account the movements and the concentrations of opponents. None of
+these papers, however, take into account the behavior of single individuals during the fight and their
+movements in the battle area.
+In order to overcome these limitations, we developed a spatial agent-based model calibrated on
+experimental data. The agent-based approach directly considers the interactions among the
+individuals composing the system. The power of this method relies on its capacity to recreate,
+starting by simple behavioral rules, the spatio-temporal evolution of a complex system.
+For example, Luo and Opaluch [21] use a spatial-explicit agent-based simulation model to study the
+environmental risks of introducing the non-native oyster Crassostrea ariakensis in Chesapeake
+Bay, USA, where the native oyster populations are declining. Agent-based models are used to
+investigate ecological problems, where the spatial component may be important, such as spreading
+of invasive species (plants, animals, bacteria, virus disease etc.), dynamics of native species with
+references to spatial limitations, competition. See for example [22-30].
+Our study focus on two species that share the same habitat but with different behavior and fighting
+strategies: the invasive ant Lasius neglectus and the autochthonous Lasius paralienus, both present
+in Europe. Asia Minor is the likely native environment of Lasius neglectus [31] where it derived
+from Lasius turcicus. This species, first identified near Budapest in 1990 [32] spread all over
+Europe and Asia [4] mainly colonizing urban habitats where it replaces most of native ant species
+and other arthropods [2]. As other invasive ants, L. neglectus forms large networks of
+interconnected nests, characterized by the absence of intraspecific aggression. Each nest hosts many
+queens (polygyny), which mate inside the nest and disperse on foot accompanied by workers
+(colony budding). The numerical advantage resulting from these large “supercolonies” promotes
+efficiency and fighting superiority with respect to other species [2, 3, 33]. Lasius paralienus [35], a
+species common in Europe, is usually more abundant in the countryside, although can also be found
+
+in urban gardens. It is a monogynous species and forms middle-sized colonies, with a limited
+competitive ability.
+Our research started with experimental observations on the fighting behavior of these two species,
+staging battles where 10 L. neglectus confronted to 10 L. paralienus. Larger battles are possible but
+were avoided due the difficulty in following the behavior of individual ants in denser groups. We
+first describe the dynamics of the system by means of chemical equations which encode the
+interactions among individuals, i.e., we consider the single ant species and the groups, formed
+during the battle, as chemical species.
+
+For example, two ants can attack (simultaneously or
+
+sequentially) an opponent and, if the group is sufficiently long-lasting, we consider the three-ant
+group a specific chemical entity. From the chemical reactions we derive a system of differential
+non-linear equations (DE) that gives a mean-field description of the system. The chemical rate
+equations are obtained by comparison, through an optimization algorithm (Flexible Simplex, [36] ),
+with experimental data. This deterministic approach is valid when the state variables correspond to
+a large number of individuals of each species [37], while in our tests the number of ants is small and
+indeed generate large fluctuations in the system. To take into account the finiteness of the system
+we use a Gillespie algorithm [38], which is an event-driven agent-based model without spatial
+structure. Although this approach satisfactorily reproduces the observed fluctuations in the number
+of groups, it may not be able to take into account of the influences of space on the dynamic of the
+studied system. To analyze the effect of the mobility on ant behavior and to test if the standard
+Gillespie algorithm is sufficient to fully characterize the experiments, we developed a spatial
+version of the Gillespie algorithm. We assume that ants move randomly in a disk that reproduces
+the geometry of our battle arenas (Petri dishes). The disk is partitioned into compartments, and the
+Gillespie algorithm is employed inside each compartment for choosing the next event. In this
+approach the reactions are limited by the diffusion, and we denote it diffusion-limited Gillespie
+algorithm.
+In Section 2.1 we present the materials and the method used in experimental observations and a
+description of the fighting abilities of the two species considered. Section 2.2 illustrates the
+chemical approach, describes the deterministic model based on differential equations and explains
+the parameters’ identification technique. In section 2.3 we introduce a stochastic model based on the
+classical Gillespie algorithm. In section 2.4 we implement a spatial agent-based model to test the
+influence of the space on the outcome of the fighting dynamics.
+
+2. Materials and methods
+2.1 Experimental model: Ant sampling and site
+To carry out the experiments we collected ants during July/August 2012 in Prato (Northern
+Tuscany, Italy, 43°52’ 46”N, 11°05’50”E), where colonies of L. neglectus and L. paralienus can be
+found in urban gardens. Each species was collected from nests at 200 m from each other. The two
+species are monomorphic with low intraspecific differences in ant size. After collection, specimens
+were maintained in a test tube, with water available, to acclimatize to laboratory conditions for one
+hour (temperature T ≈27 ℃). Ten specimens of the two species were then simultaneously dropped
+into a neutral arena, represented by a 10 cm (diameter) Petri dish with Fluon © coated walls.
+The interactions among ants were recorded using a fixed digital camera for five 15–minutes
+periods, interspaced by periods of 30 minutes during which water was offered to ants. The total
+recording time is therefore 75 minutes, and the total elapsed time is 3 hours and 15 minutes. We
+choose this procedure to obtain sufficiently long observation times, and hence increasing the
+probability of observing casualties, while keeping the total duration of recordings small.
+The two species show different behaviors. L. neglectus is always the first aggressor, exhibits
+cooperative behavior but it also suffers greater mortality. L. paralienus is less aggressive, often
+avoids fighting, individuals do not cooperate but they are stronger than L. neglectus in individual
+duels. L. neglectus, on the contrary, is smaller than its counterpart and its success mainly depends
+on the ability of individuals to cooperate in aggressing single opponents. Groups of up to four L.
+neglectus may in fact form during the fights.
+The videos were examined taking note, during time, of the number of individuals of the two species
+involved in a fighting group. Only specimens, remaining in close contact for at least 15 seconds,
+were considered as forming a group. We denote L. paralienus by A and L. neglectus by B. The
+groups AB, ABB and ABBB denote the groups in which one A fights with one B, one A with two B’s
+and one A with three B’s, respectively. During the experiments we observed that the A and B
+individuals, not involved in the fights, remain in motion, while ants engaged in a fight (i.e., those
+forming a group AB, ABB or ABBB) do not move. We also annotated the changes in the
+composition of groups due to disengagement or death (a rare event) and the duration of each group.
+In Figure 1A-F we report the change in the number of A and B individuals and AB, ABB and ABBB
+groups observed in two experiments. Figure 1G shows the time at which we observe a new event
+(i.e., the death of an ant or formation/ dissolution of a group). In these two experiments we observed
+the death of only an A individual, while for B species we observed 7 and 4 deaths.
+
+A
+
+B
+
+C
+
+D
+
+E
+
+F
+
+Fig. 1. The number of individuals and observed fighting groups in two experiments. (A) Number of individuals of
+species A. (B) Number of individuals of species B. (C) Number of AB groups. (D) Number of ABB groups. (E) Number
+of ABBB groups. (F) The time at which we observe a new event, i.e., a death of an ant or the formation or dissolution of
+a group.
+
+2.2 The differential model and parameter identification technique
+The dynamics of the ant fighting are simulated using a chemical model which explicitly
+incorporates the interactions among individuals. We consider the following observed reactions:
+k1
+
+A  B  AB ,
+k2
+
+(1)
+
+k3
+
+AB  B ,
+
+(2)
+
+k4
+
+AB  A ,
+
+(3)
+
+k5
+
+AB  B  ABB ,
+k6
+
+(4)
+
+k7
+
+ABB  AB ,
+
+(5)
+
+k8
+
+ABB  2 B ,
+
+(6)
+
+k9
+
+ABB  A  2 B ,
+k10
+
+(7)
+
+k11
+
+ABB  B  ABBB ,
+k12
+
+(8)
+
+k13
+
+ABBB  3B ,
+
+(9)
+
+k14
+
+ABBB  AB  2 B ,
+k15
+
+(10)
+
+where ki, i=1,2,…,15, are the reaction constants. Equation (1) represents the formation and the
+dissolution of an AB group. Equations (2) and (3) describe the mortality of A and B inside an AB
+group. Equation (4) takes into account the formation and dissolution of group ABB, while Eqs. (5)
+and (6) model the death of B and A in larger groups. Eq. (7) describes the formation (dissolution) of
+an ABB group when two Bs attack (or abandon) a single A. Multiple attacks such as that in Eq. (7)
+do not occur simultaneously in real combats. However, since they may occur within a very short
+interval, they were considered as simultaneous. Finally Eqs. (8), (9) and (10) describe the dynamics
+of the chemical species ABBB (for more detailed see [39]).
+Let x1, x2, .., x5 denote the abundance of the chemical species A, B, AB, ABB and ABBB,
+respectively. The average dynamics of the system is described by the following system of nonlinear differential equations:
+x1  k1  x1  x2  k10  x1  x22  k2  k4  x3  k9  x4 ,
+
+x2  k1  x1  x2  2  k10  x1  x22  k2  k3   x3  k5  x2  x3  2  k15  x22  x3 
+ k6  2  k8  2  k9   x4  k11  x2  x4  k12  3  k13  2  k14   x5
+
+(11)
+(12)
+
+x3  k1  x1  x2  k5  x2  x3  k2  k3  k4  x3  k6  k7  x4  k15  x22  x3  k14  x5 ,
+
+(13)
+
+x4  k10  x1  x22  k5  x2  x3 k 11x2  x4  k6  k7  k8  k9  x4  k12  x5 ,
+
+(14)
+
+x5  k11  x2  x4  k12  k13  k14  x5  k15  x22  x3 ,
+
+(15)
+
+where,
+
+represent the time derivatives, i.e., the growth rate for each considered species.
+The differential system (11-15) is integrated by means of the numerical method of Cash and Karp
+[40] checking that the fourth and fifth order solutions provide the same results.
+The Eqs. (11-15) do not exhibit fixed points as the stationary solution (dx1/dt = 0, dx2/dt = 0, dx3/dt
+= 0, dx4/dt = 0, dx5/dt = 0) depends on the initial conditions (Figure 2). This dependence is
+consistent with the biological point of view: the number of survivors of the winning species
+depends on the initial number of individuals involved in the battle.
+
+Fig. 2. Phase plane considering the chemical species A and B, obtained using different initial conditions.
+
+Model parameters were estimated from one of the experiments where mortality of the two species
+occurred, using the Simplex Flexible Algorithm (SFA, [36]). This optimization algorithm find the
+best set of parameters P = [k1, …, ki, …, k15] which minimize error function F(P),
+5
+
+F P   
+j 1
+
+2
+1 N exp
+
+x j ,n  x mod
+
+j , n P  ,
+N n 1
+
+(16)
+
+where xexp and xmod indicate the experimental and the values obtained by the model, respectively, for
+each species j=1, 2,…, 5 and for each population value n=1, 2, …, N. Table 1 shows the estimated
+values of the parameters.
+
+In Figure 3 and 4 we show observed changes in total population of species A and B and the
+corresponding values from the deterministic model with the optimized parameters, considering that
+the simulation time is 4620 seconds as in the reference experiment (for more details about
+population trend of each chemical species, see [39]).
+
+Fig. 3. Comparison between observed (continuous line) number of A individuals and predicted (dotted line) using the
+deterministic model with optimized parameters.
+
+Fig. 4. Comparison between observed (continuous line) number of B individuals and predicted (dotted line) using the
+deterministic model with optimized parameters.
+
+ki
+
+Optimized parameters by
+parametric identification of
+DE
+
+k1
+
+0.0002438
+
+k2
+
+0.0006932
+
+k3
+
+7.7388e-05
+
+k4
+
+0.001211
+
+k5
+
+6.94257e-06
+
+k6
+
+4.75385e-06
+
+k7
+
+4.50353e-05
+
+k8
+
+3.40730e-05
+
+k9
+
+6.38355e-06
+
+k10
+
+1.05249e-05
+
+k11
+
+3.13041e-05
+
+k12
+
+0.00040597
+
+k13
+
+0.0009040
+
+k14
+
+1.22548e-06
+
+k15
+
+6.53508e-06
+
+Tab. 1. Values of the best reaction constants ki obtained by means of the optimization algorithm SFA.
+
+2.3 Standard Gillespie algorithm
+Experimental data (see Figure 1) shows large fluctuations in the number of individuals and groups.
+We also observe wide fluctuations in the times at which the reactions occur. The deterministic
+model of Eqs. (11-15) cannot reproduce this behavior. The estimation of fluctuation is also
+important for establishing the minimum number of experimental observations needed to validate the
+parameters.
+For this purpose we exploited the Gillespie’s direct method [38], which is an algorithm that
+generates a statistically correct trajectory, given a set of transition probabilities. This method
+explicitly simulates each reaction, giving a stochastic formulation of the kinetics based on the
+theory of random encounters. Considering a time interval t, the reaction probability function is
+
+ Pt , i   P1 (t )  P2 (i )
+ P (t )  F  exp  F  t 
+0
+0
+ 1
+
+Fi
+.
+ P2 (i ) 
+F0
+
+15
+
+ F0   Fi
+i 1
+
+
+(17)
+
+where Fi is the propensity function (see Eq. (20)).
+The reaction probability density function is separable in two parts, an exponential distribution of
+time reactions P1 and the normalized propensity function of reactions P2. The Gillespie algorithm
+can be implemented in two steps by choosing the time interval t and the identity i of the reaction
+respectively as
+
+t 
+
+1
+1
+ ln  
+F0  r1 
+
+(18)
+,
+
+and
+i*1
+
+i*
+
+1
+
+1
+
+ Fi  r2  F0   Fi* ,
+
+(19)
+
+where i* is the integer for which Eq. (19) is valid and r1 and r2 are uniform random numbers
+between 0 and 1. The propensity vector of reactions is
+
+k1  x1  x 2
+
+
+
+
+k 2  x3
+
+
+
+
+k 3  x3
+
+
+k 4  x3
+
+
+
+
+k 5  x 2  x3
+
+
+k 6  x4
+
+
+
+
+k 7  x4
+
+
+k8  x4
+
+
+
+
+k 9  x4
+
+
+ k10  x1  x 2   x 2  1 / 2 
+
+
+k11  x 2  x 4
+
+
+
+
+k12  x5
+
+
+k13  x5
+
+
+
+
+k14  x5
+
+
+k15  x3  x 2   x 2  1 / 2 ,
+
+(20)
+
+where the factors express the number of different ways in which individuals can participate to the
+reaction.
+In Figure 5 we show a sample of 100 stochastic trajectories, generated by means of the Gillespie
+algorithm, together with the mean-field prediction of the deterministic model, for the total number
+of species A and B. Figure 6 shows the frequency distributions of surviving A and B individuals
+obtained from 1000 simulated trajectories. The probability that 10 individuals of species A survive,
+is about of 45%, while for 9 individuals is about 35%. For the species B, the maximum probability
+of survival is about 30% corresponding to two individuals. Note that for the deterministic model we
+
+expect 9 survivors for the species A and 3 for species B, while the maximum survival probability
+(stochastic model) corresponds to 10 and 2 for species A and B respectively, due to finite size
+effects.
+
+A
+
+B
+
+Fig. 5. Comparison between 100 stochastic trajectories and values predicted by the deterministic model. (A) Species A.
+(B) Species B.
+
+A
+
+B
+
+Fig. 6. Occurrence of survivors after 4620 seconds considering 1000 stochastic trajectories. (A) For the species A. (B)
+For the species B.
+
+2.4 The diffusion-limited Gillespie algorithm
+In order to verify the influence of the spatial dimension on ant battle dynamics we implemented a
+spatial agent-based model. We considered a disk (corresponding to a 10 cm Petri dish) where the
+ants of the two species move randomly. The idea is to replace the choice of random reaction times
+given by Eq. (18) with the collision probability of a random walk. Since it is difficult to estimate
+this probability in a continuous space represented by a disk (due to the presence of borders) we
+adopted a discrete lattice and we partitioned the disk into 1cm-wide square cells (see Figure 7). The
+chemical species A and B can diffuse to neighboring cells, while the fighting groups AB, ABB and
+ABBB remain in the cell where they formed, as observed in the experiments.
+
+Ants can move from one cell to a neighboring or next-to-neighboring one with probability 1/8. This
+transition probability fixes the time scale of the system. As observed in experiments, “free” ants
+move continuously, unless they meet an opponent (i.e., when individuals of different chemical
+species occupy the same cell). In this case the Gillespie dynamics is taken into account to determine
+the reaction probability ,
+
+Fi
+
+ P(i )  F
+
+0
+,
+
+15
+F  F
+i
+ 0 
+i 1
+
+(21)
+
+with the propensity function expressed by Eq. (20).
+
+A
+
+B
+
+Fig. 7. (A )The virtual Petri dish, where the chemical species A and B move with a spatial step of 1 cm to the nearest
+and next-to-nearest neighbors according to 2D random walk. (B) The discrete lattice (81 cells) where the virtual ants
+move: the circles indicate the center of cells, while the crosses indicate the reflecting walls.
+
+In terms of Markov chains we can express the probability to find a random walker in a given cell of
+the lattice, depending on its starting position, using the transition matrix T (Fig. (8)):
+
+Pi ,t  Tt  Pi ,0 ,
+
+(22)
+
+where Pi,t=[pi,1, pi,2,…, pi,k,…, pi,81] represents the probability that a random walker i is located in
+one of the 81 cells of the lattice at time t giving its starting position Pi,0 at time 0 (see Figure 7B),
+depending on starting position Pi,0 in the time t. For example, if we start from position 40 we
+assume pi,40=1 and pi,k=0 for each k40. The transition matrix is implemented considering reflecting
+walls as indicated in Figure 7B.
+
+Fig. 8. Representation of the symmetric transition matrix T.
+
+It is possible to express the probability Pij,t of the first intersection of two random walkers (i, j), i.e.,
+two ants of different species, at time t as the probability that the two trajectories have not met at
+previous times (1, 2,..,t-1),
+
+ t 1
+
+Pij ,t   1  Pi ,n  Pj ,n   Pi ,t  Pj ,t .
+ n 1
+
+
+(23)
+
+Assuming the independence of events, we can write the probability It of the first intersection, given
+the number of random walkers, i.e., the number of ants of the two species, as
+t 1
+t 1
+
+
+
+
+
+I t   Pij ,t   1  Pi ,t  PJ ,t  1  Pi ,n  PJ ,n    1  PI ,t  Pj ,t  1  PI ,n  Pj ,n   .
+ij 
+i,J  j 
+n 1
+n 1
+ I i , j 
+
+
+(24)
+
+Equation (24) represents the sum of the probabilities of pair intersections, considering for each pair
+(i, j) of ants that each i has not met any j (Jj) and that each j has not met any I (Ii) before. We can
+include also the trajectories of ants that detach from a fighting group (for example considering the
+inverse reaction of Eq. (1)). Equation (24) determines the time in which is possible to have a
+reaction and replaces the exponential probability P1(t) of the classical Gillespie algorithm (see Eq.
+(17)). In Fig. 9 we show the transition probability of the first intersection for each cell of the virtual
+disk. These probabilities have a maximum between 2 and 11 time steps, depending on the initial
+position of ants.
+
+A
+
+B
+
+Fig. 9. (A ) The transition probability of the first intersection over time for each position of virtual disk, calculated for
+one simulation. (B) The mean of transition probability of the first intersection over the time for one simulation.
+
+In Figure 10 we show a simulation of the spatial model together with the position of the chemical
+species in the simulated Petri dish. In Figure 11 we report a comparison between 100 stochastic
+simulations, generated by means of Gillespie algorithm, and the numeric solution of DE for the total
+number of species A and B. As in the previous case, we can estimate the survival probability with a
+simple Monte Carlo simulation, considering 1000 trajectories (Figure 12). In this case the survival
+of 10 individuals of species A, is about 55%, while for 9 individuals is about 35%. For the species
+B, the maximum probability of survival is about 24% corresponding again to two individuals. The
+differences between the two statistics are due to stochastic fluctuations, to different probabilities of
+the corresponding models and to finite size effects.
+
+A
+
+B
+
+Fig. 10. A simulation of the Gillespie-based agent model. (A) The population trend over the time up to time t = 1320s.
+(B) The positions of the chemical species in a virtual Petri dish at time t = 1320s.
+
+A
+
+B
+
+Fig. 11. Comparison between predictions of the deterministic model and 100 stochastic trajectories generated by means
+of Gillespie-based agent model. (A) Species A. (B) Species B.
+
+A
+
+B
+
+Fig. 12. Occurrence of number of survivors considering 1000 stochastic trajectories generated by means of Gillespiebased agent model. (A) Species A. (B) Species B.
+
+3. Discussion
+
+A
+
+B
+
+C
+
+E
+
+D
+
+F
+
+Fig. 13. Comparison between the time-dependent stochastic model and the spatial Gillespie-based agent model from the
+statistical point of view. (A) Time of reaction (100 simulations) vs. the observed reactions for the time-dependent
+stochastic model. (B) Time of reaction (100 simulations) vs. the observed reactions for the spatial Gillespie-based agent
+model. (C) The distribution of the time reaction (1000 simulations) for the time-dependent stochastic model. (D) The
+distribution of the time reaction (1000 simulations) for the spatial Gillespie-based agent model. (E) The distribution of
+the time reaction intervals (1000 simulations) for the time-dependent stochastic model. (F) The distribution of the time
+reaction intervals (1000 simulations) for the spatial Gillespie-based agent model.
+
+Considering the simulations, both the standard and the diffusion-limited Gillespie models are
+suitable to describe the experiments. The main difference between the two models, as mentioned
+above, is the probability of the intersection of the random walkers that determines the time of a
+possible reaction (Figure 13B), while in the standard Gillespie model the time of reaction is chosen
+considering an exponential distribution (Figure 13A). We performed 1000 simulations to compare
+the statistics of the reaction times of the two models. The standard Gillespie model exhibits, as
+expected, an exponential distribution (R-square = 0.996) of the reaction times (Figure 13C), while
+the diffusion-limited one exhibits, with a sufficient approximation, a linear distribution (R-square =
+0.918). This difference is evident in Figure 13A and 13B. The standard Gillespie model promotes
+initially a faster dynamics than the diffusion-limited one, based on random walks, as can be seen
+comparing Figure 5 (initially fast dynamics) with Figure 11 (regular dynamics due to probability of
+
+random walk intersection). The distribution of the time increments is always a power law
+distribution. For the standard Gillespie model we achieve an exponent γ = -2.611 with a R-square =
+1, while for the diffusion-limited one an exponent γ = -2.719 with a R-square = 0.9998.
+
+4. Conclusions
+We performed laboratory experiments to model ant battle dynamics and the fighting strategies of
+two ant species, Lasius neglectus and Lasius paralienus. We built two models, a simple timedependent model and a spatial one, both based on a stochastic approach. The first one is based on
+the Gillespie algorithm that allows to choose the reactions (Eqs. (1-10)) and the time in which the
+reaction occurs. The second model (the spatial one), is based on the Gillespie algorithm only for the
+choice of the reaction, while the reaction time depend on the probability of the intersection between
+the random walks. Analyzing the simulations, we can conclude that both stochastic models are
+suitable to describe the ant battle dynamics, and that more experiments are necessary in order to
+appropriately validate the models.
+The comparison between the statistical analysis of two models shows that the introduction of space
+in the dynamics affects the trend of the reaction times (see Figure 13A and 13B). One of the most
+important differences is that, initially, in the standard Gillespie model there is a faster reaction
+dynamics, compared to the diffusion-limited one, due to the effects of the exponential reaction time
+of the Gillespie algorithm (Figure 13A and 13B). Secondly, the effect of modeling ant motion as
+random walks leads to a linear distributions of reaction times (see Figure 13D) and thus almostlinear trajectories (Figure 13B).
+The main results of our approach is that, by means of the Monte Carlo simulations, we can estimate
+the probability of survival of the two considered species in the battle.
+We are preparing and analyzing several new experiments in order to verify and validate our
+methodology. The results of the analysis and the comparisons with the models will be presented
+elsewhere.
+
+References
+[1] Schultz TR. (2000) "In search of ant ancestors". Proceedings of the National Academy of
+Sciences. 2000; 97 (26): 14028–14029.
+[2] Cremer S, Ugelvig LV, Drijfhout F P, Schlick-Steiner BC, Steiner FM, Seifert B, Hughes DP,
+Schulz A, Petersen KS, Konrad H, Stauffer C, Kiran K, Espadaler X, d’Ettorre P, Aktac N,
+Eilenberg J, Jones GR, Nash DR, Pedersen JS, Boomsma JJ. (2008) The evolution of invasiveness
+in garden ants. Plos one. 2008 ; 3 (12).
+[3] Tsutsui ND and Suarez AV.( 2003) The Colony Structure and Population Biology of Invasive
+Ants. Conservation Biology.2003; Vol 17, 1, 48–58.
+[4] Ugelvig LV, Falko P, Drijfhout FP, Daniel JC, Kronauer D JC, Jacobus J, Boomsma JJ,
+Pedersen JS, and Cremer S. The introduction history of invasive garden ants in Europe: Integrating
+genetic, chemical and behavioural approaches. BMC Biology. 2008, 6-11.
+[5] Killion MJ and Grant WE. A colony-growth model for the imported fire ant: potential
+geographical range of an invading species. Ecological. Modelling. 1995.77, 73-84.
+[6] Fitzgerald K, Heller N, Gordon DM. Modeling the spread of the Argentine ant into natural
+areas: Habitat suitability and spread from neighboring sites. Ecological Modelling .2012. 247, 262272.
+[7] Lanchester F. (1916) Aircraft in Warfare, New York, Apleton.
+[8] Franks NR and Partridge LW. Lanchester battles and the evolution of combat in ants. Animal
+Behavior. 1992. 45: 197–199.
+[9] Batchelor TP, Santini G, Briffa M. Size distribution and battles in wood ants: group resourceholding potential is the sum of the individual parts. Animal Behaviour . 2011. 83, 111-117.
+[10] Johnson IR, MacKay NJ. Lanchester Models and the Battle of Britain. Naval Research
+Logistics. 2011. Vol. 58.
+[11] McGlynn TP. Do Lanchester ‘s laws of combat describe competition in ants? Behavioral
+Ecology. 2000. Vol.11 No 6: 686-690.
+[12] Plowes NJR. and Adams ES. An empirical test of Lanchester's square law: mortality during
+battles of the fire ant Solenopsis invicta. Proc. R. Soc. 2005. B 272, 1809 – 1814.
+[13] Whitehouse MEA and Jaffe K. Ant wars: combat strategies, territory and nest defence in the
+leaf-cutting ant Atta laevigata. Animal Behavior. 1996. 51, 1207–1217.
+[14] Wilson ML, Britton NF and Franks NR. 2001. Chimpanzees and the mathematics of battle.
+Proc. R. Soc. Lond.2001. B 2002 269, 1107-1112.
+[15] Protopopescu V, Santoro R, Dockery J. Combat modeling with partial differential equations.
+European Journal of Operational Research. 1989. 38, 178-183.
+[16] Cosner C, Lenhart S, Protopopescu V. Parabolic systems with nonlinear competitive
+interactions. IMA Journal of Applied Mathematics. 1990. 44, 285-298.
+[17] Spradlin C, Spradlin G.Lanchester’s equations in three dimentions . Computers and
+Mathematics with Applications 2007. 53, 999-1011.
+[18] Keane T. Partial differential equations versus cellular automata for modeling combat. 2009.
+arXiv:0904.0021v1.
+
+[19] Keane T. Combat modeling with partial differential equations. Applied Mathematical
+Modelling. 2011. 35, 2723-2735.
+[20] Gonzalez E and Villena M. Spatial Lanchester models. European Journal of Operational
+Research. 2011.210, 706-715.
+[21] Luo M, James J, Opaluch JJ, Analyze the risks of biological invasion. An agent based
+simulation model for introducing non-native oysters in Chesapeake Bay, USA. Stoch Environ Res
+Risk Assess. 2011. 25, 377–388.
+[22] Arundel J, Oldroyd BP, Winter S. Modelling honey bee queen mating as a measure of feral
+colony density. Ecological Modelling. 2012. 247 ,48– 57.
+[23] Bracken J. 'Lanchester Models of the Ardennes Campaign'. Naval Research Logistics. 1995.
+42, 559-577.
+[24] Crespo-Perez V, Rebaudo F, Silvain JF, Dangle O. Modeling invasive species spread in
+complex landscapes: the case of potato moth in Ecuador. Landscape Ecol. 2011. 26, 1447–1461.
+[25] Fortuna MA, García C, Guimarães PR, Bascompte J. Spatial mating networks in insectpollinated plants. Ecology Letters. 2008. 11, 490–498.
+[26] Goodwin RA, Nestler JM, Anderson JJ, Weber LJ, Loucks DP. Forecasting 3-d fish movement
+behavior using a Eulerian–Lagrangian-agent method (elam). Ecological Modelling. 1996. 192, 197–
+223.
+[27] Grimm V, Railsback SF. Individual-Based Modeling and Ecology (Princeton Series in
+Theoretical and Computational Biology). 2005. Princeton University Press, Princeton, pp. 266–268.
+[28] Perez L Dragicevic S, Landscape-level simulation of forest insect disturbance: Coupling
+swarm intelligent agent with GIS-based cellular automata model. Ecological Modelling. 2012.
+231,53-64.
+[29] Martelloni G, Bagnoli F, Marsili Libelli S, A dynamical population modeling of invasive
+species with reference to the crayfish Procambarus Clarkii. 2012. Theoretical Biology Forum. 105,
+2/2012, 47-69.
+[30] Winkler E, Stocklin J. Sexual and vegetative reproduction of L. hieraciumpilosella under
+competition and disturbance: a grid-based simulation model. Annals of Botany.2002. 89, 525–536.
+[31] Seifert B. Rapid range expansion in Lasius Neglectus (Hymenoptera, Formicidae)- an Asian
+invader swamps Europe. Mitt.Mus. Nat.kd. Berl. Dtsch.entomol. 2000. Z.47, 173-179.
+[32] Van Loon AJ, Boomsa JJ, Andrasfalvy A. A new polyginus Lasius species (Hymenoptera;
+Formicidae) from central Europe. I. Description and general biology. 1990. Insect Soc 37: 348-362.
+[33] Batchelor TP and Briffa M. Influences on resource-holding potential during dangerous group
+contests between wood ants, Animal Behaviour. 2010. 80, 443-449.
+[34] Seifert B. Intranidal mating, gyne polymorphism, polygyny, and supercoloniality as factors for
+sympatric and parapatric speciation in ants. Ecological Entomology. 2010. 35 (Suppl.1), 33-40.
+[35] Seifert B. A taxonomic Revision of the Palaearctic Members of the ant subgenus Lasius s.
+tr.(Hymenoptera, Formicidae). 1992.
+[36] Marsili-Libelli S. Parameter estimation of ecological models. Ecological Modelling. 1992. 62,
+233–258.
+[37] Campillo F, and Lobry C. Effect of population size in a predator–prey model. Ecological
+Modelling. 2012. 246, 1– 10.
+
+[38] Gillespie DT. Exact Stochastic Simulation of Coupled Chemical Reaction. The Journal of
+Phisical Chemistry. 1977. Vol. 81, No.25.
+[39] Santarlasci A, Martelloni G, Frizzi F, Santini G, Bagnoli F. Modeling Warfare in Social
+Animals: A “Chemical” Approach. PLoS ONE. 2014. 9(11): e111310.
+doi:10.1371/journal.pone.0111310.
+[40] Cash JR and Karp AH. "A variable order Runge-Kutta method for initial value problems with
+rapidly varying right-hand sides". ACM Transactions on Mathematical Software. 1990. 16: 201-222.
+
+

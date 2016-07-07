@@ -1,0 +1,1810 @@
+Bayesian hidden Markov model analysis of single-molecule force spectroscopy:
+Characterizing kinetics under measurement uncertainty
+John D. Chodera,1, ∗ Phillip Elms,1, 2, 3 Frank Noé,4 Bettina Keller,4 Christian M. Kaiser,1, 5 Aaron
+Ewall-Wice,6 Susan Marqusee,1, 7, 3 Carlos Bustamante,1, 7, 3, 5, 8, 9 and Nina Singhal Hinrichs10
+
+arXiv:1108.1430v1 [cond-mat.stat-mech] 6 Aug 2011
+
+1
+
+California Institute of Quantitative Biosciences (QB3), University of California, Berkeley, CA 94720, USA
+2
+Biophysics Graduate Group, University of California, Berkeley, CA 94720, USA
+3
+Jason L. Choy Laboratory of Single Molecule Biophysics,
+Institute for Quantitative Biosciences, University of California, Berkeley, CA 94720, USA
+4
+DFG Research Center Matheon, FU Berlin, Arnimallee 6, 14195 Berlin, Germany
+5
+Department of Physics, University of California, Berkeley, CA 94720, USA
+6
+University of Chicago, IL 60637, USA
+7
+Department of Molecular & Cell Biology, University of California, Berkeley, CA 94720, USA
+8
+Department of Chemistry, University of California, Berkeley, CA 94720, USA
+9
+Howard Hughes Medical Institute, University of California, Berkeley, CA 94720, USA
+10
+Departments of Statistics and Computer Science, University of Chicago, IL 60637, USA
+(Dated: March 14, 2015)
+
+Single-molecule force spectroscopy has proven to be a powerful tool for studying the kinetic behavior of biomolecules. Through application of an external force, conformational states with small
+or transient populations can be stabilized, allowing them to be characterized and the statistics of individual trajectories studied to provide insight into biomolecular folding and function. Because the
+observed quantity (force or extension) is not necessarily an ideal reaction coordinate, individual observations cannot be uniquely associated with kinetically distinct conformations. While maximumlikelihood schemes such as hidden Markov models have solved this problem for other classes of
+single-molecule experiments by using temporal information to aid in the inference of a sequence of
+distinct conformational states, these methods do not give a clear picture of how precisely the model
+parameters are determined by the data due to instrument noise and finite-sample statistics, both significant problems in force spectroscopy. We solve this problem through a Bayesian extension that
+allows the experimental uncertainties to be directly quantified, and build in detailed balance to further reduce uncertainty through physical constraints. We illustrate the utility of this approach in
+characterizing the three-state kinetic behavior of an RNA hairpin in a stationary optical trap.
+
+I.
+
+INTRODUCTION
+
+Recent advances in biophysical measurement have led to
+an unprecedented ability to monitor the dynamics of single biological macromolecules, such as proteins and nucleic
+acids [1]. As a new approach to probing the behavior of biological macromolecules, these experiments promise to change
+the way we study folding, dynamics, catalysis, association,
+transcription, translation, and motility, providing otherwiseinaccessible information about microscopic kinetics, energetics, mechanism, and the stochastic heterogeneity inherent in
+these processes. Advances in instrumentation for optical force
+spectroscopy in particular have produced instruments of extraordinary stability, precision, and temporal resolution [2, 3]
+that have already demonstrated great utility in the study
+of biomolecules in the presence of externally perturbative
+forces [4–6]. Under external force, it becomes possible to stabilize and characterize short-lived conformational states, such
+as protein folding and unfolding intermediates [7–9].
+In a typical single-molecule optical trapping experiment, a
+protein or nucleic acid is tethered to two polystyrene beads
+by dsDNA handles that prevent the molecule under study
+from interacting with the beads (see Figure 1). The handlebiomolecule-handle assembly—referred to as a fiber—is associated with the beads through tight noncovalent interactions,
+
+∗
+
+Corresponding author
+
+with one bead held in an optical trap and the other either suctioned to a micropipette or held in a second optical trap. During an experiment, the position of the bead within the laser
+trap is monitored, and either the relative displacement from
+the trap center or the total force on the bead is recorded, resulting in a timeseries such as the one depicted in Figure 2.
+The instrument can generally be operated in several modes: a
+force ramp mode, in which the trap is translated rapidly enough
+to potentially carry the system out of equilibrium; an equilibrium passive mode, in which the trap is held fixed; and a constant force-feedback mode, in which the trap is continually repositioned to maintain a set constant force on the fiber. Here, we
+concern ourselves with the latter two classes of experiment,
+though nonequilibrium experiments remain an exciting topic
+of active research [10].
+Often, the dynamics observed in these experiments appears to be dominated by stochastic transitions between two
+or more strongly metastable conformational states [11, 12]—
+regions of conformation space in which the system remains
+for long times before making a transition to another conformational state. These transitions are generally well-described
+by first-order kinetics [13]. While visual inspection of the dynamics may suggest the clear presence of multiple metastable
+states, quantitative characterization of these states is often difficult. First, the observed force or extension is unlikely to correspond to a true reaction coordinate easily able to separate
+all metastable states [14–17], and second, measurement noise
+may further broaden the force or extension signatures of individual states, increasing their overlap. Attempting to separate
+
+2
+Optical Trap
+
+DNA
+
+Folded
+Pipette
+Tip
+
+k1
+
+k2
+
+k-1
+
+k-2
+
+RNA
+
+Partially
+Folded
+
+Unfolded
+
+= Strepavadin
+= Anti-Digoxigenin Antibody
+= Biotin
+= Digoxigenin
+= Polystyrene Bead
+
+FIG. 1. Single-molecule optical trapping configuration. The
+biomolecule of interest—here, the p5ab RNA hairpin—is tethered to two polystyrene beads by dsDNA handles. The fluctuating force on one bead held in an optical trap is monitored,
+while the other bead is held suctioned to a micropipette tip.
+Conformational transitions of the hairpin—such as transitions
+among the three kinetically metastable states illustrated here—
+are observed indirectly through motion of the bead in the trap.
+
+these states by simply dividing the observed force or extension
+range into regions, following current practice [18, 19], can often lead to a high degree of state mis-assignment that results in
+the estimated rate constants and state distributions containing
+a significant amount of error [20] (see Supplementary Material:
+Comparison with threshold model).
+Hidden Markov models (HMMs) [21], which use temporal information in addition to the instantaneous value of
+the observable (force or extension) to determine which conformational states the system has visited during the experiment, have provided an effective solution to the hidden
+state problem in many other classes of single-molecule experiments, such as ion channel currents [22–25], single-molecule
+FRET [26–30], and the stepping of motor proteins [31–33]. In
+applying hidden Markov modeling to the analysis of singlemolecule force spectroscopy data, the observed force or extension trace is assumed to come from a realization of an
+underlying Markov chain, where the system makes historyindependent transitions among a set of discrete conformational states with probabilities governed by a transition or rate
+matrix. Data, in the form of force or bead-to-bead extension
+measurements, is sampled at an interval that ensures that sequential observations satisfy the Markov property of historyindependence, though the appropriate interval depends on
+the properties of the experimental configuration. Under a
+given set of external force conditions, each state has a distribution of forces or extensions associated with it. Given observed timeseries data for forces or extensions, the maximum
+likelihood estimate (MLE) of the model parameters (transition
+rates and state force or extension distributions) and sequence
+of hidden states corresponding to the observed data can be
+determined by standard methods [34, 35], as demonstrated in
+recent work [36].
+Unfortunately, this approach has a number of significant
+drawbacks. Due to technical limitations, experiments often
+suffer from limited statistics—the events of interest (transi-
+
+tions between states or visits to rare states) may occur only
+a few times during the course of the measurement, and data
+for additional fibers is time-consuming to collect. As a result,
+while the MLE yields the most likely set of model parameters, there may be enormous uncertainty in some of these parameters, and the uncertainty in multiple parameters may be
+correlated in complex nonlinear ways. While methods exist
+for estimating the standard error or confidence intervals from
+MLHMMs [37], these schemes can be prohibitively costly for
+long traces, and may still significantly underestimate the statistical error for short traces due to the normally-distributed
+error approximation inherent in the approach. The high cost
+(both in terms of instrument and experimenter time) of collecting additional data also means that it is not a simple task to
+judge how much data need be collected to test a particular hypothesis in a statistically meaningful way. Worse yet, the standard algorithms employed to find the MLE may not even find
+the true maximum likelihood solution, instead converging to
+a local maximum in likelihood that is far from optimal [38].
+Here, we resolve this issue through the use of a Bayesian
+extension of hidden Markov models [39–42] applicable to single molecule force experiments. By sampling over the posterior distribution of model parameters and hidden state assignments instead of simply finding the most likely values,
+the experimenter is able to accurately characterize the correlated uncertainties in both the model parameters (transition
+rates and state force or extension distributions) and hidden
+state sequences corresponding to observed data. Additionally, prior information (either from additional independent
+measurements or physical constraints) can be easily incorporated. We also include a reversibility constraint on the transition matrix—in which microscopic detailed balance is imposed on the kinetics, as dictated by the physics of equilibrium
+systems [43]—which has been shown to significantly reduce
+statistical uncertainties in data-poor conditions [44, 45]. The
+framework we present is based on Gibbs sampling [46, 47], allowing simple swap-in replacement of models for observable
+distributions, extension to multiple observables, and alternative models for state transitions. Additionally, the Bayesian
+method provides a straightforward way to model the statistical outcome and assess the utility of additional experiments
+given some preliminary data, allowing the experimenter a
+powerful tool for assessing whether the cost of collecting additional data is outweighed by their benefits. A Matlab implementation of this approach is available online [http://
+simtk.org/home/bhmm].
+
+II.
+
+HIDDEN MARKOV MODELS FOR FORCE
+SPECTROSCOPY
+
+Suppose the temporal behavior of some observable O(x)
+that is a function of molecular configuration x—here, generally force or molecular extension—is observed at temporal intervals ∆t to produce a timeseries ot , where t = 0, 1, . . . , L.
+An instantaneous observation ot does not necessarily contain
+enough information to unambiguously identify the current
+conformational state the molecule occupies; to infer the hidden state, we must also make use of the temporal information
+in the observed trace. We restrict ourselves to consideration of
+scalar functions O(x), but the generalization to multidimensional probes (or multiple probes, such as combined force and
+fluorescence measurements [48]) and multiple observed tem-
+
+3
+poral traces is straightforward.
+We presume the system under study has M kinetically distinct states, in the sense that the system generally remains in
+a given state for several observation intervals ∆t, but these
+states may not necessarily represent highly populated states
+of the system at equilibrium. We treat these conformational
+states as the hidden states of the model, because we cannot directly observe the identity of the metastable state in which the
+system resides. The hidden Markov model presumes the observed data O ≡ {ot } was generated according to the following model dependent on parameters Θ ≡ {T, E}, where T
+is an M × M row-stochastic transition matrix and E a set of
+emission parameters governing the observable (force or extension) distributions for each of the M hidden states, and prior
+information about the initial state distribution ρ,
+P(s0 ) = ρs0
+P(st | st−1 , T) = Tst−1 st , t ≥ 1
+P(ot | st , est ) = ϕ(ot | est ).
+
+(2)
+
+The initial state distribution ρ reflects our knowledge of the
+initial conditions of the experiment that collected data o. In the
+case that the experiment was prepared in equilibrium, ρ corresponds to the equilibrium distribution π of the model transition matrix T; if the experiment was prepared out of equilibrium, ρ may be chosen to reflect some other prior distribution
+(e.g. the uniform prior).
+State transitions (st−1 → st ) are governed by the discrete
+transition probability Tst−1 st . The Markov property of HMMs
+prescribes that the probability that a system originally in state
+i at time t is later found in state j at time t+1 is dependent only
+on knowledge of the state i, and given by the corresponding
+matrix element Tij of the (row-stochastic) transition matrix T.
+Alternatively, one could instead use the rate matrix K, related
+to the transition matrix T through the equation T = eK∆t .
+If the processes described by T or K are slow compared to
+the observation interval ∆t, then we can easily estimate the
+rate matrix from the associated transition matrix in a way that
+avoids the matrix logarithm, through the expansion K ≈ (T −
+I)/∆t, where I denotes the M × M identity matrix.
+The probabilistic “emission” of observables from each state
+(st → ot ) is governed by the continuous emission probability
+ϕ(ot | est ), parametrized by observable emission parameters e.
+For example, in the force spectroscopy applications described
+here, ϕ(o | es ) is taken to be a univariate normal (Gaussian)
+distribution parameterized by a mean µ and variance σ 2 that
+characterize each state, such that ei ≡ {µi , σi2 }. Other choices
+of observable distribution can easily be substituted in a modular way without affecting the structure of the algorithms presented here.
+Given the HMM process specified in Eq. 1, the probability
+of observing data O given the model parameters Θ is then,
+P (O | Θ) =
+
+X
+S
+
+ρs0 ϕ(o0 | es0 )
+
+L
+Y
+t=1
+
+X
+
+Tst−1 st ϕ(ot | est ), (3)
+
+≡
+
+M X
+M
+X
+s0 =1 s1 =1
+
+S
+
+M
+X
+
+···
+
+.
+
+(4)
+
+sL =1
+
+If multiple independent traces {ot } are available, the probability P (O | Θ) is simply the product of Eq. 3 for the independent
+traces.
+
+A.
+
+Maximum likelihood hidden Markov model
+(MLHMM)
+
+The standard approach to construct an HMM from observed data is to compute the maximum likelihood estimator
+(MLE) for the model parameters Θ ≡ {T, E}, which maximize the probability of the observed data O given the model,
+
+(1)
+
+In diagrammatic form, the observed state data {ot } and corresponding hidden state history {st } can be represented
+ρ
+T
+T
+T
+T
+−→ s0 −→ s1 −→ s2 −→ · · · −→ sL
+↓ϕ
+↓ϕ
+↓ϕ
+↓ϕ
+o0
+o1
+o2
+oL
+
+where the sum over hidden state histories S is shorthand for
+
+Θ̂ = arg max P (O | Θ),
+Θ
+
+(5)
+
+yielding MLE estimates of transition matrix T̂ and state emission parameters Ê. Typically, determination of the model
+parameters Θ is carried out using the Baum-Welch algorithm [34].
+Once the MLE parameters Θ̂ are determined, the most
+likely hidden state history that produced the observations O
+can be determined using these parameters:
+Ŝ = arg max P (S | O, Θ̂).
+S
+
+(6)
+
+This is typically carried out using the Viterbi algorithm [35], a
+classic example of dynamic programming.
+
+B.
+
+Bayesian hidden Markov model (BHMM)
+
+Instead of simply determining the model that maximizes
+the likelihood of observing the data O given the model parameters Θ, we can make use of Bayes’ theorem to compute the
+posterior distribution of model parameters given the observed
+data:
+P (Θ | O) ∝ P (O | Θ)P (Θ).
+
+(7)
+
+Here, P (Θ) denotes a prior distribution that encodes any a priori information we may have about the model parameters Θ.
+This prior information might include, for example, physical
+constraints (such as ensuring the transition matrix satisfies detailed balance) or prior rounds of inference from other independent experiments.
+Making use of the likelihood (Eq. 3), the model posterior is
+then given by,
+P (Θ | O) ∝ P (Θ)
+
+X
+S
+
+ρs0 ϕ(o0 | es0 )
+
+L
+Y
+
+Tst−1 st ϕ(ot | est ).(8)
+
+t=1
+
+Drawing samples of Θ from this distribution will, in principle, allow the confidence with which individual parameters and
+combinations thereof are known, given the data (and subject
+to the validity of the model of Eq. 1 in correctly representing
+the process by which the observed data is generated). While
+the posterior P (Θ|O) is complex, we could in principle use
+
+4
+a Markov chain Monte Carlo (MCMC) approach [47] to sample it. In its current form, however, this would be extremely
+expensive due to the sum over all hidden state histories S
+appearing in ratios involving Eq. 8. Instead, we introduce
+the hidden state histories S as an auxiliary variable, sampling
+from the augmented posterior,
+"
+#
+L
+Y
+P (Θ, S | O) ∝ ρs0 ϕ(o0 | es0 )
+Tst−1 st ϕ(ot | est ) P (Θ).
+t=1
+
+(9)
+which makes it much less costly to compute the ratios required
+for MCMC on the augmented (Θ, S) parameter space.
+If we presume the prior is separable, such that P (Θ) ≡
+P (T)P (E), we can sample from the augmented posterior
+(Eq. 9) using the framework of Gibbs sampling [47], in which the
+augmented model parameters are updated by sampling from
+the conditional distributions,
+P (S | T, E, O) ∝ ρs0 ϕ(o0 | es0 )
+
+L
+Y
+
+Tst−1 st ϕ(ot | est )
+
+t=1
+
+P (T | E, S, O) = P (T | S) ∝ P (T)
+
+L
+Y
+
+Tst−1 st
+
+1.
+
+We first initialize the observed distributions of each state by
+fitting a Gaussian mixture model with M states to the pooled
+observed data O, ignoring temporal information:
+P (O | π, E) =
+
+P (E | S, T, O) = P (E | S, O) ∝ P (E)
+
+III.
+A.
+
+ALGORITHMS
+
+Generating an initial model
+
+To initialize either computation of the MLHMM or sampling from the posterior for the BHMM, an initial model that
+respects any constraints imposed in the model prior P (Θ)
+must be selected. Here, we employ a Gaussian observable
+distribution model for ϕ(o | e) (Eq. 11) and enforce that the
+transition matrix T satisfy detailed balance.
+
+(12)
+
+πm = Nm /Ntot
+−1
+µm = N m
+
+t=0
+
+where µ is the mean force or extension characterizing a particular state, and σ is the standard deviation or width of forces or
+extensions corresponding to that state. We note that marginal
+posterior distributions of each mean P (µi |O) reflect the statistical uncertainty in how well the mean force or position is
+determined, and need not correspond to the standard deviation σi , which may be much broader (or narrower, depending
+on the situation).
+
+2
+πm ϕ(ot | µm , σm
+),
+
+where the state observable emission probability vector E ≡
+2
+{e1 , . . . , eM } and em ≡ {µm , σm
+} with µm denoting the ob2
+servable mean and σm the variance for state m for the Gaussian mixture model. The vector π is composed of equilibrium
+P
+state populations {π1 , . . . , πM } with πm ≥ 0 and M
+m=1 πm =
+1.
+A first approximation to π and E is computed by pooling
+and sorting the observed ot , and defining M indicator functions hm (o) that separate the data into M contiguous regions
+of the observed range of o of roughly equal population. Let
+PL
+total number of observations
+Nm ≡
+t=0 hm (ot ) denote the P
+falling in region m, and Ntot = M
+m=1 Nm . The initial parameters are then computed as,
+
+ϕ(ot | est ). (10)
+
+The equalities on the second and third lines reflect the conditional independence of the hidden Markov model defined
+by Eq. 1. When only the model parameters Θ ≡ {T, E}
+or the hidden state histories S are of interest, we can simply marginalize out the uninteresting variables by sampling
+from the augmented joint posterior for {T, E, S} and examine
+only the variables of interest. In addition, the structure of the
+Gibbs sampling scheme above allows individual components
+(such as the observable distribution model ϕ(o | e) or transition probability matrix T) to be modified without affecting the
+structure of the remainder of the calculation.
+In the illustrations presented here, we employ a Gaussian
+observable distribution model for ϕ(o | e),
+
+
+1 (o − µ)2
+1
+, (11)
+exp −
+ϕ(o | e) = ϕ(o | µ, σ 2 ) = √
+2
+σ2
+2πσ
+
+L X
+M
+Y
+t=0 m=1
+
+t=1
+L
+Y
+
+Observable parameter estimation
+
+L
+X
+
+ot hm (ot )
+
+(13)
+
+t=0
+2
+−1
+σm
+= Nm
+
+L
+X
+(ot − µm )2 hm (ot ).
+
+(14)
+
+t=0
+
+This approximation is then improved upon by iterating the
+expectation-maximization procedure described by Bilmes [49],
+0
+−1
+πm
+= Ntot
+
+L
+X
+
+χm (ot , E, π)
+
+t=0
+0
+µ0m = (πm
+Ntot )−1
+
+L
+X
+
+ot χm (ot , E, π)
+
+t=0
+2
+
+0
+σ 0 m = (πm
+Ntot )−1
+
+L
+X
+(ot − µ0m )2 χm (ot , E, π)
+
+(15)
+
+t=0
+
+where the function χm (o, E, π) is given by the fuzzy membership function,
+χm (o, E, π) =
+
+πm ϕ(o | em )
+.
+M
+P
+πl ϕ(o | el )
+
+(16)
+
+l=1
+
+The iterative procedure is terminated at iteration j when the
+change in the parameters {π, µ, σ 2 } falls below a certain relative threshold, such as kπ [j] − π [j−1] k2 /kπ [j] k2 < 10−4 .
+
+2.
+
+Transition matrix estimation
+
+Once initial state observable emission parameters E are determined, an initial transition matrix is estimated using an iterative likelihood maximization approach that enforces detailed
+balance [50]. First, a matrix of fractional transition counts
+C ≡ (cij ) is estimated using the membership function:
+cij =
+
+L
+X
+t=1
+
+χi (ot−1 , E, π) χj (ot , E, π)
+
+(17)
+
+5
+A symmetric M × M matrix X ≡ (xij ) is initialized by
+(18)
+
+xij = xji = cij + cji .
+
+The iterative procedure described in Algorithm 1 of [50] is then
+applied. For each update iteration, we first update the diagonal elements of X:
+M
+
+x0ii
+
+In practice, the logarithms of these quantities are computed
+instead to avoid numerical underflow.
+The aggregate matrix of expected transition counts
+C ≡ (cij ) is then computed from Ξ as,
+cij =
+
+M
+
+X
+X
+cii (xi∗ − xii )
+; ci∗ =
+cij ; xi∗ =
+xij , (19)
+=
+ci∗ − cii
+j=1
+j=1
+
+followed by the off-diagonal elements:
+√
+−b + b2 − 4ac
+(20)
+x0ij = x0ji =
+2a
+where the quantities a, b, and c are computed from X and C,
+a ≡ ci∗ − cij + cj∗ − cji
+
+This count matrix is used to update the maximum-likelihood
+transition matrix T using the method of Prinz et al. [50] described in the previous section.
+The state observable distribution parameters E are then updated from the γti . For the univariate normal distribution applied to force spectroscopy data here, we update the mean µi
+and variance σi2 for state i using the scheme,
+L
+P
+
+(22)
+
+Tij = xij /xi∗ .
+
+Note that the equilibrium probability vector π computed during the Gaussian mixture model fitting is not respected during
+this step.
+
+B.
+
+Fitting a maximum likelihood HMM
+
+The HMM model parameters Θ ≡ {T, E} are fit to the observed data O through use of the expectation-maximization
+(EM) algorithm [51]. This is an iterative procedure, where the
+model parameters are subsequently refined through successive iterations. The initial HMM is usually quick to compute,
+and can give the experimenter a rough idea of the model parameters, as well as providing a useful starting point for sampling models from the Bayesian posterior.
+During each iteration, the Baum-Welch algorithm [34] is
+used to compute Ξ ≡ (ξtij ), which represents the probability that the system transitions from hidden state i at time t − 1
+to hidden state j at time t, and γti , the probability that the system occupied state i at time t. This is accomplished by first
+executing the forward algorithm,
+(
+ρj ϕ(o0 | ej )
+t=0
+P
+αtj =
+(23)
+ϕ(ot | ej ) M
+α
+T
+t = 1, . . . , L
+ij
+(t−1)i
+i=1
+followed by the backward algorithm,
+(
+1
+βti = PM
+j=1 Tij ϕ(ot+1 | ej )β(t+1)j
+
+ξtij = αti ϕ(ot+1 | ei )Tij β(t+1)j /
+
+M
+X
+
+αT i
+
+(25)
+
+i=1
+M
+X
+j=1
+
+ξtij
+
+=
+
+(26)
+
+L
+P
+
+ot γti
+
+t=0
+L
+P
+t=0
+
+;
+γti
+
+2
+σ0 i
+
+=
+
+(ot − µ0i )2 γti
+
+t=0
+L
+P
+t=0
+
+.
+
+(28)
+
+γti
+
+Once the model parameters have been fitted by iteration of
+the above update procedure to convergence (which may only
+converge to a local maximum of the likelihood), the most likely
+hidden state sequence can be determined given the observations O and the MLE model Θ̂ using the Viterbi algorithm [35].
+Like the forward-backward algorithm employed in the BaumWelch procedure, the Viterbi algorithm also has a forward recursion component,
+(
+ρj ϕ(ot | ej )
+t=0
+jt =
+(29)
+ϕ(ot | ej ) maxi i(t−1) Tij t = 1, . . . , L
+(
+1
+t=0
+Φjt =
+arg maxi i(t−1) Tij t = 1, . . . , L
+as well as a reverse reconstruction component to compute the
+most likely state sequence Ŝ,
+(
+arg maxi it t = L
+ŝt =
+(30)
+Φŝt+1 (t+1)
+t = (L − 1), . . . , 0
+
+C.
+
+Sampling from the posterior of the BHMM
+
+Sampling from the posterior of the BHMM (Eq. 8) proceeds
+by rounds of Gibbs sampling, where each round consists of
+an update of the augmented model parameters {T, E, S} by
+sampling
+S0 | T, E, O ∼ P (S0 | T, E, O)
+T0 | S0
+∼ P (T0 | S0 )
+E0 | S0 , O
+∼ P (E0 | S0 , O)
+
+t=L
+(24)
+t = (L − 1), . . . , 0
+
+The L×M ×M matrix Ξ is then computed for t = 0, . . . , (L−1)
+as,
+
+γti =
+
+µ0i
+
+(21)
+
+Once a sufficient number of iterations j have been completed
+to compute a stable estimate of X (such as the relative convergence criteria kX[j] − X[j−1] k2 /kX[j] k2 < 10−4 , the maximum
+likelihood transition matrix estimate T is computed as
+
+(27)
+
+ξtij .
+
+t=0
+
+b ≡ ci∗ (xj∗ − xji ) + cj∗ (xi∗ − xij )
+− (cij + cji )(xi∗ − xij + xj∗ − xji )
+c ≡ −(cij + cji )(xi∗ − xij )(xj∗ − xji ).
+
+L−1
+X
+
+where the conditional probabilities are given by Eq. 10.
+
+1.
+
+Updating the hidden state sequences
+
+We use a modified form of the Viterbi process to generate
+an independent sample of the hidden state history S given the
+
+6
+transition probabilities T, state observable distribution parameters E, and observed data O. Like the Viterbi scheme, a forward recursion is applied to each observation trace o, but instead of computing the most likely state history on the reverse
+pass, a new hidden state history S is drawn from the distribution P (S | O, T, E). The forward recursion uses the same
+forward algorithm as used in Baum-Welch [34],
+(
+ρj ϕ(o0 | ej )
+t=0
+P
+αtj =
+(31)
+α
+T
+t = 1, . . . , L
+ϕ(ot | ej ) M
+ij
+i=1 (t−1)i
+In the reverse recursion, we now sample a state sequence by
+sampling each hidden state from the conditional distribution
+st ∼ P (st | st+1 , . . . , sL ) starting from t = L and proceeding
+down to t = 0, where the conditional distribution is given by,
+P (st = i | st+1 , . . . , sL )
+(
+P
+αti / M
+j=1 αtj
+P
+∝
+αti Tist+1 / M
+j=1 αtj Tjst+1
+
+(32)
+t=L
+t = (L − 1), . . . , 0
+
+It is straightforward to show the result of these sampling steps
+reconstitutes the probability distribution P (S|T, E, O) (see
+Supplementary Material: Proof of state history sampling scheme).
+
+2.
+
+Updating the transition probabilities
+
+If no detailed balance constraint is used and the prior P (T)
+is Dirichlet in each row of the transition matrix T, it is possible to generate an independent sample of the transition matrix
+from the conditional distribution P (T0 | S0 ) by sampling each
+row of the transition matrix from the conjugate Dirichlet posterior using the transition counts from the sampled state sequence S0 [44]. However, because physical systems in the absence of energy input through an external driving force should
+satisfy detailed balance, we make use of this constraint in updating our transition probabilities, since this has been demonstrated to substantially reduce parameter uncertainty in the
+data-limited regime [44].
+The transition matrix is updated using the reversible transition matrix sampling scheme of Noé [44, 52]. Here, an adjusted
+count matrix C ≡ (cij ) is computed using the updated hidden
+state sequence S0 ,
+cij = bij +
+
+L
+X
+
+δist−1 δjst ,
+
+(33)
+
+t=1
+
+where the Kronecker δij = 1 if i = j and zero otherwise, and
+B ≡ (bij ) is a matrix of prior pseudocounts, which we take
+to be zero following the work of Noé et al. [13]. Using the
+adjusted count matrix C, a Metropolis-Hastings Monte Carlo
+procedure [53] is used to update the matrix and produce a new
+sample from P (T0 | S0 ). Two move types are attempted, selected with equal probability, and 1000 moves are attempted to
+generate a new sample T0 that is approximately uncorrelated
+from the previous T. Prior to starting the Monte Carlo procedure, the vector of equilibrium probabilities for all states π is
+computed according to
+TT π = π.
+
+(34)
+
+The first move type is a reversible element shift. A pair of
+states (i, j), i 6= j, are selected with uniform probability, and a
+
+random number ∆ is selected uniformly over the interval,
+∆ ∈ [max(−Tii , −
+
+πj
+Tjj ), Tij ].
+πi
+
+The changed elements in the proposed transition matrix T0 are
+then given by:
+πi
+∆
+πj
+πi
+∆.
++
+πj
+
+0
+Tij0 = Tij − ∆ ; Tji
+= Tji −
+0
+Tii0 = Tii + ∆ ; Tjj
+= Tjj
+
+This move is accepted with probability
+ s
+
+0 2
+(Tij0 )2 + (Tji
+)
+0
+Paccept (T |T) = min 1,
+2
+
+(Tij ) + (Tji )2
+ 0 cii  0 cij  0 cjj  0 cji 
+Tjj
+Tji
+Tij
+Tii
+.
+×
+Tii
+Tij
+Tjj
+Tji
+
+(35)
+
+This move will leave the vector of stationary probabilities π
+unchanged.
+The second move type is a row shift. A row i of T is selected
+with uniform probability, and a random number η chosen uniformly over the interval
+
+
+1
+η ∈ 0,
+1 − Tii
+and used to update row i of T according to
+(
+ηTij
+j = 1, . . . , M, j 6= i
+0
+Tij =
+η(Tii − 1) + 1 j = i
+
+(36)
+
+This move is accepted with probability
+
+
+c 
+1 − η(1 − Tii ) ii
+Paccept (T0 |T) = min 1, η (M −2) η (ci∗ −cii )
+.
+Tii
+(37)
+The row shift operation will change the stationary distribution
+of π 0 , but it may be efficiently updated with
+πi0 =
+
+η πj
+πi
+; πj0 =
+.
+πi + η(1 − πi )
+πi + η(1 − πi )
+
+Since this update scheme is incremental, it will accumulate numerical errors over time that cause the updated π to drift away
+from the stationary distribution of the current transition matrix. To avoid this, π is recomputed from the current sample
+of the transition matrix in regular intervals (here, every 100
+sampling steps).
+
+3.
+
+Updating the observable distribution parameters
+
+Following the update of the transition matrix T, the observable distribution parameters E are updated by sampling
+E from the conditional probability P (E0 | S0 , O). The conditional probability for the observable distribution parameters
+for state m, denoted em , is given in terms of the output model
+ϕ(o | e) by Bayes’ theorem,
+"L
+#
+Y
+P (E | O, S) =
+ϕ(ot | est ) P (E).
+(38)
+t=0
+
+7
+An important choice must be made with regards to the
+prior, P (E). If the prior is chosen to be composed of independent priors for each state, as in
+P (E) =
+
+M
+Y
+
+P (em ),
+
+(39)
+
+m=1
+
+then the full BHMM posterior (Eq. 8) will be invariant under
+any permutation of the states. This behavior might be undesirable, as the states may switch labels during the posterior sampling procedure; this will require any analysis of the models
+sampled from the posterior to account for the possible permutation symmetry in the states. On the other hand, breaking this
+symmetry (e.g., by enforcing an ordering on the state mean observables) can artificially restrict the confidence intervals of the
+states, which might additionally complicate data analysis.
+Here, we make the choice that the prior be separable
+(Eq. 39), which has the benefit of allowing the conditional
+probability for E (Eq. 38) to be decomposed into a separate
+posterior for each state. For each state m, collect all the observations ot whose updated hidden state labels st 0 = m into a
+m
+single dataset o ≡ {on }N
+n=1 , where Nm is the total number of
+times state m is visited, for the purposes of this update procedure. Then, the observable parameters e for this state are
+given by
+#
+"N
+m
+Y
+ϕ(on | e) P (e). (40)
+P (e | o) = P (o | e)P (e) =
+
+where µ̂ is the sample mean for o, the samples in state m,
+µ̂ ≡
+
+P (e) ∝ σ −1 ,
+
+(41)
+
+which produces the posterior
+#
+N
+1 X
+2
+(on − µ) ,
+exp − 2
+2σ n=1
+"
+
+P (e | o) ∝ σ
+
+−(N +1)
+
+(42)
+
+where we remind the reader that here and in the remainder of
+this section, the symbols e, o, σ, µ, and N refer to em , om , σm ,
+µm , and Nm , respectively.
+Updating {µ, σ 2 } also proceeds by a Gibbs sampling
+scheme, alternately updating µ and σ, as earlier described in
+Ref. [52],
+µ ∼ P (µ | σ 2 , o)
+σ 2 ∼ P (σ 2 | µ, o)
+
+(43)
+
+The conditional distribution of the mean µ is then given by
+
+
+1
+2
+(µ
+−
+µ̂)
+(44)
+P (µ | σ 2 , o) ∝ exp −
+2(σ 2 /N )
+
+(45)
+
+This allows us to update µ according to
+µ0 ∼ N (µ̂, σ 2 /N )
+
+(46)
+
+The conditional distribution of the variance σ 2 is given by
+
+
+N σ̂ 2
+P (σ 2 | µ, o) ∝ σ −(N +1) exp − 2
+(47)
+2σ
+where the quantity σ̂ 2 , which is not in general identical to the
+sample variance, is given by
+σ̂ 2 ≡
+
+N
+1 X
+(on − µ)2 .
+N n=1
+
+(48)
+
+A convenient way to update σ 2 | µ, o is to sample a random
+variate y from the chi-square distribution with N − 1 degrees
+of freedom,
+y ∼ χ2 (N − 1)
+
+(49)
+
+and then update σ 2 as
+2
+
+σ 0 = N σ̂ 2 /y.
+
+n=1
+
+In the application presented here, we use a Gaussian output
+model (Eq. 11) for the state observable distributions P (o | e),
+where e ≡ {µ, σ 2 }, with µ the state mean observable and σ 2
+the variance (which will include both the distribution of the
+observable characterizing the state and any broadening from
+measurement noise). Other models (including multidimensional or multimodal observation models) are possible, and
+require replacing only the observation model ϕ(o | e) and corresponding prior P (e).
+We use the (improper) Jeffreys prior [54] which has the
+information-theoretic interpretation as the prior that maximizes the information content of the data [55], (suppressing
+the state index subscript m),
+
+N
+1 X
+on
+N n=1
+
+(50)
+
+Note that µ and σ 2 can be updated in either order, but the updated values of µ or σ 2 must be used in sampling the not-yetupdated σ 2 or µ, and vice-versa.
+Other output probabilities, such as mixtures of normal distributions or other distributions, can be substituted by simply
+changing P (E | O, S) and the scheme by which E is updated.
+
+IV.
+
+VALIDATION USING SYNTHETIC DATA
+
+To verify that our BHMM posterior sampling scheme reflects the true uncertainty in the model parameters, we tested
+the scheme on synthetic data generated from a model with
+known parameters Θ∗ . Given observed data O generated
+from P (O | Θ∗ ), sampling from the posterior P (Θ | O) using the scheme described in Sampling from the posterior of the
+BHMM will provide us with confidence intervals [θlow , θhigh ]
+for a specified confidence interval size α ∈ [0, 1]. If these computed confidence intervals are accurate, we should find that
+the true model parameter θ∗ lies in the computed confidence
+(α)
+(α)
+interval [θlow , θhigh ] with probability α. This can be tested by
+generating synthetic observed data O from P (O | Θ∗ ) and
+(α)
+(α)
+verifying that we find θ∗ ∈ [θlow , θhigh ] in a fraction α of these
+synthetic experiments.
+As an example synthetic model, consider the three-state system intended to mimic a protein with (1) a highly-compliance,
+low-force unfolded state, (2) a moderately compliant lowpopulation intermediate at intermediate force, and (3) a lowcompliance, high-force folded state. Here, the term “compliance” refers to the width of the force or extension distribution
+characterizing the state. Parameters of the model are given in
+Table I, and the observation interval was taken to be τ = 1
+ms. An example realization of a model trajectory, along with
+
+8
+6
+
+force / pN
+
+5
+4
+3
+2
+1
+0
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+time / s
+
+6
+
+7
+
+8
+
+9
+
+10
+
+FIG. 2. Synthetic force trajectory and inferred state assignments in MLHMM. Observed samples are colored by their hidden
+state assignments. Dark horizontal lines terminating in triangles to the right denote state means, while lightly colored bands
+indicate one standard deviation on either side of the state mean. The gray histogram on the right side shows the total observed
+probability of samples, while the colored peaks show the weighted Gaussian output contribution from each state, and the black
+outline the weighted sum of the Gaussian output contributions from the HMM states.
+
+TABLE I. Estimated mean model parameters and confidence intervals for synthetic timeseries data
+Estimated Model Parameters
+Property
+True Value
+1 000 observations
+10 000 observations
+100 000 observations
+stationary probability
+π1
+0.308
+0.228 0.480
+0.318 0.407
+0.324 0.355
+0.074
+0.244
+0.292
+0.155
+π2
+0.113
+0.093 0.172
+0.124
+0.112 0.121
+0.042
+0.098
+0.104
+π3
+0.579
+0.679 0.870
+0.558 0.648
+0.564 0.599
+0.415
+0.455
+0.531
+transition probability
+T11
+0.980
+0.970 0.987
+0.972 0.978
+0.979 0.981
+0.945
+0.966
+0.978
+T12
+0.019
+0.023 0.045
+0.026 0.032
+0.020 0.021
+0.009
+0.021
+0.018
+0.018
+0.003
+T13
+0.001
+0.007 0.001
+0.002 0.001
+0.001 0.001
+0.001
+T21
+0.053
+0.054 0.106
+0.067 0.082
+0.057 0.061
+0.018
+0.053
+0.052
+T22
+0.900
+0.868 0.931
+0.890 0.907
+0.897 0.903
+0.790
+0.870
+0.892
+T23
+0.050
+0.078 0.136
+0.043 0.056
+0.046 0.050
+0.035
+0.033
+0.042
+T31
+0.001
+0.002 0.006
+0.001 0.002
+0.001 0.001
+0.000
+0.000
+0.000
+T32
+0.009
+0.010 0.019
+0.010 0.012
+0.009 0.010
+0.007
+0.008
+0.004
+T33
+0.990
+0.988 0.995
+0.990 0.992
+0.990 0.991
+0.978
+0.987
+0.989
+state mean force (pN)
+µ1
+3.000
+2.947 3.082
+2.998 3.033
+3.001 3.013
+2.812
+2.963
+2.990
+µ2
+4.700
+4.666 4.721
+4.699 4.716
+4.702 4.707
+4.612
+4.683
+4.696
+µ3
+5.600
+5.597 5.614
+5.602 5.607
+5.602 5.603
+5.583
+5.596
+5.600
+state std dev force (pN)
+σ1
+1.000
+1.037 1.134
+0.992 1.018
+0.999 1.007
+0.951
+0.967
+0.991
+σ2
+0.300
+0.254 0.300
+0.287 0.300
+0.301 0.305
+0.217
+0.275
+0.296
+σ3
+0.200
+0.200 0.211
+0.203 0.207
+0.201 0.203
+0.190
+0.199
+0.200
+
+the MLHMM state assignment, is shown in Figure 2. We generated a trajectory of 100 000 observations, and characterized
+the BHMM mean parameter estimate and 95% confidence intervals for a subset of this trajectory of varying lengths. The
+results, shown in Table I, show that the confidence intervals
+contract as trajectory length increases, as expected, and the
+BHMM-computed 95% confidence intervals contain the true
+model parameters with the expected statistics. In contrast, a
+model created from simply segmenting the observed forces
+into disjoint region and assigning state membership based on
+the force value alone estimates model parameters with significant bias even for 1 000 000 observations (see Supporting Information).
+As a more rigorous test, we sampled 50 random models
+from the prior P (Θ) with two to six states, generated a 10
+000 observation synthetic trajectory for each, and accumulated
+statistics on the observed fraction of time the true model parameters were within the BHMM confidence intervals for various values of the confidence interval width α. The results of
+this test are depicted in Supplementary Figure 1. We expect that
+the plot traces the diagonal if the observed and expected confi-
+
+dence intervals are identical; an overestimate of the confidence
+interval will be above the diagonal, and an underestimate will
+fall below it. Because only a finite number of independent
+replicates of the experiment are conducted, there is some associated uncertainty with the observed confidence intervals.
+The results show that the observed confidence intervals line
+up with the expected confidence intervals to within statistical
+error, suggesting the BHMM confidence intervals neither underestimate nor overestimate the actual uncertainty in model
+parameters.
+
+V.
+
+RNA HAIRPIN KINETICS IN A PASSIVE OPTICAL
+TRAP
+
+We illustrate the BHMM approach applied to real force
+spectroscopy data by characterizing the average forces and
+transition rates among kinetically distinct states of the p5ab
+RNA hairpin in an optical trap under passive (equilibrium)
+conditions.
+The p5ab RNA hairpin from Tetrahymena thermophilia was
+
+9
+14.5
+
+force / pN
+
+14
+13.5
+13
+12.5
+12
+0
+
+10
+
+20
+
+30
+time / s
+
+40
+
+50
+
+60
+
+FIG. 3. Experimental force trajectory of the p5ab hairpin and MLHMM state assignments. Observed samples are colored
+by their hidden state assignments. Dark horizontal lines terminating in triangles to the right denote state means, while lightly
+colored bands indicate one standard deviation on either side of the state mean. The gray histogram on the right side shows the
+total observed probability of samples, while the colored peaks show the weighted Gaussian output contribution from each state,
+and the black outline the weighted sum of the Gaussian output contributions from the HMM states.
+
+TABLE II. BHMM model estimates for p5ab hairpin data.
+Property
+Value
+Equilibrium probability
+π1
+0.215 0.236
+0.193
+π2
+0.046 0.050
+0.041
+π3
+0.740 0.762
+0.717
+Transition probability (∆t = 1 ms)
+T11
+0.954 0.959
+0.950
+T12
+0.033 0.037
+0.029
+T13
+0.013 0.015
+0.011
+T21
+0.154 0.169
+0.139
+T22
+0.650 0.673
+0.627
+T23
+0.196 0.216
+0.180
+T31
+0.004 0.004
+0.003
+T32
+0.012 0.013
+0.011
+T33
+0.984 0.985
+0.983
+12.552
+State force mean (pN)
+µ1
+12.549 12.544
+µ2
+13.016 13.027
+13.006
+µ3
+13.849 13.852
+13.848
+State force std dev (pN)
+σ1
+0.210 0.213
+0.207
+σ2
+0.201 0.208
+0.193
+σ3
+0.213 0.214
+0.211
+Transition rate (s−1 )
+
+State mean lifetime (ms)
+
+k12
+k13
+k21
+k23
+k31
+k32
+τ1
+τ2
+τ3
+
+41.4 46.6
+36.3
+9.1 11.3
+7.2
+194.7 216.7
+173.1
+243.7 271.5
+219.0
+2.6 3.2
+2.1
+15.0 16.6
+13.4
+21.9 24.1
+20.0
+2.9 3.1
+2.7
+63.1 68.5
+58.4
+
+provided by Jin-Der Wen, and prepared as previously described [56]. Within the population of RNA hairpin molecules
+in the examined sample, there were two chemically distinct species present in the sample (i.e. as a result of posttranscriptional or other covalent modification during sample
+storage), exhibiting either apparent two-state (as reported previously [56]) or three-state behavior (studied here). For the
+purposes of testing this method, we examined a fiber that appeared to consistently exhibit three-state behavior upon visual
+inspection of the force timeseries data.
+The instrument used in this experiment was a dual-beam
+counter-propagating optical trap with a spring constant of 0.1
+
+pN/nm. A piezoactuator controlled the position of the trap
+and allowed position resolution to within 0.5 nm [57]. Drift
+in the instrument was less than 1 nm/minute resulting in a
+constant average force within 0.1 pN over the course of a typical 60 s experiment. For these constant trap position experiments, higher frequency data was recorded at 50 kHz recording the voltage corresponding to the force on the tether directly from the position-sensitive detectors. To ensure sequential samples obeyed Markovian statistics, these data were subsampled down to 1 kHz for analysis by the BHMM framework
+after examination of autocorrelation functions for trap positions where the hairpin appeared to remain in a single conformational state (see Supplementary Material: Choice of observation
+interval).
+A single observed force trajectory at a fixed trap position
+adequate to cause hopping among multiple states is shown in
+Figure 3. The most likely state trajectory from the MLHMM fit
+with three states is shown by coloring the observations most
+likely to be associated with each state, with bands of color indicating the mean and standard deviation about the mean force
+characterizing each state.
+Table II lists the BHMM posterior means and confidence
+intervals characterizing the three-state model extracted from
+this single 60 s observed force trace. Several things are notable about the estimated model parameters. Surprisingly,
+while there is a clearly-resolved intermediate-force state (state
+2) through which most of the flux from the high- and low-force
+states passes (as seen from large K12 and K23 ), there are nontrivial rate constants connecting the high and low force states
+directly (K13 ), indicating that while a sequential mechanism
+involving passing through the intermediate state is preferred,
+it may not be an obligatory step in hairpin formation under
+these conditions. While the state mean forces are clearly distinct, the state standard deviations—which reflect the width
+of the observed force distribution characterizing each state,
+rather than the uncertainty in state means—possess overlapping confidence intervals. These standard deviations reflect
+not only contributions from both the distribution of extensions
+sampled by the hairpin in each conformational state, but also
+from fluctuations in the handles and beads, and other sources
+of mechanical and electrical noise in the measurement. As
+we would expect the unfolded hairpin to be more compliant
+(i.e. possess a wider distribution of forces) than the folded hairpin, the inability to distinguish the standard deviations among
+states is suggestive that, for this experimental configuration
+
+10
+and observation time, the predominant contribution to the observed force distributions for each state may be in the form of
+handle or bead fluctuations or other sources of measurement
+noise.
+Finally, the lifetime of the intermediate-force state is significantly shorter than for the low- and high-force states by nearly
+an order of magnitude, and only a few times longer than the
+observation interval of 1 ms—despite this, the lifetime appears
+to be well-determined, as indicated by the narrow confidence
+intervals.
+
+VI.
+
+DISCUSSION
+
+We have described an approach to determining the firstorder kinetic parameters and observable (force or extension)
+distributions characterizing conformational states in singlemolecule force spectroscopy. By use of a Bayesian extension
+of hidden Markov models, we are able to characterize the experimental uncertainty in these parameters due to instrument
+noise and finite-size datasets. The use of a detailed balance
+constraint additionally helps reduce the experimental uncertainty over standard hidden Markov models, as both transitions into and out of conformational states provide valuable
+information about state kinetics and populations in data-poor
+conditions [44, 45]. Additionally, the Gibbs sampling framework used to sample from the Bayesian posterior can be easily
+extended to incorporate additional nuisance parameters, such
+as stochastic models of instrument drift or laser power fluctuations.
+We have opted to make use of a reversible transition matrix to describe the statistical kinetic behavior between the observation intervals ∆t, but it is possible to use a reversible
+
+[1] F. Ritort, “Single-molecule experiments in biological
+physics: methods and applications,” J. Phys.: Condens.
+Matter, 18, R531–R583 (2006).
+[2] Keir C. Neuman and Steven M. Block, “Optical trapping,”
+Rev. Sci. Instrum., 75, 2787 (2004).
+[3] Jeffrey R. Moffitt, Yann R. Chemla, Steven B. Smith, and
+Carlos Bustamante, “Recent advances in optical tweezers,” Annu. Rev. Biochem., 77, 205–228 (2008).
+[4] Carlos Bustamante, Zev Bryant, and Steven B. Smith,
+“Ten years of tension: single-molecule DNA mechanics,”
+Nature, 421, 423–427 (2003).
+[5] Michael T. Woodside, Cuauhtémoc Garcı́a-Garcá, and
+Steven M. Block, “Folding and unfolding single RNA
+molecules under tension,” Curr. Opin. Chem. Biol., 12,
+640–646 (2008).
+[6] Carlos Bustamante, Wei Cheng, and Yara X. Mejia, “Revisiting the central dogma one molecule at a time,” Cell,
+144, 480–497 (2011).
+[7] Susan B. Fowler, Robert B. Best, José L. Toca Herrera,
+Trevor J. Rutherford, Annette Steward, Emanuele Paci,
+Martin Karplus, and Jane Clarke, “Mechanical unfolding
+of a titin Ig domain: Structure of unfolding intermediates
+revealed by combining AFM, molecular dynamics simulations, NMR and protein engineering,” J. Mol. Biol., 322,
+841–849 (2002).
+
+rate matrix instead by substituting a rate matrix sampling
+scheme [58] in the appropriate stage of the Gibbs sampling updates.
+While the experimenter must currently choose the number
+of conformational states by hand, a number of extensions of
+Bayesian hidden Markov models can be used to automatically determine the number of states best supported by the
+data, including reversible-jump schemes [59, 60] and variational Bayes methods [61, 62].
+We note that the experimenter in principle has access to
+the full posterior distribution of models given the observed
+data, so that instead of looking at the confidence of single parameters, confidence intervals in more complex functions of
+parameters—such as the rates or lifetimes in Table II—can be
+computed, or joint posterior distributions of multiple parameters examined. It is also possible to generate synthetic data
+from the current model, or family of models, to examine how
+the collection of additional data will further reduce uncertainties or allow discrimination among particular hypotheses. The
+field of Bayesian experimental design [63] holds numerous possibilities for selecting how future experiments can maximize
+information gain, and whether the information gain from the
+collection of additional data will be of sufficient utility to justify the expense.
+
+VII.
+
+ACKNOWLEDGMENTS
+
+The authors thank Sergio Bacallado (Stanford University)
+for helpful feedback on this manuscript, and Steve Presse
+(UCSF) for engaging discussions on this topic. JDC acknowledges support from a QB3-Berkeley Distinguished Postdoctoral Fellowship. FN acknowledges DFG Grant 825/2. This
+work was supported in part by a grant from the NSF (SM).
+
+[8] Ciro Cecconi, Elizabeth A. Shank, Carlos Bustamante,
+and Susan Marqusee, “Direct observation of the threestate folding of a single protein molecule,” Science, 309,
+2057–2060 (2005).
+[9] J. Christof M. Gebhardt, Thomas Bornschlögl, and
+Matthias Rief, “Full distance-resolved folding energy
+landscape of one single protein molecule,” Proc. Natl.
+Acad. Sci. USA, 107, 2013–2018 (2010).
+[10] F. Ritort, “Nonequilibrium fluctuations in small systems:
+From physics to biology,” Adv. Chem. Phys., 137, 31–123
+(2008).
+[11] Ch. Schütte and W. Huisinga, “Biomolecular conformations can be identified as metastable states of molecular
+dynamics,” in Handbook of Numerical Analysis - special volume on computational chemistry, Vol. X, edited by P. G. Ciaret and J.-L. Lions (Elsevier, 2002).
+[12] John D. Chodera, Nina Singhal, William C. Swope, Vijay S. Pande, and Ken A. Dill, “Automatic discovery of
+metastable states for the construction of markov models
+of macromolecular conformational dynamics,” J. Chem.
+Phys., 126, 155101 (2007).
+[13] F. Noé, C. Schütte, E. Vanden-Eijnden, L. Reich, and T. R.
+Weikl, “Constructing the full ensemble of folding pathways from short off-equilibrium simulations,” Proc. Natl.
+Acad. Sci. USA, 106, 19011–19016 (2009).
+
+11
+[14] Robert B. Best, Emanuele Paci, Gerhard Hummer, and
+Olga K. Dudko, “Pulling direction as a reaction coordinate for the mechanical unfolding of single molecules,” J.
+Phys. Chem. B, 112, 5968–5976 (2008).
+[15] Zu Thur Yew, Michael Schlierf, Matthias Rief, and
+Emanuele Paci, “Direct evidence of the multidimensionality of the free-energy landscapes of proteins revealed by
+mechanical probes,” Phys. Rev. E, 81, 031923 (2010).
+[16] Greg Morrison, Changbong Hyeon, Michael Hinczewski,
+and D. Thirumalai, “Compaction and tensile forces determine the accuracy of folding landscape parameters from
+single molecule pulling experiments,” Phys. Rev. Lett.,
+106, 138102 (2011).
+[17] John D. Chodera and Vijay S. Pande, “Splitting probabilities as a test of reaction coordinate choice in singlemolecule experiments,” arχiv preprint, arXiv:1105.0710
+(2011).
+[18] Michael T. Woodside, Peter C. Anthony, William M.
+Behnke-Parks, Kevan Larizadeh, Daniel Herschlag, and
+Steven M. Block, “Direct measurement of the full,
+sequence-dependent folding landscape of a nucleic acid,”
+Science, 314, 1001–1004 (2006).
+[19] N. Forns, S. de Lorenzo, M. Manosas, J. M. Huguet, and
+F. Ritort, “Improving signal/noise resolution in singlemolecule experiments using molecular constructs with
+short handles,” Biophys. J., 100, 1765–1774 (2011).
+[20] John D. Chodera, Phillip Elms, William C. Swope, Frank
+Noé, and Vijay S. Pande, “A robust approach to estimating rates from time-correlation functions,” in preparation
+(2011).
+[21] Lawrence R. Rabiner, “A tutorial on Hidden Markov
+models and selected applications in speech recognitiion,”
+Proceedings of the IEEE, 77, 257–286 (1989).
+[22] J. D. Becker, J. Honerkamp, J. Hirsch, U. Fröbe, E. Schlatter, and R. Greger, “Compaction and tensile forces determine the accuracy of folding landscape parameters from
+single molecule pulling experiments,” Pflügers Arch.,
+426, 328–332 (1994).
+[23] Feng Qin, Anthony Auerbach, and Frederick Sachs, “A
+direct optimization approach to hidden Markov modeling for single channel kinetics,” Biophys. J., 79, 1915–1927
+(2000).
+[24] M. C. M. De Gunst, H. R. Künsch, and J. G. Schouten,
+“Statistical analysis of ion channel data using hidden
+Markov models with correlated state-dependent noise
+and filtering,” J. Am. Stat. Assoc., 96, 805–815 (2001).
+[25] Feng Qin, “Restoration of single-channel currents using
+the segmental k-means method based on hidden Markov
+modeling,” Biophys. J., 86, 1488–1501 (2004).
+[26] Michael Andrec, Ronald M. Levy,
+and David S.
+Talaga, “Direct determination of kinetic rates from
+single-molecule photon arrival trajectories using hidden
+Markov models,” J. Phys. Chem. A, 107, 7454–7464 (2003).
+[27] Sean McKinney, Chirlmin Joo, and Taekjip Ha, “Analysis of single-molecule FRET trajectories using hidden
+Markov models,” Biophys. J., 91, 1941–1951 (2006).
+[28] Tae-Hee Lee, “Extracting kinetics information from
+single-molecule fluorescence resonance energy transfer
+data using hidden Markov models,” J. Phys. Chem. B,
+113, 11535–11542 (2009).
+[29] Ying Li, Xiaohui Qu, Ao Ma, Glenna J. Smith, Norbert F. Scherer, and Aaron R. Dinner, “Models of singlemolecule experiments with periodic perturbations reveal
+hidden dynamics in RNA folding,” J. Phys. Chem. B, 113,
+
+7579–7590 (2009).
+[30] Irina V. Gopich and Attila Szabo, “Decoding the pattern
+of photon colors in single-molecule FRET,” J. Phys. Chem.
+B, 113, 10965–10973 (2009).
+[31] David A. Smith, Walter Steffen, Rober M. Simmons, and
+John Sleep, “Hidden-Markov methods for the analysis
+of single-molecule actomoysin displacement data: The
+variance-hidden-Markov method,” Biophys. J., 81, 2795–
+2816 (2001).
+[32] Lorin S. Milescu, Ahmet Yildiz, Paul R. Selvin, and
+Frederick Sachs, “Extracting dwell time sequences from
+processive molecular motor data,” Biophys. J., 91, 3135
+(2006).
+[33] Fiona E. Müllner, Sheyum Syed, Paul R. Sevin, and Fred J.
+Sigworth, “Improved hidden Markov models for molecular motors, part 1: Basic theory,” Biophys. J., 99, 3684–3695
+(2010).
+[34] L. E. Baum, T. Petrie, G. Soules, and N. Weiss, “A maximization technique occurring in the statistical analysis
+of probabilistic functions of Markov chains,” Ann. Math.
+Statist., 41, 164–171 (1970).
+[35] A. J. Viterbi, “Error bounds for convolutional codes and
+an asymptotically optimum decoding algorithm,” IEEE
+Trans. Info. Theory, 13, 260–269 (1967).
+[36] M. Kruithof and J. van Noort, “Hidden Markov analysis
+of nucleosome unwrapping under force,” Biophys. J., 96,
+3708–3715 (2009).
+[37] Tero Aittokallio and Esa Uusipaikka, Computation of
+standard errors for maximum-likelihood estimates in hidden
+Markov models, Tech. Rep. (University of Turku, 2008)
+technical Report No. 379.
+[38] Bernard Merialdo, “On the locality of the forwardbackward algorithm,” IEEE Trans. Speech and Audio
+Proc., 1, 255–257 (1993).
+[39] Christian P. Robert, Giles Celeux, and Jean Diebolt,
+“Bayesian estimation of hidden Markov chains: A
+stochastic implementation,” Stat. Prob. Lett., 16, 77–83
+(1993).
+[40] Siddhartha Chib, “Calculating posterior distributions and
+modal estimates in Markov mixture models,” J. Econometrics, 75, 79–97 (1996).
+[41] Steven L. Scott, “Bayesian methods for hidden Markov
+models: Recursive computing in the 21st century,” J. Am.
+Stat. Assoc., 97, 337–351 (2002).
+[42] Tobias Rydén, “EM versus Markov chain Monte Carlo for
+estimation of hidden Markov models: A computational
+perspective,” Bayesian Analysis, 3, 659–688 (2008).
+[43] N. G. van Kampen, Stochastic processes in physics and chemistry, 2nd ed. (Elsevier, 1997).
+[44] Frank Noé, “Probability distributions of molecular observables computed from Markov models,” J. Chem.
+Phys., 128, 244103 (2008).
+[45] Philipp Metzner, Frank Noé, and Christof Schütte, “Estimating the sampling error: Distribution of transition matrices and functions of transition matrices for given trajectory data,” Phys. Rev. E, 80, 021106 (2009).
+[46] Stuart Geman and Donald Geman, “Stochastic relaxation,
+Gibbs distributions and the Bayesian restoration of images,” IEEE Trans. Pattern Anal., 6, 721–741 (1984).
+[47] Jun S. Liu, Monte Carlo strategies in scientific computing, 2nd
+ed. (Springer-Verlag, New York, 2002).
+[48] Matthew J. Comstock, Taekjip Ha,
+and Yann R.
+Chemla, “Ultrahigh-resolution optical trap with singlefluorophore sensitivity,” Nature Methods, 8, 335–340
+
+12
+(2011).
+[49] Jeff A. Bilmes, A gentle tutorial of the EM algorithm and its
+application to parameter estimation for Gaussian mixture and
+hidden Markov models, Tech. Rep. (University of California,
+Berkeley, 1998).
+[50] Jan-Hendrik Prinz, Hao Wu, Marco Sarich, Bettina
+Keller, Martin Fischbach, Martin Held, John D. Chodera,
+Christof Schütte, and Frank Noé, “Markov models of
+molecular kinetics: Generation and validation,” J. Chem.
+Phys., 134, 174105 (2011).
+[51] A. P. Dempster, N. M. Laird,
+and D. B. Rubin,
+“Maximum-likelihood from incomplete data via the EM
+algortihm,” J. Royal Statist. Soc. B, 39, 1–38 (1977).
+[52] John D. Chodera and Frank Noé, “Probability distributions of molecular observables computed from Markov
+models: II. uncertainties in observables and their timeevolution,” J. Chem. Phys., 133, 105012 (2010).
+[53] W. K. Hastings, “Monte Carlo sampling methods using
+Markov chains and their applications,” Biometrika, 57,
+97–109 (1970).
+[54] Harold Jeffreys, “An invariant form for the prior probability in estimation problems,” Proc. Royal Soc. A, 186,
+453–461 (1946).
+[55] Philip Goyal, “Prior probabilities: An informationtheoretic approach,” in Bayesian Inference and Maximum
+Entropy Methods in Science and Engineering, edited by
+Kevin H. Knuth, Ali E. Abbas, Robin D. Morriss, and
+J. Patrick Castle (American Institute of Physics, 2005) pp.
+366–373.
+[56] Jin-Der Wen, Maria Manosas, Pan T. X. Li, Steven B.
+Smith, Carlos Bustamante, Felix Ritort, and Jr. Igna-
+
+[57]
+
+[58]
+
+[59]
+
+[60]
+
+[61]
+
+[62]
+
+[63]
+
+cio Tinoco, “Force unfolding kinetics of RNA using optical tweezers. I. Effects of experimental variables on measured results,” Biophys. J., 92, 2996–3009 (2007).
+Carlos J. Bustamante and Steven B. Smith, “Light-force
+sensor and method for measuring axial optical-trap forces
+from changes in light momentum along an optic axis,”
+(2006).
+Gerhard Hummer, “Position-dependent diffusion coefficients and free energies from Bayesian analysis of equilibrium and replica molecular dynamics simulations,” New
+Journal of Physics, 7, 34 (2005).
+Christian P. Robert, Tobias Rydén, and D. M. Titterington,
+“Bayesian inference in hidden Markov models through
+the reversible jump Markov chain Monte Carlo method,”
+J. R. Statist. Soc. B, 62, 57–75 (2000).
+Mathisca C. M. De Gunst and Barry Schouten, “Model selection for hidden Markov models of ion channel data by
+reversible Markov chain Monte Carlo,” Bernoulli, 9, 373–
+393 (2003).
+Matthew J. Beal, Variational algorithms for approximate
+Bayesian inference, Master’s thesis, University of Cambridge, UK (2003).
+Jonathan E. Bronson, Jingyi Fei, Jake M. Hofman, Ruben
+L. Gonzalez Jr., and Chris H. Wiggins, “Learning rates
+and states from biophysical time series: a Bayesian approach to model selection and single-molecule FRET
+data,” Biophys. J., 97, 3196–3205 (2009).
+Kathryn Chaloner and Isabella Verdinelli, “Bayesian experimental design: A review,” Statist. Sci., 10, 273–204
+(1995).
+
+

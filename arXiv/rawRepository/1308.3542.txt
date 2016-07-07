@@ -1,0 +1,2697 @@
+1
+
+arXiv:1308.3542v2 [q-bio.NC] 24 Feb 2015
+
+The equivalence of information-theoretic and likelihood-based
+methods for neural dimensionality reduction
+Ross S. Williamson1,2,∗,∗∗ , Maneesh Sahani1 , Jonathan W. Pillow3,∗∗
+1. Gatsby Computational Neuroscience Unit, University College London, London, UK
+2. Centre for Mathematics and Physics in the Life Sciences and Experimental Biology, University
+College London, London, UK
+3. Princeton Neuroscience Institute, Department of Psychology, Princeton University, Princeton, New
+Jersey, USA
+∗ Current Affiliation: Eaton-Peabody Laboratories, Massachusetts Eye and Ear Infirmary, Boston,
+Massachusetts, USA & Center for Computational Neuroscience and Neural Technology, Boston
+University, Boston, Massachusetts, USA
+∗∗ Corresponding Authors: ross williamson@meei.harvard.edu, pillow@princeton.edu
+
+Abstract
+Stimulus dimensionality-reduction methods in neuroscience seek to identify a low-dimensional space of
+stimulus features that affect a neuron’s probability of spiking. One popular method, known as maximally
+informative dimensions (MID), uses an information-theoretic quantity known as “single-spike information” to identify this space. Here we examine MID from a model-based perspective. We show that MID
+is a maximum-likelihood estimator for the parameters of a linear-nonlinear-Poisson (LNP) model, and
+that the empirical single-spike information corresponds to the normalized log-likelihood under a Poisson
+model. This equivalence implies that MID does not necessarily find maximally informative stimulus dimensions when spiking is not well described as Poisson. We provide several examples to illustrate this
+shortcoming, and derive a lower bound on the information lost when spiking is Bernoulli in discrete time
+bins. To overcome this limitation, we introduce model-based dimensionality reduction methods for neurons with non-Poisson firing statistics, and show that they can be framed equivalently in likelihood-based
+or information-theoretic terms. Finally, we show how to overcome practical limitations on the number of
+stimulus dimensions that MID can estimate by constraining the form of the non-parametric nonlinearity
+in an LNP model. We illustrate these methods with simulations and data from primate visual cortex.
+
+Author Summary
+A popular approach to the neural coding problem is to identify a low-dimensional linear projection of
+the stimulus space that preserves the aspects of the stimulus that affect a neuron’s probability of spiking.
+Previous work has focused on both information-theoretic and likelihood-based estimators for finding such
+projections. Here, we show that these two approaches are in fact equivalent. We show that maximally
+informative dimensions (MID), a popular information-theoretic method for dimensionality reduction, is
+identical to the maximum-likelihood estimator for a particular linear-nonlinear encoding model with Poisson spiking. One implication of this equivalence is that MID may not find the information-theoretically
+optimal stimulus projection when spiking is non-Poisson, which we illustrate with a few simple examples.
+Using these insights, we propose novel dimensionality-reduction methods that incorporate non-Poisson
+spiking, and suggest new parametrizations that allow for tractable estimation of high-dimensional subspaces.
+
+2
+
+Introduction
+The neural coding problem, an important topic in systems and computational neuroscience, concerns the
+probabilistic relationship between environmental stimuli and neural spike responses. Characterizing this
+relationship is difficult in general because of the high dimensionality of natural signals. A substantial
+literature therefore has focused on dimensionality reduction methods for identifying which stimuli affect
+a neuron’s probability of firing. The basic idea is that many neurons compute their responses in a low
+dimensional subspace, spanned by a small number of stimulus features. By identifying this subspace, we
+can more easily characterize the nonlinear mapping from stimulus features to spike responses [1–5].
+Neural dimensionality-reduction methods can be coarsely divided into three classes: (1) momentbased estimators, such as spike-triggered average (STA) and covariance (STC) [1, 5–8]; (2) model-based
+estimators, which rely on explicit forward encoding models [9–16]; and (3) information and divergencebased estimators, which seek to reduce dimensionality using an information-theoretic cost function [17–
+22]. For all such methods, the goal is to find a set of linear filters, specified by the columns of a matrix
+K, such that the probability of response r given a stimulus s depends only on the linear projection of s
+onto these filters, i.e., p(r|s) ≈ p(r|K > s). Existing methods differ in computational complexity, modeling
+assumptions, and stimulus requirements. Typically, moment-based estimators have low computational
+cost but succeed only for restricted classes of stimulus distributions, whereas information-theoretic and
+likelihood-based estimators allow for the arbitrary stimuli but have high computational cost. Previous
+work has established theoretical connections between moment-based and likelihood-based estimators [11,
+14, 17, 19, 23], and between some classes of likelihood-based and information-theoretic estimators [14, 20,
+21, 24].
+Here we focus on maximally informative dimensions (MID), a well-known information-theoretic estimator introduced by Sharpee, Rust & Bialek [18]. We show that this estimator is formally identical to
+the maximum likelihood (ML) estimator for the parameters of a linear-nonlinear-Poisson (LNP) encoding model. Although previous work has demonstrated an asymptotic equivalence between these methods [20, 24, 25], we show that the correspondence is exact, regardless of time bin size or the amount of
+data. This equivalence follows from the fact that the plugin estimate for the single-spike information [26],
+the quantity that MID optimizes, is equal to a normalized Poisson log-likelihood.
+The connection between the MID estimator and the LNP model makes clear that MID does not
+incorporate information carried by non-Poisson statistics of the response. We illustrate this shortcoming by showing that MID can fail to find information-maximizing filters for simulated neurons with
+binary or other non-Poisson spike count distributions. To overcome this limitation, we introduce new
+dimensionality-reduction estimators based on non-Poisson noise models, and show that they can be framed
+equivalently in information-theoretic or likelihood-based terms.
+Finally, we show that a model-based perspective leads to strategies for overcoming a limitation of
+traditional MID, that it cannot tractably estimate more than two or three filters. The difficulty arises from
+the intractability of using histograms to estimate densities in high-dimensional subspaces. However, the
+single-spike information depends only on the ratio of densities, which is proportional to the nonlinearity
+in the LNP model. We show that by restricting the parametrization of this nonlinearity so that the
+number of parameters does not grow exponentially with the number of dimensions, we can obtain flexible
+yet computationally tractable estimators for models with many filters or dimensions.
+
+3
+multi-filter LNP encoding model
+
+stimulus
+space
+
+feature
+space
+nonlinearity
+
+response
+
+Poisson
+spiking
+
+linear filters
+
+Figure 1. The linear-nonlinear-Poisson (LNP) encoding model formalizes the neural encoding process
+in terms of a cascade of three stages. First, the high-dimensional stimulus s projects onto bank of filters
+contained in the columns of a matrix K, resulting in a point in a low-dimensional neural feature space
+K > s. Second, an instantaneous nonlinear function f maps the filtered stimulus to an instantaneous
+spike rate λ. Third, spikes r are generated according to an inhomogeneous Poisson process.
+
+Results
+Background
+Linear-nonlinear-Poisson (LNP) encoding model
+Linear-nonlinear cascade models provides a useful framework for describing neural responses to highdimensional stimuli. These models define the response in terms of a cascade of linear, nonlinear, and
+probabilistic spiking stages (see Fig. 1). The linear stage reduces the dimensionality by projecting the
+high-dimensional stimulus onto onto a set of linear filters, and a nonlinear function then converts the
+outputs of these filters to a non-negative spike rate.
+Let θ = {K, α} denote the parameters of the LNP model, where K is a (tall, skinny) matrix whose
+columns contain the stimulus filters (for cases with a single filter, we will denote the filter with a vector
+k instead of the matrix K), and α are parameters governing the nonlinear function f from feature space
+to instantaneous spike rate. Under this model, the probability of a spike response r given stimulus s is
+governed by a Poisson distribution:
+λ
+
+=
+
+f (K > s)
+
+p(r|λ)
+
+=
+
+r −∆λ
+1
+,
+r! (∆λ) e
+
+(1)
+
+where λ denotes the stimulus-driven spike rate (or “conditional intensity”) and ∆ denotes a (finite) time
+bin size. The defining feature of a Poisson process is that responses in non-overlapping time bins are
+conditionally independent given the spike rate. In a discrete-time LNP model, the conditional probability
+of a dataset D = {(st , rt )}, consisting of stimulus-response pairs indexed by t ∈ {1, . . . , N }, is the product
+of independent terms. The log-likelihood is therefore a sum over time bins:
+Llnp (θ; D) =
+
+N
+X
+t=1
+
+log p(rt |st , θ) =
+
+N 
+X
+t=1
+
+rt log(∆f (K > st )) − ∆f (K > st )
+
+
+
+−
+
+N
+X
+t=1
+
+
+log rt ! ,
+
+(2)
+
+4
+
+P
+where −( log rt !) is a constant that does not depend on θ. The ML estimate for θ is simply the
+maximizer of the log-likelihood: θbM L = arg max Llnp (θ; D).
+θ
+
+Maximally informative dimensions (MID)
+The maximally informative dimensions (MID) estimator seeks to find an informative low-dimensional
+projection of the stimulus by maximizing an information-theoretic quantity known as the single-spike
+information [26]. This quantity, which we denote Iss , is the the average information that the time of a
+single spike (considered independently of other spikes) carries about the stimulus
+Although first introduced as a quantity that can be computed from the peri-stimulus time histogram
+(PSTH) measured in response to a repeated stimulus, the single-spike information can also be expressed
+as the Kullback-Leibler (KL) divergence between two distributions over the stimulus (see [26], appendix
+B):
+Z
+
+
+
+p(s|spike)
+
+ds = DKL p(s|spike)  p(s) ,
+(3)
+Iss = p(s|spike) log
+p(s)
+where p(s) denotes the marginal or “raw” distribution over stimuli, and p(s|spike) is the distribution
+over stimuli conditioned on observing a spike, also known as the “spike-triggered” stimulus distribution.
+Note that p(s|spike) is not the same as p(s|r = 1), the distribution of stimuli conditioned on a spike
+count of r = 1, since a stimulus that elicits two spikes will contribute twice as much to the spike-triggered
+distribution as a stimulus that elicits only one spike.
+The MID estimator [18] seeks to find the linear projection that preserves maximal single-spike information:
+
+
+
+
+Iss (K) = DKL p(K > s|spike)  p(K > s) ,
+(4)
+where p(K > s) and p(K > s|spike) are the raw and spike-triggered stimulus distributions projected onto
+the subspace defined by the columns of K, respectively. In practice, the MID estimator maximizes an
+estimate of the projected single-spike information:
+b M ID = arg max Ibss (K),
+K
+K
+
+(5)
+
+b M ID can be conceived as
+where Ibss (K) denotes an empirical estimate of Iss (K). The columns of K
+“directions” or “axes” in stimulus space that are most informative about a neuron’s probability of spiking,
+as quantified by single-spike information. Fig. 2 shows a simulated example illustrating the MID estimate
+for a single linear filter in a two-dimensional stimulus space.
+
+Equivalence of MID and maximum-likelihood LNP
+Previous work has shown that MID converges asymptotically to the maximum-likelihood (ML) estimator
+for an LNP model in the limit of small time bins [20, 24]. Here we present a stronger result, showing that
+the equivalence is not merely asymptotic. We show that standard MID, using histogram-based estimators
+for raw and spike-triggered stimulus densities p(s) and p(s|spike), is exactly the ML estimator for the
+parameters of an LNP model, regardless of spike rate, the time bins used to count spikes, or the amount
+of data.
+The standard implementation of MID [18, 20] uses histograms to estimate the projected stimulus
+densities p(K > s) and p(K > s|spike). These density estimates are then used to compute Ibss (K), the
+plugin estimate of single-spike information in a subspace defined by K (eq. 4). We will now unpack the
+details of this estimate in order to show its relationship to the LNP model log-likelihood.
+
+5
+2D stimulus space
+
+information vs. projection axis
+
+spiking
+raw
+(bits)
+
+0.15
+
+axis 1
+
+0.1
+
+0.05
+
+axis 2
+
+0
+0
+
+45
+
+90
+
+135
+
+projection axis (deg)
+
+180
+
+Figure 2. Geometric illustration of maximally-informative-dimensions (MID). Left: A
+two-dimensional stimulus space, with points indicating the location of raw stimuli (black) and
+spike-eliciting stimuli (red). For this simulated example, the probability of spiking depended only on
+the projection onto a filter ktrue , oriented at 45◦ . Histograms (inset) show the one-dimensional
+distributions of raw (black) and spike-triggered stimuli (red) projected onto ktrue (lower right) and its
+orthogonal complement (lower left). Right: Estimated single-spike information captured by a 1D
+subspace, as a function of the axis of projection. The MID estimate k̂M ID (dotted) corresponds to the
+axis maximizing single-spike information, which converges asymptotically to ktrue with dataset size.
+Let {B1 , . . . , Bm } denote a group of sets (“histogram bins”) that partition the range of the projected
+stimuli K > s. In the one-dimensional case, we typically choose these sets to be intervals Bi = [bi−1 , bi ),
+b = (b
+defined by bin edges {b0 , . . . , bm }, where b0 = −∞ and bm = +∞. Then let p
+p1 , . . . , pbm ) and
+b = (b
+q
+q1 , . . . qbm ) denote histogram-based estimates of p(K > s) and p(K > s|spike), respectively, given by:
+pbi
+qbi
+
+=
+
+# stimuli in Bi
+# stimuli
+
+=
+
+# stimuli in Bi | spike
+# spikes
+
+=
+
+N
+1 X
+1B (xt )
+N t=1 i
+
+=
+
+(6)
+
+N
+1 X
+1B (xt )rt ,
+nsp t=1 i
+
+where xt = K > st denotes the linear projection of the stimulus st , nsp =
+spikes, and 1Bi (·) is the indicator function for the set Bi , defined as:
+
+1, x ∈ Bi
+1Bi (x) =
+0, x ∈
+/ Bi
+
+PN
+
+t=1 rt
+
+is the total number of
+
+(7)
+
+b and q
+b are also known as the “plug-in” estimates, and correspond to maximum likelihood
+The estimates p
+estimates for the densities in question. These estimates give us a plug-in estimate for projected singlespike information:
+Ibss =
+
+m N
+N
+qbi
+1 XX
+qbi
+1 X
+=
+1B (xt )rt log
+=
+rt log gb(xt )
+qbi log
+pbi
+nsp i=1 t=1 i
+pbi
+nsp t=1
+i=1
+
+m
+X
+
+(8)
+
+6
+
+where the function gb(x) denotes the ratio of density estimates:
+gb(x) ,
+
+m
+X
+i=1
+
+1Bi (x)
+
+qbi
+.
+pbi
+
+(9)
+
+Note that gb(x) is a piece-wise constant function that takes the value qbi /b
+pi over the ith histogram bin Bi .
+Now, consider an LNP model in which the nonlinearity f is parametrized as a piece-wise constant
+function, taking the value fi over histogram bin Bi . Given a projection matrix K, the ML estimate for
+the parameter vector α = (f1 , . . . , fm ) is the average number of spikes per stimulus in each histogram
+bin, divided by time bin width ∆, that is:
+PN
+1Bi (xt )rt
+1
+b
+· Pt=1
+=
+fi =
+N
+∆
+t=1 1Bi (xt )
+
+nsp 
+N∆
+
+qbi
+pbi
+
+(10)
+
+PN
+n 
+Note that functions fb and gb are related by fb(x) = Nsp
+b(x) and that the sum t=1 fb(xt )∆ = nsp . We
+∆ g
+can therefore rewrite the LNP model log-likelihood (eq. 2):
+Llnp (θ; D)
+
+=
+
+N
+X
+t=1
+
+=
+
+N
+X
+
+rt log
+
+n
+
+sp
+
+N
+
+N
+
+X
+gb(xt ) − nsp −
+log rt !
+t=1
+
+
+
+rt log gb(xt ) + nsp log
+
+t=1
+
+N
+ X
+nsp
+−1 −
+log rt !
+N
+t=1
+
+(11)
+
+This allows us to directly relate the empirical single-spike information (eq. 8) with the LNP model loglikelihood, normalized by the spike count as follows:
+i
+h
+X
+nsp
+Ibss (K) = n1sp Llnp (θ; D) − n1sp nsp log
+− nsp −
+log rt ! .
+(12)
+N
+= n1sp Llnp (θ; D) − n1sp Llnp (θ0 , D)
+(13)
+where Llnp (θ0 , D) denotes the Poisson log-likelihood under a “null” model in which spike rate does not
+n
+depend on the stimulus, but takes constant rate λ0 = Nsp
+∆ across the entire stimulus space. In fact, the
+quantity −L
+(θ
+,
+D)
+can
+be
+considered
+an
+estimate
+for
+the
+marginal entropy of the response distribution,
+Plnp 0
+H(r) = − p(r) log p(r), since it is the average log-probability of the response under a Poisson model,
+independent of the stimulus. This makes it clear that the single-spike information Iss can be equally
+regarded as “LNP information”.
+Empirical single-spike information is therefore equal to LNP model log-likelihood per spike, plus a
+constant that does not depend on model parameters. This equality holds independent of time bin size
+∆, the number of samples N and the number of spikes nsp . From this relationship, it is clear that the
+linear projection K that maximizes Ibss also maximizes the LNP log-likelihood Llnp (θ; D), meaning that
+the MID estimate is precisely the same as an ML estimate for the filters in an LNP model:
+b M ID = K
+bM L.
+K
+
+(14)
+
+b and q
+b,
+Moreover, the histogram-based estimates of the raw and spike-triggered stimulus densities p
+which are used for computing the empirical single-spike information Ibss , correspond to a particular
+parametrization of the LNP model nonlinearity f as a piece-wise constant function over histogram bins.
+The ratio of these plug-in estimates give rise to the ML estimate for f . MID is thus formally equivalent
+to an ML estimator for both the linear filters and the nonlinearity of an LNP model.
+
+7
+
+Previous literature has not emphasized that the MID estimator implicitly provides an estimate of the
+LNP model nonlinearity, or that the number of histogram bins corresponds to the number of parameters
+governing the nonlinearity. Selecting the number of parameters for the nonlinearity is important both
+for accurately estimating single-spike information from finite data and for successfully finding the most
+informative filter or filters. Fig. 3 illustrates this point using data from a simulated neuron with a single
+filter in a two-dimensional stimulus space. For small datasets, the MID estimate computed with many
+histogram bins (i.e., many parameters for the nonlinearity) substantially overestimates the true Iss and
+b Even with 1000 stimuli and 200 spikes, a 20-bin histogram
+yields large errors in the filter estimate K.
+gives substantial upward bias in the estimate of single-spike information (Fig. 3D). Parametrization of
+the nonlinearity is therefore an important problem that should be addressed explicitly when using MID,
+e.g., by cross-validation or other model selection methods.
+
+Models with Bernoulli spiking
+Under the discrete-time inhomogeneous Poisson model considered above, spikes are modeled as conditionally independent given the stimulus, and the spike count in a discrete time bin has a Poisson distribution.
+However, real spike trains may exhibit more or less variability than a Poisson process [27]. In particular,
+the Poisson assumption breaks down when the time bin in which the data are analyzed approaches the
+length of the refractory period, since in that case each bin can contain at most one spike. In that case,
+a Bernoulli model provides a more accurate description of neural data, since it assigns allows only 0 or 1
+spike per bin. In fact, the Bernoulli and discrete-time Poisson models approach the same limiting Poisson
+process as the bin size (and single-bin spike probability) approaches zero while the average spike rate
+remains constant. However, as long as single-bin spike probabilities remain measurable, the two models
+differ.
+Here we show that the standard “Poisson” MID estimator does not necessarily maximize information
+between stimulus and response when spiking is non-Poisson. That is, if the spike count r given stimulus
+s is not a Poisson random variable, then MID does not necessarily find the subspace preserving maximal
+information between stimulus and response. To show this, we derive the mutual information between the
+stimulus and a Bernoulli distributed spike count, and show that this quantity is closely related to the
+log-likelihood under a linear-nonlinear-Bernoulli encoding model.
+Linear-nonlinear-Bernoulli (LNB) model
+We can define the Linear-nonlinear-Bernoulli (LNB) model by analogy to the LNP model, but with
+Bernoulli instead of Poisson spiking. The parameters θ = {K, α} consist of a matrix K that determines
+a linear projection of the stimulus space, and a set of parameters α that govern the nonlinearity f . Here,
+the output of f is spike probability λ in the range [0, 1]. The probability of a spike response r ∈ {0, 1}
+given stimulus s is governed by a Bernoulli distribution. We can express this model as
+λ
+p(r|λ)
+
+= f (K > s)
+r
+
+= λ (1 − λ)
+
+(15)
+1−r
+
+,
+
+(16)
+
+and the log-likelihood for a dataset D = {(st , rt )} is
+Llnb (θ; D) =
+
+N 
+X
+
+
+rt log(f (K > st )) − (1 − rt ) log(1 − f (K > st )) .
+
+(17)
+
+t=1
+
+If K has a single filter and the nonlinearity is restricted to be a logistic function, f (x) = 1/(1 + exp(−x)),
+this reduces to the logistic regression model. Note that the spike probability λ is analogous to the single-
+
+8
+
+raw and spiking stimuli
+
+B
+
+projected distributions
+
+C 1estimated nonlinearities
+
+stimulus axis 2
+
+5 bins
+p(spike|x)
+
+A
+
+20 bins
+
+0
+1
+
+true
+nonlinearity
+
+0
+1
+
+80 bins
+
+info estimate vs. angle
+
+0.5
+
+0
+−90
+
+true
+asymptotic
+
+80 bins
+20 bins
+5 bins
+
+−45
+
+E
+
+2
+
+estimated information
+
+45
+
+projection axis (deg)
+
+90
+
+F
+
+stimulus axis 1
+
+filter estimation error
+
+80 bins
+0.5
+
+20 bins
+1
+
+0
+
+0
+
+RMS error
+
+single-spike info (bits)
+
+D
+
+stimulus axis 1
+
+single-spike info (bits)
+
+stimulus axis 1
+
+5 bins
+true asymptotic
+100
+
+1000
+
+# stimuli
+
+10000
+
+0
+100
+
+1000
+
+# stimuli
+
+10000
+
+Figure 3. Effects of the number of histogram bins on empirical single-spike information and MID
+performance. (A) Scatter plot of raw stimuli (black) and spike-triggered stimuli (gray) from a
+simulated experiment using two-dimensional stimuli to drive a linear-nonlinear-Bernoulli neuron with
+sigmoidal nonlinearity. Arrow indicates the direction of the true filter k. (B) Plug-In estimates of
+p(k> s|spike), the spike-triggered stimulus distribution along the true filter axis, from 1000 stimuli and
+200 spikes, using 5 (blue), 20 (green) or 80 (red) histogram bins. Black traces show estimates of raw
+distribution p(k> s) along the same axis. (C) True nonlinearity (black) and ML estimates of the
+nonlinearity (derived from the ratio of the density estimates shown in B). Roughness of the 80-bin
+estimate (red) arises from undersampling, or (equivalently) overfitting of the nonlinearity. (D)
+Empirical single-spike information vs. direction, calculated using 5, 20 or 80 histogram bins. Note that
+the 80-bin model overestimates the true asymptotic single-spike information at the peak by a factor of
+more than 1.5. (E) Convergence of empirical single-spike information along the true filter axis as a
+function of sample size. With small amounts of data, all three models overfit, leading to upward bias in
+estimated information. For large amounts of data, the 5-bin model underfits and therefore
+under-estimates information, since it lacks the smoothness to adequately describe the shape of the
+sigmoidal nonlinearity. (F) Filter error as a function of the number of stimuli, showing that the optimal
+number of histogram bins depends on the amount of data.
+
+bin Poisson rate λ∆ from the LNP model (eq. 1), and the two models become identical in the small-bin
+limit where the probability of spiking p(r = 1) goes to zero [24, 26].
+
+9
+
+Bernoulli information
+We can derive an equivalent dimensionality-reduction estimator in information-theoretic terms. The
+mutual information between the projected stimulus x = K > s and a Bernoulli spike response r ∈ {0, 1}
+is given by:
+I(x, r) = H(x) − H(x|r)
+Z
+= − dx p(x) log p(x) +
+
+X
+
+Z
+p(r = j)
+
+dx p(x|r = j) log p(x|r = j)
+
+j∈{0,1}
+
+X
+
+=
+
+j∈{0,1}
+
+X
+
+=
+
+Z
+
+p(x|r = j)
+p(x)
+
+
+
+
+p(r = j)DKL p(x|r = j)  p(x) .
+
+p(r = j)
+
+dx p(x|r = j) log
+
+(18)
+
+j∈{0,1}
+
+If we normalize by the probability of observing a spike, we obtain a quantity with units of bits-per-spike
+that can be directly compared to single-spike information. We refer to this as the Bernoulli information:
+IBer =
+where I0 =
+
+
+
+p(r=0)
+p(r=1) DKL
+
+1
+I(x, r) = I0 + Iss
+p(r = 1)
+
+(19)
+
+
+
+
+p(x|r = 0)  p(x) is the information (per spike) carried by silences and Iss is the
+
+single-spike information (eq. 4). Thus, where single-spike information quantifies the information conveyed
+by each spike alone (no matter how many spikes might co-occur in the same time bin) but neglects the
+information conveyed by the absence of any spike, the Bernoulli information quantifies information per
+bin, whether a (by assumption, single) spike appears within it or not.
+Let IbBer = Ib0 + Ibss denote the empirical or plug-in estimate of the Bernoulli information, where
+Ibss is the empirical single-spike information (eq. 8), and Ib0 is a plug-in estimate of the KL divergence
+between p(x|r = 0) and p(x), weighted by (N − nsp )/nsp , the ratio of the number of silences to the
+number of spikes. It is straightforward to show that empirical Bernoulli information equals the LNB
+model log-likelihood per spike plus a constant:
+1
+1b
+IbBer =
+Llnb + H[r]
+nsp
+r̄
+n
+
+n
+
+(20)
+n
+
+N −n
+
+N −n
+
+sp
+b = − sp log sp −
+where r̄ = Nsp denotes mean spike count per bin and H[r]
+log N sp is the plug-in
+N
+N
+N
+estimate for the marginal response entropy. Because the second term is independent of θ, the maximum
+of the empirical Bernoulli information is identical to the maximum of the LNB model likelihood, meaning
+that once again, we have an exact equivalence between likelihood-based and information-based estimators.
+
+Failure modes for MID under Bernoulli spiking
+The empirical Bernoulli information is strictly greater than the estimated single-spike (or “Poisson”)
+information for a binary spike train that is not all zeros or ones, since Ib0 > 0 and these spike absences
+are neglected by the single-spike information measure. Only in the limit of infinitesimal time bins, where
+p(r = 1) → 0, does IbBer converge to Ibss [24, 26]. As a result, standard MID can fail to identify the most
+informative subspace when applied to a neuron with Bernoulli spiking. We illustrate this phenomenon
+with two (admittedly toy) simulated examples. For both examples, we compute the standard MID
+
+10
+
+B
+
+1
+
+spike
+no spike
+
+0
+
+−1
+0
+
+1
+
+stimulus axis 1
+
+bits / spike
+
+stimulus axis 2
+
+A
+
+0.6
+
+0.4
+
+0.2
+
+0
+
+0
+
+90
+
+axis of projection (deg)
+
+180
+
+Figure 4. Illustration of MID failure mode due to non-Poisson spiking. (A) Stimuli were drawn
+uniformly on the unit half-circle, θ ∼ Unif(−π/2, π/2). The simulated neuron had Bernoulli (i.e.,
+binary) spiking, where the probability of a spike increased linearly from 0 to 1 as θ varied from -π/2 to
+π/2, that is: p(spike|θ) = θ/π + 1/2. Stimuli eliciting “spike” and “no-spike” are indicated by gray and
+black circles, respectively. For this neuron, the most informative one-dimensional linear projection
+bBer ), but the MID estimator (k
+bM ID ) exhibits a 16◦ clockwise bias.
+corresponds to the vertical axis (k
+(B) Information from spikes (black), silences (gray), and both (red), as a function of projection angle.
+bBer ) lies close to π/2, while the peak of
+The peak of the Bernoulli information (which defines k
+b
+bM ID
+single-spike information (which defines kM ID ) exhibits the clockwise bias shown in A. Note that k
+does not converge to the optimal direction even in the limit of infinite data, due to its lack of sensitivity
+to information from silences. Although this figure is framed in an information-theoretic sense, equations
+(19) and (20) detail the equivalence between IBer and Llnb , so that this figure can be viewed from
+either an information-theoretic or likelihood-based perspective.
+
+bM ID by maximizing Ibss , and the LNB filter estimate k
+bBer which maximizes the LNB likelihood,
+estimate k
+b
+b
+b
+or equivalently IBer = Iss + I0 .
+The first example (Fig. 4) uses raw stimuli uniformly distributed on the right half of the unit circle.
+The Bernoulli spike probability λ increases linearly as a function of stimulus angle: λ = (s − π/2)/π,
+for s ∈ (−π/2, π/2]. For this neuron, the most informative 1D axis is the vertical axis, which is closely
+bBer . By contrast, k
+bM ID exhibits a substantial clockwise bias, resulting from
+matched by the estimate k
+its failure to take into account the information from silences (which are more informative when spike rate
+is high). Fig. 4B shows the breakdown of total Bernoulli information into Ibss (spikes) and Ib0 (silences)
+as a function of projection angle, which illustrates the relative biases of the two quantities.
+A second example (Fig. 5) uses stimuli drawn from a standard bivariate Gaussian (0 mean and identity
+covariance), in which standard MID makes a π/2 error in identifying the most informative one-dimensional
+subspace. The neuron’s nonlinearity (Fig. 5A) is excitatory in stimulus axis s1 and suppressive in stimulus
+axis s2 (indicating that a large projection onto s1 increases spike probability, while a large projection
+onto s2 decreases spike probability). For this neuron, both stimulus axes are clearly informative, but
+the (suppressive, vertical) axis s2 carries 13% more information than the (excitatory, horizontal) axis
+s1 . However, the standard MID estimator identifies s1 as the most informative axis (Fig. 5C), due once
+
+11
+A
+
+nonlinearity
+
+B
+
+response-conditional densities
+
+C
+
+information vs. direction
+0.2
+
+bits / spike
+
+stim axis
+
+2
+0
+
+−2
+−2
+
+0
+
+stim axis
+
+2
+
+−2
+
+0
+
+2
+
+−2
+
+stim axis
+
+0
+
+2
+
+0
+
+0
+
+90
+
+axis of projection (deg)
+
+bM ID fails to identify the most-informative
+Figure 5. A second example Bernoulli neuron for which k
+one-dimensional subspace. The stimulus space has two dimensions, denoted s1 and s2 , and stimuli were
+drawn iid from a standard Gaussian N (0, 1). (A) The nonlinearity f (s1 , s2 ) = p(spike|s1 , s2 ) is
+excitatory in s1 and suppressive in s2 ; brighter intensity indicates higher spike probability. (B) Contour
+plot of the stimulus-conditional densities given the two possible responses: “spike” (red) or “no-spike”
+(blue), along with the raw stimulus distribution (black). (C) Information carried by silences (I0 ), single
+spikes (Iss ), and total Bernoulli information (IBer = I0 + Iss ) as a function of subspace orientation. The
+bM ID = 90◦ is the maximum of Iss , but the total Bernoulli information is in fact 13%
+MID estimate k
+bBer = 0◦ due to the incorporation of no-spike information. Although both stimulus axes are
+higher at k
+clearly relevant to the neuron, MID identifies the less informative one. As with the previous figure,
+equations (19) and (20) detail the equivalence between IBer and Llnb , so that this figure can be viewed
+from either an information-theoretic or likelihood-based perspective.
+
+again to the failure to account for the information carried by silences.
+These artificial examples were designed to emphasize the information carried by missing spikes, and
+we do not expect such stark differences between Bernoulli and Poisson estimators to arise in the general
+case of neural data. However, it is clear that the assumption of Poisson firing can lead the standard MID
+estimator to make mistakes when spiking is actually Bernoulli (or generated by some other distribution).
+In general, we suggest that the question of which estimator performs better is an empirical one, and
+depends on which model (Bernoulli or Poisson) describes the true spiking process more accurately.
+Quantifying MID information loss for binary spike trains
+In the limit of infinitesimal time bins, the information carried by silences goes to zero, and the plugin estimates for Bernoulli and single-spike (“Poisson”) information converge: I0 → 0 and IbBer → Ibss .
+However, for finite time bins, the Bernoulli information can substantially exceed single-spike information.
+In the previous section, we showed that this mismatch can lead to errors in subspace identification. Here
+we derive a lower bound on the information lost due to the neglect of I0 , the information (per spike)
+carried by silences, as a function of marginal probability of a spike, p(r = 1).
+In the limit of rare spiking, p(r = 1) → 0, we find that:
+I0
+IBer
+
+=
+
+I0
+p(r = 1)
+≥
+.
+I0 + Iss
+2
+
+(21)
+
+The fraction of lost information is at least half the marginal spike probability. Thus, for example, if 20%
+
+12
+minimum information loss
+for binary spiking
+
+1
+
+m
+
+mu
+
+ni
+mi
+0
+
+d
+oun
+er b
+w
+lo
+
+0
+
+1
+
+Figure 6. Lower bound on the fraction of total information neglected by MID for a Bernoulli neuron,
+as a function of the marginal spike probability p(spike) = p(r = 1), for the special case of a binary
+stimulus. Information loss is quantified as the ratio I0 /(I0 + Iss ), the information due to no-spike
+events, I0 , divided by the total information due to spikes and silences, I0 + Iss . The dashed gray line
+shows the lower bound derived in the limit p(spike) → 0. The solid black line shows the actual
+minimum achieved for binary stimuli s ∈ {0, 1} with p(s = 1) = q, computed via a numerical search over
+the parameter q ∈ [0, 1] for each value of p(spike). The lower bound is substantially loose for
+p(spike) > 0, since as p(spike) → 1, the fraction of information due to silences goes to 1.
+of the bins in a binary spike train contain a spike, the standard MID estimator will necessarily neglect
+at least 10% of the total mutual information. We show this bound holds in the asymptotic limit of small
+p(r = 1) (see Methods for details), but conjecture that it holds for all p(r = 1). The bound is tight in the
+Poisson limit, p(r = 1) → 0, but is substantially loose in the limit where spiking is common p(r = 1) → 1,
+in which all information is carried by silences. Fig. 6 shows our bound compared to the actual (numerical)
+lower bound for an example with a binary stimulus.
+
+Models with arbitrary spike count distributions
+For neural responses binned at the stimulus refresh rate (e.g., 100 Hz), it is not uncommon to observe
+multiple spikes in a single bin. For the general case, then, we must consider an arbitrary distribution over
+counts conditioned on a stimulus. As we will see, maximizing the mutual information based on histogram
+estimators is once again equivalent to maximizing the likelihood of an LN model with piece-wise constant
+mappings from the linear stimulus projection to count probabilities.
+Linear-nonlinear-count (LNC) model
+Suppose that a neuron responds to a stimulus s with a spike count r ∈ {0, . . . , rmax }, where rmax is the
+maximum possible number of spikes within the time bin (constrained by the refractory period or other
+firing rate saturation). The linear-nonlinear-count (LNC) model, which includes LNB as a special case, is
+defined by a linear dimensionality reduction matrix K and a set of nonlinear functions {f (0) . . . , f (rmax ) }
+that map the projected stimulus to the probability of observing {0, . . . , rmax } spikes, respectively. We
+
+13
+can write the probability of a spike response r given projected stimulus x = K > s as:
+λ(j)
+p(r = j|λ
+
+(j)
+
+=
+
+)
+
+=
+
+f (j) (x),
+(j)
+
+λ
+
+for j = 0, . . . , rmax
+
+.
+
+(22)
+
+Note that there is a implicit linear constraint on the functions f requiring that
+the probabilities over possible counts must add to 1 for each stimulus.
+
+P
+
+j
+
+f (j) (x) = 1, ∀x, since
+
+The LNC model log-likelihood on the parameters θ = (K, α(0) , . . . α(rmax ) ) for data D = {(st , rt )} can
+be written:
+N rX
+max 
+
+
+X
+Llnc (θ; D) =
+1j (rt ) log f (j) (K > st ) ,
+(23)
+t=1 j=0
+
+where 1j (rt ) is an indicator function selecting time bins t in which the spike count is j. As before,
+we consider the case where f (j) takes a constant value in each of m histogram bins {Bi }, so that the
+(j)
+(j)
+parameters are just those constant values: α(j) = (f0 , . . . , fm ). The maximum-likelihood estimates for
+the values can be given in terms of the histogram probabilities:
+(j)
+
+(j)
+
+qb N (j)
+n
+(j)
+.
+fbi = i = i
+ni
+pbi N
+
+(24)
+
+(j)
+
+where ni is the number of stimuli in bin Bi , ni is the number of stimuli in bin Bi that elicited j spikes,
+N (j) is the number of stimuli in all bins that elicited j spikes, and N is the total number of stimuli.
+The histogram fractions of the projected raw spike counts pbi are defined as in eq. 6, with the j-spike
+conditioned histograms defined analogously:
+(j)
+
+qbi
+
+=
+
+(j)
+1 X
+ni
+,
+1
+(x
+)
+1
+(r
+)
+=
+Bi
+t
+j t
+N (j) t
+N (j)
+
+(25)
+
+Thus, the log-likelihood for projection matrix K, having already maximized with respect to the
+nonlinearities by using their plug-in estimates, is
+Llnc (K; D) =
+
+N rX
+max 
+X
+
+
+
+1j (rt ) log fb(j) (K > st )
+
+(26)
+
+t=1 j=0
+
+=
+
+N rX
+m 
+max X
+X
+
+(j)
+1j (rt ) 1Bi (K > st ) log fbi
+
+
+
+(27)
+
+t=1 j=0 i=1
+
+=
+
+rX
+m 
+max X
+j=0 i=1
+
+=
+
+rX
+m 
+max X
+
+(j)
+
+(j) 
+
+ni log
+
+ni
+ni
+
+(j)
+
+N (j) qbi log
+
+(28)
+ qb(j) N (j) 
+i
+
+N
+
+
+rX
+rX
+m
+max X
+max 
+ qb(j) 
+ N (j) 
+(j) (j)
+(j)
+i
+=
+N qbi log
++
+N log
+.
+pbi
+N
+j=0 i=1
+j=0
+j=0 i=1
+
+pbi
+
+(29)
+
+(30)
+
+Information in spike counts
+If the binned spike-counts rt measured in response to stimuli st are not Poisson distributed, the projection
+matrix K which maximizes the mutual information between K > s and r can be found as follows. Recalling
+
+14
+that rmax is the maximal spike count possible in the time bin and writing x = K > s, we have:
+I(x, r) = H(x) − H(x|r)
+Z
+Z
+rX
+max
+= − dx p(x) log p(x) +
+p(r = j) dx p(x|r = j) log p(x|r = j)
+
+(31)
+(32)
+
+j=0
+
+=
+
+=
+
+rX
+max
+j=0
+rX
+max
+
+Z
+p(r = j)
+
+dx p(x|r = j) log
+
+p(x|r = j)
+p(x)
+
+
+
+
+
+p(r = j)DKL p(x|r = j)  p(x) .
+
+(33)
+
+(34)
+
+j=0
+
+To ease comparison with the single-spike information, which is measured in bits per spike, we normalize
+the mutual information by the mean spike count to obtain:
+1
+I(x, r) = I0 + I1 + · · · + Irmax
+(35)
+r̄
+
+
+
+P
+
+where r̄ = t rt /N is the mean spike count, and Ij = p(r=j)
+D
+p(x|r
+=
+j)
+p(x)
+is the normalized
+
+
+KL
+r̄
+information carried by the j-spike responses. Note that I1 , the information carried by single-spike responses, is not the same as the single-spike information Iss , since the latter combines information from
+all responses with 1 or more spikes, by assuming that each spike is conditionally independent of all other
+spikes.
+Icount =
+
+Given experimental data D = {(st , rt )} the mutual information must be estimated. If we again use
+the histogram-based plug-in estimator, we obtain:
+Ibcount =
+
+rX
+max
+j=0
+
+m
+(j)
+1 N (j) X (j)
+qb
+qbi log i .
+r̄ N i=1
+pbi
+
+(36)
+
+Comparison with the LNC model log-likelihood (eq. 30) reveals that:
+1b
+1
+Llnc + H[r]
+Ibcount =
+nsp
+r̄
+
+(37)
+
+Prmax N (j)
+N (j)
+b
+where H[r]
+= − j=0
+is the plug-in estimate for the marginal entropy of the observed
+N log N
+spike counts. Note that this also proves the relationship between Bernoulli information and LNB model
+log-likelihood (eq. 20) in the special case where rmax = 1.
+Thus, we see that even in the general case of a completely arbitrary distribution over spike counts
+given a stimulus, the subspace projection K that maximizes the histogram-based estimate of mutual
+information is identical to the maximum-likelihood K for an LN model with a corresponding piece-wise
+constant parametrization of the nonlinearities.
+Failures of MID under non-Poisson count distributions
+We formulate two simple examples to illustrate the sub-optimality of standard MID for neurons whose
+stimulus-conditioned count distributions are not Poisson. For both examples, the neuron was sensitive
+to a one-dimensional projection along the horizontal axis and emitted either 0, 1, or 2 spikes in response
+to a stimulus.
+
+15
+
+response-triggered stimuli
+
+axis 1
+
+spike rate
+
+2
+1
+0
+
+stimulus projection
+
+Pr(0 or 2 spikes)
+
+B
+true
+filter
+1
+0
+
+stimulus projection
+
+15
+
+1
+
+count
+
+mean abs error (deg)
+
+true
+filter
+
+convergence
+
+10
+
+0.5
+
+0
+−90
+
+−45
+
+0
+
+45
+
+filter angle (deg)
+
+90
+
+count
+
+0
+10
+
+20
+
+50
+
+0.5
+count
+
+40
+
+80
+
+160 320
+
+40
+
+80
+
+160 320
+
+# stimuli
+
+25
+
+0.25
+
+0
+−90
+
+5
+
+mean abs error (deg)
+
+2-spikes
+
+axis 2
+
+0-spikes
+
+information vs. direction
+Information (bits / spike)
+
+1-spike
+
+Information (bits / spike)
+
+A
+
+−45
+
+0
+
+45
+
+filter angle (deg)
+
+90
+
+count
+
+0
+10
+
+20
+
+# stimuli
+
+Figure 7. Two examples illustrating sub-optimality of MID under discrete (non-Poisson) spiking. In
+both cases, stimuli were uniformly distributed within the unit circle and the simulated neuron’s
+response depended on a 1D projection of the stimulus onto the horizontal axis (θ = 0). Each stimulus
+evoked 0, 1, or 2 spikes. (A) Deterministic neuron. Left: Scatter plot of stimuli labelled by number of
+spikes evoked, and the piece-wise constant nonlinearity governing the response (below). The
+nonlinearity sets the response count deterministically, thus dramatically violating Poisson expectations.
+Middle: information vs. axis of projection. The total information Icount reflects the information from 0-,
+1-, and 2-spike responses (treated as distinct symbols), while the single-spike information Iss ignores
+silences and treats 2-spike responses as two samples from p(s|spike). Right: Average absolute error in
+bM ID and k
+bcount as a function of sample size; the latter achieves 18% lower error due to its sensitivity
+k
+to the non-Poisson structure of the response. (B) Stochastic neuron with sigmoidal nonlinearity
+controlling the stochasticity of responses. The neuron transitions from almost always emitting 1 spike
+for large negative stimulus projections, to generating either 0 or 2 spikes with equal probability at large
+positive projections. Here, the nonlinearity does not modulate the mean spike rate, so Ibss is
+approximately zero for all stimulus projections (middle) and the MID estimator does not converge
+bcount estimate converges because the LNC model is sensitive to the change in
+(right). However, the k
+conditional response distribution. Eq. (37) details the relationship between Icount and Llnc , so that this
+figure can be interpreted from either an information-theoretic or likelihood-based perspective.
+Both are illustrated in Fig. 7. The first example (A) involves a deterministic neuron, where spike
+count is 0, 1, or 2 according to a piece-wise constant nonlinear function of the projected stimulus. Here,
+MID does not use the information from zero or two-spike bins optimally; it ignores information from
+zero-spike responses entirely, and treats stimuli eliciting two spikes as two independent samples from
+p(x|spike). The Icount estimator is sensitive to the non-Poisson statistics of the response, and combines
+information from all spike counts (eq. 35), yielding both higher information and faster convergence to the
+true filter.
+
+16
+
+Our second example (Fig. 7B) involves a model neuron in which a sigmoidal nonlinearity determines
+the probability that it fires exactly 1 spike (high at negative stimulus projections) or stochastically emits
+either 0 or 2 spikes, each with probability 0.5 (which becomes more probable at large positive stimulus
+projections). Thus, the nonlinearity does not change the mean spike rate, but strongly affects its variance.
+Because the probability of observing a single spike is not affected by the stimulus, single-spike information
+zero for all projections, and the MID estimate does not converge to the true filter even with infinite data.
+However, the full count information Ibcount correctly weights the information carried by different spike
+counts and provides a consistent estimator for K.
+
+Identifying high-dimensional subspaces
+A significant drawback to standard MID is that it does not scale tractably to high-dimensional subspaces;
+that is, to the simultaneous estimation of many filters. MID has usually been limited to estimation of
+only one or two filters, and we are unaware of a practical setting in which it has been used to recover more
+than three. This stands in contrast to methods like spike-triggered covariance (STC) [1, 7], informationtheoretic spike-triggered average and covariance (iSTAC) [19], projection-pursuit regression [28], Bayesian
+spike-triggered covariance [14], and quadratic variants of MID [21,22], all of which can tractably estimate
+ten or more filters. This capability may be important, given that V1 neurons exhibit sensitivity to as
+many as 15 dimensions [29], and many canonical neural computations (e.g., motion estimation) require
+a large number of stimulus dimensions [22, 30].
+Before we continue, it is helpful to consider why MID is impractical for high-dimensional feature spaces.
+The problem isn’t the number of filter parameters: these scale linearly with dimensionality, since a pfilter model with D-dimensional stimuli requires only Dp parameters, or indeed only (D − 1)p − 12 p(p − 1)
+parameters to specify the subspace. The problem is instead the number of parameters needed to specify
+the densities p(x) and p(x|spike). For histogram-based density estimators, the number of parameters
+grows exponentially with dimension: a histogram with m bins along each of p filter axes requires mp
+parameters, a phenomenon sometimes called the “curse of dimensionality”.
+Density vs. nonlinearity estimation
+A key benefit of the LNP model likelihood framework is that it shifts the focus of estimation away from the
+separate densities p(x|spike) and p(x) to a single nonlinear function f . This change in focus makes it easier
+to scale the likelihood approach to high dimensions for a few different reasons. First, direct estimation
+of a single nonlinearity in place of two densities immediately halves the number of parameters required
+to achieve a similarly detailed picture of the neuron’s response to the filtered stimulus. Second, the
+dependence of the MID cost function on the logarithm of the ratio p(x|spike)/p(x) makes it very sensitive
+to noise in the estimated value of the denominator p(x) when that value is near 0. Unfortunately, as
+p(x) is also the probability with which samples are generated, these low-value regions are precisely where
+the fewest samples are available. This is a common difficulty in the empirical estimation of informationtheoretic quantities, and others working in more general machine-learning settings have suggested direct
+estimation of the ratio rather than its parts [31–33]. In LN neural modeling such direct estimation of the
+ratio is equivalent to direct estimation of the nonlinearity.
+This brings us to the third, and most subtle but perhaps most powerful, benefit of the likelihood
+method’s focus on f . As the nonlinearity is seen to be a property of the modeled neuron rather than of
+the stimulus, it may be more straightforward to construct a valid smoothed or structured parametrization
+for f (or to otherwise regularize its estimate based on prior beliefs about neuronal properties) than it
+is for the stimulus densities. For example, consider an experiment using natural visual images. While
+natural images presumably form a smooth manifold within the space of all possible pixel patterns, the
+
+17
+
+structure of this manifold is neither simple nor known. The natural distribution of images does not factor
+over disjoint sets of pixels, nor over linear projections of pixel values. A small random perturbation
+in all pixels makes a natural image appear unnaturally noisy, violating the underlying presumption of
+kernel density estimators that local perturbations do not alter the density much. Indeed the question
+of how best to model the distribution of natural stimuli is a matter of active research. By contrast, we
+might expect to be able to develop better parametric forms to describe the non-linearities expressed by
+neural systems. For instance, we might expect the neural nonlinearity to vary smoothly in the space of
+photoreceptor activation, and thus of filter outputs. Thus, locally kernel-smoothed estimates of the nonlinear mapping—or even parametric choices of function class, such as low-order polynomials—might be
+valid, even if the stimulus density changes abruptly. Alternatively, subunits within the neural receptive
+field might lead to additively or multiplicatively separable components of the nonlinearity that act on
+the outputs of different filters. In this case, it would be possible to factor f between two subsets of filter
+outputs, say to give f (x) = f1 (x1 )f2 (x2 ), even though there is no reason for the stimulus to factor over
+these filters that are defined by the neural system: p(x) 6= p(x1 )p(x2 ). This reduction of f to two (or
+more) lower-dimensional functions would avoid the exponential parameter explosion implied by the curse
+of dimensionality.
+Indeed, such strategies for parametrization of the nonlinear mapping are already implicit in likelihoodbased estimators inspired by the spike-triggered average and covariance. In many such cases, f is
+parametrized by a quadratic form embedded in a 1D nonlinearity [14], so that the number of parameters scales only quadratically with the number of filters. A similar approach has been formulated in
+information-theoretic terms using a quadratic logistic Bernoulli model [21,22,24]. Another method, known
+as extended projection pursuit regression (ePPR) [28], has parametrized f as a sum of one-dimensional
+nonlinearities, in which case the number of parameters grows only linearly with the number of filters.
+Parametrizing the many-filter LNP model
+Here we provide a general formulation that encompasses both standard MID and constrained methods
+that scale to high-dimensional subspaces. We can rewrite the LNP model (eq. 1) as follows:
+x = K >s
+nφ
+
+λ = f (x) = g
+
+X
+
+(dimensionality reduction)
+
+(38)
+
+(nonlinearity)
+
+(39)
+
+(spiking).
+
+(40)
+
+!
+αi φi (x)
+
+i=1
+
+r|s ∼ Poiss(λ∆)
+
+The nonlinearity f is parametrized using basis functions {φi (·)}, i = 1, . . . , nφ , which are linearly combined with weights αi and then passed through a scalar nonlinearity g. We refer to g as the output
+nonlinearity; its primary role is to ensure the spike rate λ is positive regardless of weights αi . This can
+also be considered a special case of an LNLN model [15, 34, 35].
+If we fix g and the basis functions {φi } in advance, fitting the nonlinearity simply involves estimating
+the parameters αi from the projected stimuli and associated spike counts. If g is convex and log-concave,
+then the log-likelihood is concave in {αi } given K, meaning the parameters governing f can be fit without
+getting stuck in non-global maxima [11].
+Standard MID can be seen as a special case of this general framework: it sets g to the identity
+function and the basis functions φi to histogram-bin indicator functions (denoted 1Bi (·) in eq. 7). The
+maximum-likelihood weights {b
+αi } are proportional to the ratio between the number of spikes and number
+of stimuli in the i’th histogram bin (eq. 10). As discussed above, the number of basis functions nφ scales
+exponentially with the number of filters, making this parametrization impractical for high-dimensional
+feature spaces.
+
+18
+
+Another special case of this framework corresponds to Bayesian spike-triggered covariance analysis
+[14], in which the basis functions φi are taken to be linear and quadratic functions of the projected
+stimulus. If the stimulus is Gaussian, then standard STC and iSTAC provide an asymptotically optimal
+fit to this model under the assumption that g is exponential [14, 19].
+In principle, we can select any set of basis functions. Other reasonable choices include polynomials,
+sigmoids, sinusoids (i.e., Fourier components), cubic splines, radial basis functions, or any mixture of
+these bases. Alternatively, we could use non-parametric models such as Gaussian processes, which have
+been used to model low-dimensional tuning curves and firing rate maps [36, 37]. Theoretical convergence
+for arbitrary high-dimensional nonlinearities requires a scheme for increasing the complexity of the basis
+or non-parametric model as we increase the amount of data recorded [38–41]. We do not examine such
+theoretical details here, focusing instead on the problem of choosing a particular basis that is well suited
+to the dataset at hand. Below, we introduce basis functions {φi } that provide a reasonable tradeoff
+between flexibility and tractability for parametrizing high-dimensional nonlinear functions.
+Cylindrical basis functions for the LNP nonlinearity
+We propose to parametrize the nonlinearity for many-filter LNP models using cylindrical basis functions
+(CBFs), which we introduce by analogy to radial basis functions (RBFs). These functions are restricted
+in some directions of the feature space (like RBFs), but are constant along other dimensions. They
+are therefore the function-domain analogues to the probability “experts” used in product-of-experts
+models [42] in that they constrain a high-dimensional function along only a small number of dimensions,
+while imposing no structure on the others.
+We define a “first-order” CBF as a Gaussian bump in one direction of the feature space, parametrized
+by center location µ and a characteristic width σ:
+
+
+−(xi − µ)2
+,
+(41)
+φ1st (x) = exp
+2σ 2
+which affects the function along vector component xi and is invariant along xj6=i . Parametrizing f with
+first-order CBFs is tantamount to assuming f can be parametrized as the sum of 1D functions along
+each filter axis, that is f (x) = g(f1 (x1 ) + . . . fm (xm )), where each function fi is parametrized with a
+linear combination of “bump” functions. This setup resembles the parametrization used in the extended
+projection-pursuit regression (ePPR) model [28], although the nonlinear transformation g confers some
+added flexibility. For example, we can have multiplicative combination when g(·) = exp(·), resulting in a
+separable f , or rectified additive combination when g(·) = max(·, 0), which is closer to ePPR. If we use
+d basis functions along each filter axis, the resulting nonlinearity requires kd parameters for an k-filter
+LNP model.
+We can define second-order CBFs as functions with Gaussian dependence on two dimensions of the
+input space and that are insensitive to all others:
+
+
+−(xi − µi )2 − (xj − µj )2
+φ2nd (x) = exp
+(42)
+2σ 2
+where µi and µj determine the center of the basis function in the (xi , xj ) plane. A second-order basis
+
+represents f as a (transformed) sum of these bivariate functions, giving k2 d2 parameters if we use d2
+
+basis functions for each k2 possible pairs of k filter outputs, or merely k2 d2 if we instead partition the k
+filters into disjoint pairs. Higher-order CBFs can be defined analogously: k 0 th order CBFs are Gaussian
+RBFs in a k 0 -dimensional subspace while remaining constant in the remaining k − k 0 dimensions. Of
+course, there is no need to represent the entire nonlinearity using CBFs of the same order. It might
+
+19
+
+make sense, for example, to represent the nonlinear combination of the first two filter responses with
+second order CBFs (which is comparable to standard MID with a 2D histogram representation of the
+nonlinearity), and then use first order CBFs to represent the contributions of additional (less-informative)
+filter outputs.
+To illustrate the feasibility of this approach, we applied dimensionality reduction methods to a previously published dataset from macaque V1 [29]. This dataset contains extracellular single unit recordings
+of simple and complex cells driven by an oriented 1D binary white noise stimulus sequence (i.e., “flickering
+bars”). For each neuron, we fit an LNP model using: (1) the information-theoretic spike-triggered average
+and covariance (iSTAC) estimator [19]; and (2) the maximum likelihood estimator for an LNP model
+with nonlinearity parametrized by first-order CBFs. The iSTAC estimator, which combines information
+from the STA and STC, returns a list of filters ordered by informativeness about the neural response. It
+models the nonlinearity as an exponentiated quadratic function (an instance of a generalized quadratic
+model [23]), and yields asymptotically optimal performance under the condition that stimuli are Gaussian. For comparison, we also implemented a model with a less-constrained nonlinearity, using Gaussian
+RBFs sensitive to all filter outputs (rbf-LNP). This approach was close to “classic” MID, although it
+exploited the LNP formulation to allow local smoothing of the nonlinearity (rather than the histograms,
+where it would have been invalid). Even so, as the number of parameters in the nonlinearity still grew
+exponentially with the number of filters, computational concerns prevented us from recovering more than
+four filters with this method.
+Fig. 8 compares the performance of these estimators on neural data, and illustrates our ability to
+tractably recover high-dimensional feature spaces using flexible maximum likelihood methods, provided
+that the nonlinearity is parametrized appropriately. We used 3 CBFs per filter output for the cbf-LNP
+model (resulting in 3p parameters for the nonlinearity), and a grid with 3 RBFs per dimension for the
+rbf-LNP model (3p parameters). By contrast, the exponentiated-quadratic nonlinearity underlying the
+iSTAC estimator requires O(p2 ) parameters.
+To compare performance, we analyzed the growth in empirical single-spike information (computed on
+a “test” dataset) as a function of the number of filters. Note that this is equivalent to computing test
+log-likelihood under the LNP model. For a subset of neurons determined to have 8 or more informative
+filters (16/59 cells), the cbf-LNP filters captured more information than the iSTAC filters (Fig. 8C).
+This indicates that the cbf nonlinearity captures the nonlinear mapping from filter outputs to spike
+rate more accurately than an exponentiated quadratic, and that this flexibility confers advantages in
+identifying the most informative stimulus dimensions. The first four filters estimated under the rbf-LNP
+model captured slightly more information again than the cbf-LNP filters, indicating that first-order CBFs
+provide slightly too restrictive a parametrization for these neurons. Due to computational considerations,
+we did not attempt to fit the rbf-LNP model with > 4 filters, but note that the cbf-LNP model scaled
+easily to 8 filters (Fig. 8D).
+In addition to its quantitative performance, the cbf-LNP estimate exhibited a qualitative difference
+from iSTAC with regard to the ordering of filters by informativeness. In particular, the cbf-LNP fit reveals
+that excitatory filters provide more information than iSTAC attributes to them, and that excitatory filters
+should come earlier relative to suppressive filters when ordering by informativeness. Fig. 8A-B, which
+shows the first 8 filters and associated marginal one-dimensional nonlinearities for an example V1 complex
+cell, provides an illustration of this discrepancy. Under the iSTAC estimate (Fig. 8A, top row), the first
+two most informative filters are excitatory but the third and fourth are suppressive (see nonlinearities
+in Fig. 8B). However, the cbf-LNP estimate (and rbf-LNP estimate, not shown) indicates that the four
+most informative filters are all excitatory. This tendency holds across the population of neurons. We can
+quantify it in terms of the number of excitatory filters within the first n filters identified (Fig. 8E) or the
+total amount of information (i.e., log-likelihood) contributed by excitatory filters (Fig. 8F). This shows
+that iSTAC, which nevertheless provides a computationally inexpensive initialization for the cbf-LNP
+
+20
+
+estimate, does not accurately quantify the information contributed by excitatory filters. Most likely,
+this reflects the fact that an exponentiated-quadratic does not provide as accurate a description of the
+nonlinearity along excitatory stimulus dimensions as can be obtained with a non-parametric estimator.
+
+Relationship to previous work
+Many methods for neural dimensionality reduction have been proposed before. Here, we consider the
+relationship of the methods described in this study to these earlier approaches. Rapela et al [28] introduced a technique known as extended Projection Pursuit Regression (ePPR), where the high-dimensional
+estimation problem is reduced to a sequence of simpler low-dimensional ones. The approach is iterative.
+A one-dimensional model is found first, and the dimensionality is then progressively increased to optimize
+a cost function, but with the search for filters restricted to dimensions orthogonal to all the filters already
+identified. From a theoretical perspective this assumes that the spiking probability can be defined as a
+sum of functions of the different stimulus components; that is,
+>
+>
+p(spike|s) = g1 (k>
+1 s) + g2 (k2 s) + . . . gN (kN s) .
+
+(43)
+
+Rowekamp et al [43] compared such an approach to the joint optimization more common in MID analysis
+(as in [18]), and derived the bias that results from sequential optimization and its implicit additivity. By
+contrast, we have focused here on parametrization rather than sequential optimization. In all cases, the
+log-likelihood (or single-spike information, in the case of a Poisson model) is optimized simultaneously over
+all filter dimensions. For high-dimensional models, we do advocate parametrization of the nonlinearity
+so as to avoid the curse of dimensionality. However, the CBF form we have introduced is more flexible
+than that of ePPR, both in that two- or more dimensional components are easily included, and in that
+the outputs of the components can be combined non-linearly.
+Other proposals can be seen as assuming specific quadratic-based parametrisations for the nonlinearity, that are more restrictive than the CBF form. The iSTAC estimator, introduced by Pillow &
+Simoncelli [19], is based on maximization of the KL divergence between Gaussian approximations to the
+spike-triggered and stimulus ensembles—thus finding the feature space that maximizes the single-spike
+information under a Gaussian model of both the spike-triggered and stimulus ensembles. Park & Pillow [44] showed its relationship to an LNP model with an exponentiated quadratic spike rate, which takes
+the form:
+p(spike|s) = exp(a + K > s + s> Cs).
+(44)
+Such a nonlinearity readily yields maximum likelihood estimators for both STA and STC. Moreover, they
+also proposed a new model, known as “elliptical LNP”, which allowed estimation of a non-parametric
+nonlinearity around the quadratic function (instead of assuming as exponential). [24] considered the same
+model within an information theoretic framework and proposed extending it to nonlinear combinations
+of outputs from multiple quadratic functions. In a similar vein, Sharpee et al [45, 46] used
+p(spike|s) =
+
+1
+.
+1 + exp(a + Ks + s> Cs)
+
+(45)
+
+This model corresponds to quadratic logistic regression, and thus assumes Bernoulli output noise (and a
+binary response system). In order to lift the logistic restriction, the authors also proposed a “nonlinear
+MID” in which the standard MID estimator is extended to by setting the firing rate to be a quadratic
+function of the form f (k> s + s> Cs). This method is one-dimensional in a quadratic stimulus space
+(unlike multidimensional linear MID) and therefore avoids the curse of dimensionality. Other work has
+used independent component analysis to find directions in stimulus space in which the spike-triggered
+distribution has maximal deviations from Gaussianity [8].
+
+21
+
+Discussion
+Distributional assumptions implicit in MID
+We have studied the estimator known as maximally informative dimensions (MID), [18], a popular approach for estimating informative dimensions of stimulus space from spike-train data. Although the MID
+estimator was originally described in information-theoretic language, we have shown that, when used
+with plugin estimators for information-theoretic quantities, it is mathematically identical to the maximum likelihood estimator for a linear-nonlinear-Poisson (LNP) encoding model. This equivalence holds
+irrespective of spike rate, the amount of data, or the size of time bins used to count spikes. We have
+shown that this follows from the fact that the plugin estimate for single-spike information is equal (up to
+an additive constant) to the log-likelihood per spike of the data under an LNP model.
+Estimators defined by the optima of information-theoretic functionals have attractive theoretical properties, including that they provide well-defined and (theoretically) distribution-agnostic characterizations
+of data. In practice, however, such agnosticism can be difficult to achieve, as the need to estimate
+information-theoretic quantities from data requires the choice of a particular estimator. MID has the
+virtue of using a non-parametric estimator for raw and spike-triggered stimulus densities, meaning that
+the number of parameters (i.e., the number of histogram bins) can grow flexibly with the amount of
+data. This allows it to converge for arbitrary densities, in the limit of infinite data. However, for a finite
+dataset, the choice of number of bins is critical for obtaining an accurate estimate. As we show in Fig. 3, a
+poor choice can lead to a systematic under- or over-estimate of the single-spike information, and in turn,
+a poor estimate of the most informative stimulus dimensions. Determining the number of histogram bins
+should therefore be considered a model selection problem, validated with a statistical procedure such as
+cross-validation.
+A second kind of distributional assumption arises from MID’s reliance on single-spike information,
+which is tantamount to an assumption of Poisson spiking. To be clear, the single-spike information represents a valid information-theoretic quantity that does not explicitly assume any model. As noted in [26],
+it is simply the information carried by a single spike time, considered independently of all other spike
+times. However, conditionally independent spiking is also the fundamental assumption underlying the
+Poisson model and, as we have shown, the standard MID estimator (based on the KL-divergence between
+histograms) is mathematically identical to the maximum likelihood estimator for an LNP model with
+piece-wise constant nonlinearity. Thus, MID achieves no more and no less than a maximum likelihood
+estimator for a Poisson response model. As we illustrate in Fig. 4, MID does not maximize the mutual
+information between the projected stimulus and the spike response when the distribution of spikes conditioned on stimuli is not Poisson; it is an inconsistent estimator for the relevant stimulus subspace in
+such cases.
+The distributional-dependence of MID should therefore be considered when interpreting its estimates
+of filters and nonlinearities. MID makes different, but not necessarily fewer, assumptions when compared
+to other LN estimators. For instance, although the maximum-likelihood estimator for a generalized
+linear model assumes a less-flexible model for the neural nonlinearity than does MID, it readily permits
+estimation of certain forms of spike-interdependence that MID neglects. In particular, MID-derived
+estimates are subject to concerns regarding model mismatch that arise whenever the true generative
+family is unknown [47].
+In light of the danger that these distributional assumptions be obscured by the information-theoretic
+framing of MID, our belief is that the safer and clearer approach is to specify the underlying model and
+its likelihood explicitly, and to adopt a likelihood-based estimation framework. Where the information
+theoretic and likelihood-based estimators are identical, nothing is lost by this approach. However, besides making assumptions explicit, the likelihood-based framework also readily facilitates the adoption of
+
+22
+
+suitable priors, or hierarchical models [48, 49], or of more structured models of the type discussed here.
+
+Generalizations
+Having clarified the relationship between MID and LNP model, we introduced two generalizations designed to recover a maximally informative stimulus projection when neural response variability is not
+well described as Poisson. From a model-based perspective, the generalizations correspond to maximum
+likelihood estimators for a linear-nonlinear-Bernoulli (LNB) model (for binary spike counts), and the
+linear-nonlinear-Count (LNC) model (for arbitrary discrete spike counts). For both models, we obtained
+an equivalent relationship between log-likelihood and an estimate of mutual information between stimulus
+and response. This correspondence extends previous work that showed only approximate or asymptotic
+relationships between between information-theoretic and maximum-likelihood estimators [20,24,25]. The
+LNC model is the most general of the models we have considered. It requires the fewest assumptions,
+since it allows for arbitrary distributions over spike count given the stimulus. It includes both LNB and
+LNP as special cases (i.e., when the count distribution is Bernoulli or Poisson, respectively).
+We could analogously define arbitrary “LNX” models, where X stands in for any probability distribution over the neural response (analog or discrete), and perform dimensionality reduction by maximizing
+likelihood for the filter parameters under this model. The log-likelihood under any such model can be
+associated with an information-theoretic quantity, analogous to single-spike, Bernoulli, and count information, using the difference of log-likelihoods (see also [35]):
+X
+X
+Ilnx ,
+p(s)px (r|s, θ) log px (r|s, θ) −
+px (r|θ0 ) log px (r|θ0 ),
+(46)
+r,s
+
+r
+
+where px (r|s, θ) denotes the conditional response distribution associated with the LNX model with parameters θ, and px (r|θ0 ) describes the marginal distribution over r under the stimulus distribution p(s).
+The empirical or plugin estimate of this information is equal to the LNX model log-likelihood plus the
+estimated marginal entropy:
+
+
+(47)
+Iblnx (θ) = n1 Llnx (θ; D) − Llnx (θ0 ; D) ,
+where n denotes the number of samples and θ0 depends only on the marginal response distribution. The
+maximum likelihood estimate is therefore equally a maximal-information estimate.
+Note that all of the dimensionality-reduction methods we have discussed treat neural responses as
+conditionally independent given the stimulus, meaning that they do not capture dependencies between
+spike counts in different time bins (e.g., due to refractoriness, bursting, adaptation, etc.). Spike-history
+dependencies can influence the single-bin spike count distribution — for example, a Bernoulli model is
+more accurate than a Poisson model when the bin size is smaller than or equal to the refractory period,
+since the Poisson model assigns positive probability to the event of having ≥ 2 two spikes in a single bin.
+The models we have considered can all be extended to capture spike history dependencies by augmenting
+the stimulus with a vector representation of spike history, as in both conditional renewal models and
+generalized linear models [10, 12, 27, 50–52].
+Lastly, we have shown that viewing MID from a model-based perspective provides insight into how to
+overcome practical limitations on the number of filters that can be estimated. Standard implementations
+of MID employ histogram-based density estimators for p(K > s) and p(K > s|spike). However, dimensionality and parameter count can be a crippling issue given limited data, and density estimation becomes
+intractable in dimensionalities > 3. Furthermore, the dependence of the information on the logarithm
+of the ratio of these densities amplifies sensitivity to errors in these estimates. The LNP-likelihood view
+suggests direct estimation of the nonlinearity f , rather than of the densities. Such estimates are naturally
+
+23
+
+more robust, and are more sensibly regularized based on expectations about neuronal responses without
+reference to any regularities in the stimulus distribution. We have proposed a flexible yet tractable form
+for the nonlinearity in terms of linear combinations of basis functions cascaded with a second output
+nonlinearity. This approach yielded a flexible, computationally efficient, constrained version of MID that
+is able to estimate high-dimensional feature spaces. It is also general in the sense that it encompasses
+standard MID, generalized linear and quadratic models, and other constrained models that scale tractably
+to high-dimensional subspaces. Future work might seek to extend this flexible likelihood-based approach
+further, for example by including priors over the weights with which basis functions are combined to
+improve regularization, or perhaps by adjusting hyperparameters in a hierarchical model as has been
+successful with linear approaches [48, 49].
+In recent years, the ability to successfully characterize low-dimensional neural feature spaces using
+MID has proved useful to address questions relating to multidimensional feature selectivity [53–56]. In
+all of these examples however, issues with dimensionality have prevented the estimation of feature spaces
+with more than two dimensions. The methods presented within this paper will help to overcome these
+issues, opening access to further important questions regarding the relationship between stimuli and their
+neural representation.
+
+Methods
+Bound on lost information under MID
+Here we present a derivation of the lower bound on the fraction of total information carried by silences
+for a Bernoulli neuron, in the limit of rare spiking. For notational convenience, let ρ = p(r = 1) denote
+the marginal probability of a spike, so the probability of silence is p(r = 0) = 1 − ρ. Let Q1 = p(s|r = 1)
+and Q0 = p(s|r = 0) denote the spike-triggered and silence-triggered stimulus distributions, respectively.
+Let Ps = p(s) denote the raw stimulus distribution. Note that we have the Ps = ρQ1 + (1 − ρ)Q0 . The
+mutual information between the stimulus and one bin of the response (eq. 18) can then be written
+  
+  
+
+
+I(s, r) = ρDKL Q1  Ps + (1 − ρ)DKL Q0  Ps .
+(48)
+Note that this is a generalized form of the Jensen-Shannon (JS) divergence; the standard JS-divergence
+between Q0 and Q1 is obtained when ρ = 21 .
+In the limit of small ρ (i.e., the Poisson limit), the mutual information is dominated by the first (Q1 )
+term. Here we wish to show a bound on the fraction of informationcarried
+ by the Q0 term. We can do
+
+this by computing a second-order Taylor expansion of (1 − ρ)DKL Qo  Ps and I(s, r) around ρ = 0,
+and show that their ratio is bounded below by ρ/2. Expanding in ρ, we have
+  
+
+(1 − ρ)DKL Qo  Ps
+= 21 ρ2 V (Q1 , Q0 ) + O(ρ3 ), and
+  
+
+I(s, r) = ρDKL Q1  Q0 − 12 ρ2 V (Q1 , Q0 ) + O(ρ3 ),
+where
+
+Z
+V (Q1 , Q0 ) =
+
+Q1 (
+Ω
+
+Q1
+− 1)ds,
+Q0
+
+(49)
+(50)
+
+(51)
+
+  
+
+which is a an upper bound on the KL-divergence: V (Q1 , Q0 ) ≥ DKL Q1  Q0 , since (z − 1) ≥ log(z).
+
+24
+
+We therefore have
+  
+
+(1 − ρ)DKL Qo  Ps
+I(s, r)
+
+=
+
+1 2
+(Q1 , Q0 ) + O(ρ3 )
+2ρ V 
+
+ρDKL Q1  Q0 − 21 ρ2 V (Q1 , Q0 )
+
+
+
+≥
++
+
+O(ρ3 )
+
+ρ
+ρV (Q1 , Q0 )
+   ≥
+
+2
+2DKL Q1  Q0
+
+(52)
+
+in the limit ρ → 0.
+We conjecture that the bound holds for all values of ρ. For the case of ρ = 21 , this corresponds to an
+assertion about the relative contribution of each of the two terms in the JS divergence, that is:
+ 
+
+
+DKL Q1  12 (Q0 + Q1 )
+1
+ 
+
+ 
+≥
+(53)
+ 1
+ 1
+4
+DKL Q1  2 (Q0 + Q1 ) + DKL Q1  2 (Q0 + Q1 )
+for any choice of distributions Q0 and Q1 . We have been unable to find any counter-examples to this (or
+to the more general conjecture), but have so far been unable to find a general proof.
+
+Single-spike information and Poisson log-likelihood
+An important general corollary to the equivalence between MID and an LNP maximum likelihood estimate
+is that the standard single-spike information estimate Ibss based on a PSTH measured in response to
+repeated stimuli is also a Poisson log-likelihood per spike (plus a constant). Specifically, the empirical
+single-spike information is equal to the log-likelihood ratio between an inhomogeneous and homogeneous
+Poisson model of the repeat data (normalized by spike count):
+
+
+b M L ; r) − L(λ̄; r) ,
+Ibss = n1sp L(λ
+(54)
+b M L denotes the maximum-likelihood or plugin estimate of the time-varying spike rate (i.e., the
+where λ
+PSTH itself), λ̄ is the mean spike rate across time, and L(λ; r) denotes the log-likelihood of the repeat
+data r under a Poisson model with time-varying rate λ.
+We can derive this equivalence as follows. Let {rjt } denote spike counts collected during a “frozen
+noise” experiment, with repeat index j ∈ {1, . . . , nrpt } and index t ∈ {1, . . . , nt } over time bins of width
+∆. Then T = nt ∆ is the duration of the stimulus and N = nt nrpt is the total number of time bins in the
+entire experiment. The single-spike information can be estimated with a discrete version of the formula
+for single-spike information provided in [26] (see eq. 2.5):
+nt b
+b
+1 X
+λ(t)
+λ(t)
+Ibss =
+log
+,
+nt t=1 λ̄
+λ̄
+
+b
+where λ(t)
+=
+
+1
+∆nrpt
+
+(55)
+
+Pnrpt
+
+rjt is an estimate of the spike rate in the t’th time bin in response to the
+Pnt b
+stimulus sequence s, and λ̄ = ( t=1
+λ(t))/nt is the mean spike rate across the experiment. Note that
+this formulation assumes (as in [26]) that T is long enough that an average over stimulus sequences is
+well approximated by the average across time.
+j=1
+
+The plug-in (ML) estimator for spike rate can be read off from the peri-stimulus time histogram
+(PSTH). It results from averaging the response across repeats for each time bin:
+b =
+λ(t)
+
+1
+nrpt ∆
+
+nrpt
+
+X
+j=1
+
+rjt .
+
+(56)
+
+25
+n
+
+Clearly, λ̄ = Nsp
+∆ , where nsp =
+information (eq. 55) as:
+
+P
+
+j,t rjt
+
+is the total spike count. This allows us to rewrite single-spike
+n
+
+t
+nrpt ∆ X
+b log λ(t)
+b − log nsp .
+Ibss =
+λ(t)
+nsp t=1
+N∆
+
+(57)
+
+b = (λ(1),
+b
+b t )), i.e.,
+Now, consider the Poisson log-likelihood L evaluated at the ML estimate λ
+. . . , λ(n
+b
+the conditional probability of the response data r = {rjt } given rate vector λ. This is given by:
+b r)
+L(λ;
+
+=
+
+nt n
+rpt 
+X
+X
+
+
+
+
+b
+b
+rjt log λ(t)∆
+− λ(t)∆
+− log rjt !
+
+t=1 j=1
+
+=
+
+nt  n
+rpt
+X
+X
+t=1
+
+
+X
+b − nsp + nsp log ∆ −
+rjt log λ(t)
+log rjt !
+
+j=1
+nt
+X
+
+= nrpt ∆
+
+t,j
+
+b log λ(t)
+b − nsp + nsp log ∆ −
+λ(t)
+
+t=1
+
+X
+
+log rjt !
+
+t,j
+
+X
+nsp
+− nsp −
+= nsp Ibss + nsp log
+log rjt !
+N
+t,j
+= nsp Ibss + L(λ̄; r),
+
+(58)
+
+which is identical to relationship between single-spike information and Poisson log-likelihood expressed
+in eq. 13. Thus, even when estimated from raster data, Iss is equal to the difference between Poisson loglikelihoods under an inhomogeneous (rate-varying) and a homogeneous (constant rate) Poisson model,
+divided by spike count (see also [57]). These normalized log-likelihoods can be conceived as entropy
+estimates, with − n1sp L(λ̄; r) providing an estimate for prior entropy, measuring the prior uncertainty
+b r) corresponding to posterior entropy, measuring
+about spike times given the mean rate, and − 1 L(λ;
+nsp
+
+the posterior uncertainty once we know the time-varying spike rate.
+A similar quantity has been used to report the cross-validation performance of conditionally Poisson
+models, including the GLM [13, 58]. To penalize over-fitting, the empirical single-spike information is
+b obtained with parameters fit to training data and responses r from
+evaluated using the rate estimate λ
+unseen test data. This results in the “cross-validated” single-spike information:
+[xv]
+Ibss
+=
+
+1
+nsp
+
+[test]
+
+
+
+
+b [train] ; r[test] ) − L(λ̄[test] ; r[test] .
+L(λ
+
+(59)
+
+This can be interpreted as the predictive information (in bits-per-spike) that the model captures about
+test data, above and beyond that captured by a homogeneous Poisson model with correct mean rate. Note
+that this quantity can be negative in cases of extremely poor model fit, that is, when the model prediction
+on test data is worse than of the best constant-spike-rate Poisson model. Cross-validated single-spike
+information provides a useful measure for comparing models with different numbers of parameters (e.g.,
+a 1-filter vs. 2-filter LNP model), since units of “bits” are more interpretable than raw log-likelihood of
+[xv]
+test data. Generally, Ibss can be considered to a lower bound on the model’s true predictive power, due
+to stochasticity in both training and test data. By contrast, the empirical Iss evaluated on training data
+tends to over-estimate information due to over-fitting.
+
+26
+
+Computation of model-based information quantities
+To gain intuition for the different information measures we have considered (Poisson, Bernoulli, and
+categorical or “count”), it is useful to consider how they differ for a simple idealized example. Consider a
+world with two stimuli, ‘A’ and ‘B’, and two possible discrete stimulus sequences, s1 = AB and s2 = BA,
+each of which occurs with equal probability, so p(s1 ) = p(s2 ) = 0.5. Assume each sequence lasts T = 2s,
+so the natural time bin size for considering the spike response is ∆ = 1s. Suppose that stimulus A always
+elicits 3 spikes, while B always elicits 1 spike. Thus, when sequence s1 is presented, we observe 3 spikes
+in the first time interval and 1 spike in the second interval; when s2 is presented, we observe 1 spike in
+the first time interval and 3 spikes in the second.
+Single-spike information can be computed exactly from λ1 (t) and λ2 (t), the spike rate in response to
+stimulus sequence s1 and s2 , respectively. For this example, λ1 (t), takes the value 3 during (0, 1] and 1
+during (1, 2], while λ2 (t) takes values 1 and 3 during the corresponding intervals. The mean spike rate
+for both stimuli is λ̄ = 2 sp/s. Plugging these into eq. 54 gives single-spike information of Iss = 0.19
+bits/spike. This result is slightly easier to grasp using an equivalent definition of single-spike information
+as the mutual information between the stimulus s and a single spike time τ (see [26]). If one were told
+that a spike, sampled at random from the four spikes present during every trial, occurred during [0, 1],
+then the posterior p(s|τ = 1) attaches 3/4 probability to s = s1 and 1/4 to s = s2 . The posterior entropy
+is therefore −0.25 log 0.25 − 0.75 log 0.75 = 0.81 bits. We obtain the same entropy if the spike occurs
+in the second interval, so H(s|τ ) = 0.81. The prior entropy is H(s) = 1 bit, so once again we have
+Iss = 1 − 0.81 = 0.19 bits/spike.
+The Bernoulli information, by contrast, is undefined, since r takes values outside the set {0, 1}, and
+therefore cannot have a Bernoulli distribution. To make Bernoulli information well defined, we would
+need to either truncate spike counts above 1 (e.g., [59]), or else use smaller bin size so that no bin contains
+more than one spike. In the latter case, we would need to provide more information about the distribution
+of spike times within these finer bins. If, for example, the three spikes elicited by A are evenly spaced
+within the interval and we use bins equal to 1/3s, then the Bernoulli information will clearly exceed
+single-spike information, since the time of a no-spike response (r = 0, a term neglected by single-spike
+information) provides perfect information about the stimulus, since it occurs only in response to B.
+Lastly, the count information is easy to compute from the fact that count r carries perfect information
+about the stimulus, so the mutual information between stimulus (A or B) and r is 1 bit. We defined
+Icount to be the mutual information normalized by the mean spike count (eq. 35). Thus, Icount = 0.5
+bits/spike, which is more than double the single-spike information.
+
+Gradient and Hessian of LNP log-likelihood
+Here we provide formulas useful for fitting the the many-filter LNP model with cylindrical basis function
+(CBF) nonlinearity. We performed joint optimization of filter parameters K and basis function weights
+{αi } using MATLAB’s fminunc function. We found this approach to converge much more rapidly than
+alternating coordinate ascent. We used analytically computed gradient and Hessian of the joint-likelihood
+to speed up performance, which we provide here.
+t
+Given a datasetP
+{(st , rt )}nt=1
+, define r = (r1 , . . . , rnt )> and λ = (f (K > s1 ), . . . , f (K > snt ))> , where
+nonlinearity f = g( αi φi ) depends on basis function φ = {φi } and weights α = {αi } (eq. 39). We can
+write the log-likelihood for the many-filter LNP model (from eqs. 38-40) as:
+
+L(θ) = r> log λ − (∆)1> λ
+
+(60)
+
+where θ = {K, α} are the model parameters, ∆ is the time bin size, and 1 denotes a vector of ones. The
+
+27
+
+first and second derivatives of the log-likelihood are given by
+> 
+
+r
+=
+− ∆1
+λ
+ 2 > 
+  ∂λ ∂λ >  r 
+r
+∂ λ
+,
+=
+− ∆1 +
+∂θi ∂θj
+λ
+∂θi ∂θj
+λ2
+
+
+∂L
+∂θi
+∂2L
+∂θi ∂θj
+
+∂λ
+∂θi
+
+(61)
+(62)
+
+where multiplication, division, and exponentiation operations on vector quantities indicate componentwise operations.
+Let k1 , . . . , km denote the linear filters, i.e., the m columns of K. Then the required gradients of λ
+with respect to the model parameters can be written:
+∂λ
+∂ki
+∂λ
+∂α
+
+= S > (λ0 ◦ Φ(i) α)
+=
+
+Φ> λ0
+
+(63)
+(64)
+
+where S denotes the (nt × D) stimulus design matrix, Φ denotes the (nt × nφ ) matrix whose (t, j)’th entry
+is φj (K > st ), and Φ(i) denotes a matrix of the same size, formed by the point-wise derivative of Φ with
+respect to its i’th input component, evaluated at each projected stimulus K > st . Finally, λ0 = g 0 (Φα) is
+a (nt × 1) vector composed of the point-wise derivatives of the inverse-link function g at its input, and
+‘◦’ denotes Hadamard or component-wise vector product.
+Lastly, second derivative blocks, which can be plugged into eq. 62 to form the Hessian, are given by
+∂2λ
+∂ki ∂kj
+
+= S > diag
+
+∂2λ
+α2
+2
+∂ λ
+∂ki ∂α
+
+Φ> diag (λ00 ) Φ
+
+
+
+
+= S > diag λ00 ◦ (Φ(i) α) Φ + diag (λ0 ) Φ(i) ,
+=
+
+h
+
+i h
+i
+λ00 ◦ (Φ(i) α) ◦ (Φ(j) α) + λ0 ◦ Φ(i,j) α S
+
+(65)
+(66)
+(67)
+
+where λ00 = g 00 (Φα) and Φ(i,j) is a matrix of point-wise second-derivatives of Φ with respect to i’th and
+j’th inputs, evaluated for each projected stimulus K > st .
+
+V1 data analysis
+To examine performance in recovering high-dimensional subspaces, we analyzed data from macaque V1
+cells, driven by 1D binary white noise “flickering bars” stimulus, presented at a frame rate of 100 Hz (data
+published in [29]). The spatiotemporal stimulus had between 8 and 32 spatial bars and we considered
+10 time bins for the temporal integration window. This made for a stimulus space with dimensionality
+ranging from 80 to 320.
+The cbf-LNP model was implemented with a cylindrical basis function (CBF) nonlinearity using three
+first-order CBFs per filter. For a k-filter model, this resulted in 3k parameters for the nonlinearity, and
+(240 + 3)k parameters in total.
+The traditional MID estimator (rbf-LNP) was implemented using radial basis functions (RBFs) to
+represent the nonlinearity. Unlike the histogram-based parametrization discussed in the manuscript
+(which produces a piece-wise constant nonlinearity), this results in a smooth nonlinearity and, more
+importantly, a smooth log-likelihood with tractable analytic gradients. We defined a grid of RBFs with
+
+28
+
+three grid points per dimension, so that CBF and RBF models were identical for a 1-filter model. For a
+k-filter model, this resulted in 3k parameters for the nonlinearity, and 240k + 3k parameters in total.
+For both models, the basis function responses were combined linearly and transformed by a “softrectification” function: g(·) = log(1 + exp(·)), to ensure positive spike rates. We also evaluated the
+performance of an exponential function, g(·) = exp(·), which yielded slightly worse performance (reducing
+single-spike information by ∼0.02 bits/spike).
+The cbf- and rbf-LNP models were both fit by maximizing the likelihood for the model parameters
+θ = {K, α}. Both models were fit incrementally, with the N + 1 dimensional model being initialized
+with the parameters of the N dimensional model, plus one additional filter (initialized with the iSTAC
+filter that provided the greatest increase in log-likelihood). The joint likelihood in K and α was ascended
+using MATLAB’s fminunc optimization function, which exploits analytic gradients and Hessians. The
+models were fit to 80% of the data, with the remaining 20% used for validation.
+In order to calculate information contributed by excitatory filters under the cbf-LNP model (Fig. 8F),
+we removed each filter from the model and refit the nonlinearity (using the training data) using just
+the other filters. We quantified the information contributed by each filter as the difference between loglikelihood of the full model and log-likelihood of the reduced model (on test data). We sorted the filters
+by informativeness and computed the cumulative sum of information loss to obtain the trace shown in
+(Fig. 8F).
+Measurements of computation time (Fig. 8D) were averaged over 100 repetitions using different random seeds. For each cell, four segments of activity were chosen randomly with fixed lengths of 5, 10, 20
+and 30 minutes, which contained between about 22000 and 173000 spikes. Even with 30 minutes of data,
+8 filters could be identified within about 4 hours on a desktop computer, making the approach tractable
+even for large numbers of filters.
+Code will be provided at http://pillowlab.princeton.edu/code.html.
+
+Acknowledgements
+We thank J. M. Beck and P. E. Latham for insightful discussions and providing scientific input during
+the course of this project. We thank M. Day, B. Dichter, D. Goodman, W. Guo, and L. Meshulam for
+providing comments on an early version of this manuscript.
+
+References
+1. de Ruyter van Steveninck RR, Bialek W (1988) Real-time performance of a movement-senstivive
+neuron in the blowfly visual system: coding and information transmission in short spike sequences.
+Proc R Soc Lond B 234: 379–414.
+2. Aguera y Arcas B, Fairhall AL (2003) What causes a neuron to spike? Neural Computation 15:
+1789–1807.
+3. Aguera y Arcas B, Fairhall AL, Bialek W (2003) Computation in a single neuron: Hodgkin and
+huxley revisited. Neural Computation 15: 1715–1749.
+4. Simoncelli EP, Pillow JW, Paninski L, Schwartz O (2004) Characterization of neural responses
+with stochastic stimuli. In: Gazzaniga M, editor, The Cognitive Neurosciences, III, Cambridge,
+MA: MIT Press, chapter 23. pp. 327–338.
+
+29
+
+5. Bialek W, de Ruyter van Steveninck RR (2005). Features and dimensions: Motion estimation in
+fly vision. arXiv:q-bio.NC/0505003.
+6. Chichilnisky EJ (2001) A simple white noise analysis of neuronal light responses. Network: Computation in Neural Systems 12: 199–213.
+7. Schwartz O, Pillow JW, Rust NC, Simoncelli EP (2006) Spike-triggered neural characterization.
+Journal of Vision 6: 484–507.
+8. Saleem AB, Krapp HG, Schultz SR (2008) Receptive field characterization by spike-triggered independent component analysis. Journal of vision 8.
+9. Brillinger DR (1988) Maximum likelihood analysis of spike trains of interacting nerve cells. Biological cybernetics 59: 189–200.
+10. Kass RE, Ventura V (2001) A spike-train probability model. Neural computation 13: 1713–1720.
+11. Paninski L (2004) Maximum likelihood estimation of cascade point-process neural encoding models.
+Network: Computation in Neural Systems 15: 243–262.
+12. Truccolo W, Eden UT, Fellows MR, Donoghue JP, Brown EN (2005) A point process framework for
+relating neural spiking activity to spiking history, neural ensemble and extrinsic covariate effects.
+J Neurophysiol 93: 1074–1089.
+13. Pillow JW, Shlens J, Paninski L, Sher A, Litke AM, et al. (2008) Spatio-temporal correlations and
+visual signaling in a complete neuronal population. Nature 454: 995-999.
+14. Park IM, Pillow JW (2011) Bayesian spike-triggered covariance analysis. In: Shawe-Taylor J,
+Zemel R, Bartlett P, Pereira F, Weinberger K, editors, Advances in Neural Information Processing
+Systems 24. pp. 1692–1700.
+15. McFarland JM, Cui Y, Butts DA (2013) Inferring nonlinear neuronal computation based on physiologically plausible inputs. PLoS Comput Biol 9: e1003143.
+16. Cui Y, Liu LD, Khawaja FA, Pack CC, Butts DA (2013) Diverse suppressive influences in area mt
+and selectivity to complex motion features. The Journal of Neuroscience 33: 16715–16728.
+17. Paninski L (2003) Convergence properties of some spike-triggered analysis techniques. Network:
+Computation in Neural Systems 14: 437–464.
+18. Sharpee T, Rust NC, Bialek W (2004) Analyzing neural responses to natural signals: maximally
+informative dimensions. Neural Comput 16: 223–250.
+19. Pillow JW, Simoncelli EP (2006) Dimensionality reduction in neural models: An informationtheoretic generalization of spike-triggered average and covariance analysis. Journal of Vision 6:
+414–428.
+20. Kouh M, Sharpee TO (2009) Estimating linear-nonlinear models using renyi divergences. Network
+20: 49–68.
+21. Fitzgerald JD, Rowekamp RJ, Sincich LC, Sharpee TO (2011) Second order dimensionality reduction using minimum and maximum mutual information models. PLoS Comput Biol 7: e1002249.
+22. Rajan K, Bialek W (2013) Maximally informative stimulus energies in the analysis of neural responses to natural signals. PLoS ONE 8: e71959.
+
+30
+
+23. Park IM, Archer EW, Priebe N, Pillow JW (2013) Spectral methods for neural characterization
+using generalized quadratic models. In: Advances in Neural Information Processing Systems 26.
+pp. 2454–2462.
+24. Rajan K, Marre O, Tkačik G (2013) Learning quadratic receptive fields from neural responses to
+natural stimuli. Neural Computation 25: 1661–1692.
+25. Kinney J, Tkačik G, Callan C (2007) Precise physical models of protein–dna interaction from
+high-throughput data. Proceedings of the National Academy of Sciences 104: 501–506.
+26. Brenner N, Strong SP, Koberle R, Bialek W, de Ruyter van Steveninck RR (2000) Synergy in a
+neural code. Neural Comput 12: 1531–1552.
+27. Maimon G, Assad JA (2009) Beyond poisson: increased spike-time regularity across primate parietal cortex. Neuron 62: 426–440.
+28. Rapela J, Felsen G, Touryan J, Mendel J, Grzywacz N (2010) eppr: a new strategy for the characterization of sensory cells from input/output data. Network: Computation in Neural Systems 21:
+35–90.
+29. Rust NC, Schwartz O, Movshon JA, Simoncelli EP (2005) Spatiotemporal elements of macaque v1
+receptive fields. Neuron 46: 945–956.
+30. Rust NC, Mante V, Simoncelli EP, Movshon JA (2006) How mt cells analyze the motion of visual
+patterns. Nat Neurosci 9: 1421–1431.
+31. Sugiyama M, Kawanabe M, Chui PL (2010) Dimensionality reduction for density ratio estimation
+in high-dimensional spaces. Neural Networks 23: 44–59.
+32. Sugiyama M, Suzuki T, Kanamori T (2012) Density ratio estimation in machine learning. Cambridge University Press.
+33. Suzuki T, Sugiyama M (2013) Sufficient dimension reduction via squared-loss mutual information
+estimation. Neural computation 25: 725–758.
+34. Vintch B, Zaharia A, Movshon JA, Simoncelli EP (2012) Efficient and direct estimation of a neural
+subunit model for sensory coding. In: Bartlett P, Pereira F, Burges C, Bottou L, Weinberger K,
+editors, Adv. Neural Information Processing Systems (NIPS*12). Cambridge, MA: MIT Press,
+volume 25, pp. 3113–3121. Presented at: Neural Information Processing Systems 25, Dec 2012,
+Lake Tahoe, Nevada.
+35. Theis L, Chagas AM, Arnstein D, Schwarz C, Bethge M (2013) Beyond glms: A generative mixture
+modeling approach to neural system identification. PLoS Computational Biology 9.
+36. Rad KR, Paninski L (2010) Efficient, adaptive estimation of two-dimensional firing rate surfaces
+via gaussian process methods. Network: Computation in Neural Systems 21: 142–168.
+37. Park M, Horwitz G, Pillow JW (2011) Active learning of neural response functions with gaussian
+processes. In: Shawe-Taylor J, Zemel R, Bartlett P, Pereira F, Weinberger K, editors, Advances
+in Neural Information Processing Systems. volume 24, pp. 2043–2051.
+38. Rice J (1964) The approximation of functions: Linear theory, volume 1. Addison-Wesley.
+39. Park J, Sandberg I (1991) Universal approximation using radial-basis-function networks. Neural
+computation 3: 246–257.
+
+31
+
+40. Korenberg M, Bruder S, Mcllroy P (1988) Exact orthogonal kernel estimation from finite data
+records: Extending weiner’s identification of nonlinear systems. Annals of biomedical engineering
+16: 201–214.
+41. Victor J (1991) Asymptotic approach of generalized orthogonal functional expansions to wiener
+kernels. Annals of biomedical engineering 19: 383–399.
+42. Hinton GE (2002) Training products of experts by minimizing contrastive divergence. Neural
+Computation 14: 1771–1800.
+43. Rowekamp R, Sharpee T (2011) Analyzing multicomponent receptive fields from neural responses
+to natural stimuli. Network: Computation in Neural Systems 7: 1–29.
+44. Park IM, Pillow JW (2011) Bayesian Spike-Triggered Covariance Analysis. In: Shawe-Taylor J,
+Zemel RS, Bartlett P, Pereira F, Weinberger K, editors, Advances in Neural Information Processing
+Systems, Cambridge, MA: MIT Press. pp. 1692–1700.
+45. Fitzgerald JD, Sincich LC, Sharpee TO (2011) Minimal models of multidimensional computations.
+PLoS Computational Biology 7: e1001111.
+46. Fitzgerald JD, Rowekamp RJ, Sincich LC, Sharpee TO (2011) Second order dimensionality reduction using minimum and maximum mutual information models. PLoS Computational Biology 7:
+e1002249.
+47. Christianson GB, Sahani M, Linden JF (2008) The consequences of response nonlinearities for
+interpretation of spectrotemporal receptive fields. The Journal of Neuroscience 28: 446-455.
+48. Sahani M, Linden J (2003) Evidence optimization techniques for estimating stimulus-response
+functions. NIPS 15.
+49. Park M, Pillow JW (2011) Receptive field inference with localized priors. PLoS Comput Biol 7:
+e1002219.
+50. Reich DS, Mechler F, Purpura KP, Victor JD (2000) Interspike intervals, receptive fields, and
+information encoding in primary visual cortex. J Neurosci 20: 1964-1974.
+51. Barbieri R, Quirk MC, Frank LM, Wilson MA, Brown EN (2001) Construction and analysis of
+non-poisson stimulus-response models of neural spiking activity. Journal of Neuroscience Methods
+105: 25–37.
+52. Pillow JW (2009) Time-rescaling methods for the estimation and assessment of non-poisson neural
+encoding models. In: Bengio Y, Schuurmans D, Lafferty J, Williams CKI, Culotta A, editors,
+Advances in Neural Information Processing Systems 22. MIT Press, pp. 1473–1481.
+53. Atencio CA, Sharpee TO, Schreiner CE (2008) Cooperative nonlinearities in auditory cortical
+neurons. Neuron 58: 956–66.
+54. Atencio CA, Sharpee TO, Schreiner CE (2009) Hierarchical computation in the canonical auditory
+cortical circuit. Proceedings of the National Academy of Sciences 106: 21894–21899.
+55. Sharpee TO, Atencio CA, Schreiner CE (2011) Hierarchical representations in the auditory cortex.
+Current Opinion in Neurobiology 21: 761–767.
+56. Atencio CA, Sharpee TO, Schreiner CE (2012) Receptive field dimensionality increases from the
+auditory midbrain to cortex. Journal of Neurophysiology 107: 2594–2603.
+
+32
+
+57. Fernandes HL, Stevenson IH, Phillips AN, Segraves MA, Kording KP (2013) Saliency and saccade
+encoding in the frontal eye field during natural scene search. Cerebral Cortex .
+58. Paninski L, Fellows M, Shoham S, Hatsopoulos N, Donoghue J (2004) Superlinear population
+encoding of dynamic hand trajectory in primary motor cortex. J Neurosci 24: 8551–8561.
+59. Schneidman E, Berry MJ, Segev R, Bialek W (2006) Weak pairwise correlations imply strongly
+correlated network states in a neural population. Nature 440: 1007–1012.
+
+33
+
+A
+filter:
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+iSTAC
+
+cbf-LNP
+
+sps/sec
+
+B
+
+80
+40
+0
+−5
+
+0
+
+5
+
+filter output
+
+D
+
+0.3
+
+compute time (mins)
+
+rbf-LNP test/train
+cbf-LNP test/train
+iSTAC test/train
+
+0.2
+0.1
+0
+
+1
+
+2
+
+3
+
+avg # of excitatory filters
+
+E
+
+4
+
+5
+
+# filters
+
+6
+
+7
+
+8
+
+F
+
+cbf-LNP
+iSTAC
+
+5
+4
+3
+2
+1
+1
+
+2
+
+3
+
+4
+
+5
+
+# filters
+
+6
+
+7
+
+8
+
+excitatory information
+
+single spike information
+(bits per spike)
+
+C
+
+300
+
+5 mins data
+10 mins data
+20 mins data
+30 mins data
+
+200
+100
+0
+
+1
+
+0.3
+
+2
+
+3
+
+4
+
+5
+
+# filters
+
+6
+
+7
+
+8
+
+Cumulative Exc cbf-LNP
+Cumulative Exc iSTAC
+
+0.2
+0.1
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+# filters
+
+6
+
+7
+
+8
+
+Figure 8. Estimation of high-dimensional subspaces using a nonlinearity parametrized with cylindrical
+basis functions (CBFs). (A) Eight most informative filters for an example complex cell, estimated with
+iSTAC (top row) and cbf-LNP (bottom row). For the cbf-LNP model, the nonlinearity was parametrized
+with three first-order CBFs for the output of each filter (see Methods). (B) Estimated 1D nonlinearity
+along each filter axis, for the filters shown in (A). Note that third and fourth iSTAC filters are
+suppressive while third and fourth cbf-LNP filter are excitatory. (C) Cross-validated single-spike
+information for iSTAC, cbf-LNP, and rbf-LNP, as a function of the number of filters, averaged over a
+population of 16 neurons (selected from [29] for having ≥ 8 informative filters). The cbf-LNP estimate
+outperformed iSTAC in all cases, while rbf-LNP yielded a slight further increase for the first four
+dimensions. (D) Computation time for the numerical optimization of the cbf-LNP likelihood for up to 8
+filters. Even for 30 minutes of data and 8 filters, optimisation took about 4 hours. (E) Average number
+of excitatory filters as a function of total number of filters, for each method. (F) Information gain from
+excitatory filters, for each method, averaged across neurons. Each point represents the average amount
+of information gained from adding an excitatory filter, as a function of the number of filters.
+
+

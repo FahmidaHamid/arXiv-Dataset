@@ -1,0 +1,1118 @@
+Mirroring co-evolving trees in the light of their topologies
+
+arXiv:1110.5704v1 [q-bio.PE] 26 Oct 2011
+
+Iman Hajirasouliha 1,† , Alexander Schönhuth 2,† , David Juan 3
+Alfonso Valencia 3 and S. Cenk Sahinalp 1
+1
+
+School of Computing Science
+Simon Fraser University, Burnaby BC, Canada
+2
+Centrum Wiskunde & Informatica, Amsterdam, The Netherlands
+3
+Structural Biology and BioComputing Programme
+Spanish National Cancer Research Centre, Madrid, Spain
+†
+Joint first authorship
+{imanh,cenk}@cs.sfu.ca
+as@cwi.nl
+October 27, 2011
+
+Abstract
+Determining the interaction partners among protein/domain families poses hard computational problems, in particular in the presence of paralogous proteins. Available approaches aim to identify interaction partners among protein/domain families through maximizing the similarity between trimmed
+versions of their phylogenetic trees. Since maximization of any natural similarity score is computationally difficult, many approaches employ heuristics to maximize the distance matrices corresponding to the
+tree topologies in question. In this paper we devise an efficient deterministic algorithm which directly
+maximizes the similarity between two leaf labeled trees with edge lengths, obtaining a score-optimal
+alignment of the two trees in question.
+Our algorithm is significantly faster than those methods based on distance matrix comparison: 1
+minute on a single processor vs. 730 hours on a supercomputer. Furthermore we outperform the current
+state-of-the-art exhaustive search approach in terms of precision as well as a recently suggested overall
+performance measure for mirrortree approaches, while incurring acceptable losses in recall.
+A C implementation of the method demonstrated in this paper is available at
+http://compbio.cs.sfu.ca/mirrort.htm
+
+1 Introduction
+The vast majority of cellular functions are exerted by (combinations of) interacting gene products. As a
+result, ”preservation of functionality” among proteins and other gene products typically implies ”preservation of interactions” across species. It is well established that protein-protein interactions (both physical
+interactions as well as co-occurence of domains) are preserved through speciation events (see [6, 9] and the
+references therein). A major implication of this is that the evolutionary trees behind two interacting protein
+families can look near-identical.
+As interacting proteins have a tendency to co-evolve, it is desirable to ”measure” how similarly two
+or more proteins (or other gene products) evolve to assess their possibility of being interaction partners.
+For that purpose a number of computational strategies have been developed to compare the phylogenetic
+1
+
+trees that represent two or more protein or protein-domain families. Among these strategies we will focus
+on the mirrortree approach, where the phylogenetic trees of protein or protein-domain families are called
+gene trees: here leaves represent ”homologs” and internal vertexes represent either speciation or duplication
+events. There are a number of mirrortree methods described in the literature each of which based on a
+specific measure of pairwise tree similarity and an algorithm to compute it; see the introductory paper by
+[8] and [9] for more references.
+In the context of mirrortree approaches, direct comparison of gene trees is considered to be “... a problem
+yet to be fully resolved.” [4, p. 2], and thus available techniques typically ”measure” tree similarity in terms
+of the similarity between their ”distance matrices”; the distance matrix of a gene tree is defined so that the
+entry (i, j) represents the distance between vertices i and j on the tree. Similarity between distance matrices
+of two trees can easily be computed and may be used to accurately estimate the similarity between the
+corresponding gene trees [9] in the absence of paralogous proteins. This is due to the fact that the absence
+of paralogs imply a bijection between the leaves of the two trees compared (i.e. there is exactly one vertex
+for each species in each gene tree). In the presence of paralogous proteins, however, one needs to determine
+the correct ”pairing” of leaves so as to assess the ”degree” of co-evolution among the two families. Note
+that it is not trivial to establish such a mapping: as pointed out in [16], protein interaction can be preserved
+during duplication, while interaction can be lost during speciation.
+There are a number of mirrortree approaches for determining the exact correspondence between the
+leaves of two gene trees; typically these approaches aim to ”align” the distance matrices by shuffling and
+eliminating the rows (and corresponding columns) so as to maximize the similarity between the matrices.1
+The similarity between two aligned matrices is defined in the form of root mean square difference [12], correlation coefficient [3], information-theoretic ’total interdependency’ of multiple alignments [16], Student’s
+t [4] or the size of the largest common submatrix [17]. Because an exact solution to the matrix alignment
+problem (where the goal is to maximize any of these notions of similarity) is hard to compute, many available approaches employ heuristics based on swapping pairs of rows/columns in a greedy fashion. These
+methods also commonly perform column/row elimination from the ”larger” matrix only, and not the other
+[3, 4, 5, 12, 16]. We are aware of one exception by [17], which aims to determine the largest common
+(i.e. within a threshold) submatrix and removes the remainder of the columns and rows from both matrices.
+Similarly the only approach which directly compares the tree topologies themselves is by [5], which uses a
+Metropolis algorithm to heuristically travel ’tree automorphism’ space. However, this approach can not handle trees of different sizes. See [6, 9, 17] for references on mirrortree approaches which do not necessarily
+relate to the mapping problem.
+Our Approach: Modeling and Formalization. In this paper we present polynomial-time algorithms that
+determine mappings of leaves which respect the topology of their two gene trees. As input, we are given two
+”gene trees” T and T ′ of two protein/domain families known to interact with one another. T and T ′ have
+labeled leaves where labels reflect species such that the presence of the same label at two different leaves
+reflects the presence of paralogs. We then delete both leaves and inner vertices from both trees until the
+remaining trees are isomorphic, i.e. that is one can map the vertices of the two remaining trees in a one-toone fashion onto another such that ancestor relationships are preserved. This in particular implies a one-toone mapping of the remaining leaves, which we present as output. Clearly, there are many different possible
+choices of such one-to-one mappings of leaves—our algorithms determine the score-optimal such mapping
+where different deletion operations are penalized in different ways, depending on how they transform the
+topologies of the trees. We describe the nature of our scoring scheme in a little more detail in the following;
+please see the Methods section for full details and precise notations.
+We denote a bijection (i.e. a one-to-one and onto mapping) of subsets of vertices of T, T ′ by M[T, T ′ ]
+1
+
+Note that mirrortree approaches differ from approaches that aim to reconcile evolutionary trees into a single summary [7].
+
+2
+
+and write
+M := {(v, w) ∈ T × T ′ | M(v) = w}
+
+(1)
+
+for the pairs of mapped vertices. Note that in such a bijection, not all vertices of T are necessarily mapped
+to a vertex in T ′ and vice versa. We refer to vertices which are not mapped as deleted by M[T, T ′ ]. We
+only consider mappings which satisfy the following: (1) the mapping preserves the ancestor relationship of
+T and T ′ ; (2) only leaves with identical labels are mapped onto one another; (3) upon deletion of vertices,
+where deletion of an internal vertex v leads to new edges joining the parent of v with the children of v, the
+two tree topologies are isomorphic. Among the mappings satisfying the above conditions, we compute the
+mapping that has maximum score.
+For a formal definition of our scoring scheme, consider the internal vertices of T and T ′ that are deleted.
+Among them, we distinguish between vertices v that have descendants x which are not deleted. We write
+NI for such vertices. We write NT for the remaining deleted vertices. Note that each vertex v ∈ NT makes
+part of a subtree of T which has been deleted as a whole. The score of the mapping is then defined as
+X
+X
+X
+S(M[T, T ′ ]) =
+SM (v, v ′ ) +
+SNI (v) +
+SNT (v).
+(2)
+v∈NI
+
+(v,v′ )∈M
+
+v∈NT
+
+The individual score functions SM , SNI and SNT will be formally defined in the Methods section. Our
+algorithm, which maximizes the overall score of the mapping, can be viewed as an extension of the standard
+tree edit distance algorithm for unweighted trees (e.g. [14]), to those with edge weights. Determining the
+tree edit distance is NP-complete [21] (in fact MAX-SNP-hard [20]). Since the instances treated here are
+too large (trees have up to more than 200 leaves) we have to impose reasonable constraints when aiming at
+fast, polynomial-runtime solutions. Motivated by test runs (see numbers referring to C1,2,3 in the Results
+and Discussion section), we chose to impose the additional constraint that a vertex u and its parent v cannot
+be deleted at the same time without that the entire subtree rooted at v is deleted. That is we disallow to have
+both a parent v and a child u in NI . Note, however, that deletion of two internal siblings is permissable—we
+found that such deletions can lead to favorable mappings. As the operation of deleting entire subtrees does
+not lead to runtime issues, does not perturb the topology of the remaining trees and also reflects the biologically reasonable assumption that interaction can be lost for entire subtrees, we allow it without additional
+restrictions.
+Note that the algorithm only outputs one uniquely determined, score-optimal mapping of subsets of
+leaves of T, T ′ . Note further that we do not perform an exhaustive search since we do never consider
+mappings of leaves which imply mappings of internal vertices that do not preserve ancestor relationships of
+the gene trees T, T ′ and thereby contradicts their topologies.
+Alternative constraints leading to polynomial time solvable variants on the tree edit distance is surveyed
+in [19]. For further, more recent work see also [11] that address the subtree homeomorphism problem,
+which, given a ”text” tree T and a ”pattern tree” P as the input, asks to find a subtree t in T such that
+P is homeomorphic to t. Now, two trees T1 , T2 are said to be homemorphic if one can remove degree 2
+vertices from T1 , T2 such that T1 and T2 are isomorphic. Another recent work [13] considers homeomorphic
+alignment of ”weighted” but unlabeled trees. Here the goal is to obtain a homeomorphic mapping between
+vertices of two trees such that the differences between the weights of ”aligned” edges is minimized. While
+being related to our approach, the method described in [13] is not applicable to our problem as the trees they
+consider are not leaf labeled. We refer the reader to [1] for a general and gentle overview of further related
+work on tree edit distance, tree alignment and tree inclusion.
+Summary of Contributions. The main technical contribution of this paper is a novel deterministic mirrortree algorithm that directly compares tree topologies. The algorithm is optimal within the single constraint we impose and is provably efficient. We compare our algorithm with the most recent, state-of-the-art
+3
+
+heuristic search approach [4] that aims to maximize the similarity between distance matrices, where distances reflect lengths of shorted paths in neighbor-joining trees. In our comparisons we use precisely the
+same trees to be able to juxtapose a distance matrix-based heuristic search method to our topology-based,
+deterministic method without introducing further biases. Our main conclusions are as follows.
+• We can compute mappings for the 488 interacting domain families in roughly 1 minute on a single
+CPU - in comparison to 730 hours on MareNostrum 2 needed for the Metropolis search performed by
+[4].
+• We outperform the Metropolis search in terms of precision, i.e., the percentage of correctly inferred
+pairings among all inferred pairings is higher (48%) in our approach vs. that (43%) in [4]);
+• In terms of F-measure (see the Discussion section for a definition), which has been most recently suggested for assessing mirrortree approaches in terms of both recall and precision [17]3 , our topologybased approach again prevails (0.47 over 0.45).
+
+2 Preliminaries and notations
+Let T = (V, E, w) be a tree with weighted edges as given by a non-negative weight function w : E → R+ .
+We denote the leaves of T by L = {ℓ1 , ..., ℓn }, the internal nodes of T (excluding the root) by U =
+{u1 , ..., um }, and the root of T by r. In particular let n be the number of leaves and m be the number of
+internal vertices without the root. Note that a tree T is binary and rooted if and only if deg(r) = 2 and
+deg(u) = 3 for all internal vertices u ∈ U ; this will imply that m = n − 2 and |E| = 2n − 2. In our
+setting, edge weights w(vi , vj ) reflect the evolutionary distance between adjacent vertices vi , vj . Note that
+leaves refer to gene products whereas internal vertices can be interpreted as speciation and/or duplication
+events. For a given vertex v ∈ V , we define θ(v) as the evolutionary distance between the root and v. In
+other words, θ(v) is the sum of the edge weights in the unique path from the root to v. In rooted trees, there
+is a natural partial order
+vi ≤ vj ⇔ vi is an ancestor of vj
+(3)
+on the vertices of T . Hence, the edges have a natural orientation and each vertex vi induces a unique
+subtree T (vi ). This partial order is crucial for our algorithm—which can not be applied to unrooted trees
+in a straightforward manner. For processing unrooted (e.g. neighbor-joining) trees, consider the pair of
+proteins/domains (one from each tree) which are known to interact. We root the two trees at these vertices
+in order to apply our algorithm. Provided such a pair exists (which is typically the case), our algorithm
+optimally aligns the trees as it does not assume any order among the many sibling vertices. In a tree T
+which is rooted at r, we call vertex u the parent of a vertex v if u and v are connected by an edge and u
+is closer to r than v. The height of a rooted tree is defined as max{d(r, ℓi ) | i = 1, ..., n} where d(v1 , v2 )
+is the length of the shortest path between vertices v1 and v2 without considering edge weights, that is the
+maximum (unweighted) distance of the root to a leaf.
+
+3 Methods
+Given two rooted weighted-edge trees T and T ′ , our algorithm aligns the trees by mapping a subset of leaves
+of T to a subset of leaves of T ′ . In order to obtain this mapping, a series of (1) individual vertex deletions
+2
+
+MareNostrum is a supercomputer of the Barcelona Supercomputing Center, one of the largest machines in the world dedicated
+to science [4, p. 10].
+3
+Note that [17] suggest F0.1 , which favors the topology-based approach even more than F0.25 which we use.
+
+4
+
+Figure 1: Two isomorphic trees are shown as an example in this figure. The leaves of the left tree are labeled
+with a1 , a2 , a3 , a4 while the leaves of the tree on the right are labeled with b1 , b2 , b3 , b4 . A possible mapping
+between the leaves that respect the tree topology is (a1 , b3 ), (a2 , b4 ), (a3 , b2 ), (a4 , b1 ).
+or (2) subtree deletions (with specific penalties) are performed on each tree with the goal of obtaining two
+isomorphic trees T1 = (V1 , E1 , w1 ) (from T ) and T1′ = (V1′ , E1′ , w1′ ) (from T1′ ); Figure 1 shows two such
+rooted trees that are isomorphic; it also shows a mapping between the leaves. The specifics of vertex and
+subtree deletions on a tree T = (V, E, w) are as follows.
+1. Deleting an internal vertex v also deletes the edge (u, v), where u is the parent of v. Furthermore, it
+connects each child x of v to u by deleting the edge (v, x) and creating a new edge (u, x). The weight
+of this new edge, w(u, x) is set to w(u, v) + w(v, x). As mentioned earlier, it is not possible to delete
+both a node v and its parent u from T .
+2. Deleting an entire subtree rooted at an internal vertex v deletes all descendants of v and their associated
+edges.
+In the remainder of this section, we will discuss the costs of the above deletion operations and the scores
+of the mapped vertices. As mentioned earlier, the overall score of the mapping will be the sum of the scores
+of the mapped vertices and the scores (negative costs) of the the deletion operations.
+
+3.1 Scoring Scheme
+Let T1 and T1′ be the isomorphic trees which result from performing a series of deletion operations on T and
+T ′ . The isomorphism Φ : T1 → T1′ implies a mapping (a.k.a. alignment) M[T, T ′ ] between the original
+trees T, T ′ . Let L1 , L′1 denote the sets of leaves that are mapped in T and T ′ respectively; because the
+mapping is a bijection, we must have |L1 | = |L′1 |. We write SP := {(l, l′ ) | l ∈ L, l′ ∈ L′ , (l, l′ ) ∈ M } ⊂
+M[T, T ′ ] for the set of mapped pairs (we require that mapped leaves have identical labels hence the naming
+SP for ’species’.
+Recall that a mapping of two trees may involve deleting internal vertices or entire subtrees. We now
+distinguish between two types of internal vertex deletions, a.k.a. edge contractions.
+1. [Isolated Deletion:] deletion of only one child v of a vertex u. Let further x1 , x2 be the two children
+of v. Isolated deletion of v also implies to also delete edges (u, v), (v, x1 ), (v, x2 ) and create new
+edges (u, x1 ), (u, x2 ).
+2. [Parallel Deletion:] deletion of both children (say x and y) of a vertex v. This implies deletion and
+creation of edges in a fashion analogous to that for isolated deletion.
+Accordingly, we further distinguish between isolated deleted vertices NI,iso and vertices which became
+deleted in parallel NI,par such that NI = NI,iso ∪˙ NI,par . For a given mapping M[T, T ′ ] let ES (M) :=
+5
+
+{(u, v) | v ∈ NI,iso } be the set of edges which join isolated deleted vertices with their parents. Analogously,
+EP (M) is the set of edges that join deleted siblings with their parent. See figure 2 for examples of isolated
+and parallel deletions.
+Given a pair of mapped leaves ℓ̃1 , ℓ̃2 ∈ SP their alignment score, κ(ℓ̃1 , ℓ̃2 ) is defined as
+κ(ℓ̃1 , ℓ̃2 ) = C − |θ(ℓ˜1 ) − θ(ℓ˜2 )|
+where C is a positive constant, providing a positive contribution to the overall score because of the alignment
+of two leaves with the same label while we subtract the difference between the distances of ℓ˜1 and ℓ˜2 from
+the root for penalizing the alignment between two leaves which have topologic differences.
+The total score S of an alignment M[T, T ′ ] as per the above definition is fully specified by
+X
+
+S(M[T, T ′ ]) =
+
+κ(ℓ̃1 , ℓ̃2 ) −
+
+X
+
+es ∈Eiso (M)
+
+(ℓ̃1 ,ℓ̃2 )∈SP
+
+X
+
+E · w(es ) −
+
+F · w(ep )
+
+(4)
+
+ep ∈Epar (M)
+
+P
+′
+where, with
+respect
+to
+the
+formulation
+in
+(2),
+the
+term
+in
+the
+first
+row
+is
+for
+v,v′ ∈M SM (v, v ), the second
+P
+P
+row is for v∈NI SNI (v) and v∈NT SNT (v) is zero. E and F are user-defined constants that respectively
+penalize isolated deletion and parallel deletion of edges. Note that this penalty is proportional to the length
+of the edges joining the deleted vertices with their parents—deletion of longer edges leads to a more severe
+perturbation of topology hence is more severely penalized. We set the cost of deleting a subtree (i.e. SNT )
+to 0. Note, however, deleting subtrees is implicitly penalized by disregarding any potential good mappings
+of leaves in them.
+Given the above score function, the gene tree alignment problem can be formally stated as follows.
+Gene Tree Alignment Problem
+Given two rooted weighted-edge trees T, T ′ , determine subsets of leaves L1 ⊂ L, L′1 ⊂ L′ of equal
+size such that the corresponding subtrees can be transformed by isolated and parallel edge contraction
+and subtree removal operations into trees T1 , T1′ , for which there is an isomorphism Φ : T1 → T1′ that
+maximizes S(M[T, T ′ ]).
+
+A7
+
+A7
+
+A5
+
+A1
+
+A7
+
+A6
+
+A2
+
+A3
+
+A6
+
+A4
+
+(a) No contracting edges
+
+A1
+
+A2
+
+A3
+
+A4
+
+A1
+
+A2
+
+A3
+
+A4
+
+(b) An isolated contracted (c) Two contracting edges:
+edge: (A5 , A7 )
+(A7 , A5 ) and (A7 , A6 )
+
+Figure 2: A gene tree (a), with an isolated contraction of the edge (A5 , A7 ) subreffig:onecontract and a
+parallel contraction of the edges (A5 , A7 ) and (A6 , A7 ) (c).
+
+3.2 A Dynamic Programming Solution
+The gene tree alignment problem can be efficiently solved by a dynamic programming algorithm. Our
+algorithm runs in O((|V | · |V ′ |) time for two binary, rooted trees T, T ′ with vertex sets V, V ′ . In general,
+our strategy can be applied to arbitrary rooted trees with bounded maximum degree, ∆max . Note that by
+allowing to delete internal vertices (i.e. contract the edges), the number of children of an internal vertex will
+be still bounded by a constant (≤ 4).
+6
+
+Initialization As a first step, we remove all leaves that refer to species that are unique to each tree. Let
+n = |V | and n′ = |V ′ |. For every pair of vertices vi ∈ V and vj′ ∈ V ′ (i.e. for every i = 1, · · · , n and
+j = 1, · · · , n′ ), we compute the maximum alignment score for the subtrees rooted at vi from T (i.e. T (vi ))
+and vj′ from T (i.e. T ′ (vj′ )). We denote the maximum alignment score for T (vi ) and T ′ (vj′ ) by Sij .
+In our dynamic programming algorithm, we handle the ”base” cases, where one (or both) of T (vi ) or
+T (vj′ ) have 3 or fewer leaves, as follows.
+• If both vi ∈ V and vj′ ∈ V ′ are leaves, then by definition, Sij = κ(vi , vj′ ).
+• Without loss of generality, if vi is a leaf and vj′ is an internal vertex, Sij = max(Sij1 , Sij2 ), where j1
+and j2 correspond to the children of vj′ .
+• The remainder of the base cases have both vi and vj as internal vertices and are solved through
+exhaustive evaluation of all possible alignments.
+Recursion internal vertices, each with at least 4 descendants, Sij will be computed through recurrence
+equations. These equations are based on the alignment scores between subtrees rooted at the children (or
+grandchildren) of vi and vj′ . Let i1 (j1 ) and i2 (j2 ) be the children of the vertex vi (vj′ ). Also, let i11 , i12 be
+the children of i1 , and i21 , i22 be the children of i2 . Similarly, let j11 , j12 be the children of j1 , and j21 ,
+j22 be the children of j2 . We first give a high level description of the recurrence equation. Suppose that
+the maximum alignment score between any subtree in T (vi ) and any subtree in T ′ (vj′ ) has already been
+computed. In order to compute the alignment score Sij , we consider several cases: we can either delete one
+or both subtrees rooted at the children of vi and vj′ (deleting an entire subtree) or align the subtrees rooted at
+the children of vi and vj′ to each other. We can also delete one of the children of vi (either i1 or i2 ) together
+with one of the children of vj (either j1 or j2 ) and align the three resulting subtrees in T (vi ) to a permutation
+4 of the ones in T ′ (v ′ ). Finally, we have to consider the case where both children of the root (i.e. i and
+1
+j
+i2 in T (vi ), and j1 and j2 in T ′ (vj′ )) are deleted. In this case we align four subtrees in T (vi ) (rooted at
+i11 , i12 , i21 , i22 ) to a permutation of the four resulting subtrees in T ′ (vj′ ). The optimal alignment score of
+Sij will thus be the maximum alignment score provided by all of the cases above.
+Let e(v) denote the penalty for isolated deletion of an internal vertex v, which is the product of the
+constant E and the weight of the edge between v and its parent (see Scoring Scheme section). Also, let
+f (v) denote the penalty for parallel deletion of both children of an internal vertex v. f (v) was defined as a
+constant F times the total weight of the edges that connect v to its children. The recurrence equation for Sij
+thus becomes the following
+4
+
+We have to consider all the permutations because the trees are unordered (i.e. the order of siblings of an internal vertex is
+unimportant).
+
+7
+
+
+
+
+0((deleting both)subtrees from each tree)
+
+
+
+S i1 j 1 + S i2 j 2
+
+
+regular cases
+
+
+
+S
++
+S
+i
+j
+i
+j
+
+1
+2
+2
+1
+
+
+
+
+
+
+
+
+S
+
+
+
+ij
+1
+
+
+
+
+
+
+
+
+
+
+S
+
+ij
+2
+
+deleting one subtree from each tree
+
+
+
+
+S i1 j 
+
+
+
+
+
+
+
+
+
+
+  S i2 j 
+
+
+
+
+
+
+
+
+
+S
++
+S
++
+S
+
+
+i
+j
+i
+j
+i
+j
+11 2
+12 11
+2 12 
+
+
+
+
+
+
+
+
+
+
+S
++
+S
++
+S
+i
+j
+i
+j
+i
+j
+
+11 2
+12 12
+2 11
+
+− e(i1 ) − e(j1 )
+max
+
+
+
+
+Si12 j2 + Si11 j11 + Si2 j12 
+
+
+
+
+
+
+
+
+
+
+S
+
+
+i12 j2 + Si11 j12 + Si2 j11 
+
+
+
+
+
+
+Si21 j2 + Si22 j11 + Si1 j12 
+
+
+
+
+Sij = max
+
+
+
+
+i22 j12 + S
+
+S
++
+S
+
+i
+j
+i
+j
+21
+2
+1
+11
+
+max
+− e(i2 ) − e(j1 )
+
+
+i21 j11 + S
+
+
+
+Si
+j
++
+S
+
+
+22
+2
+i
+j
+
+1
+12
+
+
+
+
+
+
+
+S
+
+
++
+S
++
+S
+i
+j
+i
+j
+i
+j
+
+22
+2
+21
+12
+1
+11
+
+
+
+
+
+
+
+Si21 j1 + Si22 j21 + Si1 j22 
+
+
+
+
+
+
+
+
+
+
+S
+
+
++
+S
++
+S
+
+i
+j
+i
+j
+i
+j
+21
+1
+22
+22
+1
+21
+
+max
+− e(i2 ) − e(j2 )
+
+
+
+
+Si22 j1 + Si21 j21 + Si1 j22 
+
+
+
+
+
+
+
+
+
+
+S
+
+
+i22 j1 + Si21 j22 + Si1 j21 
+
+
+
+
+
+
+
+Si11 j1 + Si12 j21 + Si2 j22 
+
+
+
+
+
+
+
+
+
+
+
+
+S
++
+S
++
+S
+
+i11 j1
+i12 j22
+i2 j21
+
+− e(i1 ) − e(j2 )
+max
+
+
+
+
+Si12 j1 + Si11 j21 + Si2 j22 
+
+
+
+
+
+
+
+
+
+
+
+S
+
++
+S
++
+S
+i
+j
+i
+j
+i
+j
+
+12
+1
+11
+22
+2
+21
+
+
+S
+i11 π1 + Si12 π2 + Si21 π3 + Si22 π4 − f (vi ) − f (vj )
+
+(5)
+
+where the permutation π = π1 π2 π3 π4 ranges over all permutations of {j11 , j12 , j21 , j22 }. Note that some
+cases are redundant but are still represented here for the sake of clarity.
+Now, given r and r ′ , the roots of T and T ′ , respectively, the alignment score Sr1 r2 (i.e. the maximum
+alignment score of the rooted trees) can be computed using the above recurrence equation, providing a
+solution to the gene tree alignment problem. It is quite straightforward to prove that our algorithm correctly
+computes the maximum alignment score through a (strong) induction on the sum of the heights of the
+rooted trees. Note that the scores of internal vertex alignments can be computed through the scores of the
+alignments between their (grand)children and the recurrence precisely serves to satisfy the constraints. The
+base of the induction is trivial. If the minimum height of the trees is zero (i.e. one of the trees is just a single
+leaf), the optimal value of the alignment can be found using the definitions and simple case analysis. Given
+the subtrees T (vi ) and T ′ (vj′ ), with heights h and h′ , respectively, we assume the induction hypothesis, that
+for all pairs of subtrees T (vp ) and T ′ (vq′ ) with heights hp and hq such that hp + hq < h + h′ . It is easy to
+verify by case analysis that all cases in the recurrence equation will be reduced to a case in which the sum
+of the heights of the aligned (grand) children will be less.
+
+8
+
+4 Results
+Data Source and Alternative Methods. We benchmarked our algorithm against the most recent heuristic
+search method [4] for determining a mapping in the presence of paralogs on the large-scale data corpus
+described in the same study. This data set contains multiple alignments for 604 yeast protein domains
+among which 488 domain pairs are known to co-occur in the same protein. those 488 domain family pairs
+is considered to be a particularly tough test [4] due to the presence of approximately 6 paralogs per species
+on average. For all interacting domain family pairs, neighbor-joining trees were computed, using ClustalW
+[15] and the trees were rooted at the domains which are known to interact.
+Evaluation Criteria. Following [4], we determine the maximum number of protein domains that can be
+paired without topology constraints; i.e. if we have k1 paralogs of a particular protein domain d1 and k2
+paralogs of domain d2 within the same species, then this species contributes min(k1 , k2 ) to the overall
+count. By the usual conventions, we denote this value as P . Among P potentially correctly paired protein
+domains, the number of those which have been inferred by the algorithm in use, such that both domains
+reside in the same protein, is referred to as ”true positives”, T P . Similarly the number of protein domain
+pairings computed, which do not reside in the same protein are determined as ”false positives, F P . Recall
+(Sensitivity) is defined as Rec = T P/P and Precision (Positive Prediction Rate) is defined as P rec =
+T P/(T P + F P ) while the F-Measure F0.25 5 is determined as (1 + 0.252 ) · Rec · P rec/(0.252 P rec + Rec).
+Note that Recall is referred to as Accuracy in [4]. We determine Precision, Recall and F0.25 for each pairs
+of trees individually. Values displayed in tables 1, 2 and 3 are average values for all 488 co-evolving tree
+pairs.
+Tree Constraints. In order to appropriately assess the contribution of the different tree constraints as
+outlined in the Methods section, we evaluated our algorithm by not allowing to contract edges (C0 : C =
+1, E = ∞, F = ∞ in (4)), allowing edge contraction (without penalty, that is E = 0 in (4)) up to creating
+ternary, internal vertices (C1 : C = 1, E = 0, F = ∞ in (4)) as well as further allowing creation of
+quarternary vertices through parallel contraction of two edges, see Fig. 2 (c) for an example (C1,2 : C =
+1, E = F = 0 in (4) test case Cser where we also allow for deletion of vertices in a parent-child relationship
+(= serial)6 without penalizing any sort of deletion. We achieved best results in the case of C1,2 and further
+determined that to considerably penalize parallel contraction in contrast to imposing only a relatively mild
+penalty for isolated contraction yielded an optimal choice of parameters E = 2, F = 50 (referred to as
+COpt ). We suggest ratios C/E = 1/2, E/F = 1/25 as default settings. However, determination of absolute
+values needs to put into context with orders of magnitude of edge weights of the trees under consideration.
+As outlined in the Methods section, inducing tree constraints considerably reduces the search space,
+thereby allowing for an efficient and deterministic method. To also highlight these effects, we further determine the size of the largest correct mapping which does not violate the tree constraints, CP (“Constraint
+Positives”). We compute RP = CP
+P (“Relative Positives”) as the fraction of pairings that can still be inferred, which is a value which reflects how the reduction of search space influences the number of correct
+TP
+(“Relative Recall”) as a recall value which reflects how many
+pairings. We further compute RelRec = CP
+of the correct pairings possible were inferred by the algorithm in question. Note that the heuristic search
+does not impose any constraints on the search space hence CP = P such that Recall and Relative Recall coincide. Juxtaposing RP and RelRec values are meant to put usage of tree topology into a general
+perspective. Moreover, RelRec values certainly shed light on the effectiveness of the search strategy in use.
+5
+Note that F0.1 , which has been recently suggested as an appropriate prediction quality measure for mirrortree approaches [17],
+yields results which are even more in favor of our approach.
+6
+Thereby we do not allow for deletion of grandparent-parent-child relationships, which preserves an efficient recurrence scheme.
+
+9
+
+Table 1 presents numbers of all 488 tree pairs. Following [4], we also separate tree pairs according to the
+numbers of leaves of the larger tree (see Table 2) and the product of the numbers of leaves of the two paired
+trees (see Table 3) which, according to [4], quantifies search space size. Optimal values are highlighted in
+all categories.
+Method
+
+RP
+
+Recall
+
+RelRec
+
+Precis
+
+F0.25
+
+C0
+C1
+C{1,2}
+Cser
+COpt
+Heur.
+
+0.546
+0.610
+0.612
+0.638
+0.612
+1.000
+
+0.330
+0.378
+0.377
+0.373
+0.380
+0.550
+
+0.557
+0.586
+0.581
+0.556
+0.588
+0.550
+
+0.447
+0.475
+0.471
+0.444
+0.479
+0.450
+
+0.438
+0.468
+0.464
+0.439
+0.472
+0.450
+
+Table 1: Evaluation of our method with different choices of parameters and the previously published heuristic approach [4] (= Heur., values have been rounded to the order of 10−2 ). Baseline values for Recall and
+Precision are 16 =≈ 0.17.
+
+MaxSize
+Meth.
+C0
+C1
+C1,2
+Cser
+COpt
+Heur.
+
+Rec
+0.389
+0.436
+0.436
+0.437
+0.439
+0.700
+
+<120
+Prec
+0.511
+0.537
+0.534
+0.525
+0.541
+0.540
+
+F0.25
+0.502
+0.530
+0.527
+0.519
+0.534
+0.550
+
+Rec
+0.200
+0.249
+0.245
+0.231
+0.251
+0.340
+
+≥120
+Prec
+0.305
+0.338
+0.331
+0.262
+0.340
+0.280
+
+F0.25
+0.296
+0.331
+0.527
+0.260
+0.333
+0.280
+
+Table 2: The comparison of our method with the heuristic search method shows favorable results for large
+trees (≥120 leaves) for our method. For Heur., values have been rounded to the order of 10−2 .
+
+5 Discussion
+Runtime. The possibly most striking advantage of the topology-based approach is the drastic reduction of
+runtime—we can align all trees in ≈ 1 minute on a single processor laptop instead of 730 hours on a super
+computer. Note that there are rapidly growing large-scale phylogenetic databases such as ENSEMBL [2] or
+PhylomeDB [10], whose growth is further accelerated by next-generation sequencing projects (as of 12th
+August, 2011, PhylomeDB contains 482, 274 phylogenetic trees). The reduction in runtime delivered by
+our approach certainly overcomes a major obstacle—we render large-scale mapping and, as a consequence,
+comparison of paralog-rich gene trees feasible. Note that this reduction has become possible by imposing
+both computationally and biologically reasonable constraints on the search space while at the same time
+allowing for an efficient scheme to find the global optimum within these constraints.
+Search Space Size / Recall. Comparing COpt with the method of [4] (Heuristic) overall, clearly, [4]
+achieve best recall. As pointed out above, this comes as no surprise since we cannot explore pairings that
+10
+
+Space
+Meth.
+C0
+C1
+C1,2
+Cser
+COpt
+Heur.
+
+<11680
+Prec
+0.478
+0.506
+0.501
+0.489
+0.508
+0.500
+
+Rec
+0.361
+0.409
+0.407
+0.410
+0.410
+0.640
+
+F0.25
+0.469
+0.499
+0.494
+0.483
+0.501
+0.510
+
+Rec
+0.191
+0.239
+0.239
+0.205
+0.245
+0.280
+
+≥11680
+Prec
+0.305
+0.336
+0.334
+0.238
+0.343
+0.20
+
+F0.25
+0.295
+0.328
+0.326
+0.236
+0.335
+0.20
+
+Table 3: The comparison of our method with the heuristic search method reveals favorable results for large
+search spaces (Space ≥11680). For Heur., values have been rounded to the order of 10−2 .
+
+contradict the topologies of the paired trees. Quite surprisingly though, although usage of tree topology
+and neighbor-joining trees in particular have been discussed rather controversially [18], we find that still
+the majority of pairings (54.6% with the strictest constraints and 61.2% for allowing isolated and parallel
+deletion) can be determined by a topology-based approach. These numbers may put usage of neighborjoining tree topology in mirrortree approaches into a general perspective. Moreover, note that the fraction
+of correct domain pairs computed by our method over that of the heuristic search method is about 0.7
+T P (Copt )
+Recall(Copt )
+0.38
+) which is more than what was to be expected by reduction of
+(= T P (Heuristic)
+= Recall(Heuristic)
+= 0.55
+CP (C
+
+)
+
+CP (C
+
+)
+
+opt
+opt
+= P (Heuristic)
+= RP (Copt ) = 0.61) which points out that we compensate
+the search space ( CP (Heuristic)
+search space reduction by a more effective search strategy. This becomes reflected by the better RelRec
+values of Copt .
+
+Precision and F-Measure. Precision also favors the topology-based approach, at least on larger (combinations of) trees (see column Prec in all three tables). Better precision reflects a larger fraction of the
+correct domain pairs among the pairs inferred overall and [17] argue in a most recent contribution that
+precision is more relevant than recall in mirrortree approaches. Consequently, they suggest the F-measure
+2 )·Recall·Precision
+to assess overall performance. We slightly take issue with this suggestion as
+F0.1 = (1+0.1
+(0.12 Precision+Recall)
+2
+
+)·Recall·Precision
+.
+we feel that F0.1 overrates Precision and instead suggest the more balanced F0.25 = (1+0.25
+(0.252 Precision+Recall)
+We achieve better values in terms of F0.25 than [4] on pairs of larger trees. See Prec and F0.25 in tables 1, 2
+(in particular ≥ 120) and 3 (in particular ≥ 11680) for related results.
+
+Conclusion. In summary, we have, for the first time, devised a deterministic and efficient, polynomialruntime mirrortree approach which directly compares the gene trees, and not the distance matrices behind
+or giving rise to them. We have juxtaposed our approach with the most recent, state-of-the-art matrix-based
+heuristic search procedure without introducing further experimental biases. Our tree topology-based algorithm lists efficiency—its runtime is better by several orders of magnitude, reducing runtime from several
+hundreds of hours to only one minute when mirroring ≈500 trees—and precision as its benefits. Recall is
+better for the heuristic search which is explained by that the inherent search strategy does not impose any
+constraints on the search space. Our advantages become most obvious for large trees and in particular when
+both of the mirrored trees are not small. Here, our algorithm also achieves comparable recall values while
+our advantages in precision become distinct. This leads us to conclude that the heuristic method remains
+the better choice for smaller trees and when runtime is not an issue. In case of larger trees and in particular
+for large-scale studies, our approach has considerable benefits. Note finally that we have been comparing
+11
+
+neighbor-joining which have been repeatedly exposed as suboptimal choices of phylogenetic trees. We believe that our approach can gain from improvements in tree quality significantly more than the matrix-based
+approaches.
+
+Acknowledgment
+Funding. Iman Hajirasouliha is supported by an NSERC Alexander Graham Bell Canada Graduate Scholarships (CGS-D). Alexander Schönhuth performed most of this work while being supported by a postdoctoral fellowship of the Pacific Institute of Mathematical Sciences. S. Cenk Sahinalp receives funds from the
+Natural Sciences and Engineering Research Council of Canada (NSERC) and Bioinformatics for Combating
+Infectious Diseases (BCID) for this project.
+
+References
+[1] P. Bille.
+Tree edit distance, alignment and inclusion.
+Technical Report TR-2003-23, IT
+University of Copenhagen, http://itu.dk/en/Forskning/Technical-Reports/2003/Tree-Edit-DistanceAlignment-Distance-an, 2003.
+[2] e!Ensembl. Ensembl Genome Browser, 2011. http://ensembl.org.
+[3] J. Gertz, G. Elfond, A. Shustrova, M. Weisinger, M. Pellegrini, S. Cokus, and B. Rothschild. Inferring
+protein interactions from phylogenetic distance matrices. Bioinformatics, 19(16):2039–2045, 2003.
+[4] J.M.G. Izarzugaza, D. Juan, C. Pons, F. Pazos, and A. Valencia. Enhancing the prediction of protein
+pairings between interacting families using orthology information. BMC Bioinformatics, 9:35, 2008.
+[5] R. Jothi, M.G. Kann, and T.M. Przytycka. Predicting protein-protein interaction by searching evolutionary tree automorphism space. Bioinformatics, 21(Suppl.1):i241–i250, 2005.
+[6] S.C. Lovell and D.L. Robertson. An integrated view of molecular co-evolution in protein-protein
+interactions. Mol. Biol. Evol., 27(11):2567–2575, 2010.
+[7] R.D.M. Page. Maps between trees and cladistic analysis of historical associations among genes, organisms, and areas. Systematic Biology, 43:58–77, 1994.
+[8] F. Pazos and A. Valencia. Similarity of phylogenetic trees as indicator of protein-protein interaction.
+Protein Engineering, 14(9):609–614, 2001.
+[9] F. Pazos and A. Valencia. Protein co-evolution, co-adaptation and interactions. The EMBO Journal,
+27(20):2648–2655, 2008.
+[10] PhylomeDB, 2011. http://phylomedb.org.
+[11] R.Y. Pinter, O. Rokhlenko, D. Tsur, and M. Ziv-Ukelson. Approximate labelled subtree homeomorphism. Journal of Discrete Algorithms, 6:480–496, 2008.
+[12] A.K. Ramani and E.M. Marcotte. Exploiting the co-evolution of interacting proteins to discover interaction specificity. J. Mol. Biol., 327:273–284, 2003.
+[13] B. Raynal, M. Couprie, and V. Biri. Homeomorphic alignment of weighted trees. Pattern Recognition,
+43:2937–2949, 2010.
+12
+
+[14] K.-C. Tai. The tree-to-tree correction problem. Journal of the ACM, 26:422–433, 1979.
+[15] J.D. Thompson, D.G. Higgins, and T.J. Gibson. Clustal w: improving the sensitivity of progressive
+multiple sequence alignments through sequence weighting, position specific gap penalties and weight
+matrix choice. Nucl. Acids Res, 18(22):4673–4680, 1994.
+[16] E.R.M. Tillier, L. Biro, L. Ginny, and D. Tillo. Codep: Maximizing co-evolutionary interdependencies
+to discover interacting proteins. Proteins: Structure, Function and Bioinformatics, 63:822–831, 2006.
+[17] E.R.M. Tillier and R.L. Charlebois. The human protein coevolution network. Genome Research,
+19:1861–1871, 2009.
+[18] P.J. Waddell, H. Kishino, and R. Ota. Phylogenetic methodology for detecting protein interactions.
+Mol. Biol. Evol., 24:650–659, 2007.
+[19] K. Zhang. A constrained edit distance between unordered labeled trees. Algorithmica, 15(3):205–222,
+1996.
+[20] K. Zhang and T. Jiang. Some MAX-SNP-hard results concerning unordered labeled trees. Information
+Processing Letters, 49:249–254, 1994.
+[21] K. Zhang, R. Statman, and D. Shasha. On the editing distance between unordered labeled trees.
+Information Processing Letters, 42:133–139, 1992.
+
+13
+
+

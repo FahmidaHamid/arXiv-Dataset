@@ -1,0 +1,2304 @@
+arXiv:1503.06726v1 [q-bio.QM] 23 Mar 2015
+
+LBIBCell: A Cell-Based Simulation Environment for
+Morphogenetic Problems
+∗
+
+†
+
+Simon Tanaka1,2 , David Sichau1 , and Dagmar Iber1,2
+March 29, 2015
+
+Abstract
+
+3
+
+1
+
+The documentation and source code are available
+on
+http://tanakas.bitbucket.org/lbibcell/
+index.html
+
+Motivation:
+
+Availability:
+
+The simulation of morphogenetic problems requires
+the simultaneous and coupled simulation of signalling
+and tissue dynamics. A cellular resolution of the 4
+Contact:
+tissue domain is important to adequately describe
+the impact of cell-based events, such as cell divi- dagmar.iber@bsse.ethz.ch
+sion, cell-cell interactions, and spatially restricted signalling events. A tightly coupled cell-based mechano5 Introduction
+regulatory simulation tool is therefore required.
+
+2
+
+During morphogenesis, tissue grows and selforganises into complex functional units such as organs. The process is tightly controlled, both by signalling and by mechanical interactions. Long-range
+signalling interactions in the tissues can be mediated by diffusible substances, called morphogens, and
+by long-range cell processes ([35]). The dynamics of
+the diffusible factors can typically be well described
+by systems of continuous reaction-advection-diffusion
+partial differential equations (PDE). The appropriate
+tissue representation depends on the relevant time
+scale. For a homogeneous isotropic embryonic tissue, experiments show that the tissue is well approximated by a viscous fluid on long time scales (equilibration after 30 minutes to several hours) and by
+an elastic material on short time scales (seconds to
+minutes) ([10]). However, biological control typically
+happens on a shorter time scale, and many cellular
+processes such as cell migration and adhesion, cell
+polarity, directed division, monolayer structures and
+
+Results:
+
+We developed an open-source software framework for
+morphogenetic problems. The environment offers
+core functionalities for the tissue and signalling models. In addition, the software offers great flexibility
+to add custom extensions and biologically motivated
+processes. Cells are represented as highly resolved,
+massless elastic polygons; the viscous properties of
+the tissue are modelled by a Newtonian fluid. The
+Immersed Boundary method is used to model the
+interaction between the viscous and elastic properties of the cells, thus extending on the IBCell model.
+The fluid and signalling processes are solved using the
+Lattice Boltzmann method. As application examples
+we simulate signalling-dependent tissue dynamics.
+∗ simon.tanaka@bsse.ethz.ch
+† dagmar.iber@bsse.ethz.ch
+
+1
+
+differentiation cannot be cast into a continuous formulation in a straight-forward way. A number of cell
+based simulation techniques at different scales and
+different level of detail have been developed to study
+these processes; here, we discuss main representatives
+for each category.
+The Cellular Potts model, introduced by [12], is
+solved on a lattice, with each lattice point holding a
+generalized spin value denoting cell identity. Similar
+to the Ising model, Hamiltonian energy functions are
+formulated and minimized using a Metropolis algorithm. It has been applied to a multitude of problems, and is implemented in the software CompuCell3D ([39]). However, the correspondence between
+the biological problem and the Hamiltonian, the temperature and the time step is not always straightforward.
+The subcellular element model divides cells into
+subcellular elements, which are represented by computational particles. The elements interact via interacting potentials which are subject to modelling. The
+motion of the elements is governed by overdamped
+Langevin dynamics, such that the method is meshfree. The framework was first introduced by [25] and
+later applied by [36, 37]. This approach allows for
+detailed biophysical modelling, both in 2D and 3D.
+The spheroid model developed by [7] assumes that
+cells in unstructured cell populations are similar to
+colloidal particles. The cells are modelled as point
+particles, hosting interaction potentials. Their motion consist of a random and a directed movement.
+Neighboring cells form adhesive bonds, which are represented using models borrowed from contact mechanics, such as e.g. the Johnson-Kendall-Roberts
+model ([6]). Many cellular processes such as cell
+shape change, division, death, lysis, cell-cell interaction and migration have been successfully translated
+into the spheroid model ([7]). Intra- and extracellular diffusion has not yet been introduced and implemented. The spheroid model extends efficiently to
+3D, and it has been implemented in the open-source
+framework CellSys ([15]).
+The vertex model uses polygons (or polyhedra in
+3D) to represent cells in densely packed tissues, e.g.
+in Drosophila wing disc epithelia ([8]). For each vertex, forces are computed - either via a potential or
+
+directly. The vertices are moved subsequently according to overdamped equations of motion, or via a
+Monte Carlo algorithm. The model is implemented
+in the open-source software Chaste ([31]).
+The viscoelastic cell model (also called IBCell models) presented in [34] and [33] uses the immersed
+boundary method ([29]) to represent individually deformable cells as immersed elastic bodies. The cytoplasm and the extracellular matrix and fluid are
+represented by a viscous incompressible fluid. In this
+framework, a vast amount of biological processes such
+as cell growth, cell division, apoptosis and polarization has been realized. The model was applied to
+study tumor and epithelial dynamics. Due to the
+very high level of detail, the viscoelastic cell model
+is computationally expensive and has not yet been
+implemented in 3D.
+The software framework VirtualLeaf with explicit
+cell resolution, available in 2D, has been introduced
+in [22]. Although the cell representation is similar to
+vertex cell models, the dynamics is realized by minimizing an Hamiltonian using a Monte Carlo algorithm. The model assumes rigid cell walls, which is
+appropriate for plant morphogenesis.
+For many morphogenetic phenomena, which arise
+from a tight interaction between the biomolecular signalling and the tissue physics, an explicit computational representation of the cell shapes is required.
+Here, we present a flexible software framework based
+on the IBCell model, which, as a novelty, permits
+to tightly couple biomolecular signalling models to a
+cell-resolved, physical tissue model. The core components and the general approach of the model are
+described in the second section. In the third section, the software and the main functionalities are
+described in detail. Application examples are given
+in the fourth chapter to demonstrate the framework’s
+capabilities.
+
+6
+
+Approach
+
+Our approach permits the coupled simulation of tissue and signalling dynamics. To describe the tissue
+dynamics, the visco-elastic cell model needs to represent both the cellular structures and their elastic
+2
+
+To describe the interaction between the viscous fluid
+and the elastic structures, which are immersed in the
+fluid, we use the immersed boundary (IB) method
+([29]) as previously implemented in the visco-elastic
+cell model, also called IBcell model ([34, 33]). To
+solve the viscous fluid behaviour, we use the Lattice
+Boltzmann method, which is an efficient mesoscopic
+numerical scheme, originally developed to solve fluid
+dynamics problems ([5]). The method has previously
+been successfully applied to reaction-diffusion equations such as Turing systems ([32]), as well as to coupled scalar fields such as temperature ([13]). The
+method was for the first time combined with the immersed boundary method ([29]) by [9], and has later
+been used to study red blood cells in flow by [42].
+In the following, we provide an overview of the implemented methods; the implementation details are
+given in section 7.
+Figure 1: Algorithm Overview. The algorithm
+consists of three coupled layers. The geometry
+X (l, t) (top part, discussed in more detail in Figure
+2) is used to compute the forces F (l, t) acting on each
+of the geometry nodes. These forces, which do not
+necessarily coincide with a lattice point, are scattered
+to the fluid lattice (middle part) using the immersed
+boundary method kernel function, F (l, t) → f (t).
+After advancing the fluid solver by one time step, the
+velocity is interpolated to the geometry node position
+using the same kernel function, u (x, t) → U (l, t).
+The geometry nodes are moved according to their velocity U (l, t) and the iteration is restarted. The velocity u (x, t) of the fluid lattice is also copied to the
+reaction-advection-diffusion solvers (PDE), together
+with the position X (l, t) → x (t) of the geometry.
+The state of the reaction-advection-diffusion solvers,
+which are used to model signalling, may be used to
+compute mass sources S (x, t) for the fluid solver.
+
+6.1
+
+Cell Representation
+
+Cells are represented as massless, purely elastic structures, which are described by sets of geometry points
+forming polygons. The geometry points are connected via forces. In a first approximation, the elastic structures can be identified to represent the elastic
+cell membranes. However, more elastic structures can
+be added to the intra-/extracellular volume to mimic
+the visco-elastic properties of the cytoskeleton or the
+extracellular matrix. The user can implement biological mechanisms which operate on the cell representations. For example, a new junction to a neighboring cell might be created when the distance between
+two neighboring cell boundaries falls below a threshold distance. Similarly, a junction might be removed
+when overly stretched.
+
+6.2
+
+properties, as well as the viscous behaviour of the cytoplasm and of the extracellular space surrounding
+the cells. The model therefore rests on three core
+parts: the representation of cells, the representation
+of the fluid and the fluid-structure interaction, and
+the coupling of the tissue part to the signalling model.
+
+Fluid and Fluid-Structure Interaction
+
+The visco-elastic cell model represents the content of
+cells (the cytoplasm) as well as the extracellular space
+(the interstitial fluid and the extracellular matrix)
+as a viscous, Newtonian fluid. The intra- and extracellular fluids interact with the elastic membrane,
+i.e. the fluids exert force on the membrane, and the
+3
+
+membrane exerts force on the fluids. Furthermore,
+the velocity field of the fluid, which is induced by
+the forces, moves and deforms the elastic structures.
+This interaction, well-known as fluid-structure interaction, lies at the heart of the tissue model. Forces
+(e.g. membrane tension or cell-cell forces) acting on
+these points are exerted on the fluid by distributing
+the force to the surrounding fluid. Due to the local
+forcing, the fluid moves. At this step, the membrane
+point are advected passively by the fluid. As a result
+the forces need to be re-evaluated on the points. By
+repeating the forcing-advection steps, the interaction
+is realized iteratively.
+As a result of this iterative process, the (elastic)
+structures are coupled to the (viscous) fluid. Depending on the parametrisation, this model allows
+to describe both elastic, or viscous, or visco-elastic
+material behaviour. The upper part of Figure 1 illustrates the immersed boundary interaction. The implemented IB kernel function has bounded support,
+i.e. each geometry point influences and is influenced
+only its immediate neighborhood. Here, the dimension of the kernel function is four by four (cf. Figure
+1). The fluid equations are solved using the Lattice
+Boltzmann method ([5]), which is described in detail in the supplementary material (section 10). The
+Reynolds number is typically ≪ 1, hence the regime
+is described by Stokes flow1 .
+
+mass source of the fluid dependent on the values of
+the reaction-advection-diffusion solvers such that the
+tissue expands locally (cf. Figure 1). Furthermore,
+the diffusing compounds can be individually configured to diffuse freely across the entire domain, or only
+inside or outside the cells (e.g. using no-flux boundary conditions for the cell membranes).
+
+7
+7.1
+
+Software
+Cell Representation
+
+The cell geometries consist of two elements, the
+GeometryNodes, which act as the IB points, and the
+Connections, connecting pairs of GeometryNodes.
+A simplified cell is visualized in Figure 2. The
+Connections are attributed with a domainID flag,
+which is an identifier for the surrounded domain
+(respecting the counter-clockwise directionality convention). The domain identifier on the other side
+(on the right hand side) is zero by convention,
+representing the interstitial space. The domainID
+of the Connections are copied to the fluid and
+reaction-advection-diffusion solvers. Moreover, the
+domainID’s are associated with a cell type flag,
+cellType. By applying custom differentiation rules,
+the cellType of individual cells may be changed according to custom criteria; otherwise the all cells default to cellType=1 (with cellType=0 being the
+6.3 Signalling
+interstitial space, again). In this way, the reaction
+The signalling network is represented as a system terms and the mass sources may be made dependent
+of reaction-advection-diffusion processes. The elastic on specific cells, or specific cell types.
+membranes may act as no-flux boundaries for compounds which only exist in the extra- or intracel- 7.2 User-provided Solvers
+lular volume, respectively. The reaction-advectiondiffusion solvers can be equipped with potentially The user can add the following routines:
+coupled reaction terms in order to model signalling MassSolverXX, CDESolverXX, and BioSolverXX
+interactions of diffusing factors. Depending on the (XX being a name to be chosen). The MassSolverXX
+model, the signalling may impact the tissue dynam- - as described above - adds or substracts mass
+ics. This can be done, for instance, by making the from/to the fluid solver. The CDESolverXX is used
+to implement the reaction terms of the signalling
+1 The Reynolds number reads Re = U L , with U bemodels. Finally, the BioSolverXX can be used
+ν
+ing a characteristic velocity, L a characteristic length scale,
+to
+execute biologically motivated operations on
+−3
+and ν the kinematic viscosity. Assuming L = 10 [m],
+U = 10−8 [m/s] and ν = 101 . . . 102 [m2 /s], then Re = the geometry and the forces. Such an operation
+10−13 . . . 10−12 can be estimated ([10]).
+might be cell division, which is discussed in more
+4
+
+Figure 2: Elements of the Geometry Representation. The cells are closed polygons, consisting of
+geometry nodes (discs in the top part) and connections (shaded boxes in the top part) between each
+two geometry nodes. Each connection stores two
+references to its preceding and successive geometry
+nodes, and vice versa each geometry node stores two
+references to its preceding and successive connection
+(visualized by aggregation arrows in the top part).
+Directionality of the polygon is counter clockwise by
+convention. Each geometry node has a unique, immutable nodeID attribute, which is allocated internally upon creation of a new geometry node. Each
+connection features a domainID attribute, which denotes the domain identifier of the domain on the
+left hand side. The domain identifier on the right
+hand side is by definition zero, representing the extracellular space. Using the domainID of the connections, the domainID of the lattice nodes is automatically set (lower part). Additionally, each domainID
+is associated with a cellType. The behaviour of
+the MassSolverXX, BioSolverXX and CDESolverXX
+can be made dependent on the domainID and/or
+cellType attributes by the user.
+
+Figure 3: Simplified UML diagram of important Classes. The classes which have to be provided
+by the user are shaded. XX refers to an arbitrary
+solver name. A The SimulationRunner controls the
+execution of the simulation. The GeometryHandler
+has a collection of PhysicalNodes, representing the
+lattice, a collection of BoundaryNodes wich are woven into the lattice, and a Geometry object. The latter contains the cell’s geometric information, namely
+the GeometryNodes and the Connections. The
+GeometryNodes and the Connections each have two
+references of the preceding and successive elements,
+as also explained in Figure 2. BioSolverXX obtains references from the GeometryHandler and the
+ForceSolver to alters states accordingly. Similarly,
+the MassSolverXX obtains a reference to the lattice
+and adds mass sources to the fluid. B To implement new custom routines, the user must inherit from
+provided base classes (from BioBaseSolver for biologically motivated routines, from BaseCDESolver
+for reaction-advection-diffusion processes, and from
+BaseMassSolver for mass modifying routines)
+
+detail in Subsection 7.5.4. Figure 3A summarizes
+the most important classes and their interactions.
+The classes which are subject to customization are
+shaded. In order to add a new customized routine
+(e.g. a mass modifying solver MassSolverXX, a
+reaction-advection-diffusion solver CDESolverXX, or
+
+a biologically motivated solver BioSolverXX), the
+user needs to inherit from their respective virtual
+base classes (cf. Figure 3B). Figure 4 visualizes
+the routines, which are called iteratively by the
+SimulationRunner (cf. Figure 3A).
+5
+
+ParaView). Optionally, the solver states can be saved
+in a loadable format to resume the simulation.
+
+7.4
+7.4.1
+
+Physical Processes
+Viscous and Elastic Behaviour
+
+The viscous behaviour is implemented using a representation of an incompressible fluid (solved using the
+Lattice Boltzmann method, cf. supplementary material), which converges to the Navier-Stokes equation
+in the hydrodynamic limit. The fluid is solved on a
+regular Cartesian and Eulerian grid. The membranes
+are represented by sets of points, which are connected
+to form closed polygons. A variety of forces may act
+on the membrane nodes, such as e.g. membrane tensions (cf. Subsection 7.4.3). The interaction between
+the fluid and the elastic structures is formulated using
+the Immersed Boundary method (cf. supplementary
+material). The membrane points move according to
+the local fluid velocity field in a Lagrangian manner.
+
+Figure 4: Iterative Processing in the Solver At
+initiation, the library loads the user-provided configuration files (containing global simulation parameters, initial geometry, initial forces). During each
+iteration, the library’s class SimulationRunner (cf.
+Figure 3A) successively calls the physical routines
+(the Lattice Boltzmann method to solve the fluid and
+reaction-advection-diffusion processes, and the immersed boundary method to solve the fluid-structure
+interaction) and the biological routines (biologically
+motivated re-arrangement of the geometry, modifications of the forces, etc.). The current configuration
+and optionally the entire solver states can be saved
+at a chosen frequency.
+
+7.4.2
+
+Reaction-Diffusion
+Compounds
+
+of
+
+Biochemical
+
+The biochemical signalling can be described by sets
+of coupled reaction-diffusion partial differential equations. Similar to the fluid equations, these equations are solved on a regular Cartesian and Eulerian
+grid (solved using the Lattice Boltzmann method, cf.
+supplementary material). The concentrations of the
+7.3 Input and Output
+compounds can be accessed by other solvers, for example to make other processes such as cell division
+The communication to the user is achieved via the dependent on signalling factors. The cell boundaries
+loading and dumping of configuration files. A gen- can be chosen to be either invisible to the diffusing
+eral configuration file contains the global simulation compounds, or to be no-flux boundaries. To account
+parameters, such as the simulation time, the do- for advection, the fluid velocity field is directly transmain size, the fluid viscosity, and the diffusion co- ferred from the fluid solver since the fluid and the
+efficients for the reaction-advection-diffusion solvers. reaction-diffusion lattices coincide spatially. The couThe geometry points and the corresponding geomet- pling of the solvers is visualized in Figure 1.
+rical connections are stored in a geometry file. A
+third file contains the forces, including forces between
+7.4.3 Forces
+a pair of geometry points, freely defined forces or
+spatially anchored points. The fluid and reaction- Forces are an integral part of the simulation environadvection-diffusion solver states may be written ei- ment. A force is always connected to a membrane
+ther to .txt files or in .vtk format and can be post- point. Any type of conservative force (which can be
+processed with third-party software (e.g. Matlab or derived from a potential) can easily be implemented.
+6
+
+Currently, the following types of forces are implemented:
+
+corresponding geometrical connections, and the insertion of new geometrical nodes and connections to
+close the divided cells.
+• spring force between two geometrical nodes
+Note that the concentration fields of the compounds, as well as the velocity- and pressure fields
+• spring force between a geometrical node and a of the fluid solver are not directly altered in the biospatial anchor point
+logical module.
+• free force acting on a geometrical node
+
+7.5.1 Control of Cell Area
+• horizontally or vertically sliding force (thus enDepending on the biological model of the user, the
+forcing only the y or x coordinate, respectively)
+cell area has to be controlled. By assuming that a cell
+might change its spatial extent in the third dimen• constant force between two geometrical nodes
+sion, the area might shrink or expand as a response
+Application examples include constant forces be- to forces exerted by its neighbouring cells, which can
+tween two geometrical nodes that can be used to effectively be modelled as an ’area elasticity’. In the
+model constant membrane tension, which leads to the limiting case, the cell resists external forces, mainminimization of a cells perimeter (discussed in Sub- tains its area and only reacts with changes of the
+section 7.5.2). Moreover, a geometrical point can dy- hydrostatic pressure. In general, to control the area
+namically explore its local neighbourhood and estab- of cells, the reference area for each cell needs to be
+lish a force to another geometrical point from another adapted. The reference area acts as a set point for
+cell, thus mimicking cell-cell junctions (discussed in a simple proportional controller, i.e. the local mass
+source Sk in the cell k is proportional to the area difSubsection 7.5.3).
+ference between the current cell area Ak (t), and the
+set point area A0k :
+7.5 Biological Processes
+
+Sk = α A0k − Ak (t)
+(1)
+The biological solvers (BioSolver) accommodate the
+functionalities that are related to biological processes. where α is a proportional constant. More advanced
+These processes may be mostly related to modifica- control methods, such as e.g. proportional-integral
+tions of the forces and the geometry. The BioSolver control methods, can be realized easily.
+has full access to the compound concentrations. FurThis approach of controlling the cell area can also
+thermore, it is aware of the cells, whose geometries be used to let cells grow or shrink in a controlled
+are stored individually. This enables the BioSolver to way, i.e. a cell differentiating into an hypertrophic
+compute cell areas and averaged or integrated com- cell type may grow in volume. Implementing this
+pound concentrations. Since all cells are individually process would be as simple as setting the new target
+tagged, cell behaviour can be made dependent on cell area as set point area. The area controller will bring
+identity. Additionally to the cell identity, cells also the cell close to its new area.
+carry a cell type tag, which can be changed depending on run-time conditions. This latter functionality
+7.5.2 Membrane Tension
+can be used to model cell differentiation.
+Consider a cell division event as an example. Here, The definition of forces acting between pairs of mema division plane has to be chosen. The choice of its brane points allows for simulating the cell’s memposition and direction is subject to the user’s model: brane tension. By default, a constant contracting
+the cell division plane might be set perpendicular to force Fi with magnitude ϕm is applied to every pair
+the cell’s axis of strongest elongation. Next, the cell of neighbouring membrane points. Hence the resulthas to be divided, which requires the removal of the ing force on membrane point i is composed of a force
+7
+
+pointing to its preceding membrane point i − 1, and a
+force pointing to its successive membrane point i + 1:
+
+
+xi−1 − xi
+xi+1 − xi
+m
+m
+Fi = ϕ
++
+(2)
+|xi−1 − xi | |xi+1 − xi |
+
+Closest to get the closest membrane point j of
+another cell, which is within a predefined cut-off
+radius lmax , or zero if there is no such membrane
+point. Once a candidate membrane point fulfils
+the criteria, a new Hookean force Fi with a spring
+constant k j and resting length l0 is created:
+( x −x
+k j |xjj −xii | (|xj − xi | − l0 ) if |xj − xi | < lmax
+cj
+Fi =
+0
+else
+(3)
+The cell junction forces are regularly (potentially
+not at every time step) deleted and renewed, where
+the frequency of cell junction renewal might reflect
+the cell junction synthesis rate.
+The function getGeometryNodesWithinRadiusWithAvoidance returns all membrane points of another cell, which are within a predefined cut-off radius; the returned list might be empty. This opens
+up the possibility to introduce randomness by choosing the membrane point randomly from the candidate
+list. The probability to create a junction might depend on the junction length: the shorter, the higher
+the probability to form a new junction. Also the
+removal of membrane points might be randomized,
+and the probability made dependent on the junction
+length, i.e. overly stretched junctions are removed
+with higher probability. Even the membrane point
+whose junctions shall be updated might be chosen
+randomly. Again, the number of updated membrane
+nodes per time reflects the cell’s limited cell junction
+synthesis activity.
+The membrane points are internally stored in an
+fast neighbor list data structure, which is well suited
+for spatial range queries. BioSolverCellJunction is
+an example of a class responsible for cell junctions.
+
+This approach can be interpreted as an actively remodelled membrane: when stretched, new membrane
+is synthesized in order to not increase the membrane
+tension on longer time scales (hours). On the other
+hand, excessive membrane is degraded to abide the
+membrane tension. Therefore, the membrane tension
+minimizes the cell’s perimeter. Since the intracellular fluid (and thus the cell area) is conserved in the
+absence of neighbouring cells and active mechanisms
+(c.f. Subsection 7.5.1), the cell assumes a circular
+shape. On short time scales (seconds), the passive
+(non-remodelled) elastic membranes can be modelled
+by using Hookean spring potentials. The membrane
+tension will then be proportional to deviation from
+the resting membrane perimeter. In both cases, the
+membrane is flexible (i.e. has no bending stiffness); if
+bending stiffness should be required by the user, this
+can be easily realised in a custom BioSolver.
+The implementation of membrane tension needs to
+consider the geometry remeshing. Whenever a new
+membrane point is inserted, it needs to get connected
+to its neighbours instantly, because the cell will be
+overly stretched in the absence of membrane tensions.
+A membrane point’s forces need to be removed upon
+its removal. Algorithmically, this is realized by removing and reconstructing all membrane forces at
+every time step. At this point, the magnitude of the
+membrane tension can be made dependent on signalling factors.
+BioSolverMembraneTension is an example of
+a class managing the membrane tensions with
+immediate remodeling, and
+7.5.4 Cell Division
+BioSolverHookeanMembraneTension
+implements
+The cell division functionality requires several steps.
+simple Hookean springs.
+First, criteria will have to be defined which cells shall
+be divided. Criteria might be maximal cell area, max7.5.3 Cell Junctions
+imal spatial expansion, or biochemical signals. Once
+A cell can create cell junctions to neigh- a cell committed for division, the cell division plane
+bouring cells.
+In the simplest case, will have to be chosen. Again, how to chose the plane
+each membrane point i uses the function is subject to biological modelling. A frequently used
+rule is to use a plane defined by a random direction
+getGeometryNodesWithinRadiusWithAvoidance8
+
+7.6
+
+vector and the center of mass of the cell. However,
+different rules can be readily implemented, such as
+random directions drawn from non-uniform probability distributions (which, in turn, can be controlled
+e.g. by signalling factor gradients) or division planes
+perpendicular to the longest axis ([23]). In a next
+step, the two membrane segments are determined
+which intersect with the division plane; this is implemented in getTwoConnectionsRandomDirection or
+getTwoConnectionsLongestAxis. These two membrane segments are subsequently removed, and two
+new membrane segments across the cell are introduced, leading to a cut through the mother cell. Finally, a new domain identity number has to be given
+to one of the daughter cells; the other daughter cell
+inherits the domain identity number from the mother
+cell. The new domain identity number is set to the
+largest domain identity number plus one, and it is automatically copied to the physical grid. Both daughter cells by default inherit the cell type flag from the
+mother cell, which is also automatically copied to the
+physical grid.
+The basic cell division functionality is implemented
+in the class BioSolverCellDivision.
+
+7.5.5
+
+Accuracy and Performance
+
+The Lattice Boltzmann schemes are second order accurate, and the explicit immersed boundary
+method is first order accurate in space and time.
+The internal data structure uses a fast neighbor
+list (cell list) implementation to optimize for range
+queries (e.g. searching for other cells in the local neighborhood), which exhibits a search complexity of O (N ), with N being the number of membrane points to represent the cells. Many iterative computations (LB and IB routines such as
+particle streaming and collision, gathering of velocity and scattering of force) are parallelized using the shared memory paradigm. However, a few
+computational steps cannot be parallelized. This
+is typically the case when write-operations occur
+on shared data structures, such as the data structures storing the geometry nodes and the force
+structs (e.g. in ForceSolver::deleteForceType()
+and GeometryHandler::computeAreas()). Moreover, the geometry remeshing (refining and coarsening) functions as well as the data I/O are not parellelized, but are assumed to occur much less frequently
+than the actual fluid and reaction-advection-diffusion
+solvers. Therefore, since the fraction of sequential
+code is not negligible, the software should best be
+run on fast multi-core processors.
+
+Differentiation
+
+Differentiation changes the cell type flag of the
+cells according to user-defined, biologically motivated
+rules. These rules might be based on the cell area,
+or on a signalling factor concentration, possibly integrated over the cell area. Once being committed
+for differentiation, the cell changes its cell type flag
+according to the rule. The new cell type flag will
+be automatically copied to the physical grid. The
+cell type flag can be used to make signalling dynamics, but also other biologically motivated processes
+dependent on the cell type.
+The association between the domain identifier
+flags and the cell type flags is stored in the
+cellTypeTrackerMap , which is a member of the
+GeometryHandler.
+This makes sure that all
+BioSolverXX classes have easy access to this information. A basic implementation of the differentiation
+control can be found in BioSolverDifferentiation.
+
+7.7
+
+Tools, Dependencies and Documentation
+
+A compiler with C++0x support (such as GCC
+4.7 or higher) is required.
+The software depends on Boost (http://www.boost.org; 1.54.0 or
+higher), OpenMP, CMake (http://www.cmake.org)
+and vtk (http://www.vtk.org/; 5.8 or higher). The
+source code is extensively documented using Doxygen
+(http://www.stack.nl/~dimitri/doxygen).
+Git
+(http://git-scm.com) is used for version control.
+The software has only been tested on linux operating
+systems.
+9
+
+7.8
+
+Availability
+
+ken if overly stretched, and new junctions are formed
+(according to Eq. (3) ). At the boundary of the tisThe documentation and source code are available on
+sue, the cells try to reach a spherical shape, while in
+http://tanakas.bitbucket.org/lbibcell/
+the middle mainly characteristic penta- and hexagoindex.html
+nal shapes emerge (cf. Figure 5F and Supp. 10.4).
+
+8
+8.1
+
+Application Examples
+
+8.2
+
+Turing Patterning on Growing
+Cellular Domains
+
+Cell Division, Differentiation and
+To demonstrate the importance to investigate morSignalling
+
+To demonstrate the capabilities of the software we
+first consider a tissue model with cell-type specific
+cell division and signalling-dependent differentiation
+(Figure 5). In the beginning, a circular cell with radius R = 10 is placed in the middle of a quadratic 400
+by 400 domain (Figure 5A). Iso-pressure boundary
+conditions are set at the border of the domain. The
+initial cell is of red cell type, which is proliferating at
+a high rate. When considering a single layer epithelium, mass uptake, which is needed for modelling cell
+growth and finally proliferation, is assumed to occur
+from the apical cavity through the apical membrane.
+Additionally, the initial cell secretes a signalling factor I which inhibits differentiation of the red cell type
+into the green cell type. Once the cell area doubled,
+the cell is divided in a random direction (cf. Figure
+5B). The daughter cells inherit the cell type, but only
+the mother cell continues to express the signalling
+molecule I. All cells of red type integrate the concentration of I over their area. For low signalling
+levels, the red cell type differentiates into the green
+cell type. The green cell type does not grow and only
+divides if external forces stretch the cell. In Figure
+5C, the daughter cell’s signalling level dropped after
+cell division, and differentiation occurred. After several rounds of cell division, a tissue starts to form (cf.
+Figure 5D). The cells close to the secreting initial cell
+remain protected from differentiation, whereas more
+distant cells differentiate irreversibly. Due to the randomly chosen cell division axis, it might happen that
+the proliferating red cells get trapped (cf. Figure 5E).
+The expression of I is switched off at time t=5000,
+thus leading to complete differentiation shortly after
+(cf. Figure 5F). After proliferation stopped, the cells
+slowly rearrange because cell-cell junctions are bro-
+
+phogenic signalling hypotheses on dynamically growing domains with cellular resolution, we solved a
+reaction-diffusion system, featuring the well-known
+diffusion-driven Turing instability ([41]), on a proliferating tissue. Figure 6A illustrates the interaction
+between a ligand L and its receptor R. Here, we assume that one ligand dimer molecule L binds to two
+receptors R, forming the complex R2 L which induces
+upregulation of the receptor on the membrane (e.g.
+[3]). Unbound receptor is turned over at a linear rate.
+The ligand can diffuse freely across the tissue and the
+entire domain, whereas the diffusion of the receptor
+is limited to a single cell’s apical surface and is much
+slower. The dynamics can be formulated as a system
+of non-dimensional partial differential equations:
+
+∂t R = ∆R + γ a − R + R2 L
+(4)
+
+2
+∂t L = d∆L + γ b − R L
+(5)
+where γ is a reactivity constant, a and b production constants, and d the relative diffusion coefficient
+of ligand and receptor. We note that the equations
+correspond to the classical Schnakenberg-type Turing
+mechanism ([11, 38]). It has previously been shown
+that such a receptor-ligand interaction can explain
+symmetry breaking in various morphogenetic systems
+([21, 4, 1, 20, 40, 19]).
+Depending on the type of domain we observe very
+different patterns. On a continuous domain we obtain
+the well known regular spot pattern (Figure 6B). On
+an idealized static cellular domain an overall regular
+pattern with irregular internal structure (Figure 6C)
+can be observed. Decreasing the simulation parameter γ, which inversely controls the distance between
+the spots, leads to even more unexpected patterns:
+for γ = 100, the local regularity is completely lost
+
+10
+
+(Figure 6D). Finally, on a dynamically growing cellular domain, where the local proliferation rate was
+set proportional to the R2 L signal, we obtain irregular patterns (Figure 6E). For a lower value γ = 100,
+clusters of cells with high R2 L signalling levels emerge
+(Figure 6F). In conclusion, even relatively simple signalling mechanisms can lead to significantly different
+results, depending on how the tissue is represented.
+
+9
+
+ponents, thus allowing for a spatial description of intracellular concentrations. The model is, however,
+not easily extendable to the third dimension. Since
+a meshing of the surface will be required, the algorithmic and computational complexity are expected
+to be significant and subject to future work. The
+presented framework is, however, ideal to study intrinsically two-dimensional morphogenetic problems,
+such as apical surface dynamics of epithelia as studied
+previously also by [8] and [17] in 2D.
+
+Discussion
+
+We developed an extendible and open-source cellbased simulation environment, which is tailored to
+study morphogenetic problems. The novel framework permits the coupled simulation of a physically
+motivated visco-elastic cell model with regulatory signalling models. Processes such as viscous dissipation,
+elasticity, advection, diffusion, local reactions, local
+mass sources and sinks, cell division and cell differentiation are implemented. By applying our framework to Turing signalling systems we show that the
+signalling systems may behave very differently on dynamic tissues than on simple continuous tissue representations. We therefore advocate to test continuous morphogenetic signalling models on dynamically
+growing cellular domains.
+The presented framework permits to study a variety of mechano-regulatory mechanisms. By making
+the cell division orientation dependent on signalling
+cues, the effect on the macroscopic tissue geometry
+may be studied. Cell migration can be modelled by
+introducing gradient-dependent forces on specific cell
+types. Cell sorting may be achieved by specifying
+multiple cell types with differential cell-cell junction
+strengths. The framework is specifically designed to
+study the mutual effects of signalling and biophysical
+cell properties.
+The visco-elastic cell model represents cell shapes
+at very high resolution and is thus, unlike the vertex model, not restricted to densely packed tissues.
+Furthermore, hydrodynamic interaction, membrane
+tension and hydrostatic pressure are integral components of the model. The fact that a velocity field
+is available on the entire domain is a critical advantage to account for advection of the signalling com-
+
+Acknowledgement
+Funding The authors acknowledge funding from
+the SNF Sinergia grant ”Developmental engineering
+of endochondral ossification from mesenchymal stem
+cells” and the SNF SystemsX RTD NeurostemX.
+
+11
+
+2.2
+
+2.2
+
+2
+
+2
+
+1.8
+
+1.8
+
+1.6
+
+1.6
+
+1.4
+
+1.4
+
+1.2
+
+1.2
+
+1
+
+1
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+Figure 6: Turing Patterning on Growing Cellular Domains A Turing instability can be achieved
+Figure 5: Cell Division, Differentiation and Sig- by Schnakenberg-type reactions, involving a slowly
+nalling. A The initial configuration consists of a sin- diffusing compound R, here interpreted as a receptor,
+gle, circular cell of type red. The red cell type pro- and a fast diffusing compound L, here interpreted as
+liferates at a high rate. The initial cell is tagged and a freely diffusing ligand. One ligand molecule binds
+2
+expresses a signalling molecule I which inhibits dif- to two receptors, leading to the complex R L. The
+ferentiation. B The first cell division occurs. The di- complex can be interpreted as a biological signal. B
+vision axis is chosen randomly. The daughter cell in- The model is solved on a continuous square lattice
+herits the cell type from the mother cell, but only the (using d = 1, γ = 800, a = 0.1, b = 0.9), resultmother cell keeps expressing the signalling molecule ing in the classical regular spot-pattern. The bio2
+I. C The signalling level (the spatially integrated logical signal R L is shown. C The same system as
+concentration of the signalling molecule) drops in in B is solved on an idealized static cellular domain,
+cells far away from the initial cell and differentia- i.e. the diffusion of the receptor R is restricted to a
+2
+tion into the green cell type occurs. The green cell cell. The emerging biological signal R L is now distype does not grow intrinsically, and only divides if tributed irregularly. D The same system as in C, but
+overly stretched by external forces. D The highly with γ = 100, is solved on a idealized static cellular
+proliferating red cells are trapped in the forming tis- domain. Fewer cells show significant levels of signal
+2
+sue due to the randomly chosen cell division axis. R L and no regular pattern can be found (salt-andAt t = 5000, the expression of the differentiation in- pepper pattern). E The same system as in C is solved
+hibiting molecule I is switched off, which leads to on a growing cellular domain. The proliferation rate
+2
+the differentiation of the remaining red cells. E In of a cell is set proportional to its signal R L. The resulting
+pattern
+features
+regularity
+on
+a
+larger
+scale,
+the absence of high proliferation, the cells rearrange
+but
+the
+local
+patterning
+significantly
+differs
+from
+the
+to maximize the perimeter/area ratio. Characteristic
+behaviour
+on
+continuous
+(B)
+and
+static
+cellular
+(C)
+penta- and hexagonal cell shapes emerge (cf. Supp.
+10.4). Cells close to the boundary try to take a cir- domains. F The same system as in D is solved on
+12growing cellular domain. The proliferation rate of a
+cular shape.
+cell is set proportional to the local intensity of the
+signal R2 L. Clusters of active cells with high levels
+of R2 L emerge.
+
+References
+
+Based Models? Journal of Statistical Physics,
+128(1-2):287–345, April 2007.
+
+[1] Amarendra Badugu, Conradin Kraemer, Philipp
+Germann, Denis Menshykau, and Dagmar Iber.
+Digit patterning during limb development as a
+result of the BMP-receptor interaction. Scientific reports, 2:991, January 2012.
+
+[8] Reza Farhadifar, Jens-Christian Röper, Benoit
+Aigouy, Suzanne Eaton, and Frank Jülicher. The
+influence of cell mechanics, cell-cell interactions,
+and proliferation on epithelial packing. Current
+biology : CB, 17(24):2095–104, December 2007.
+
+[2] A.
+BARTOLONI,
+C.
+BATTISTA,
+S. CABASINO, P. S. PAOLUCCI, J. PECH, [9] Zhi-Gang Feng and Efstathios E Michaelides.
+The immersed boundary-lattice Boltzmann
+R. SARNO, G. M. TODESCO, M. TORELLI,
+method for solving fluidparticles interaction
+W. TROSS, P. VICINI, R. BENZI,
+problems. Journal of Computational Physics,
+N. CABIBBO, F. MASSAIOLI, and R. TRIPIC195(2):602–628, April 2004.
+CIONE. LBE SIMULATIONS OF RAYLEIGHBÉNARD CONVECTION ON THE APE100
+[10] G Forgacs, R a Foty, Y Shafrir, and M S SteinPARALLEL PROCESSOR.
+International
+berg. Viscoelastic properties of living embryonic
+Journal of Modern Physics C, 04(05):993–1006,
+tissues: a quantitative study. Biophysical jourOctober 1993.
+nal, 74(5):2227–34, May 1998.
+[3] Savério Bellusci, Yasuhide Furuta, Margaret G
+[11] A Gierer and H Meinhardt. A theory of biologRush, Randall Henderson, Glenn Winnier, and
+ical pattern formation. Kybernetik, 12(1):30–39,
+B L Hogan. Involvement of Sonic hedgehog
+1972.
+(Shh) in mouse embryonic lung growth and morphogenesis. Development (Cambridge, England), [12] François Graner and James Glazier. Simulation
+124(1):53–63, January 1997.
+of biological cell sorting using a two-dimensional
+extended Potts model. Physical Review Letters,
+[4] Géraldine Cellière, Denis Menshykau, and Dag69(13):2013–2016, September 1992.
+mar Iber. Simulations demonstrate a simple network to be sufficient to control branch point se- [13] Zhaoli Guo, Baochang Shi, and Chuguang
+lection, smooth muscle and vasculature formaZheng. A coupled lattice BGK model for the
+tion during lung branching morphogenesis. BiBoussinesq equations. International Journal
+ology open, 1(8):775–788, August 2012.
+for Numerical Methods in Fluids, 39(4):325–342,
+June 2002.
+[5] Shiyi Chen and Gary D Doolen. Lattice Boltzmann Methods for Fluid Flows. Annual Re- [14] Xiaoyi He, Qisu Zou, Li-shi Luo, and Micah
+view of Fluid Mechanics, 30(1):329–364, January
+Dembo. Analytic solutions of simple flows and
+1998.
+analysis of nonslip boundary conditions for the
+lattice Boltzmann BGK model. Journal of Sta[6] Yeh-Shiu Chu, Sylvie Dufour, Jean Paul Thiery,
+tistical Physics, 87(1-2):115–136, April 1997.
+Eric Perez, and Frederic Pincet. JohnsonKendall-Roberts theory applied to living cells. [15] Stefan Hoehme and Dirk Drasdo. A cell-based
+Physical review letters, 94(2):028102, January
+simulation software for multi-cellular systems.
+2005.
+Bioinformatics (Oxford, England), 26(20):2641–
+2, October 2010.
+[7] Dirk Drasdo, Stefan Hoehme, and Michael
+Block. On the Role of Physics in the Growth [16] Christian Huber, Andrea Parmigiani, Bastien
+and Pattern Formation of Multi-Cellular SysChopard, Michael Manga, and Olivier Bachtems: What can we Learn from Individual-Cell
+mann. Lattice Boltzmann model for melting
+13
+
+[17]
+
+[18]
+
+[19]
+
+[20]
+
+with natural convection. International Journal [26] X.D. Niu, C. Shu, Y.T. Chew, and Y. Peng.
+of Heat and Fluid Flow, 29(5):1469–1480, OctoA momentum exchange-based immersed
+ber 2008.
+boundary-lattice Boltzmann method for simulating incompressible viscous flows. Physics
+Shuji Ishihara and Kaoru Sugimura. Bayesian
+Letters A, 354(3):173–182, May 2006.
+inference of force dynamics during morphogenesis. Journal of theoretical biology, 313:201–11, [27] a. Parmigiani, C. Huber, B. Chopard, J. Latt,
+November 2012.
+and O. Bachmann. Application of the multi distribution function lattice Boltzmann approach
+Qing Li, C.G. Zheng, N.C. Wang, and B.C.
+to thermal flows. The European Physical JourShi. LBGK simulations of Turing patterns in
+nal Special Topics, 171(1):37–43, May 2009.
+CIMA model. Journal of scientific computing,
+16(2):121–134, 2001.
+[28] Charles S Peskin. Numerical analysis of blood
+flow in the heart. Journal of Computational
+Denis Menshykau, Pierre Blanc, Erkan Unal,
+Physics, 25(3):220–252, November 1977.
+Vincent Sapin, and Dagmar Iber. An interplay
+of geometry and signaling enables robust lung [29] Charles S. Peskin. The immersed boundary
+branching morphogenesis. Development (Cammethod. Acta Numerica, 11, July 2003.
+bridge, England), October 2014.
+[30] Charles S. Peskin and Beth Feller Printz. ImDenis Menshykau and Dagmar Iber. Kidney
+proved Volume Conservation in the Computabranching morphogenesis under the control of a
+tion of Flows with Immersed Elastic Boundaries.
+ligand-receptor-based Turing mechanism. PhysJournal of Computational Physics, 105(1):33–
+ical biology, 10:046003, 2013.
+46, March 1993.
+
+[21] Denis Menshykau, Conradin Kraemer, and Dag[31] Joe Pitt-Francis, Pras Pathmanathan, Miguel O
+mar Iber. Branch Mode Selection during Early
+Bernabeu, Rafel Bordas, Jonathan Cooper,
+Lung Development. PLoS computational biology,
+Alexander G. Fletcher, Gary R. Mirams, Philip
+8(2):e1002377, February 2012.
+Murray, James M. Osborne, and Alex Walter. Chaste: A test-driven approach to soft[22] Roeland M H Merks, Michael Guravage, Dirk
+ware development for biological modelling. ComInzé, and Gerrit T S Beemster. VirtualLeaf: an
+puter Physics Communications, 180(12):2452–
+open-source framework for cell-based modeling
+2471, December 2009.
+of plant tissue growth and development. Plant
+physiology, 155(2):656–66, March 2011.
+[23] Nicolas Minc, David Burgess, and Fred Chang.
+Influence of cell geometry on division-plane positioning. Cell, 144(3):414–26, February 2011.
+
+[32] S. Ponce Dawson, S Chen, and Gary D Doolen.
+Lattice Boltzmann computations for reactiondiffusion equations. The Journal of Chemical
+Physics, 98(2):1514, 1993.
+
+[24] Rajat Mittal and Gianluca Iaccarino. Immersed [33] Katarzyna a Rejniak. An immersed boundary framework for modelling the growth of inBoundary Methods. Annual Review of Fluid Medividual cells: an application to the early tuchanics, 37(1):239–261, January 2005.
+mour development. Journal of theoretical biol[25] Timothy J Newman. Modeling Multicellular
+ogy, 247(1):186–204, 2007.
+Systems Using Subcellular Elements. Mathematical Biosciences and Engineering, 2(3):613–624, [34] Katarzyna A Rejniak, Harvey J Kliman, and
+August 2005.
+Lisa J Fauci.
+A computational model of
+14
+
+the mechanics of growth of the villous trophoblast bilayer. Bulletin of mathematical biology, 66(2):199–232, March 2004.
+[35] Simon Restrepo, Jeremiah J. Zartman, and Konrad Basler. Coordination of patterning and
+growth by the morphogen DPP. Current Biology, 24(6):R245–R255, 2014.
+[36] S a Sandersius, M Chuai, C J Weijer, and Timothy J Newman. A ’chemotactic dipole’ mechanism for large-scale vortex motion during primitive streak formation in the chick embryo. Physical biology, 8(4):045008, August 2011.
+[37] S a Sandersius, Cornelis J Weijer, and Timothy J
+Newman. Emergent cell and tissue dynamics
+from subcellular modeling of active biomechanical processes. Physical biology, 8(4):045007, July
+2011.
+[38] J Schnakenberg. Simple chemical reaction systems with limit cycle behaviour. Journal of theoretical biology, 81:389–400, 1979.
+[39] Maciej H Swat, Gilberto L Thomas, Julio M Belmonte, Abbas Shirinifard, Dimitrij Hmeljak, and
+James a Glazier. Multi-scale modeling of tissues
+using CompuCell3D., volume 110. Elsevier Inc.,
+January 2012.
+[40] Simon Tanaka and Dagmar Iber.
+Interdependent tissue growth and Turing patterning
+in a model for long bone development. Physical
+biology, 10:56009, 2013.
+[41] A M Turing. The Chemical Basis of Morphogenesis. Philosophical Transactions of the Royal
+Society B: Biological Sciences, 237(641):37–72,
+August 1952.
+[42] Junfeng Zhang, Paul C Johnson, and Aleksander S Popel. An immersed boundary lattice
+Boltzmann approach to simulate deformable liquid capsules and its application to microscopic
+blood flows. Physical biology, 4(4):285–95, December 2007.
+
+15
+
+10
+
+Supplementary Material
+
+For the D2Q9 lattice, the population weights ωi can
+be found as ω0 = 4/9, ω1−4 = 1/9, and ω5−8 = 1/36.
+10.1 Lattice Boltzmann Method
+Finally, the macroscopic quantities (density ρ and
+momentum
+density ρu) can be computed using the
+For the fluid, the standard Lattice Boltzmann scheme
+zeroth
+and
+first
+order moments:
+(with the single-relaxation-time Bhatnagar-GrossKrook collision operator) is used ([5]). It has been
+8
+8
+X
+X
+shown, that the incompressible Navier-Stokes equaρ=
+fi
+ρu =
+fi v i
+(8)
+tions can be recovered in the hydrodynamic limit
+i=0
+i=0
+([5]). The Boltzmann equation is discretized on a
+D2Q92 lattice and reads:
+The fluid pressure p is related to the mass density ρ
+as p = ρc2s .
+For solving the reaction-advection-diffusion equation
+of a compound φ, a multi-distribution function
+(6)
+approach is chosen ([2, 13]), i.e. an additional Lattice
+Boltzmann solver is coupled to the fluid solver. We
+where fi denotes the particle distribution function in
+implemented different schemes (D2Q4,D2Q5), which
+the direction i, and can be interpreted as the probaexhibit slightly different stability and accuracy ([18]).
+bility density of finding particles with velocity v i at
+For the D2Q5 3 scheme, we follow [16] and [27] and
+time t at position x. The relaxation time τ is rewrite for the Lattice Boltzmann equation:
+lated to the kinematic viscosity ν = c2s τ − 21 . For
+isothermal √
+flows, the speed of sound cs is defined
+1
+as cs = c/ 3 using the lattice speed c = ∆x/∆t. gi (x + v i , t + 1)−gi (x, t) = −
+(gi (x, t) − gieq (x, t))
+τ
+D
+The lattice spacing and the time step are chosen as
+(9)
+∆x = ∆t = 1 to guarantee consistency with the latThe equilibrium distribution functions is taken as:
+tice. The last term of Equation (6) represents the
+
+
+external body force ([14]).
+1
+eq
+Equation (6) implies a two step algorithm: firstly,
+(10)
+gi = φwi 1 + 2 (v i · u)
+cs
+the distribution functions fi perform a free flight to
+the next lattice point (left hand side). Secondly, on
+each lattice point, the incoming distribution func- Instead of the local first moment, the velocity field
+tions collide and relax towards a local equilibrium u from the fluid is transferred. The weights wi are
+distribution fieq , which is controlled by the relaxation chosen as w0 = 1/3 and w1−4 = 1/6. The relaxation
+time τ (right hand side). The equilibrium distribu- parameter τD isrelated to the diffusion coefficient as
+D = c2s τD − 12 , and the local compound density φ
+tion is taken as:
+reads:
+4
+"
+#
+
+X
+v i v i − v 2 : uu
+vi · u
+φ=
+gi
+(11)
+eq
+fi = ωi ρ 1 +
++
+(7)
+i=0
+c2s
+2c2s
+fi (x + v i , t + 1) − fi (x, t) =
+wi ρ
+1
+− (fi (x, t) − fieq (x, t)) + ∆t 2 (v i · f )
+τ
+cs
+
+with the fluid velocity u and the fluid density ρ. The
+All variables are expressed in Lattice Boltzmann
+operator : denotes the dyadic tensor scalar product. units δx, δt and have to be converted to physical
+units.
+2
+the
+nine-velocity
+lattice
+in
+two
+dimensions
+is
+defined
+as
+v0
+=
+[0, 0],
+vi
+=
+[cos (π (i − √
+1) /2) , sin (π (i − 1) /2)] for i
+=
+{1, 2, 3, 4},
+and v i = 2 [cos (π (i − 1) /2) + π/4, sin (π (i − 1) /2 + π/4)]
+for i = {5, 6, 7, 8}
+
+3 the five-velocity lattice in two dimensions is defined as
+v 0 = [0, 0] and v i = [cos (π (i − 1) /2) , sin (π (i − 1) /2)] for
+i = {1, 2, 3, 4}
+
+16
+
+10.1.1
+
+No-flux Boundary Condition for ecuted by integrating over the material coordinates:
+Z
+Reaction-Advection-Diffusion Equaρ (x, t) = M (q, r, s, t) δ (x − X (q, r, s, t)) dqdrds (13)
+tions
+Z
+The missing incoming distribution functions are ap- f (x, t) = F (q, r, s, t) δ (x − X (q, r, s, t)) dqdrds (14)
+proximated by equilibrium distributions. The momentum is spatially first order interpolated between where δ (·) denotes the delta Dirac function. For the
+the fluid in direction of the missing population, and numerical implementation, the Delta Dirac function
+the known zero momentum at the wall. The density is approximated in such a way that it covers multiis spatially first order extrapolated from the fluid.
+ple grid points, on which the conversions in Equation
+(13) and (15) are evaluated. The equation of motion
+10.1.2 Pressure Boundary Condition for the of the Lagrangian particles reads:
+Fluid Equations
+∂X
+(q, r, s, t) =
+∂t
+Within the computational domain, lattice points can
+Z
+act as internal pressure boundaries, i.e. points with u (X (q, r, s, t) , t) = u (x, t) δ (x − X (q, r, s, t)) dx
+prescribed fluid pressure, which may be needed to
+(15)
+implement mass sinks in case of growing cells/tissues.
+All distribution functions are rescaled such that the
+Using the Hodge decomposition4 , the material is
+prescribed pressure is obtained. The velocity field is described by
+not affected, since the rescaling factor γ cancels:
+
+
+P
+∂u
+γv i fi (x, t)
++ (u · ∇) u
+= −∇p + µ∆u + f (16)
+ρ
+(12)
+u (x, t) = Pi
+∂t
+γf
+(x,
+t)
+i
+i
+∇·u = 0
+(17)
+
+10.2
+
+Immersed Boundary Method
+
+The PDE’s are prefentially solved on a Eulerian
+grid, whereas cells are naturally represented in a Lagrangian manner. The two frames can be bridged
+using the immersed boundary method, which was introduced in [28]. This technique is appropriate for
+complex and moving boundaries and fluid-structure
+interactions. The material equations are solved on
+a Eulerian grid, whereas the boundary equations are
+expressed in a Lagrangian way. An introduction can
+be found in [24], and detailed discussions in [29].
+The curvlinear (boundary) coordinates (q, r, s) are
+attached to a material point. At time t, the coordinates in the Eulerian framework read X (q, r, s, t).
+∂2X
+The material derivative Du
+Dt (x, t) = ∂t2 (q, r, s, t) is
+the acceleration of whatever material point is at position x at time t. The conversion from Lagrangian
+variables (e.g. mass density M (q, r, s, t) or force density F (q, r, s, t)) to their Eulerian counterparts is ex17
+
+To couple the Immersed Boundary method to the
+Lattice Boltzmann method, the LB forcing term f
+has to be obtained from the Lagrangian force F following a similar way as [9]. The Lagrangian force
+F i of the geometry point i is composed of membrane
+forces (cf. Equation (2)) and cell junction forces (cf.
+Equation (2)):
+cj
+Fi = Fm
+i + Fi
+
+(18)
+
+F i is distributed to the local fluid neighborhood according to Equation (14), and the Eulerian force f
+on the lattice point x is then used in the LB collision
+term in Equation (6).
+The discretized delta Dirac function for one spatial
+dimension is defined as:
+
+
+( 
+πkrk
+1
+if krk ≤ 2
+1D
+4 1 + cos
+2
+δ (r) =
+(19)
+0
+if krk > 2
+4 any vector field u can be written as ρ Du − f = −∇p + w,
+Dt
+where ∇ · w = 0
+
+and the two-dimensional discretized delta Dirac function is a multiplication of Equation (19):
+δ (r) = δ 1D (r) δ 1D (r)
+
+2
+1.5
+
+(20)
+
+1
+
+This implies that the Lagrangian force F i of a membrane point i is distributed to the 4 × 4 = 16 nearest
+fluid lattice points. By discretizing the membrane
+into mebrane points i, the discretized delta Dirac
+functions overlap.
+
+0.5
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+1
+
+1.6
+
+0
+
+0.5
+
+1
+
+1
+
+1
+
+1
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+1.5
+
+2
+
+1.4
+1.2
+0
+
+0.5
+
+0
+
+1
+
+Validations
+
+To validate the implementation of the fluid solver, the
+reaction-advection-diffusion solver and the immersed
+boundary method, validation tests using problems
+with known analytical solutions are executed.
+The dimensionless problem is as follows: a circular
+cell (diameter 1) is placed in the middle of a square
+domain of size 10 by 10. The end simulation time is
+T = 1. Inside the cell, a diffusing species is defined,
+where the cell membrane acts as a no-flux boundary condition. No production and degradation of the
+species occurs. The initial condition of the species
+is set to be uniformly 1. The diffusion coefficient as
+well as the kinematic viscosity of the fluid are set to
+1. No membrane forces are applied; iso-pressure outflow boundary conditions are applied to the domain
+boundaries. Please see movie S3.avi for an impression of how the concentration decreases as the area
+increases.
+Three different scenarios are considered:
+
+1
+
+1.8
+
+1
+
+10.3
+
+0
+
+1
+
+0.5
+
+1
+
+1
+
+1
+
+1
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+1.5
+
+2
+1.5
+1
+
+0
+
+0.5
+
+1
+
+0
+
+0.5
+
+1
+
+1
+
+1.5
+
+2
+
+Figure 7: Validation Cases: Evolution of Area
+and Concentration T is the non-dimensional normalized time, A the non-dimensional normalized
+area, C the non-dimensionalized normalized concentration. The column X1 shows area A vs. time T ;
+column X2 shows concentration C vs. time T ; and
+column X3 shows concentration C vs. area A. A
+Case I: constant point-like mass source; B Case II:
+constant uniform mass source; C Case III: uniform
+mass source proportional to the concentration C.
+
+leads to a linear mass/area increase in time), see
+Fig. 7C
+
+• Case I: a constant point mass source is placed in
+the middle of the cell (dimensionless strength is
+For all three cases, the circular cell starts to grow,
+1); see Fig. 7A
+and the species is diluted, i.e. the species concentra• Case II: a constant uniform mass source inside tion drops as the area increased. Ideally, the intethe cell (dimensionless strength is log(2)/A0 , grated species concentration is conserved. The relwhere A0 = 0.52 π is the initial cell area; this ative errors of the simulations w.r.t. the analytical
+leads to a doubling of the cell area in time T ), solutions are computed for both the area and concentration evolution.
+see Fig. 7B
+The simulations are executed at different levels of
+• Case III: a uniform mass source inside the cell, space and time discretization. As a measure, we take
+where the strength is scaled linear proportional the diameter resolution of the circular cell, which is
+to the species concentration (= 1 · C(t), where set to {10, 20, 40, 80}. As a result, the discretized valC(t) is the concentration of the species; this ues (LB denotes Lattice Boltzmann units, and N D
+18
+
+circle diameter
+domain size
+τ fluid
+ν LB fluid
+τ diff
+ν LB diff
+δx
+T LB
+δt
+δ
+S LB = S N D · δ2t
+
+10
+100x100
+1
+1/6
+1
+1/6
+0.1
+1e4
+1e-4
+1e-2
+
+20
+200x200
+1
+1/6
+1
+1/6
+0.05
+4e4
+25e-6
+1e-2
+
+40
+400x400
+1
+1/6
+1
+1/6
+0.025
+1.6e5
+625e-8
+1e-2
+
+−3
+
+x 10
+
+2.5
+
+denotes non-dimensional) for all cases can be found
+in Table 1.
+
+0.05
+DIA=10
+DIA=20
+DIA=40
+DIA=80
+
+2
+
+80
+800x800
+1
+1/6
+1
+1/6
+0.0125
+6.4e5
+15625e-10
+1e-2
+
+0.04
+0.035
+
+1.5
+
+0.03
+0.025
+
+1
+
+0.02
+0.015
+
+0.5
+
+0.01
+0.005
+
+0
+
+x
+
+Table 1: Lattice-Boltzmann discretization of Cases IIII. ND and LB denote non-dimensional and Lattice
+Boltzmann units, respectively
+The validation results for Case I are given in Figure 8. Figure 8A shows the relative error temporal evolution of the cell area for the different resolutions, and 8B the relative error temporal evolution
+of the integrated concentration. The concentration
+error is much more noisy because it is only evaluated
+on lattice points. When the cell grows, the membrane sweeps across the lattice, and whenever a new
+lattice site enters the intracellular domain, the integrated concentration increases abruptly. To compute
+the convergence w.r.t. to spatial and temporal resolution, the relative errors at T N D = 1 are evaluated for
+the area, but the temporal mean is taken for the concentration convergence analysis. Figure 8C shows the
+convergence analysis for the area. For the finer grids,
+the convergence order is approximately 1. Figure 8D
+depicts the convergence analysis for the integrated
+concentration, where the fitted order of convergence
+is ≈ 1.2.
+The validation results for Case II are given in Figure 9. Figure 9A shows the relative error temporal
+evolution of the cell area for the different resolutions,
+and 9B the relative error temporal evolution of the
+integrated concentration. The concentration error is
+much more noisy because the it is only evaluated on
+lattice points. When the cell grows, the membrane
+sweeps across the lattice, and whenever a new lattice
+site enters the intracellular domain, the integrated
+concentration increases abruptly. To compute the
+convergence w.r.t. to spatial and temporal resolution, the relative errors at T N D = 1 are evaluated for
+
+DIA=10
+DIA=20
+DIA=40
+DIA=80
+
+0.045
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+0
+
+−6
+
+−4
+
+−7
+
+−4.5
+
+−8
+
+−5
+
+−9
+
+−5.5
+
+−10
+
+−6
+
+−11
+
+−6.5
+
+−12
+
+2
+
+2.5
+
+3
+
+3.5
+
+4
+
+4.5
+
+−7
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+2
+
+2.5
+
+3
+
+3.5
+
+4
+
+4.5
+
+Figure 8: Case I Validation: Point Source. An
+initially circular cell is growing through addition of
+mass. The mass is added by using a point source
+in the middle of the domain. Four different spatial
+resolutions have been computed, corresponding to a
+resolution of DIA = {10, 20, 40, 80} lattice points for
+the diameter of the initial circular cell. A The time
+evolution of the relative error of the cell area for 4
+different lattice resolutions. B The time evolution
+of the relative error of the spatially integrated concentration (mass conservation) for 4 different lattice
+resolutions. C Convergence plot of the relative error
+of the cell area as a function of the lattice resolution.
+The fitted slope is -1.80. The dashed line denotes a
+slope of -2. D Convergence plot of the relative error of
+the integrated concentration (mass conservation) as
+a function of the lattice resolution. The fitted slope
+is -1.22. The dashed line denotes a slope of -1.
+
+the area, but the temporal mean is taken for the concentration convergence analysis. Figure 9C shows the
+convergence analysis for the area. For the finer grids,
+the convergence order is approximately 1. Figure 9D
+depicts the convergence analysis for the integrated
+concentration, where the fitted order of convergence
+
+19
+
+0.08
+
+0.05
+
+of the integrated concentration. The concentration
+error is much more noisy because the it is only eval0.06
+0.035
+uated on lattice points. When the cell grows, the
+0.05
+0.03
+membrane sweeps across the lattice, and whenever a
+0.04
+0.025
+0.02
+new lattice site enters the intracellular domain, the
+0.03
+0.015
+0.02
+integrated concentration increases abruptly. To com0.01
+0.01
+pute the convergence w.r.t. to spatial and temporal
+0.005
+0
+0
+resolution, the relative errors at T N D = 1 are evalu0
+0.2
+0.4
+0.6
+0.8
+1
+0
+0.2
+0.4
+0.6
+0.8
+1
+ated for the area, but the temporal mean is taken for
+−2.5
+−3
+the concentration convergence analysis. Figure 10C
+shows the convergence analysis for the area. For the
+−4
+−3
+finer grids, the convergence order is approximately
+−5
+−3.5
+1. Figure 10D depicts the convergence analysis for
+−6
+the integrated concentration, where the fitted order
+−4
+−7
+of convergence is ≈ 1.5.
+−4.5
+Finally, the immersed boundary force distribution
+−8
+is
+validated (Case IV). The initial setup is similar
+−5
+−9
+2
+2.5
+3
+3.5
+4
+4.5
+2
+2.5
+3
+3.5
+4
+4.5
+to the Cases I-III, but a constant membrane force
+is applied, and there is no mass source. Due to nuFigure 9: Case II Validation: Uniformly Dis- merical leakage, the cell starts to shrink and looses
+tributed Source. An initially circular cell is grow- mass/area. The dimensionless force is chosen to be
+ND
+= 1e3, and the dimension conversion is deing through addition of mass. The mass is added by F
+scribed
+in Table 2. The discretization of the valiapplying a constant uniform mass source on the endation
+setup
+can be found in Table 3.
+tire cellular domain. Four different spatial resolutions
+have been computed, corresponding to a resolution
+ND
+LB
+of DIA = {10, 20, 40, 80} lattice points for the diammass density
+ρN D
+ρLB
+eter of the initial circular cell. A The time evolution
+LB→N D
+mass units [M ]
+[1]
+[δ
+]
+m
+
+LB→N D
+of the relative error of the cell area for 4 different
+δm
+2
+mass density units 2D [M/L ]
+[1]
+2
+LB→N
+D
+(δx
+)
+lattice resolutions. B The time evolution of the relLB
+force
+F ND
+F
+
+
+ative error of the spatially integrated concentration
+LB→N D δ LB→N D
+δm
+x
+force units [M L/T 2 ]
+[1]
+2
+LB→N
+D
+δ
+( t
+)
+(mass conservation) for 4 different lattice resolutions.
+C Convergence plot of the relative error of the cell
+area as a function of the lattice resolution. The fit- Table 2: Lattice-Boltzmann discretization of mass
+ted slope is -0.99. The dashed line denotes a slope and force. ND and LB denote non-dimensional and
+of -1. D Convergence plot of the relative error of Lattice Boltzmann units, respectively.
+0.07
+
+DIA=10
+DIA=20
+DIA=40
+DIA=80
+
+0.045
+
+0.04
+
+DIA=10
+DIA=20
+DIA=40
+DIA=80
+
+the integrated concentration (mass conservation) as
+Besides the spatial and temporal discretization of
+a function of the lattice resolution. The fitted slope
+is -1.43. The dashed lines denote slopes of -1 and -2, the lattice, also the discretization of the immersed
+boundary is studied in Case IV. The distance berespectively.
+tween any two neighboring boundary points is shorter
+than the parameter MAXLENGTH, which is always a facis ≈ 1.4.
+tor of the lattice discretization δx . If MAXLENGTH is
+The validation results for Case III are given in Fig- set to 0.5, then the distance between two boundary
+ure 10. Figure 10A shows the relative error tempo- points does not exceed half of the lattice spacing.
+ral evolution of the cell area for the different resolu- MAXLENGTH=0.5 is a frequently used constant ([30]);
+tions, and 10B the relative error temporal evolution however, here, we also tested smaller (0.1) and larger
+20
+
+0.07
+
+0.05
+DIA=10
+DIA=20
+DIA=40
+DIA=80
+
+0.06
+0.05
+
+circle diameter
+domain size
+τ fluid
+ν LB fluid
+τ diff
+ν LB diff
+δx
+T LB
+δt
+mass density ρN D = 1
+
+DIA=10
+DIA=20
+DIA=40
+DIA=80
+
+0.045
+0.04
+0.035
+0.03
+
+0.04
+
+0.025
+
+0.03
+
+0.02
+0.015
+
+0.02
+
+0.01
+
+0.01
+
+0.005
+
+0
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+0
+
+1
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+δm =
+
+1
+
+ρN D
+ρLB
+
+(δx )2
+δ2
+
+−2.5
+
+−3
+
+−3
+
+−4
+
+−3.5
+
+−5
+
+−4
+
+−6
+
+−4.5
+
+−7
+
+−5
+
+−8
+
+−5.5
+
+2
+
+2.5
+
+3
+
+3.5
+
+4
+
+4.5
+
+−9
+
+F LB = F N D δmtδx
+
+80
+100x100
+1
+1/6
+1
+1/6
+0.1
+1e4
+1e-4
+1
+
+160
+200x200
+1
+1/6
+1
+1/6
+0.05
+4e4
+2.5e-5
+1
+
+320
+400x400
+1
+1/6
+1
+1/6
+0.025
+1.6e5
+6.25e-6
+1
+
+640
+800x800
+1
+1/6
+1
+1/6
+0.0125
+6.4e5
+1.5625e-06
+1
+
+1e-2
+
+2.5e-3
+
+6.25e-4
+
+1.5625e-4
+
+1e-3
+
+5e-4
+
+2.5e-4
+
+1.25e-4
+
+Table 3: Lattice-Boltzmann discretization of the convergence analysis of Case IV. ND and LB denote
+non-dimensional and Lattice Boltzmann units, respectively.
+
+2
+
+2.5
+
+3
+
+3.5
+
+4
+
+4.5
+
+Figure 10: Case III Validation: Fully Coupled
+System. An initially circular cell is growing through
+addition of mass. The mass is added by applying a
+mass source on the entire cellular domain, but the
+mass source strength is proportional to the concentration of the intracellular concentration. Therefore, the
+cellular area should increase linearly in time. Four
+different spatial resolutions have been computed, corresponding to a resolution of DIA = {10, 20, 40, 80}
+lattice points for the diameter of the initial circular
+cell. A The time evolution of the relative error of
+the cell area for 4 different lattice resolutions. B The
+time evolution of the relative error of the spatially
+integrated concentrations (mass conservation) for 4
+different lattice resolutions. C Convergence plot of
+the relative error of the cell area as a function of the
+lattice resolution. The fitted lattices is -1.01. The
+dashed line denotes a slope of -1. D Convergence
+plot of the relative error of the integrated concentration (mass conservation) as a function of the lattice
+resolution. The fitted slope is 1.50. The dashed lines
+denote slopes of -1 and -2, respectively.
+
+Figure 11. In Figure 11A, the evolution of the relative errors of the area are shown for different lattice
+resolutions. Figure 11B shows the convergence as a
+function of MAXLENGTH. The MAXLENGTH= {0.1, 0.5}
+values lead to almost similar results, thus confirming
+that MAXLENGTH=0.5 is indeed sufficient. The convergence as a function of the lattice resolution is shown
+in Figure 11C. The fitted order of convergence is approximately 1. MAXLENGTH= {0.1, 0.5} lead to indistinguishable results; however, even MAXLENGTH=2.5
+still leads to converging results.
+Here, for the convergence analyses, the fluid, mass
+sources, fluid outlet boundary conditions, the advection and diffusion of a species, its no-flux boundary
+condition, the immersed boundary and membrane
+forces are considered. We showed that all aspects are
+converging and conclude that the net order of convergence of the fully coupled system is 1. Depending on
+the aspect under consideration, it can be higher. It
+is well known that the standard Immersed Boundary
+method suffers from fluid leakage, because the discretized kernel function is not divergence-free. Several improvements have been proposed (e.g. [30, 26]).
+
+10.4
+
+Comparison to Farhadifar et al.,
+2007
+
+The cell topologies are compared to results of the
+cell vertex model as presented in [8]. Starting from a
+The validation results of Case IV are showed in single cell, a tissue with more than 1000 cells is grown
+
+(2.5) values.
+
+21
+
+0.2
+
+MAXLENGTH = 0.1
+
+0.2
+
+0.4
+
+0.6
+
+0.02
+
+0.8
+
+1
+
+0.05
+
+0
+
+−1.9
+
+MAXLENGTH = 2.5
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+−2
+−4
+
+−2
+
+0
+
+2
+
+−2
+
+0
+
+2
+
+−2
+
+0
+
+2
+
+−2
+
+0
+
+2
+
+0.02
+
+0.04
+
+−2.3
+
+0.015
+
+0.03
+
+MAXLENGTH = 0.02
+
+0.02
+
+MAXLENGTH = 0.1
+
+0.01
+
+MAXLENGTH = 2.5
+
+0
+
+−1.8
+
+MAXLENGTH = 0.1
+MAXLENGTH = 0.5
+
+MAXLENGTH = 2.5
+0
+
+MAXLENGTH = 0.02
+
+0.04
+
+MAXLENGTH = 0.5
+
+0.05
+
+−1.7
+
+0.06
+
+MAXLENGTH = 0.02
+
+0.1
+
+0
+
+−1.6
+
+0.1
+0.08
+
+0.15
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+MAXLENGTH = 0.02
+
+0.01
+
+MAXLENGTH = 0.5
+
+0.8
+
+1
+
+0
+
+−2.4
+
+MAXLENGTH = 0.1
+MAXLENGTH = 0.5
+
+0.005
+
+MAXLENGTH = 2.5
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+−2.5
+1
+
+−2.6
+−4
+
+−1.5
+MAXLENGTH = 0.02
+MAXLENGTH = 0.1
+MAXLENGTH = 0.5
+MAXLENGTH = 2.5
+
+−2
+
+−3
+−3.1
+
+−2.5
+
+−3.2
+−3.3
+−4
+
+−3
+
+−3.92
+
+−3.5
+
+−3.94
+
+−4
+
+−4.5
+
+−3.96
+
+2
+
+2.5
+
+3
+
+3.5
+
+4
+
+4.5
+
+−3.98
+−4
+
+Figure 11: Case IV Validation: Mass Conservation A constant membrane tension is applied to
+an initially circular cell. The contractile force will
+lead to a shrinking cell due to mass leaking of the
+immersed boundary. Here, the influence of the immersed boundary discretization is investigated. Four
+different spatial resolutions have been computed, corresponding to a resolution of DIA = {10, 20, 40, 80}
+lattice points for the diameter of the initial circular cell. MAXLENGTH denotes the maximally tolerated distance between each two immersed boundary
+points (measured in space discretization units). A
+The time evolution of the relative error of the cell
+area for 4 different lattice resolutions, and for 3 values of MAXLENGTH. B The relative error of the cell
+area as a function of MAXLENGTH for different lattice
+resolutions. C Convergence plot of the relative error
+of the cell area as a function of the lattice resolution,
+plotted for 3 values of MAXLENGTH. The fitted slope of
+the two finest lattices is 0.9891.
+
+an area of 380 (in LB units). The membrane tension
+is varied (F LB = {0.001, 0.01, 0.02} in LB units).
+The snapshots in Figure 12 show the topology for
+different values of membrane tension (A very low
+membrane tension; B medium membrane tension;
+C high membrane tension). The higher the membrane tension, the higher the rearrangement activity
+because cell-cell junctions are broken more easily, and
+the cells can more easily assume a preferential shape
+(hexagonal in the domain, circular at the boundary).
+In Figure 12D, the tissue shown in figure 12B is relaxed, i.e. cell division is stopped, and only rearrangement is occuring towards an equilibrium configuration.
+For these cases, the number of vertices are counted.
+The result is shown in Figure 13, together with the
+experimental and model results of [8]. Although the
+topologies for different membrane tensions differ significantly, the distribution of the number of vertices
+(equivalent to the number of neighbors) is not significantly affected. The relaxed topology, however, is
+shifted towards higher occurrence of hexagons. Overall, our results are in agreement with the experimental and simulation results obtained by [8].
+
+with a constant mass source of 0.004 (in LB units).
+A cell is divided in a random direction if it exceeds
+22
+
+low tension
+medium tension
+high tension
+
+Farhadifar experiment
+Farhadifar case I
+medium tension
+medium tension relaxed
+
+Figure 12: Cell Topologies for Different Membrane Forces. A The membrane force constant
+is small (F LB = 0.001), such that the cells cannot rearrange adequately. B The membrane force
+constant is relatively high (F LB = 0.01), such that
+the rearrangement activity alters the topology significantly. C The membrane force constant is even
+higher (F LB = 0.02). D The tissue shown in B is
+relaxed towards equilibrium. The color code denotes
+the domain identifier value (red = young cells, blue
+= old cells)
+
+Figure 13: Comparison of the Cell Topologies
+to Literature Results. Pn denotes the occurrence fraction of an n-sided polygon. Polygons with
+n > 9 are lumped into n = 9. A ’Low/medium/high
+tension’ correspond to different membrane tensions
+(F LB = {0.001, 0.01, 0.02} in LB units). ’high tension’ has a slightly higher occurrence of penta- and
+hexagons. B ’Farhadifar experiment’ is the polygon
+distribution in a third instar Drosophila wing disc.
+’Farhadifar case I’ and ’Farhadifar case II’ denote
+simulations with low and high relative contractility,
+respectively. ’Medium tension relaxed’ corresponds
+to an equilibrated simulation with F LB = 0.01 after
+proliferation has stopped.
+
+23
+
+

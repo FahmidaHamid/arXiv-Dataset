@@ -1,0 +1,1829 @@
+H AMILTONIAN ABC
+
+Hamiltonian ABC
+Edward Meeds
+
+TMEEDS @ GMAIL . COM
+
+Robert Leenders
+
+ROBERT. LEENDERS @ STUDENT. UVA . NL
+
+arXiv:1503.01916v1 [stat.ML] 6 Mar 2015
+
+Max Welling
+
+WELLING . MAX @ GMAIL . COM
+
+Informatics Institute
+University of Amsterdam
+Amsterdam, Netherlands
+
+Abstract
+Approximate Bayesian computation (ABC) is a powerful and elegant framework for performing inference in
+simulation-based models. However, due to the difficulty in scaling likelihood estimates, ABC remains useful
+for relatively low-dimensional problems. We introduce Hamiltonian ABC (HABC), a set of likelihood-free
+algorithms that apply recent advances in scaling Bayesian learning using Hamiltonian Monte Carlo (HMC) and
+stochastic gradients. We find that a small number forward simulations can effectively approximate the ABC
+gradient, allowing Hamiltonian dynamics to efficiently traverse parameter spaces. We also describe a new
+simple yet general approach of incorporating random seeds into the state of the Markov chain, further reducing
+the random walk behavior of HABC. We demonstrate HABC on several typical ABC problems, and show that
+HABC samples comparably to regular Bayesian inference using true gradients on a high-dimensional problem
+from machine learning.
+
+1. INTRODUCTION
+In simulation-based science, models are defined by a simulator and its parameters. These are called likelihoodfree models because, in contrast to probabilistic models, their likelihoods are either intractable to compute
+or must be approximated by simulations. To perform inference in likelihood-free models, a broad class of
+algorithms called Approximate Bayesian Computation (Beaumont et al., 2002; Marjoram et al., 2003; Sisson
+et al., 2007; Sisson & Fan, 2010; Marin et al., 2012; Fan et al., 2013) are employed.
+At the core of every ABC algorithm is simulation. To evaluate the quality of a parameter vector θ, a
+simulation is run using θ as inputs and producing outputs x. If the pseudo-data x is “close” to observations
+y, then θ is kept as a sample from the approximate posterior. Parameters θ are then adjusted, depending upon
+the algorithm, to obtain the next sample.
+In ABC, there is a fundamental trade-off between the computation required to obtain independent samples
+and the approximation to the true posterior. If the parameter measuring closeness is too small, then samplers
+“mix” poorly; on the other hand, if it is too large, then the approximation is poor. As the dimension of
+the parameters grows, the problem worsens, just as it does for general Bayesian inference with probabilistic
+models, but it is more acute for ABC due to its simulation requirement. There is therefore a deep interest in
+improving the efficiency of ABC samplers (in terms of computation per independent sample). In this paper
+we address this issue directly by using Hamiltonian dynamics to approximately sample from likelihood-free
+models with high-dimensional parameters.
+Hamiltonian Monte Carlo (HMC) (Duane et al., 1987; Neal, 2011) is perhaps the only Bayesian inference
+algorithm that scales to high-dimensional parameter spaces. The core computation of HMC is the gradient
+of the log-likelihood. Two problems arise if we consider HMC for ABC: one, how can the gradients be
+computed for high-dimensional likelihood-free models, and two, given a stochastic approximation to the
+gradient, can a valid HMC algorithm be derived?
+
+1
+
+M EEDS , L EENDERS ,
+
+AND
+
+W ELLING
+
+To answer the latter, we turn to recent developments in scaling Bayesian inference using HMC and
+stochastic gradients (Welling & Teh, 2011; Chen et al., 2014; Ding et al., 2014). We call these stochastic
+gradient Hamiltonian dynamics (SGHD) algorithms. SGHD are computationally efficient for two reasons.
+First, they avoid computing the gradient of the log-likelihood over the entire data set, instead approximating
+it using small batches of data, i.e. computing stochastic gradients. Second, they can maintain reasonable approximations to the Hamiltonian dynamics and therefore avoid a Metropolis-Hastings correction step involving the full data set. Different strategies are employed to do this: small step-sizes combined with Langevin
+dynamics (Welling & Teh, 2011), using friction to prevent accumulation of errors in the Hamiltonian (Chen
+et al., 2014), and using a thermostat to control the temperature of the Hamiltonian (Ding et al., 2014). Each
+of these strategies can be used by HABC.
+In HABC, we use forward simulations to approximate the likelihood-free gradient. The key difference between SGHD methods and HABC is that the stochasticity of the gradient does not come from approximating
+the full data gradient with a mini-batch gradient, but by the stochasticity of the simulator. It is therefore not
+the expense of the simulator (though this could very well be the case for many interesting simulation-based
+models – see Section 7) that requires an approximation to the gradient, but the likelihood-free nature of the
+problem.
+There are several difficulties in estimating gradients of likelihood-free models that we address with
+HABC. The first is due to the form of the ABC log-likelihood. As we show in Section 2, using a conditional model for π(x|θ) provides an estimate of the ABC likelihood that is less sensitive to  and therefore
+is more conducive to stochastic gradient computations. The second difficulty is that for high-dimensional
+parameter spaces, computing the gradients naively (i.e. by finite differences (Kiefer et al., 1952)) can squash
+the gains brought by the Hamiltonian dynamics. Fortunately, we can use existing stochastic approximation
+algorithms (Spall, 1992, 2000) that can be used to compute unbiased estimators of the gradient with a small
+number of forward simulations that is independent of the parameter dimension. The stochastic perturbation
+stochastic approximation (SPSA) (Spall, 1992) is described in Section 4
+A further innovation of this paper is the use of common random numbers (CRN) to improve the efficiency
+of the Hamiltonian dynamics. The idea behind CRNs is to use the same set of random seeds for estimating a
+gradient by FD or SPSA, i.e. when simulating π(x|θ + dθ) and π(x|θ − dθ) use the same random seeds. This
+was applied successfully to SPSA (Kleinman et al., 1999) (and is analogous to using the same mini-batch in
+stochastic gradient methods). We extend and simplify this approach by including the random seeds ω into the
+state of the Markov chain; by keeping the random seeds fixed for several consecutive steps, the second order
+gradient stochasticity is greatly reduced. We show that doing this produces a valid MCMC procedure. This
+approach is not exclusive to HABC; our experiments show it also helps random-walk ABC-MCMC.
+We briefly review ABC in Section 2. In Section 3 we review three approaches to stochastic gradient
+inference using Hamiltonian dynamics: SGLD, SGHMC, and SGNHT. We then introduce Hamiltonian ABC
+in Section 4, where we will show how to improve the stability of the gradient estimates by using CRNs
+and local density estimators of the simulator. Extensions to high-dimensional parameter spaces are also
+discussed. In Section 5 we show how HABC behaves on a simple one-dimensional problem, then in Section 6
+we compare HABC with ABC-MCMC for two problems: a low-dimensional model of chaotic population
+dynamics and a high-dimensional problem.
+
+2. APPROXIMATE BAYESIAN COMPUTATION
+Consider the Bayesian inference task of either drawing samples from or learning an approximate model of
+the following (usually intractable) posterior distribution:
+π(θ|y1 , . . . , yN ) ∝ π(θ)π(y1 , . . . , yN |θ)
+
+(1)
+
+where π(θ) is a prior distribution over parameters θ ∈ IRD and π(y1 , . . . , yN |θ) is the likelihood of N data
+observations, where yi ∈ IRJ . In ABC, the vector of J observations are typically informative statistics of the
+raw observations. It can be shown that if the statistics used in the likelihood function are sufficient, then these
+
+2
+
+H AMILTONIAN ABC
+
+algorithms sample correctly from an approximation to the true posterior (Marin et al., 2012). The simulator
+sim
+is treated as generator of random pseudo-observations, i.e. x ∼ π(x|θ) is a draw from the simulator.
+Discrepancies between the simulator outputs x and the observations y are scaled by a closeness parameter 
+and treated as likelihoods. This is the equivalent to putting an -kernel around the observations, and using a
+Monte Carlo estimate of the likelihood using S draws of x:
+Z
+π (y|θ) =
+
+π (y|x)π(x|θ)dx ≈
+
+S
+1X
+π (y|x(s) )
+S s=1
+
+(2)
+
+In ABC Markov chain Monte Carlo (MCMC) (Marjoram et al., 2003; Wilkinson, 2013; Sisson & Fan,
+2010) the Metropolis-Hastings (MH) proposal distribution is composed of the product of the proposal for the
+parameters θ and the proposal for the simulator outputs:
+Y
+0
+0
+0
+q(θ 0 , x(1) , . . . , x(S) |θ) = q(θ 0 |θ)
+π(x(s) |θ 0 )
+(3)
+s
+
+Using this form of the proposal distribution, and using the Monte Carlo approximation eq 2, we arrive at the
+following Metropolis-Hastings accept-reject probability,
+!
+PS
+π (θ 0 ) s=1 π (y|x0(s) )q(θ|θ 0 )
+(4)
+α = min 1,
+PS
+π (θ) s=1 π (y|x)q(θ 0 |θ)
+If the simulations are part of the Markov chain, the algorithm corresponds to the pseudo-marginal (PM)
+sampler (Andrieu & Roberts, 2009), otherwise it is a marginal sampler (Marjoram et al., 2003; Sisson & Fan,
+2010). For this paper we will be interested in the PM sampler because this is equivalent to having the random
+states that generated the simulation outputs in the state of the Markov chain, which we will use within a valid
+ABC sampling algorithm in Section 4.
+An alternative approach to computing the ABC likelihood is to estimate the parameters of a conditional
+model π(x|θ), e.g. using kernel density estimate (Turner & Sederberg, 2014) or a Gaussian model (Wood,
+2010). While either approach should be adequate and both have their own limits and advantages, for this
+paper we will use a Gaussian model. In ABC, using a conditional Gaussian model for π(x|θ) is called a
+synthetic likelihood (SL) model (Wood, 2010). For a SL log-likelihood model, we compute estimators of the
+first and second moments of π(x|θ). The advantage is that for a Gaussian -kernel, we can convolve the two
+densities
+Z
+π (y|θ) =
+N (y|x, 2 )N (x|µθ , σθ2 )dx
+(5)
+= N (y|µθ , σθ2 + 2 )
+
+(6)
+
+Of particular concern to this paper is the behavior of the log-likelihoods for different values of . In the
+-kernel case, the log-likelihood is very sensitive to small values of :
+X
+log π (y|θ) = log
+N (y|x(s) , 2 )
+(7)
+s
+
+=
+≈
+
+log N (y|x(s) , 2 ) + log (1 + H)
+1
+− log  − 2 (y − x(m) )2
+2
+
+(8)
+(9)
+
+where m is the simulation that is closest to y, H is a sum over terms close to 0. We can see that the loglikelihood can be set arbitrarily small by decreasing . On the other hand, by using a model of the simulation
+at θ
+log π (y|θ) ≈
+
+1
+(y − µθ )2
+− log(σθ2 + 2 ) −
+2
+2(σθ2 + 2 )
+3
+
+(10)
+
+M EEDS , L EENDERS ,
+
+AND
+
+W ELLING
+
+For the SL model,  acts as a smoothing term and can be set to small values with little change to the loglikelihood, as long as the SL estimators are fit appropriately. This insensitivity to  will be used in Section 4
+for estimating gradients of the ABC likelihood. Before describing HABC in full detail however, we now explain how scaling Hamiltonian dynamics in Bayesian learning can be accomplished using stochastic gradients
+from batched data.
+
+3. SCALING BAYESIAN INFERENCE USING HAMILTONIAN DYNAMICS
+Scaling Bayesian inference algorithms to massive datasets is necessary for their continuing relevance in the
+so-called big data era. We now review the role stochastic gradient methods combined with Hamiltonian
+dynamics have played in recent advances in scaling Bayesian inference. Most importantly, these methods
+have combined the ability of HMC to explore high-dimensional parameter spaces with the computational
+efficiency of using stochastic gradients based on small mini-batches of the full dataset. After an overview
+of HMC, we will briefly describe stochastic gradient Hamiltonian dynamics (SGHDs), starting with using
+Langevin dynamics (Welling & Teh, 2011), then HMC with friction (Chen et al., 2014), and finally HMC
+with thermostats (Ding et al., 2014). We will then make the connection between SGHDs and HABC in
+Section 4.
+3.1 Hamiltonian Monte Carlo
+Hamiltonian dynamics are often necessary to adequately explore the target distribution of high-dimensional
+parameter spaces. By proposing parameters that are far from the current location and yet have high acceptance
+probability, Hamiltonian Monte Carlo (Duane et al., 1987; Neal, 2011) can efficiently avoid random walk
+behavior that can render proposals in high-dimensions painfully slow to mix.
+HMC simulates the trajectory of a particle along a frictionless surface, using random initial momentum ρ
+and position θ. The Hamiltonian function computes the energy of the system and the dynamics govern how
+the momentum and position change over time. The continuous Hamiltonian dynamics can be simulated by
+discretizing time into small steps η. If η is small, the value of θ at the end of a simulation can be used as
+proposals within the Metropolis-Hastings algorithm. Hamiltonian dynamics should propose θ that are always
+accepted, but errors due to discretization may require a Metropolis-Hastings correction. It is this correction
+step that SGHD algorithms want to avoid as it requires computing the log-likelihood over the full data set.
+More formally, the Hamiltonian H (θ, ρ) = U (θ) + K(ρ) is a function of the current potential energy
+U (θ) and kinetic energy K(ρ) = ρT M −1 ρ/2 (M is a diagonal matrix of masses which for presentation are
+set to 1). The potential energy is defined by the negative log joint density of the data and prior:
+U (θ) = − log π(θ) −
+
+N
+X
+i=1
+
+log π(yi |θ)
+
+(11)
+
+The Hamiltonian dynamics follow
+dθ = ρdt
+
+dρ = −∇U (θ)dt
+
+(12)
+
+in simulation dt = η.
+3.2 Stochastic Gradient Hamiltonian Dynamics
+If the log-likelihood over the full data set is replaced with a mini-batch estimate, as is done for the following
+stochastic gradient Hamiltonian dynamics (SGHDs) algorithms, then the error in simulating the Hamiltonian
+dynamics comes not only from the discretization, but from the variance of the stochastic gradient. As long
+as this error is controlled, either by using small steps η (SGLD), or adding friction terms B (SGHMC), or
+using a thermostat ξ (SGNHT), the expensive MH correction step can be avoided and values of θ from the
+Hamiltonian dynamics can be used as approximate samples from the posterior.
+4
+
+H AMILTONIAN ABC
+
+SGHDs replace the full potential energy and its gradient with a mini-batch approximation:
+= − log π(θ) −
+
+Û (θ)
+
+∇Û (θ)
+
+hn
+N X
+log π(yi |θ)
+n
+
+= −∇ log π(θ) −
+
+(13)
+
+i=h1
+
+hn
+N X
+∇ log π(yi |θ)
+n
+
+(14)
+
+i=h1
+
+where n is the mini-batch size, and hi are indices chosen randomly without replacement from [1, N ] (i.e. it
+defined a random mini-batch).
+Stochastic gradient Langevin dynamics (Welling & Teh, 2011) performs one full leap-frog step of
+HMC. Starting with a half step for the momentum, the update for θ is
+
+ρt+ 21
+
+∼
+
+=
+
+N (0, Ip )
+
+θt+1
+
+=
+
+θt + ηρt+ 12
+
+ρt
+
+(15)
+
+ρt − η∇Û (θt )/2
+
+(16)
+(17)
+
+It is not necessary to include ρ in the updates since there is only one step:
+θt+1
+
+= θt + ηN (0, Ip ) − η 2 ∇Û (θt )/2
+
+(18)
+
+One of the potential drawbacks of SGLD is that the momentum term is refreshed for every update of the
+parameters, and since this means the parameter update only uses the current gradient approximation, it limits
+the benefits of using Hamiltonian dynamics. On the other hand, this also prevents SGLD from accumulating
+errors in the Hamiltonian dynamics.
+Stochastic Gradient HMC (SGHMC) (Chen et al., 2014) avoids ρ refreshment altogether. By applying
+HMC directly using the stochastic approximation Û and ∇Û , which the authors call naive SGHMC, the
+variance of the gradient will introduce errors that left unaddressed will result in sampling from the incorrect
+target distribution. Under the assumption that ∇Û (θ) = ∇U (θ) + N (0, Vθ ), where Vθ is the covariance of
+the gradient approximation, and updates ρt+1 = ρt + ∆ρt and θt+1 = θt + ηρt+1 , the change in momenta
+∆ρ from one full step is
+
+−η (∇U (θ) + N (0, Vθ )) = −η∇U (θ) + N 0, η 2 Vθ
+(19)
+By adding a friction term B to ∆ρ proportional to Vθ , the correction step can be avoided
+∆ρ
+
+= −ηBρt − η∇U (θt ) + N (0, 2ηB)
+
+(20)
+
+where B = 12 ηVθt . In practice, since we can only estimate B by some B̂ and can only compute Û , a user
+defined friction term C is used (with C − B̂ is semi-positive definite). Thus the updates used for ∆ρ for
+SGHMC:
+
+
+−ηCρt − η∇Û (θt ) + N 0, 2η(C − B̂)
+(21)
+In our experiments we compute an online estimate V̂ and set C = cIp + V̂ .
+Stochastic Gradient thermostats (SGNHT) (Ding et al., 2014) addresses the difficulty of estimating B̂
+by introducing a scalar variable ξ who’s addition to the Hamiltonian dynamics maintains the temperature of
+the system constant, i.e. it acts as a (Nosé-Hoover) thermostat (Leimkuhler & Reich, 2009). The update
+equations remain simple: initialize ξ = C (or c), then for t = 1 . . .
+ρt+1
+θt+1
+ξt+1
+
+= ρt − ηξt ρt − η∇Û (θt ) + N (0, 2ηt C)
+= θt + ηρt+1
+
+= ξt + η
+
+ρTt+1 ρt+1 /D
+
+
+−1
+
+(22)
+(23)
+(24)
+
+In summary, the hyperparameters required for these algorithms are η and C (for SGHMC and SGNHT only),
+and in practice, some way of estimating V̂ for SGHMC.
+5
+
+M EEDS , L EENDERS ,
+
+AND
+
+W ELLING
+
+4. HAMILTONIAN ABC
+The general approach of applying Hamiltonian dynamics to ABC requires choosing one of the SGHD algorithms and then plugging in the ABC gradient approximation ∇Û (θ). With this in mind we leave the details
+of the Hamiltonian updates to previous work (Welling & Teh, 2011; Chen et al., 2014; Ding et al., 2014) and
+focus on the details of how stochastic gradients are computed in the likelihood-free setting.
+4.1 Deterministic Representations of Simulations
+sim
+
+Implicit in each simulation run x ∼ π(x|θ) is a sequence if internally generated random numbers that are
+used to produce random draws from π(x|θ). These random numbers are important to HABC because we wish
+to control the stochasticity of the simulator when computing its gradient. Furthermore, we will control the
+random numbers over multiple time steps. Instead of keeping track of random numbers, we can equivalently
+keep a vector of S random seeds ω. This allows HABC to treat the simulation function π(x|θ) as a blackbox,
+outside of which we can control the random number generator (RNG), and represent x(s) as the output of a
+sim
+deterministic function; i.e. x(s) = f (θ, ωs ) instead of x(s) ∼ π(x|θ). We include ω as part of the state of
+our Markov chain.
+4.2 Kernel- versus Synthetic-likelihood -based Gradients
+In Section 2 we showed that the synthetic-likelihood representation of L (θ) is less sensitive to small choices
+of . This is particularly important to HABC as our gradient approximations are proportional to differences
+in L (θ); if the variance of the stochastic gradients is too high, then we must choose a very small step-size
+η, eliminating the usefulness of HMC for ABC. Under the deterministic representation of x(s) , we can write
+the loglikelihood as
+X
+L (θ) ∝ log
+N (y|f (θ, ωs ), 2 )
+(25)
+s
+
+≈
+
+− log  −
+
+1
+(y − f (θ, ωm ))2
+22
+
+(26)
+
+In the second line we have assumed  is very small and m is the index of the random seed producing the
+closest simulation to y. For a finite difference approximation, ∂L (θ)/∂θ is
+
+1
+− 2
++ 2
+(y − f (θ − dθ , ωm
+)) − (y − f (θ + dθ , ωm
+))
+4dθ 2
+
+(27)
+
+On the other hand, the synthetic-likelihood is stable; using a deterministic representation, we have
+µθ =
+
+1X
+f (θ, ωs )
+S s
+
+σθs =
+
+1 X
+(µθ − f (θ, ωs ))2
+S−1 s
+
+the gradients (for a 1-dim problem) use  as a smoothness prior in ∂L (θ)/∂θ:
+ 2
+
+σθ + +  2
+1
+(y − µθ+ )2
+(y − µθ− )2
+− log
+−
++
+2
+σθ2− + 2
+2(σθ2 + + 2 ) 2(σθ2 − + 2 )
+
+(28)
+
+(29)
+
+In Figure 2, as part of our demonstration of HABC, we compare the gradient approximations around the
+true θMAP using SL versus kernel- Figure 2 for a simple problem. We find that although, for this particular
+problem, SL has a small bias due to its Gaussian assumption, it has much smaller variance, an important
+property for HABC.
+
+6
+
+H AMILTONIAN ABC
+
+Algorithm 1 ∇U FDSA-ABC
+inputs: θ, dθ , f, ω, L , π
+ĝ ← 0
+for r = 1 : |θ| do
+∆←0
+∆r ← 1
+for s = 1 : |ω| do
+(s)
+x+ ← f (θ + dθ ∆, ωs )
+(s)
+x− ← f (θ − dθ ∆, ωs )
+end for
+(s)
+(s)
+ĝr ← L ({x+ }) − L ({x− })
+end for
+ĝ ← ĝ/2dθ + ∇ log π(θ)
+return −ĝ
+Algorithm 2 ∇U SPSA-ABC
+inputs: θ, dθ , f, ω, L , π, R
+ĝ ← 0
+for r = 1 : R do
+∆ ∼ 2 · Bernouilli (1/2, |θ|) - 1
+for s = 1 : |ω| do
+(s)
+x+ ← f (θ + dθ ∆, ωs )
+(s)
+x− ← f (θ − dθ ∆, ωs )
+end for 
+
+(s)
+(s)
+ĝ ← ĝ + L ({x+ }) − L ({x− }) · ∆−1
+end for
+ĝ ← ĝ/(2dθ R) + ∇ log π(θ)
+return −ĝ
+4.3 From Finite Differences to Simultaneous Perturbations
+Algorithm 1 shows the finite difference stochastic approximation (FDSA) (Kiefer et al., 1952) to ∇U (θ)
+as a function of random seeds ω. Note we have deliberately shown the deterministic simulations (f ) outside
+of L to emphasize its dependence on x. The number of simulations required for FDSA is 2SD, which may
+be acceptable for some small ABC problems. Our goal is to scale ABC to high-dimensions and for that we
+need an alternative stochastic approximation of ∇U (θ).
+In the gradient-free setting, Spall (Spall, 1992, 2000) provides a stochastic approximate to the true gradient using only 2 forward simulations for any dimension D (though the approximation can be improved
+by averaging R estimates). Spall’s simultaneous perturbation stochastic approximation (SPSA) algorithm
+works as follows. Let L be the gradient-free function we wish to optimize. Each approximation randomly
+generates a perturbation mask (our name) ∆ of dimension D = |θ| where entry ∆d ∼ 2Bernouilli(1/2) − 1.
+Then L is evaluated at θ + dθ ∆ and θ − dθ ∆, giving the gradient approximation ĝ(θ) ≈ ∂L(θ)/∂θ:
+
+
+1/∆1
+
+L (θ + dθ ∆) − L (θ − dθ ∆) 
+ 1/∆2 
+ĝ(θ) =
+(30)
+ .. 
+2dθ
+ . 
+1/∆D
+
+7
+
+M EEDS , L EENDERS ,
+
+20
+
+AND
+
+W ELLING
+
+Simulation with Common Random Numbers
+
+15
+
+x10
+
+5
+
+0
+
+0.05
+
+0.10
+
+0.15
+
+0.20
+
+0.25
+
+0.30
+
+θ
+
+Figure 1: A view of a simulator in terms of common random numbers. The horizontal line represents y and red shading
+±2. The shaded curved region represents 2σ of π(x|θ). The dashed lines are f (θ, ωs ) for several values of
+ω. The blue circles are potential random samples from π(x|θ). For a fixed value ωs , the simulator produces
+deterministic outputs that change smoothly, even though the simulator itself is quite noisy.
+
+If we let ĝr (θ)
+Pbe the estimate using perturbation mask ∆r , the estimate ĝ(θ) can be improved by averaging
+ĝ(θ) = 1/R r ĝr (θ). Algorithm 2 shows SPSA to estimate ∇U (θ). The number of simulations required
+for SPSA is 2SR, where R ≥ 1.
+Variations of SPSA include one-sided SPSA (Spall, 2000) (we use what Spall calls 2SPSA) and an algorithm for estimating the Hessian based on the same principle as SPSA (Spall, 2005). The one-sided version is
+attractive computationally, but for HABC, the updates for θ require simulating two-sides anyway (once at θ,
+after an step, and once for the one-sided gradient), so using 2SPSA makes more sense. SPSA has also been
+used within a procedure for maximum-likelihood estimation for hidden Markov models using ABC (Ehrlich
+et al., 2013).
+4.4 Common and Sticky Random Numbers
+The usefulness of applying common random numbers (CRNS) in SPSA has been previously demonstrated
+(Kleinman et al., 1999). In that work, the same random numbers are used to simulate both sides of the optimization function within the SPSA gradient. This makes sense intuitively, as we would generally assume that
+the expected simulation function varies smoothly in dθ; by using CRNs, this smoothness is easily exploited
+(see Figure 1). If we were to apply SPSA to Bayesian learning, then using CRNs in the gradient step would
+be analogous to using the same mini-batch for both sides of the computation.
+In addition to using CRNs in simulations for each gradient computation, we have found that using persistent random seeds helps HABC explore the parameter landscape more easily for some algorithms and
+problems. Intuitively, for a gradient-based sampling algorithm, it means a particle can slide along a smooth
+Hamiltonian landscape because the additive noise is suppressed. This is very similar to using dependent random streams to drive MCMC (Murray & Elliott, 2012; Neal, 2012), the main difference we believe is that
+we are using the Hamiltonian dynamics to drive proposals for θ and using persistent seeds ω to suppress
+simulation noise.
+Using random seeds (versus, say, a set of random numbers) allows us to treat the simulator as a blackbox, setting the random seed of its RNG without knowing the internal mechanisms it uses to generate random
+numbers. In light of our arguments above, we propose including persistent random seeds ω in the state of
+
+8
+
+H AMILTONIAN ABC
+
+Variance of Gradient Under Different Methods
+
+0.09
+
+Kernel- S=50
+Synthetic Likelihood S=50
+Kernel- S=5
+Synthetic Likelihood S=5
+
+0.08
+
+p(∇Û (θM AP ))
+
+0.07
+0.06
+0.05
+0.04
+0.03
+0.02
+0.01
+0.00
+−100
+
+−50
+
+0
+
+50
+
+100
+
+∇Û (θM AP )
+
+Figure 2: Variance of gradient estimation using kernel- and SL for different values of S ∈ {5, 50} and fixed  = 0.37
+(the same used in the other results). When S = 5, the empirical estimates of ∇Û (θMAP ) are −12 ± 147
+(kernel-) and −9.3 ± 43 (SL). When S = 50 they are −0.80 ± 19 (kernel-) and −7.3 ± 4.9 (SL). Note the
+large discrepancy in variance. Note the limit of S → ∞, ∇Û (θMAP ) = −7.8. The bias if SL gradients is due
+to its Gaussian approximation (smoothed by ) of π(x|θ), which is a heavy-tailed Gamma distribution (the
+sum of N exponentials).
+
+our Markov chain. We will now describe a simple Metropolis-Hastings transition operator that randomly
+proposes flipping each seed ωs at time t with some probability γ.
+This Metropolis-Hastings transition conditions of the current parameter location θ and proposes changing
+a single random seed ω (it easily generalizes to S seeds). The procedure is as follows: 1) propose a new seed
+0
+0
+ω ∼ q(ω |ω) = π(ω) (independent of the current seed and from its uniform prior); 2) simulate determin0
+0
+0
+istically x = f (θ, ω ); 3) compute the acceptance ratio (which reduces to the ratio of π(y|x )/π(y|x)). It
+is straightforward to show that this leaves the target distribution invariant. The probability of the proposal is
+0
+0
+0
+0
+0
+q(x , ω |θ, ω) = π(ω )δ(x − f (θ, ω )), where δ(a) is a delta function at a = 0. Because the q has this form,
+acceptance ratio simplifies:
+0
+
+0
+
+0
+
+0
+
+π (y|x )
+π (y|x )π(ω )π(x |θ, ω0 ) π(ω)δ(x − f (θ, ω))
+=
+π (y|x)π(ω)π(x|θ, ω) π(ω 0 )δ(x0 − f (θ, ω 0 ))
+π (y|x)
+
+(31)
+
+0
+
+In pseudo-marginal ABC-MCMC one could propose q(x (s) |θ) (fixing θ) and still sample correctly from
+the distribution of simulations with high likelihood at θ. What we propose is slightly different. By instead
+keeping the random seeds fixed, we can sample θ using HABC and use ω as CRNs within the gradient
+computation step and suppress gradient noise over time. In this way, random seeds carry over the same
+additive noise from one step to the next.
+
+5. Demonstration
+P
+We use a simple D = 1 problem to demonstrate HABC. Let y = N1 i ei , where ei ∼ Exp(1/θ ? ); θ ? =
+0.15, N = 20, and y = 7.74 in our concrete example. Assuming π(θ) = Gamma(α, β), the true posterior is
+a gamma distribution with shape α + N and rate β + N y. Our simulator therefore generates the average of N
+sim
+exponential random variates with rate λ = 1/θ. Data x ∼ π(x|θ) are shown in Figure 1. We have explicitly
+shown the smoothness of the simulator by generating data along trajectories of fixed seeds ωs ; i.e. for several
+ωs we vary θ (dashed lines are function f (θ, ωs )) and randomly reveal simulation data (blue circles). The
+horizontal line with shading indicates y ± 2, where  = 0.37 is used throughout the demonstration.
+9
+
+M EEDS , L EENDERS ,
+
+16
+
+AND
+
+W ELLING
+
+16
+True Posterior
+SL-MCMC
+
+14
+
+25
+True Posterior
+SG-Langevin
+
+14
+
+True Posterior
+SG-Thermostats
+
+10
+
+10
+
+8
+
+π(θ|y)
+
+12
+
+π(θ|y)
+
+π(θ|y)
+
+20
+12
+
+8
+
+6
+
+6
+
+4
+
+4
+
+2
+
+2
+
+15
+
+10
+
+5
+
+0
+
+0.05
+
+0.10
+
+0.15
+
+0.20
+
+0.25
+
+0
+
+0.30
+
+0.05
+
+0.10
+
+θ
+
+0.20
+
+0.25
+
+0
+
+0.30
+
+True Posterior
+SL-MCMC
+
+True Posterior
+SG-Langevin
+
+14
+
+10
+
+10
+
+π(θ|y)
+
+10
+
+π(θ|y)
+
+12
+
+8
+6
+
+6
+
+4
+
+4
+
+4
+
+2
+
+2
+0.10
+
+0.15
+
+0.20
+
+0.25
+
+θ
+
+0.30
+
+0
+
+0.25
+
+0.30
+
+8
+
+6
+
+0.05
+
+0.20
+
+True Posterior
+SG-Thermostats
+
+14
+
+12
+
+8
+
+0.15
+
+16
+
+12
+
+0
+
+0.10
+
+θ
+
+16
+
+14
+
+0.05
+
+θ
+
+16
+
+π(θ|y)
+
+0.15
+
+2
+0.05
+
+0.10
+
+0.15
+
+θ
+
+0.20
+
+0.25
+
+0.30
+
+0
+
+0.05
+
+0.10
+
+0.15
+
+0.20
+
+0.25
+
+0.30
+
+θ
+
+Figure 3: Posterior distributions for the demonstration problem. Top row: No persistent seeds. Bottom row: Persistent
+seeds with γ = 0.1. Histograms of the posterior estimates are overlaid with the true posterior (dashed line).
+All algorithms (except for SG-Thermostats for non-persistent ω) give roughly the same posterior estimate.
+By adding persistent ω SG-Thermostats achieved similar posteriors to the other algorithms.
+
+5.1 Bias and Variance of ∇Û (θ)
+To test our assumption that the synthetic-likelihood model is better suited for HABC, we ran FDSA at the
+true θMAP . Using S = 5 and S = 50 and fixing  = 0.37, we gather 10K gradients samples using kernel-
+and SL likelihoods. These gradient estimate densities are shown in Figure 2. An unbiased estimate of the
+gradient should be centered at 0. There are two important results. First, the SL estimates have a small bias,
+even at S = 50. This is because it is estimating the true Gamma distribution of π(x|θ) with a Gaussian. We
+can analytically estimate this bias as S → ∞; for this example it is −7.8 which is what SL estimates are
+centered around (−9.3 for S = 5 and 7.3 for S = 50). The kernel- likelihood, on the other hand, exhibits
+low bias at S = 50. However, the second important result is the variances. SL variances decrease quickly
+with S: σ 2 = 432 → 4.92 , whereas kernel- starts very high and remains high: σ 2 = 1472 → 192 . It is
+for this reason that we have chosen to use SL likelihoods for our gradient estimates, despite their small bias.
+As mentioned in Section 4.2 it is possible that other likelihood models, such as KDE, might provide low bias
+and low variance gradient estimates. We leave this for future work.
+5.2 Posterior Inference using HABC
+We ran chains of length 50K for SL-MCMC, SGLD, SGHMC, and SGNHT versions of HABC using SL
+gradient estimates (S = 5). A pseudo-marginal version of SL-MCMC was used. We note that SGHMC
+gave results nearly identical to SGNHT, so are not shown do to space limitations. In one set of experiments, common random seeds were used for gradient computations only, and did not persist over time steps;
+these experiments are called non-persistent. In another set of runs, we resampled ωs at each time step with
+probability γ = 0.1; these experiments are persistent. In Figure 3 we show the posterior distributions for
+these experiments; in Table 1 we report the total variational distance between the true posterior and the
+ABC posteriors using the first 10K samples and after 50K samples (averaged over 5 chains). Of note is
+the poor approximation of SG-Thermostats when the seeds are not persistent. By adding persistent seeds,
+SG-Thermostats gives similar posteriors to the other methods.
+
+10
+
+H AMILTONIAN ABC
+
+0.30
+
+0.30
+SL-MCMC
+
+SG-Langevin
+
+0.25
+
+0.25
+
+0.20
+
+0.20
+
+θ
+
+θ
+
+0.15
+
+0.15
+
+0.10
+
+0.10
+
+0.05
+
+0.05
+
+0
+
+200
+
+400
+
+time
+
+600
+
+800
+
+1000
+
+0
+
+0.30
+
+200
+
+400
+
+time
+
+600
+
+800
+
+1000
+
+0.30
+SG-Thermostats
+
+SL-MCMC
+
+0.25
+
+0.25
+
+0.20
+
+0.20
+
+θ
+
+θ
+
+0.15
+
+0.15
+
+0.10
+
+0.10
+
+0.05
+
+0.05
+
+0
+
+200
+
+400
+
+time
+
+600
+
+800
+
+1000
+
+0
+
+0.30
+
+200
+
+400
+
+time
+
+600
+
+800
+
+1000
+
+0.30
+SG-Langevin
+
+SG-Thermostats
+
+0.25
+
+0.25
+
+0.20
+
+0.20
+
+θ
+
+θ
+
+0.15
+
+0.15
+
+0.10
+
+0.10
+
+0.05
+
+0.05
+
+0
+
+200
+
+400
+
+time
+
+600
+
+800
+
+1000
+
+0
+
+200
+
+400
+
+time
+
+600
+
+800
+
+1000
+
+Figure 4: Trajectories of the last 1000 θ samples for the demonstration problem. Left column: Non-persistent random
+seeds. Right column: Persistent random seeds with γ = 0.1. Each algorithm’s parameters were optimized
+to minimize the total variational distance. With persistent seeds, each algorithm’s random walk behavior is
+suppressed. Without persistent seeds, the optimal step-size η for SG-Thermostats is small, resulting in an
+under-dispersed estimate of the posterior; when the seeds are persistent, the gradients are more consistent,
+and the optimal step-size is larger and therefore there is larger injected noise. The resulting posteriors are
+shown in Figure 3.
+
+In Figure 4 we show the trace plots of the last 1000 samples from a single chain for each algorithm.
+In the left column, traces for non-persistent random seeds are shown, and on the right, traces for persistent
+seeds. We can observe that persistent random seeds further reduces the random walk behavior of all three
+methods. We also observe small improvements in total variational distance for SL-MCMC and SGLD, while
+SGNHT improves significantly. We find this a compelling mystery. Is it because of the interaction between
+hyperparameters and stochastic gradients, or is this an artifact of this simple model?
+
+6. Experiments
+We present experimental results comparing HABC with standard ABC-MCMC for two challenging simulators. The first is the blowfly model which uses stochastic differential equations to model possibly chaotic
+population dynamics (Wood, 2010). Although it is a low-dimensional problem, the noise and chaotic behavior of the model make it challenging for gradient-based sampling. Our second experiment applies HABC to
+a Bayesian logistic regression model. Although we only use 2 classes (0’s versus 1’s), the dimensionality is
+very high (D = 1568). We show that HABC can work well despite using SPSA gradients.
+
+11
+
+M EEDS , L EENDERS ,
+
+AND
+
+W ELLING
+
+Table 1: Average total variational distance (tvd) for the demonstration problem. Non-persistent used no
+persistent random seeds, whereas Persistent randomly proposes a new ωs with γ = 0.1. Each
+algorithms’ parameters were optimized for minimal tvd after 10K samples. The results for SGHMC
+(not shown) and SGNHT are nearly identical.
+
+Algo
+SL-ABC
+SGLD
+SGNHT
+
+Non-persistent
+10K
+50K
+0.047 0.045
+0.049 0.048
+0.232 0.239
+
+Persistent
+10K
+50K
+0.045 0.045
+0.048 0.043
+0.055 0.051
+
+6.1 Blowfly
+For these experiments, a simulator of adult sheep blowfly populations (Wood, 2010) is used with statistics
+set to those from (Meeds & Welling, 2014). The observational vector y is a time-series of a fly population
+counted daily. The population dynamics are modeled using a stochastic differential equation1
+Nt+1 = P Nt−τ exp(−Nt−τ /N0 )et + Nt exp(−δt )
+where et ∼ G(1/σp2 , 1/σp2 ) and t ∼ G(1/σd2 , 1/σd2 ) are sources of noise, and τ is an integer. In total, there
+are D = 6 parameters θ = {log P, log δ, log N0 , log σd , log σp , τ }. As (Meeds & Welling, 2014) we place
+broad log-normal priors over θ1...5 and a Poisson prior over τ . This is considered a challenging problem
+because slight changes to some parameter settings can produce degenerate x, while others settings can be
+very noisy due to the chaotic nature of the equations. The statistics from (Meeds & Welling, 2014) are used
+(J = 10): the log average of 4 quantiles of N/1000, the average of 4 quantiles of the first-order differences
+in N/1000, and the number of maximal population peaks under two different thresholds.
+We compare difference HABC algorithms with ABC-MCMC for the blowfly population problem. We use
+ = {1/2, 1/2, 1/2, 1/2, 1/4, 1/4, 1/4, 1/4, 3/4, 3/4} (slightly different  from (Meeds & Welling, 2014))
+and S = 10 for all experiments. We use SPSA with R = 2 using SL log-likelihoods for all HABC gradient
+estimates. Without persistent seeds, the number of simulations per time-step is 2SR (about double marginal
+ABC-MCMC) and with it is 2SR + 2Sγ.
+Figure 5 show the posterior distributions for three parameters for SL-MCMC, SGLD, and SG-Thermostats
+using non-persistent seeds (persistent seeds, not shown, produced very similar posteriors). In the second row
+we show the trajectories of two parameters, clearly showing the suppressed random walk behavior of SGLD
+and SG-Thermostats relative to ABC-MCMC. In Figure 6 the scatter plots of trajectories are shown for two
+parameters. Though not shown due to space limitations, we have found that persistent seeds can improve
+convergence of the posterior predictive distribution. Further experiments with persistent seeds needs to be
+carried out to understand the extent to which the help and how to determine when they are necessary, if at all.
+6.2 Bayesian Logistic Regression
+We perform Bayesian inference on Bayesian inference on a logistic regression model using the digits 0 and
+1 from MNIST. Despite its simplicity, the model still represents a high-dimensional problem for HABC
+(D = 1568). We first ran stochastic gradient descent to determine θMAP using the true gradient. We then run
+HABC SGLD and SG-Thermostats starting θMAP to discover how well the algorithms explore the posterior.
+We compare with SGLD and SG-Thermostats using the true gradients. We use n = 100 size mini-batches and
+R = 10 number of perturbations for SPSA. Figure 7 shows samples randomly projected onto 2 dimensions
+(1000 evenly sub-sampled from 10K). We can see that the trajectories using SPSA exhibit similar behavior
+1. Equation 1 in Section 1.2.3 of the supplementary information in (Wood, 2010).
+
+12
+
+H AMILTONIAN ABC
+
+0.8
+
+1.4
+
+0.7
+
+1.2
+
+p(θ|y)
+
+0.6
+
+1.0
+SL-MCMC
+
+1
+
+0.6
+
+0.8
+
+0.4
+0.6
+
+0.3
+
+0.0
+
+0.4
+
+−2
+
+0
+
+2
+
+log P
+
+4
+
+6
+
+0.0
+−3 −2 −1 0
+
+1
+
+log δ
+
+2
+
+3
+
+1.0
+
+−2
+−3
+
+4
+
+5
+
+0.30
+
+log N0
+
+8
+
+9
+
+0.10
+
+0.2
+
+0.05
+−2
+
+0
+
+2
+
+log P
+
+4
+
+0.5
+0.4
+0.3
+0.2
+0.1
+
+−2
+
+0
+
+2
+
+log P
+
+4
+
+0.0
+−3 −2 −1 0
+
+6
+
+6
+
+100
+
+200
+
+300
+
+time
+
+400
+
+500
+
+2.0
+1.5
+
+0.5
+
+0.4
+
+0.15
+
+0
+
+2.5
+
+1.0
+
+0.4
+
+0.20
+
+−4
+
+0.6
+
+0.6
+
+0.25
+
+7
+
+SG-Langevin
+
+0.7
+0.8
+
+0.35
+
+6
+
+0.8
+
+0.40
+
+0.0
+
+0.0
+
+SL-MCMC log P
+SL-MCMC log σd
+
+0
+
+−1
+
+0.2
+
+0.2
+
+0.45
+
+0.00
+
+θ
+
+0.4
+
+0.1
+
+p(θ|y)
+
+2
+
+1.0
+
+0.5
+
+0.2
+
+p(θ|y)
+
+3
+
+0.8
+
+1
+
+log δ
+
+2
+
+3
+
+0.0
+
+0.2
+
+−0.5
+
+0.1
+
+−1.0
+
+0.0
+
+0.9
+
+0.8
+
+0.8
+
+0.7
+
+0.7
+
+0.6
+
+0.6
+
+0.5
+
+0.5
+
+0.4
+
+0.4
+
+0.3
+
+0.3
+
+0.2
+
+0.2
+
+0.1
+
+0.1
+1
+
+log δ
+
+2
+
+3
+
+0.5
+
+0.3
+
+0.9
+
+0.0
+−3 −2 −1 0
+
+θ
+
+0.0
+
+SG-Langevin log P
+SG-Langevin log σd
+
+−1.5
+
+4
+
+5
+
+6
+
+7
+
+log N0
+
+8
+
+9
+
+−2.0
+
+SG-Thermostats
+
+0
+
+100
+
+200
+
+300
+
+time
+
+400
+
+500
+
+1.4
+
+SG-Thermo log P
+SG-Thermo log σd
+
+1.2
+
+1.0
+
+θ0.8
+0.6
+
+0.4
+
+4
+
+5
+
+6
+
+7
+
+log N0
+
+8
+
+9
+
+0.2
+
+0
+
+100
+
+200
+
+300
+
+time
+
+400
+
+500
+
+Figure 5: Blowfly posterior distributions (non-persistent seeds). Left column: Posteriors for three parameters for SL-
+
+1.0
+
+1.5
+1.0
+
+0.9
+
+−1.0
+
+0.5
+
+0.8
+
+−1.5
+
+0.0
+
+0.7
+
+−2.0
+−2.5
+
+−4.0
+1.6
+
+−0.5
+−1.5
+
+SL-MCMC
+1.8
+
+2.0
+
+2.2
+log P
+
+2.4
+
+2.6
+
+2.8
+
+−2.0
+0.0
+
+SG-Thermo
+
+0.6
+0.5
+
+−1.0
+
+−3.0
+−3.5
+
+log σd
+
+0.0
+−0.5
+
+log σd
+
+log σd
+
+MCMC (top row), SGLD (middle), and SG-Thermostats (bottom). Right column: Trajectories of the last
+1000 samples for two parameters.
+
+0.4
+
+SG-Langevin
+0.5
+
+1.0
+
+log P
+
+1.5
+
+2.0
+
+2.5
+
+0.3
+0.6
+
+0.7
+
+0.8
+
+0.9
+
+1.0 1.1
+log P
+
+1.2
+
+1.3
+
+1.4
+
+Figure 6: Blowfly trajectories of two parameters over the last 1000 time-steps. Left: SL-MCMC, Middle: SGLD
+and Right: SG-Thermostats. Relative to SL-MCMC, the Hamiltonian dynamics clearly show persistent θ
+trajectories.
+
+to Bayesian learning with the true gradients. This is a positive result that indicates HABC can successfully
+exploit the noisy and less informative gradients of SPSA.
+
+13
+
+M EEDS , L EENDERS ,
+
+150
+
+AND
+
+W ELLING
+
+Logistic Regression Sampling Trajectories
+true SG-Langevin
+SPSA SG-Langevin
+true SG-Thermo
+SPSA SG-Thermo
+
+100
+
+50
+
+0
+
+50
+
+100
+100
+
+80
+
+60
+
+40
+
+20
+
+0
+
+20
+
+40
+
+60
+
+80
+
+Figure 7: Bayesian logistic regression sampling trajectories randomly projected. The yellow circle is the projected
+θMAP .
+
+7. DISCUSSION AND CONCLUSION
+Hamiltonian ABC proposes a new set of algorithms for Bayesian inference of likelihood-free models. HABC
+builds upon the connections between Hamiltonian Monte Carlo with stochastic gradients and well-established
+gradient approximations based on a minimal number of forward simulations, even in high-dimensions. We
+have performed some preliminary experiments showing the feasibility of running ABC on both small and
+large problems, and we hope that the door has been opened for exploration of larger simulation-based models
+using HABC.
+Another innovation we introduce is the use of persistent random seeds to suppress the simulator noise and
+therefore smooth the simulation landscape over a local region of parameter space. For some algorithms run
+on certain models, improved performance has been observed. This is most likely to be the case for simulators
+with large additive noise and algorithms that benefit from long Hamiltonian trajectories (i.e. SGHMC and
+SG-Thermostats). We feel that new classes of ABC algorithms could develop from using persistent random
+seeds, not just gradient-based samplers but traditional ABC-MCMC.
+There are several unresolved and open questions regarding the application of stochastic gradients to ABC.
+The first issue is the importance of the bias-variance relationship for different ABC likelihood models. We
+found that using gradients based on the synthetic-likelihood greatly reduced their variance, but introduced a
+small bias, because of its Gaussian assumption. The second issue is setting algorithm parameters, in particular
+the step-sizes η, the injected noise C (for SGHMC/SGNHT), and the number of SPSA repetitions R. All of
+these parameters are highly interactive. Can we use statistical tests during the MCMC run to determine R?
+Should η and C be set differently in the ABC setting? One final issue is monitoring or determining whether
+the correct amount of noise is being injected to ensure proper sampling. In SGLD (Welling & Teh, 2011), for
+example, we can always turn down η so that the injected noise term dominates, but when our goal is efficient
+exploration of the posterior, this is not a very satisfying solution.
+Expensive simulators are an important class of models that we do not address in this work. However,
+previous work in Bayesian inference has shown the usefulness of HMC-based proposals based on Gaussian
+process of log-likelihood surfaces (Rasmussen, 2003). We could similarly use HABC with ABC surrogate
+models (Meeds & Welling, 2014; Wilkinson, 2014) to minimize simulation calls, yet still benefit from Hamiltonian dynamics.
+
+14
+
+H AMILTONIAN ABC
+
+References
+Andrieu, C. and Roberts, G. The pseudo-marginal approach for efficient monte carlo computations. The
+Annals of Statistics, 37(2):697–725, 2009.
+Beaumont, Mark A, Zhang, Wenyang, and Balding, David J. Approximate bayesian computation in population genetics. Genetics, 162(4):2025–2035, 2002.
+Chen, Tianqi, Fox, Emily B, and Guestrin, Carlos. Stochastic gradient hamiltonian monte carlo. 2014.
+Ding, Nan, Fang, Youhan, Babbush, Ryan, Chen, Changyou, Skeel, Robert D, and Neven, Hartmut. Bayesian
+sampling using stochastic gradient thermostats. In Advances in Neural Information Processing Systems,
+pp. 3203–3211, 2014.
+Duane, Simon, Kennedy, Anthony D, Pendleton, Brian J, and Roweth, Duncan. Hybrid monte carlo. Physics
+letters B, 195(2):216–222, 1987.
+Ehrlich, Elena, Jasra, Ajay, and Kantas, Nikolas. Gradient free parameter estimation for hidden markov
+models with intractable likelihoods. Methodology and Computing in Applied Probability, pp. 1–35, 2013.
+Fan, Yanan, Nott, David J, and Sisson, Scott A. Approximate bayesian computation via regression density
+estimation. Stat, 2013.
+Kiefer, Jack, Wolfowitz, Jacob, et al. Stochastic estimation of the maximum of a regression function. The
+Annals of Mathematical Statistics, 23(3):462–466, 1952.
+Kleinman, Nathan L, Spall, James C, and Naiman, Daniel Q. Simulation-based optimization with stochastic
+approximation using common random numbers. Management Science, 45(11):1570–1578, 1999.
+Leimkuhler, Benedict and Reich, Sebastian. A metropolis adjusted nosé-hoover thermostat. ESAIM: Mathematical Modelling and Numerical Analysis, 43(04):743–755, 2009.
+Marin, J.-M., Pudlo, P., Robert, C.P., and Ryder, R.J. Approximate bayesian computational methods. Statistics and Computing, 22:1167–1180, 2012.
+Marjoram, Paul, Molitor, John, Plagnol, Vincent, and Tavaré, Simon. Markov chain monte carlo without
+likelihoods. Proceedings of the National Academy of Sciences, 100(26):15324–15328, 2003.
+Meeds, Edward and Welling, Max. GPS-ABC: Gaussian process surrogate approximate bayesian computation. Uncertainty in AI, 2014.
+Murray, Iain and Elliott, Lloyd T. Driving markov chain monte carlo with a dependent random stream.
+arXiv:1204.3187, 2012.
+Neal, Radford M. Mcmc using hamiltonian dynamics. Handbook of Markov Chain Monte Carlo, 2, 2011.
+Neal, Radford M. How to view an mcmc simulation as a permutation, with applications to parallel simulation
+and improved importance sampling. Technical Report No. 1201, Dept. of Statistics, University of Toronto,
+2012.
+Rasmussen, C.E. Gaussian processes to speed up hybrid monte carlo for expensive bayesian integrals.
+Bayesian Statistics, 7:651–659, 2003.
+Sisson, SA, Fan, Y, and Tanaka, Mark M. Sequential monte carlo without likelihoods. Proceedings of the
+National Academy of Sciences, 104(6):1760, 2007.
+Sisson, Scott A and Fan, Yanan. Likelihood-free markov chain monte carlo. Arxiv preprint arXiv:1001.2058,
+2010.
+15
+
+M EEDS , L EENDERS ,
+
+AND
+
+W ELLING
+
+Spall, James C. Multivariate stochastic approximation using a simultaneous perturbation gradient approximation. Automatic Control, IEEE Transactions on, 37(3):332–341, 1992.
+Spall, James C. Adaptive stochastic approximation by the simultaneous perturbation method. Automatic
+Control, IEEE Transactions on, 45(10):1839–1853, 2000.
+Spall, James C. Monte carlo computation of the fisher information matrix in nonstandard settings. Journal
+of Computational and Graphical Statistics, 14(4), 2005.
+Turner, Brandon M. and Sederberg, Per B. A generalized, likelihood-free method for posterior estimation.
+Psychonomic Bulletin & Review, 21(2):227–250, 2014.
+Welling, Max and Teh, Yee W. Bayesian learning via stochastic gradient langevin dynamics. In Proceedings
+of the 28th International Conference on Machine Learning (ICML-11), pp. 681–688, 2011.
+Wilkinson, R. Approximate bayesian computation (ABC) gives exact results under the assumption of model
+error. Statistical Applications in Genetics and Molecular Biology, 12(2):129–142, 2013.
+Wilkinson, R. Accelerating abc methods using gaussian processes. AISTATS, 2014.
+Wood, Simon N. Statistical inference for noisy nonlinear ecological dynamic systems. Nature, 466(7310):
+1102–1104, 2010.
+
+16
+
+

@@ -1,0 +1,611 @@
+Journal of Machine Learning Research 1 (2015) 1-48
+
+Submitted 1/15; Published 1/15
+
+Inferring and Learning from Neuronal Correspondences
+Ashish Kapoor
+
+akapoor@microsoft.com
+
+Microsoft Research
+One Microsoft Way
+Redmond, WA 98052, USA
+
+arXiv:1501.05973v2 [q-bio.NC] 27 Jan 2015
+
+E. Paxon Frady
+
+efrady@ucsd.edu
+
+Department of Neurobiology
+University of California
+San Diego, CA 92093, USA
+
+Stefanie Jegelka
+
+stefje@mit.edu
+
+Department of Electrical Engineering and Computer Science
+Massachusetts Institute of Technology
+Cambridge, MA 02139, USA
+
+William B. Kristan
+
+kristan@ucsd.edu
+
+Department of Neurobiology
+University of California
+San Diego, CA 92093, USA
+
+Eric Horvitz
+
+horvitz@microsoft.com
+
+Microsoft Research
+One Microsoft Way
+Redmond, WA 98052, USA
+
+Editor: TBD
+
+Abstract
+
+We introduce and study methods for inferring and learning from correspondences among
+neurons. The approach enables alignment of data from distinct multiunit studies of nervous
+systems. We show that the methods for inferring correspondences combine data effectively
+from cross-animal studies to make joint inferences about behavioral decision making that
+are not possible with the data from a single animal. We focus on data collection, machine learning, and prediction in the representative and long-studied invertebrate nervous
+system of the European medicinal leech. Acknowledging the computational intractability
+of the general problem of identifying correspondences among neurons, we introduce efficient computational procedures for matching neurons across animals. The methods include
+techniques that adjust for missing cells or additional cells in the different data sets that
+may reflect biological or experimental variation. The methods highlight the value harnessing inference and learning in new kinds of computational microscopes for multiunit
+neurobiological studies.
+
+Keywords:
+PCA
+
+Neurobiology, Metric Learning, Correspondence Matching, Probabilistic
+
+c
+2015
+Ashish Kapoor, Paxon Frady, Stefanie Jegelka, William B. Kristan and Eric Horvitz.
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+1. Introduction
+Neurobiologists have long pursued an understanding of the emergent phenomena of nervous
+systems, such as the neuronal basis for choice and behavior. Much research on neuronal
+systems grapples with the complex dynamics of interactions among multiple neurons. New
+techniques, such as calcium imaging, voltage-sensitive dye (VSD) imaging (Cacciatore et al.,
+1999; Gonzalez and Tsien, 1995) and multi-unit electrode recordings, enable larger views of
+nervous systems. However, for many experimental preparations, the amount of data that
+can be collected via tedious experiments is limited. As an example, data from voltagesensitive dyes are time-limited because of bleaching of the dyes and also neuronal damage
+caused by phototoxicity.
+We have developed methods for combining the data from multiple experiments to pool
+data on neural function. The approach allows us to make inferences from data sets that
+are impossible to obtain from individual preparations. Coalescing the data from multiple
+experiments is an intrinsically difficult problem because of the difficulty in matching cells
+and their roles across animals. Variation is observed in nervous systems of individual animals
+based on developmental differences as well as artifacts introduced in the preparation and
+execution of experiments. Developing a means for identifying correspondences in cells across
+animals would allow data to be pooled from multiple animals supporting deeper inferences
+about neuronal circuits and behaviors.
+We focus specifically on experimental studies of neurons composing the ganglia of H.
+verbana (Briggman et al., 2005). The leech has a stereotypical nervous system consisting
+of repeating packets of about 400 neurons. About a third of these neurons have been
+identified, and these neurons can be found reliably in different animals. The remaining twothirds of neurons have yet to be identified, but are believed to maintain similar properties
+and functional roles across animals. The general problem of correspondence matching of
+the cells of two different animals is illustrated in Figure 1. We seek to identify neurons that
+are equivalent across ganglia obtained from different animals. For example, the red cell in
+animal a has several candidate correspondences in animal b, but with varying degrees of
+similarity (indicated by shades of red). Ideally, we will find a one-to-one match via jointly
+considering multiple similarities. With only two animals, this problem can be mapped to
+a bipartite graph-matching task and can be solved optimally (Munkres, 1957). However,
+we want to jointly solve the matching task for larger numbers of animals. Such matching
+across multiple graphs defined by the individual nervous systems is an intractable problem
+in the NP-hard class (Papadimitriou and Steiglitz, 1982). In addition, the problem is even
+more difficult because such matching must also take into account variations in the numbers
+and properties of neurons observed in different animals. These variations can be due to
+both developmental differences (e.g., some neurons may be missing or duplicated) and
+experimental artifacts (e.g., some neurons may be out of the plane of focus or destroyed in
+the delicate dissection). A key challenge in this endeavor is the formulation of a similarity
+measure that takes into account physical parameters of cells, such as their size and location,
+as well as their functional properties.
+2
+
+Inferring and Learning from Neuronal Correspondences
+
+Figure 1: Challenge of identifying correspondence among neurons in ganglia from different
+animals. Given compatibility constraints, a correspondence algorithm seeks a oneto-one mapping between neurons in two H. verbana preparations. The goal is to
+find out correspondences between cells in each of the animals. The color coding
+illustrates compatibility constraints: Feasible matches for the highlighted red,
+green, and blue cells in animal 1 (c) are found in animal 2 (d), as indicated with
+matched colors. The degree of feasibility of the matches is depicted via shading of
+cells in animal b, where the most compatible cell for each source neuron in animal
+a is highlighted with a white border. Although the figure shows only two animals,
+such compatibility constraints occur
+3 across all pairs of the 6 animals used.
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+Table 1: The proposed algorithmic framework
+
+Step 1:
+
+Learn Compatibility Measure
+
+Step 2:
+
+Recover Correspondence Map
+
+Step 3:
+
+Infer Missing Data
+
+Given training data with pairs of match and
+non-match cells, estimate the parameter matrix
+A that defines the compatibility function
+f ab (i, j), between any ith and j th neurons for
+all animal pairs.
+Start with an initialized empty match set S0 .
+Iteratively determine the next best match
+Mt by solving equation 3
+and update St = St−1 ∪ Mt .
+End when all the cells are matched.
+Construct the matrix Y that aggregates
+data from all the animals, where each
+row corresponds to cells and are permuted
+according to the matching. Use Probabilistic
+PCA on Y to infer the missing data.
+
+2. Machine Learning Framework
+We use a set of neuronal data collected in Briggman et al. (2005), which consists of optical
+VSD recordings from populations of 123-148 neurons in a mid-body segmental ganglion from
+six different leeches. Earlier research on this data identified neurons involved in decisionmaking. In particular, the study aimed at understanding the roles of neuronal populations
+in decisions to swim or to crawl following stimulation. Sensory neurons (DP nerve) were
+stimulated in such a way that would elicit, with equal (0.5) likelihood, swimming or crawling. This previous study considered single cell activations and joint analysis of neurons using
+dimensionally reduction techniques of PCA and LDA. However, these techniques were limited to one animal at a time. In the current study, we propose a framework that analyzes
+data across-animals to increase the power of the analysis.
+Rather than using a handcrafted measure, we have employed a machine-learning framework that relies on supervised training data. This algorithm estimates an appropriate
+similarity function between neurons in different animals based on a training set of highconfidence correspondences. These correspondences are readily identified neurons in the
+nervous systems of H. verbana (Muller et al., 1981). An important capability of the algorithm is to take into account the probabilistic nature of inferred correspondences. The
+algorithm begins by learning a weighting function of relevant features that maximizes the
+likelihood of matches within the training set. The next step of the approach is to jointly
+solve the correspondence matching problem for neurons across animals, while considering
+potential missing or extra cells in each animal. The final step is to consider correspondences
+with functions that fill in missing data. As we will demonstrate below, pooling neurophysiological data from multiple studies in a principled manner leads to larger effective data
+with greater statistical power than the individual studies.
+4
+
+Inferring and Learning from Neuronal Correspondences
+
+Specifically, the pipeline for the methodology includes three steps (detailed in Table 1):
+(1) Determining a similarity score across pairs of cells, (2) recovering correspondences that
+are consistent with the similarity measure, and (3) estimating missing data. We describe
+these steps in detail below:
+2.1 Learning Similarity Measure for Cells
+The goal in Step 1 is to learn a similarity function f ab (i, j) indicating the feasibility of a
+match between the ith cell in animal a and the j th cell in animal b. The most desirable
+characteristic for such a function is a high positive value for likely matches and diminishing
+values for poor matches. Such a characteristic is captured by the exponentiation of a
+negative distance measure among sets of features that represent multiple properties of cells.
+Formally:
+f ab (i, j) = e−[φ(i,a)−φ(j,b)]
+
+T A[φ(i,a)−φ(j,b)]
+
+(1)
+
+Here, φ(·) are d dimensional feature representations for the individual cells for each
+animal and summarizes physical (e.g., size, location etc.) and functional (e.g., optical
+recordings) properties. A is a d × d parameter matrix with positive entries that are learned
+from data. Intuitively, the negative log of the similarity function is a distance function
+between the feature representations: a zero distance between two feature vectors result in
+highest similarity measure of 1, whereas representations at further distance away in the
+feature space have a diminishing value. The matrix A parameterizes this distance measure.
+Given training data consisting of several probable pairs of matched neurons, we use A to
+solve an optimization problem. We describe the details below.
+The following list of features were used in our work:
+• Structural features: Absolute position of the cell with respect to the entire observed
+frame, relative position of cell in relation to the entire ganglion, absolute size of the cell
+in pixels, indicator vector specifying packet the neuron is located in (among Central,
+Left Anterior, Left Posterior, Right Anterior, Right Posterior or Central Posterior
+packet), and relative position coordinate of the neuron in its respective packet.
+• Functional features: Coherence of electrophysiological observations with swim oscillations and single cell discrimination time (see Briggman et al. (2005)) that distinguishes from swim versus the crawl behavior.
+Intuitively, the optimization problem finds the parameter A that minimizes the distance
+between pairs of cells that were tagged as matches, while maximizing the distance among
+other pairs. Formally, parameter A of the compatibility measure is estimated by minimizing
+the objective:
+X
+X
+X
+A∗ = arg min
+[−2 log f ab (i, j) + log
+f ab (i, j 0 ) + log
+f ab (i0 , j)]
+(2)
+A
+
+i,j
+
+j 0 ∈b,j 0 6=j
+
+i0 ∈a,i0 6=i
+
+subject to the constraint that all entries of A are positive. The sum is over all the labeled
+training pairs (i, j) tagged as likely matches. Intuitively the first term −2 log f ab (i, j) in
+the objective prefers solutions that would collapse the distance between matched pairs to
+5
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+zero, while the rest of the terms prefer a solution where the distance between the rest of the
+cells are maximized. The optimization is straightforward and a simple gradient descent will
+always find a locally optimal solution. Note that a more appropriate constraint is positive
+semi-definite condition on A, however we suggest using a non-negativity constraint due to
+simplicity in optimization with almost no reduction in performance of the pipeline.
+2.2 Correspondence Matching
+In a second step, we calculate the correspondence matches across all the animals. Instead
+of calculating all the matches simultaneously, the framework follows an iterative procedure:
+future matches are made not only by using the similarity function, but also by comparing
+the geometric and structural relationship of the candidates to the past matches. Besides
+considering the distances induced by the similarity function (i.e. − log f ab (i, j)), and unlike
+past work on graph matching (Williams et al., 1997; Bunke, 2000), the proposed method
+utilizes knowledge of landmarks by inducing constraints that impose topological and geometric invariants. This match-making algorithm considers the iteration t and denotes the
+set of already determined matches by St . The algorithm then determines Mt+1 , the next
+set of neurons from all the animals to be matched by solving the following optimization
+task:
+X
+Mt+1 = arg min
+− log f ab (i, j) + λDLM (i, j, St )
+(3)
+M
+all pairs(i,j)∈M
+Here λ is the trade-off parameter that balances the compatibility measure with landmark
+distances DLM (·) from the matches recovered in all the prior iterations. The landmark
+distance computation provides important structural and topological constraints for solving
+the correspondence tasks. Given anchor points, the landmark distances attempt to capture
+structural and locational relationship with respect to the available landmarks. There are
+several options such as commute distance (McKay, 1981; Lovasz, 1993) on a nearest-neighbor
+graph, or Euclidean distance computed by considering either the locations or the feature
+representation of the neurons. In our experiments, we compute landmark distances between
+neuron i in animal a and neuron j in animal b with respect to a set of anchor points S as:
+X
+X
+DLM (i, j, S) =
+log f aa (i, i0 ) −
+log f bb (j, j 0 ).
+(4)
+i0 ∈S
+
+j 0 ∈S
+
+The optimization problem in the above equation is solved using off-the-shelf energy minimization procedures (Boykov et al., 2001; Minka, 2005). The set of the newly discovered
+matches are then included and the process is repeated until all matches stay the same (settle). Essentially, the goal is to find a set of matched neurons across all the animals such
+that objective function is minimized. We start with a reasonable initialization of solution
+(for example by solving for consecutive pairs of animals). This solution is iteratively refined by considering data drawn from one study at a time and searching for a replacement
+neuron which would lower the total energy. Such replacements continue until no further
+minimization is observed.
+Utilizing landmarks are appropriate as an informative signal for matching neurons in
+the leech, because there is a typified geometric structure. Although soma positions do vary
+from animal to animal, often certain somas remain arranged with particular geometrical
+6
+
+Inferring and Learning from Neuronal Correspondences
+
+Figure 2: Cell correspondences inferred across six H. verbana. Graphics show results of the
+correspondence matching procedure across six animals. Color coding indicates
+the correspondences, where matched cells across different animals share the same
+color. We highlight two cells (depicted as 1 and 2) and show the matches as
+lines linking neurons across the animals. Several cells remain unmatched and are
+depicted using the dashed lines (unfilled interior). The algorithm is capable of
+handling partial matches where cells are not present in all the six animals due to
+true structural differences or losses either in their preparation or in their sensing.
+
+relationships. For instance the Nut and AE cells typically form a box-like pattern, the N
+and T sensory neurons usually will be arranged in a hemi-circle along the packet edge, which
+often will wrap around the AP cell. These types of arrangements are useful for identification
+of cells by eye, and we extend our algorithm to utilize these relationships.
+The framework is extended to handle poor matches and missing cells by considering a
+sink cell in every animal. The sink cell has a fixed cost of matching, denoted as c, and acts
+as a threshold such that neuron matches with costs greater than c are disallowed. The sink
+cells are a soft representation of the probability that a particular neuron was not visible
+during a given preparation.
+2.3 Pooling Across Animals
+Finally in the third step, the framework reconstructs data corresponding to cells that are
+missing and remain unobserved in some animals. In particular, if we consider the elec7
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+Figure 3: Computed canonical ganglion for H. verbana derived from the correspondence
+matching algorithm. We used the results of the correspondence matching algorithm to generate an average or canonical ganglion by computing mean location
+and size for each cell that was matched across at least three different animals.
+The shades of neurons are colored according to the weight determined by an LDA
+projection that would distinguish between swim and crawl models (brighter color
+mean higher weight; the colors used were arbitrary).
+
+trophysiological activity for unobserved cells as latent random variables, then we can infer
+those latent variables by exploiting the fact that they were observed in other animals. Once
+we have correspondence information across animals, we can fill in missing electrophysiological data. Formally, we invoke data completion via Probabilistic Principle Component
+Analysis (PPCA) (Roweis, 1998; Tipping and Bishop, 1999). To apply PPCA, we construct
+a matrix Y, where each row corresponds to a neuron and each column corresponds to the
+fluorescence intensity in a short time interval. Further, since the correspondences between
+all the animals are calculated, we can stack the data from all the animals in Y such that
+the rows are arranged according to the discovered correspondences. (we use -1 to denote
+absence of data due to missing cells in an animal). The PPCA algorithm recovers the low
+dimensional structure in the data, and inserts missing data via Expectation Maximization
+8
+
+Inferring and Learning from Neuronal Correspondences
+
+(Dempster et al., 1977). The PPCA algorithm starts with an initialized low-dimensional
+projection and alternates between the E-step and the M-step. The E-step is where the
+missing data is estimated by considering statistical relationships in the data. The M-step
+is where the estimates of the low-dimensional projection are further refined.
+Consider the matrix Y (dimensions c × n), which consists of neuronal activity recordings
+of c cells from all the animals, is constructed using the methodology described in text above.
+We then first scale all the values in the matrix Y between 0 and 1. Lets denote the lowdimensional representation of the data as matrix X (dimensions k × n, where k < c) and
+the principal components as C (dimensions c × k). The PPCA algorithm first initializes the
+matrices X and C randomly and then alternates between the following two steps:
+E-step: Estimate Ŷ = CX
+T
+T
+M-step: Refine Xnew = (C T C)−1 C T and Cnew = Ŷ Xnew
+(Xnew Xnew
+)−1
+
+The algorithm converges when the maximum change in any of individual dimensions of
+estimates Y is less than 0.001. PPCA is guaranteed to converge so that it produces data
+completion even for neurons that are not observed in some animals.
+In our implementation, optimization for Step 1 (see Table 1) is performed via Limited
+Memory BFGS (Liu and Nocedal, 1989) routine and energy minimization for the above
+Equation is performed via iterative variational inference (Beal, 2003). There are three
+parameters that need to be specified in the framework: c the upper limit on cost of allowed
+matches, the trade-off parameter between compatibility and relative locality measure, and
+k the dimensionality of the low dimensional projection in PPCA. These parameters are
+determined via a cross-validation methodology. The cross validation is performed out by
+considering the aggregated matrix Y , randomly reducing 10% of the observed data, and
+considering the reconstruction error using an L2 norm on the removed data. This process is
+repeated 10 times and parameters with minimum average reconstruction error are chosen.
+The search space for parameters c and λ lie in log-scale (i.e. c and λ ∈ [10−5 , 10−4 , .., 105 ]),
+while for k we try in a linear range (i.e. k ∈ [1, .., 25]).
+
+3. Experiments
+Training data for learning the parameter A was collected by an experimentalist (EPF)
+who hand-annotated 815 different match pairs across all the animals. Fig. 1 shows the
+resulting compatibility measure for these data. Note how the physical properties (such
+as size, relative location, packet membership) of the most likely matches (highlighted by
+a white outline) illustrate the quality of the learned function. The matching procedure
+results in a correspondence map (Fig 2.) matching neurons across the 6 different animals.
+Once the correspondence map was calculated, it was used to generate a prototypic model
+of animal by averaging physical as well as functional properties (Fig. 3).
+Because the resulting correspondence map was computed simultaneously across all the
+animals, it provides a simple way to analyze the quality of the recovered solution. In addition
+to the physical properties, the functional characteristics of any two matched neurons across
+different animals are similar across animals (Figure 4). We observed that a simple estimator
+9
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+Figure 4: Activity of neurons in a leech ganglion from prior study (Briggman et al., 2005),
+showing how their neuronal activity can be used to identify homologous neurons
+across animals. Voltage-sensitive dye traces from two different neurons that were
+considered to be matches by the correspondence matching algorithm. The traces
+highlight that the algorithm has the capability of recovering correspondence across
+cell that are functionally similar.
+
+based on average activity of neurons in five animals predicted the activity of the sixth one
+(Figure 5). Here we estimated the entire time series of activity for a given cell in an animal
+by considering the activity for the corresponding cell across the rest of the five animals. Two
+different models for swim and crawl mode are computed where the prediction is performed
+by computing an average across all the observed time-series.
+For all six animals, lower differences between the observed electrophysiological activity and predictions made by a model learned from rest of the animals confirm that the
+framework had recovered correct correspondences between the neurons across animals.
+Although the matching algorithm performs quite well, it is likely that the algorithm
+is far from perfect. Many of the matched cells may not be correct. Since the functional
+responses of the cells are a factor for the matching, cells with little functional signal will be
+harder to match than those with big signals. Cells lacking functional signal, however, are
+not providing a lot of information for predicting behavioral outcome. Thus, these cells likely
+have poor matches, but are also likely the cells which are non-relevant to the swim-crawl
+decision circuit. It is also possible that many cells are effectively the same given this data
+set, but the matches do not truly reflect homologous pairs. We expect many cells to be
+functionally the same and mismatching these similar cells may not hurt our analysis.
+The correspondence matching algorithm enables pooling of the data across animals,
+which allows exploration that was not feasible previously. For example, Figure 6 shows
+10
+
+Inferring and Learning from Neuronal Correspondences
+
+Figure 5: Bar graphs that highlight the results to test the recovered correspondence using a leave-one-animal-out analysis. The plots were generated by first considering a candidate test animal and then building a predictive model for each cell
+(from when the animal swam or crawled) using the remaining five animals. The
+bar-chart compares mean-squared error between predicted and observed electrophysiological activity when matching using the proposed framework with random
+selection. The differences across all of the six leave-one-animal-out test cases are
+significant.
+
+a 3-dimensional projection recovered by applying ISOMAP (Tenenbaum et al., 2000), a
+non-linear dimensionality reduction method that is an extension to linear methods such as
+PCA. Because the algorithm was applied to the entire pooled data, the recovered dimensions
+are consistent across all the animals, and thus can be visualized and analyzed within the
+same reference frames. Previously application of such techniques (such as PCA and LDA
+in (Briggman et al., 2005)) was limited to a single animal at a time resulting in dimensions
+which were incomparable across animals.
+The pooling of data enabled by methodology proved to be valuable in predictive models
+of decision making. Figure 7 shows that pooling the data across animals enable earlier
+predictions of one of the two behaviors (swimming or crawling) following stimulation than
+data from a single animal. Specifically, PCA was performed on pooled data and earliest
+discrimination time between swim and crawl was determined according the procedure described in (Briggman et al., 2005). In Figure 3, we highlight cells in the composed canonical
+ganglion that play an important role in the behavioral decisions of the animal. Combining
+data across multiple animals enables transfer and overlay of information, allowing aggregation of important statistical parameters and more robust empirical models. Figure 8 shows
+ganglion maps for six animals highlighting cells that contribute most towards discrimination
+amongst the swim and the crawl trials. Note that the highly discriminative cells (towards
+the red spectrum) are consistent in physical properties such as location and size across the
+different animals. We also note that these cells are significantly different from cell 208 that
+was identified in earlier studies (Briggman et al., 2005).
+11
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+Figure 6: Using correspondences to predict behavior from neuronal activity. Identification
+of corresponding neurons across animals enables larger data sets to be constructed
+by pooling observations from multiple preparations, which in turn enable deeper
+and more accurate data analysis to address questions of interest. This figure shows
+Non-linear projections generated by applying the ISOMAP algorithm. The blue
+and red dots correspond to swim and crawl mode and depict the trajectory that
+the voltage-sensitive dye trajectories take for each animal. Note that ISOMAP
+applied for an individual animal might result in projections that are inconsistent
+across the different animals. However, using the discovered correspondences of
+neurons across animals, we combine the data from all six animals, and recover
+projections that are consistent for all of the animals.
+
+4. Related Work
+The work described in this paper builds upon many different sub-areas of machine learning.
+In particular, the key ingredients include metric learning, correspondence matching and
+probabilistic dimensionality reduction (Roweis, 1998; Tipping and Bishop, 1999). Distance
+metric learning is a fairly active research area. Most of the work in distance metric learning
+focus on K-Nearest Neighbor (k-NN) classification scenario (Duda et al., 2001) and often
+aim to learn a Mahalanobis metric that is consistent with the training data (Frome et al.,
+2007; Bar-Hillel et al.; Weinberger et al., 2006; Davis et al., 2006). The distance metric
+learning method employed in this paper is closest to the work of Goldberger et al. (2005)
+and Globerson and Roweis (2006), but modified to just consider the sets of similar cells
+given by the user.
+12
+
+Inferring and Learning from Neuronal Correspondences
+
+Figure 7: Bar graphs showing that pooled data allows us to discriminate between swim and
+crawl significantly earlier than what was reported earlier using a PCA analysis
+on data from a single animal (Briggman et al., 2005).
+
+Correspondence problems are employed in a multitude of applications. Computer vision
+is particularly closer to our scenario. Among the simplest are transformations of rigid bodies, where geometry can be exploited (Goodrich and Mitchell, 1999; McAuley et al., 2008),
+while correspondences among non-rigid objects, and between non-identical objects, can
+pose significant challenges. Algorithms applied to more general correspondence problems
+largely combine the compatibility of points by features with the local geometric compatibility of matches. Such models can be formulated as graphical models (McAuley et al.,
+2008; Torresani et al., 2008; Starck and Hilton, 2007) or as selecting nodes in an association
+graph (Cho et al., 2010; Cour et al., 2006), and have been extended to higher-order criteria
+(Duchenne et al., 2009; Zass and Shashua, 2008; Lee et al., 2011). Other methods consider
+the Laplacian constructed from a neighborhood graph (Umeyama, 1988; Escolano et al.,
+2011; Mateus et al., 2008), and some models are learned from full training examples (Torresani et al., 2008). Closest to the idea of using reference points are approaches based on
+seed points (Sharma et al., 2011), landmarks (Jegelka et al., 2014), coarse-to-fine strategies
+(Starck and Hilton, 2007), and on guessing points that help orient the remaining points in
+a rigid body (McAuley and Caetano, 2012).
+13
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+5. Conclusion and Future Work
+The proposed methodology is likely to be even more useful in combination with other
+data-centric analyses. For example, the model learned from past data can be employed
+to guide future experimentation. By computing correspondences between the model and
+and data from an ongoing experiment in real-time, we can then use the model to guide
+information extraction strategies. The methodology can also be extended to perform withinleech analysis, such as discovering bilateral pairs of neurons. In addition, this methodology
+can readily be used to analyze the simultaneous activity of multiple neurons in other animals.
+We foresee valuable uses of the approach in overlaying data from larger nervous systems
+and, moving beyond cells, to higher-level abstractions of nervous system organization, such
+as components of retina or columns in vertebrate nervous systems. Given its simplicity and
+the appeal of potentially pooling large quantities of data, the correspondence methodology
+may find wide use in many areas of neuroscience.
+
+Acknowledgments
+We acknowledge the assistance of Johnson Apacible, Erick Chastain and Paul Koch.
+
+References
+A. Bar-Hillel, T. Hertz, N. Shental, and D. Weinshall. Learning a mahalanobis metric from
+equivalence constraints. Journal of Machine Learning Research.
+M. J. Beal. Variational algorithms for approximate bayesian inference. University College
+London, 2003.
+Y. Boykov, O. Veksler, and R. Zabih. Fast approximate energy minimization via graph
+cuts. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2001.
+K. L. Briggman, H. D. I. Abarbanel, and W. B. Kristan. Optical imaging of neuronal
+populations during decision-making. Science, 11, 2005.
+H. Bunke. Recent developments in graph matching. 2000.
+T. W. Cacciatore, P. D. Brodfuehrer, J. E. Gonzalez, T. Jiang, S. R. Adams, R. Y. Tsien,
+W. B. Kristan Jr., and D. Kleinfeld. Identification of neural circuits by imaging coherent
+electrical activity with fret-based dyes. Neuron, 23, 1999.
+Y. Cho, J. Lee, and K. M. Lee. Reweighted random walks for graph matching. In European
+Conference on Computer Vision, 2010.
+T. Cour, P. Srinivasan, and J. Shi. Balanced graph matching. In Advances in Neural
+Information Processing Systems, 2006.
+J. Davis, B. Kulis, P. Jain, S. Sra, and I. Dhillon. Information-theoretic metric learning. In
+International Conference on Machine Learning, 2006.
+14
+
+Inferring and Learning from Neuronal Correspondences
+
+A. Dempster, N. Laird, and D. Rubin. Maximum-likelihood from incomplete data via the
+em algorithm. Journal of Royal Statistical Society Series B, 39, 1977.
+O. Duchenne, F. Bach, I. Kweon, and J. Ponce. A tensor-based algorithm for high-order
+graph matching. In Computer Vision and Pattern Recognition, 2009.
+R. O. Duda, P. E. Hart, and D. G. Stork. Pattern Classification. John Wiley and Sons,
+2001.
+F. Escolano, E. Hancock, and M. Lozano. Graph matching through entropic manifold
+alignment. In Computer Vision and Pattern Recognition, 2011.
+A. Frome, Y. Singer, and J. Malik. Image retrieval and classification using local distance
+functions. In Advances in Neural Information Processing Systems, 2007.
+A. Globerson and S. Roweis. Metric learning by collapsing classes. In Advances in Neural
+Information Processing Systems, 2006.
+J. Goldberger, S. Roweis, G. Hinton, and R. Salakhutdinov. Neighbourhood components
+analysis. In Advances in Neural Information Processing Systems, 2005.
+J. E. Gonzalez and R. Y. Tsien. Voltage sensing by fluorescence resonance energy transfer
+in single cells. Biophysical Journal, 1995.
+M.T. Goodrich and J.S.B. Mitchell. Approximate geometric pattern matching under rigid
+motions. IEEE Transactions on Pattern Analysis and Machine Intelligence, 21(4):371–
+379, 1999.
+S. Jegelka, A. Kapoor, and E. Horvitz. An interactive approach to solving correspondence
+problems. International Journal of Computer Vision, 108, 2014.
+J. Lee, M. Cho, and K. M. Lee. Hyper-graph matching via reweighted random walks. In
+Computer Vision and Pattern Recognition, 2011.
+D. C. Liu and J. Nocedal. On the limited memory method for large scale optimization.
+Mathematical Programming B, 1989.
+L. Lovasz. Random walks on graphs: a survey. Combinatorics: Paul Erdos is Eighty, 2,
+1993.
+D. Mateus, R. Horaud, D. Knossow, F. Cuzzolin, and E. Boyer. Articulated shape matching
+using laplacian eigenfunctions and unsupervised point registration. In Computer Vision
+and Pattern Recognition, 2008.
+J. McAuley and T. Caetano. Fast matching of large point sets under occlusion. Pattern
+recognition, 45, 2012.
+J.J. McAuley, T.S. Caetano, and M. S. Barbosa. Graph rigidity, cyclic belief propagation and point pattern matching. IEEE Transactions on Pattern Analysis and Machine
+Intelligence, 30(11):20472054, 2008.
+15
+
+Kapoor, Frady, Jegelka, Kristand and Horvitz
+
+B. D. McKay. Practical graph isomorphism. Congressus Numerantium, 1981.
+T. P. Minka. Divergence measures and message passing. Microsoft Research Technical
+Report, 2005.
+J. Munkres. Algorithms for the assignment and transportation problems. Journal of the
+Society for Industrial and Applied Mathematics, 5, 1957.
+C. Papadimitriou and K. Steiglitz. Combinatorial optimization: Algorithms and complexity.
+Prentice Hall, Englewood Cliffs, NJ, 1982.
+S. Roweis. Em algorithms for pca and spca. 1998.
+A. Sharma, R. P. Horaud, J. Cech, and E. Boyer. Topologically-robust 3d shape matching based on diffusion geometry and seed growing. In Computer Vision and Pattern
+Recognition, 2011.
+J. Starck and A. Hilton. Correspondence labelling for wide-timeframe free-form surface
+matching. In International Conference on Computer Vision, 2007.
+J. B. Tenenbaum, V. de Silva, and J. C. Langford. A global geometric framework for
+nonlinear dimensionality reduction. Science, 2, 2000.
+M. E. Tipping and C. M. Bishop. Journal of the Royal Statistical Society, 61, 1999.
+L. Torresani, V. Kolmogorov, and C. Rother. Feature correspondence via graph matching:
+Models and global optimization. In European Conference on Computer Vision, 2008.
+S. Umeyama. An eigendecomposition approach to weighted graph matching problems. IEEE
+Transactions on Pattern Analysis and Machine Intelligence, 10(5), 1988.
+K. Weinberger, J. Blitzer, , and L. Saul. Distance metric learning for large margin nearest
+neighbor classification. In Advances in Neural Information Processing Systems, 2006.
+M. L. Williams, R. C. Wilson, and E. R. Hancock. Multiple graph matching with bayesian
+inference. Pattern Recognition Letters, 18, 1997.
+R. Zass and A. Shashua. Probabilistic graph and hypergraph matching. In Computer Vision
+and Pattern Recognition, 2008.
+
+16
+
+Inferring and Learning from Neuronal Correspondences
+
+Figure 8: Determining influential cells using linear discriminant analysis. The ganglion
+maps from 6 experiments are shown. The maps are from the same experiments
+as in Fig. 4. Cells are color-coded based on the magnitude of the contribution
+to the linear discriminant direction. Red and yellow represent large magnitude
+contributions, blue represents small contributions. We can see that there are at
+17 do not include cell 208 (marked using white
+least 3 cells that are influential and
+arrow).
+
+

@@ -1,0 +1,2193 @@
+A MACHINE LEARNING PIPELINE FOR DISCRIMINANT
+PATHWAYS IDENTIFICATION
+Annalisa Barla(1) , Giuseppe Jurman(2) , Roberto Visintainer(2,3) Margherita
+Squillario(1) , Michele Filosi(2,4) , Samantha Riccadonna(2) and Cesare
+Furlanello(2)
+
+arXiv:1105.4486v2 [q-bio.MN] 27 May 2011
+
+1
+
+DISI, University of Genoa, via Dodecaneso 35, I-16146 Genova, Italy.
+FBK, via Sommarive 18, I-38123 Povo (Trento), Italy.
+3
+DISI, University of Trento, via Sommarive 14, I-38123 Povo (Trento), Italy.
+4
+CIBIO, University of Trento, via Delle Regole 101, I-38123 Mattarello (Trento), Italy
+2
+
+CONTENTS
+1
+2
+3
+
+Introduction
+System and Methods
+Data Description
+3.1
+Children susceptibility to air pollution
+3.2
+Clinical stages of Parkinson’s disease
+3.3
+Clinical stages of Alzheimer’s disease
+Discussion
+4.1
+Air Pollution Experiment
+4.2
+Parkinson’s Disease Experiment
+4.3
+Alzheimer’s Disease Experiment
+Conclusion
+Appendix
+6.1
+Experimental setup for the examples
+6.1.1 Spectral Regression Discriminant Analysis (SRDA).
+6.1.2 The `1 `2 feature selection framework (`1 `2F S ).
+6.1.3 Functional Characterization.
+6.1.4 Weighted Gene Co-Expression Networks (WGCN).
+6.1.5 Algorithm for the Reconstruction of Accurate Cellular Networks (ARACNE).
+6.1.6 Ipsen-Mikhailov distance .
+6.2
+Experiments
+6.2.1 Air Pollution Experiment
+6.2.2 Parkinson’s Disease Experiment
+6.2.3 Alzheimer’s Disease Experiment
+
+4
+
+5
+6
+
+1
+2
+3
+3
+3
+3
+3
+3
+4
+7
+9
+10
+10
+10
+10
+10
+10
+10
+10
+11
+11
+13
+17
+
+ABSTRACT
+Motivation: Identifying the molecular pathways more prone to disruption during a pathological process is a key task in network medicine and,
+more in general, in systems biology.
+Results: In this work we propose a pipeline that couples a machine learning solution for molecular profiling with a recent network comparison
+method. The pipeline can identify changes occurring between specific sub-modules of networks built in a case-control biomarker study,
+discriminating key groups of genes whose interactions are modified by an underlying condition. The proposal is independent from the
+classification algorithm used. Three applications on genomewide data are presented regarding children susceptibility to air pollution and two
+neurodegenerative diseases: Parkinson’s and Alzheimer’s.
+Availability: Details about the software used for the experiments discussed in this paper are provided in the Appendix.
+Contact: furlan@fbk.eu
+
+1
+
+INTRODUCTION
+
+Nowadays, it is widely accepted as a consolidated fact that most of the known diseases are of systemic nature: their phenotypes can be
+attributed to the breakdown of a rather complex set of molecular interaction among the cell’s components rather than imputed to the
+misfunctioning of a single entity such as a gene. A major aim of systems biology and, in particular, of its newly emerging discipline
+
+c 2011
+
+
+1
+
+Barla et al
+
+known as network medicine (Barabasi et al. (2011)), is the understanding of the cellular wiring diagram at all possible levels of organization
+(from transcriptomics to signalling) of the functional design, the molecular pathways being a typical example. Such reconstruction is made
+feasible by the recent advances in the theory of complex networks (e.g. Strogatz (2001); Newman (2003); Boccaletti et al. (2006); Newman
+(2010); Buchanan et al. (2010)) and, in particular, in the reconstruction algorithms for inferring networks topology and wiring starting from
+a collection of high-throughput measurements (He et al. (2009)). However, the tackled problem is hard (”a daunting task”, Baralla et al.
+(2009)) and these methods are not flawless Marbach et al. (2010), due to many factors. Among them, underdeterminacy is a major issue
+(De Smet and Marchal (2010)), and the ratio between the network dimension (number of nodes) and the number of available measurements
+to infer interactions plays a key role for the stability of the reconstructed structure. Although some effort has recently been put into facing
+this issue, the stability (and thus the reproducibility) of the process is still an open problem.
+In this contribution we propose a pipeline for machine learning driven determination of the disruption of important molecular
+pathways induced or inducing a condition starting from microarray measurements in a case/control experimental design. The problem of
+underdeterminacy in the inference procedure is avoided by focussing only on subnetworks, and the relevance of the studied pathways for the
+disease is judged in terms of discriminative relevance for the underlying classification problem. The profiling part of the pipeline, composed of
+a classifier and a feature selection method embedded within an adequate experimental procedure or Data Analysis Protocol (The MicroArray
+Quality Control Consortium (2010)), is used to rank the genes with the highest discriminative power. These genes undergo an enrichment
+phase (Zhang et al. (2005a); Subramanian et al. (2005)) to individuate the involved whole pathways to keep track of the established functional
+dependencies that would otherwise get lost by limiting the subnetwork analysis to the sole selected genes. Finally, a network is inferred for
+both the case and the control samples on the selected pathways, and the two structure are compared to pinpoint the occurring differences and
+thus to detect the relevant pathway related variations.
+A noteworthy point of this workflow is the independence from its ingredients: the classifier, the feature ranking algorithm, the enrichment
+procedure, the inference method and the network comparison function. This last point is worth a comment: although already fruitfully used
+even in a biological context (Sharan and Ideker (2006)), the problem of quantitatively comparing network (e.g. using a metric instead of
+evaluating network properties) is a widely open issue affecting many scientific disciplines. As discussed in (Jurman et al. (2011)), many
+classical distances (such as those of the edit family) have a relevant drawback in being local, that is focussing only on the portions of the
+network interested by the differences in the presence/absence of matching links. More recently, other metrics can overcome this problem so
+to consider the global structure of the compared topologies; among such distances, the spectral ones - based on the list of eigenvalues of the
+laplacian matrix of the underlying graph - are quite interesting, and, in particular, the Ipsen-Mikhailov (Ipsen and Mikhailov (2002)) distance
+has been proven to be the most robust in a wide range of situations.
+In what follows we will describe the newly introduced workflow in details, providing three examples of application in problems of
+biological interest: the first tasks concerns the transcriptomics consequences of exposition to environmental pollution on a cohort of children
+in Czech Republic, the second one investigates the molecular characteristics between Parkinson’s disease (PD) at early and late stages and
+the third regards the characterization of Alzheimer’s disease (AD) at early and late stages. To strenghten the support to our proposal, the
+two problems will be dealt with by using different experimental conditions, i.e., varying the employed algorithms throughout the various
+steps of the workflow. In both cases, biologically meaningful considerations can be drawn, consistent with previous findings, showing the
+effectiveness of the proposed procedure in the assessment of the occuring subnetwork variations.
+
+2
+
+SYSTEM AND METHODS
+
+The proposed machine learning pipeline handles case/control transcription data through four main steps, from a profiling task output (a
+ranked list of genes) to the identification of discriminant pathways, see Figure 1. Alternative algorithms can be used at each step of the
+pipeline: as an example in the profiling part different classifiers, regression or feature selection methods can be adopted. In Section 6.1 we
+describe the elementary steps used in the experiments.
+
+Gene Expression Data
+Feature
+selection step
+
+Pathway
+Enrichment
+
+Subnetwork
+Inference
+
+Subnetwork
+Analysis
+
+Phenotype
+Classification
+Regression
+
+Aracne, WGCNA
+SRDA, L1L2
+
+Subnetwork
+Comparison
+
+GSEA, GSA
+Density
+
+Fig. 1. Schema of the analysis pipeline.
+
+2
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+Formally, we are given a collection of n subjects, each described by a p-dimensional vector x of measurements. Each sample is also
+associated with a phenotypical label y = {1, −1}, assigning it to a class (e.g. pollution vs. no-pollution in Section 4.1). The dataset is
+therefore represented by an n × p gene expression data matrix X, where p >> n and a corresponding labels vector Y .
+The matrix X is used to feed the profiling part of the pipeline. We choose a proper Data Analysis Protocol (The MicroArray Quality
+Control Consortium (2010)) for ensuring accurate and reproducible results and a prediction model. The model is built as a classifier (e.g.,
+SRDA, Cai et al. (2008)) or a regression method (e.g., `1 `2 , De Mol et al. (2009)) coupled with a feature selection algorithm. Thus, we obtain
+a ranked list of genes from which we extract a gene signature g1 , ..., gk taking the top-k most discriminant genes. The choice is performed
+by finding a balance between the accuracy of the classifier and the stability of the signature (The MicroArray Quality Control Consortium
+(2010)).
+Applying pathway enrichment techniques (e.g., GSEA or GSA, Zhang et al. (2005a); Subramanian et al. (2005)), we retrieve for each gene
+gi the corresponding whole pathway pi = {h1 , ..., ht }, where the genes hj 6= gi not necessarily belong to the original signature g1 , ..., gk .
+Extending the analysis to all the hj genes of the pathway allows us to explore functional interactions that would otherwise get lost.
+The subnetwork inference phase (e.g., WGCN or ARACNE, Zhao et al. (2010); Meyer et al. (2008)) requires to reconstruct a network
+for each pathway pi by using the steady state expression data of the samples of each class y. The network inference procedure is limited to
+the sole genes belonging to the pathway pi in order to avoid the problem of intrinsic underdeterminacy of the task. As an additional caution
+against this problem, in the following experiments we limit the analysis to pathways having more than 4 nodes and less than 1000 nodes. For
+each pi and for each y, we obtain a real-valued adjacency matrix, which is then binarized by choosing a threshold on the correlation values.
+This choice requires the construction of a binary adjacency matrix Npi ,y,ts for each pi , for each y and for a grid of threshold values t1 , ..., tT .
+For each value ts of the grid, we compute for each pi both the distance D (e.g., the Ipsen-Mikhailov distance, see for details Section 6.1.6)
+between the case and control pathway graphs and the corresponding densities. We chose ts providing the best balance between the average
+distance across the pathways pi and the network density. For a fixed ts and for each pi , we obtain a score D(Npi ,1,ts , Npi ,−1,ts ) used to
+rank the pathways pi . As an additional scoring indicator for g1 , ..., gk , we also provide the difference between the weighted degree in the
+control (y = −1) and in the patient (y = 1) network: ∆d(gi ) = d−1 (gi ) − d1 (gi ). A final step of biological relevance assessment of the
+ranked pathways concludes the pipeline.
+
+3
+
+DATA DESCRIPTION
+
+Section 4 describes three different experiments. In the first experiment we used a genome-wide dataset created for investigating the effects
+of air pollution on children. In the second and third experiment we analyzed gene expression data on two neurodegenerative diseases:
+Parkinson’s (PD) and Alzheimer’s (AD). All the examples are based on publicly available datasets on the Gene Expression Omnibus (GEO).
+
+3.1
+
+Children susceptibility to air pollution
+
+The first dataset (GSE7543) collects data of children living in two regions of the Czech Republic with different air pollution levels (van
+Leeuwen et al. (2008, 2006)): 23 children recruited in the polluted area of Teplice and 24 children living in the cleaner area of Prachatice.
+Blood samples were hybridized on Agilent Human 1A 22k oligonucleotide microarrays. After normalization we retained 17564 features.
+
+3.2
+
+Clinical stages of Parkinson’s disease
+
+For PD we consider two publicly available datasets from GEO: GSE6613 (Scherzer et al. (2007)) and GSE20295 (Zhang et al. (2005c)). The
+former includes 22 controls and 50 whole blood samples from patients predominantly at early PD stages while the latter is composed of 53
+controls and 40 patients with late stage PD. Biological data were hybridized on Affymetrix HG-U133A platform, estimating the expression
+of 22215 probesets for each sample.
+
+3.3
+
+Clinical stages of Alzheimer’s disease
+
+For AD we analyzed two GEO datasets: GSE9770 and GSE5281 (Liang et al. (2010, 2008)). The first includes 74 controls and 34 samples
+from non-demented patients with AD (since it is the earliest AD diagnosed, we will label it as early hereafter) and the second is composed
+of 74 controls and 80 samples from patients with late onset AD. The samples were extracted from six brain regions, differently susceptible
+to the disease: entorhinal cortex (EC), hippocampus (HIP), middle temporal gyrus (MTG), posterior cingulate cortex (PC), superior frontal
+gyrus (SFG) and primary visual cortex (VCX). The latter is known to be relatively spared by the disease, therefore we did not consider the
+samples within the VCX region. Overall, we analyzed 62 controls and 29 AD samples for GSE9770 and 62 controls and 68 AD samples for
+GSE5281. Biological data were hybridized on Affymetrix HG-U133Plus2.0 platform, estimating the expression of 54713 probesets for each
+sample.
+
+4
+4.1
+
+DISCUSSION
+Air Pollution Experiment
+
+The SRDA analysis of the air pollution dataset was performed within a 100×5-fold cross validation (CV) schema, producing a gene signature,
+characterizing the molecular differences between children in Teplice (polluted) and Prachatice (not polluted). The signature consists of 50
+probesets, corresponding to 43 genes, achieving 76% accuracy.
+
+3
+
+Barla et al
+
+The enrichment analysis on the signature allowed a functional characterization of the relevant genes, identifying 11 enriched ontologies in
+GO (listed in Appendix Table 4). We then constructed the corresponding WGCN network for the 11 selected pathways for both cases and
+controls. Full details about the experiment are reported in Appendix Section 6.2.1.
+Table 1. Air Pollution Experiment: most important pathways ranked by the normalized Ipsen-Mikhailov distance ˆ. The Entrez gene symbol ID is also
+provided for the selected probesets g1 , ..., gk in the corresponding pathway.
+
+Pathway Code
+
+ˆ
+
+Gene Symbol
+
+GO:0043066
+GO:0001501
+GO:0007399
+GO:0016787
+GO:0005516
+GO:0007275
+GO:0006954
+
+0.257
+0.149
+0.093
+0.078
+0.076
+0.076
+0.048
+
+MATN3
+NRGN
+DHX32, CLC
+MYH1
+FKHL18, HOXB8, OLIG1
+PROK2
+
+In Table 1 we report the most biologically relevant pathways, ranked for decreasing normalized Ipsen-Mikhailov distance ˆ, which provides
+a measure of the structural distance between the networks inferred for the two classes. The most disrupted pathway is GO:0043066, i.e.
+apoptosis followed by GO:0001501 i.e. skeletal development. Since the children under study are undergoing natural development, especially
+physical changes of their skeleton, the high differentiation between cases and controls of the GO:0001501 and the involvement of pathway
+GO:0007275 i.e. developmental process is biologically very sound. Another relevant pathway is GO:0006954, representing the response to
+infection or injury caused by chemical or physical agents. Several genes included in GO:0005516, (i.e. calmodulin binding) bind or interact
+with calmodulin, that is a calcium-binding protein involved in many essential processes, such as inflammation, apoptosis, nerve growth, and
+immune response. This is a key pathway that is linked with all the above mentioned terms as well as to GO:0007399, i.e. nervous system
+development, being one of the most stimulated pathways together with GO:0001501.
+As described in Section 2 the pipeline also provides a score ∆d of the variation of the number of interactions for g1 , ..., gk . The full list is
+provided in Appendix Table 5, here we discuss a subset of the most biologically relevant genes.
+FKHL18, HOXB8, PROK2, DHX32, MATN3 are directly involved in the development. CLC is a key element in the inflammation and
+immune system. OLIG1 is a transcription factor that works in the oligodendrocytes within the brain. NRGN binds calcium and is a target
+for thyroid hormones in the brain. Finally, MYH1 encodes for myosin that is a major contractile protein that forms striated, smooth and
+non-muscle cells. MYH1 isoforms show expression that is spatially and temporally regulated during development.
+Figure 2 shows the network of the GO:0007399 pathway, related to the nervous system development in the two cohorts. It is clear that
+several connections among the genes within this pathway are missing in the subjects living in the polluted area (Teplice). Therefore the
+nervous system development in these children is potentially at risk compared to those living in the not polluted city (Prachatice).
+
+(a) Prachatice
+
+(b) Teplice
+
+Fig. 2. Networks of the pathway GO:0007399 (nervous system development) for Prachatice children (a) compared with Teplice children (b). Node diameter
+is proportional to the degree, and edge width is proportional to connection strength (estimated correlation).
+
+4.2
+
+Parkinson’s Disease Experiment
+
+The `1 `2 analysis of the two PD datasets was performed respectively within a 9-fold nested CV loop for the early PD and 8-fold nested
+CV for the late PD. The early PD signature consists of 77 probesets, mapped on 70 genes, and associated to 62% accuracy. The late stage
+signature is composed of 94 probesets corresponding to 90 genes and achieving 80% accuracy.
+
+4
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+Table 2. PD: most important pathways ranked by normalized Ipsen-Mikhailov distance ˆ. The Entrez gene symbol ID is also provided for the selected
+probesets g1 , ..., gk in the corresponding pathway. In bold, common elements between early and late stage PD.
+
+PD early
+
+PD late
+
+Pathway Code
+
+ˆ
+
+GO:0005506
+GO:0006952
+GO:0045087
+GO:0042802
+GO:0042802
+GO:0006955
+GO:0006950
+GO:0020037
+GO:0005938
+GO:0005856
+GO:0005856
+GO:0003779
+GO:0030097
+GO:0009615
+GO:0009615
+GO:0051707
+
+0.38
+0.37
+0.36
+0.33
+0.33
+0.31
+0.28
+0.26
+0.26
+0.24
+0.24
+0.23
+0.15
+0.14
+0.14
+0.00
+
+GO:0019226
+GO:0007611
+GO:0042493
+GO:0009725
+GO:0030424
+GO:0007267
+GO:0005516
+GO:0005096
+GO:0007610
+GO:0003779
+GO:0005624
+GO:0045202
+GO:0003924
+GO:0006928
+GO:0042995
+GO:0007268
+GO:0043234
+GO:0005525
+GO:0006412
+GO:0006836
+GO:0043005
+GO:0043025
+GO:0042221
+GO:0009266
+GO:0014070
+
+0.31
+0.16
+0.15
+0.11
+0.10
+0.09
+0.09
+0.09
+0.08
+0.08
+0.08
+0.08
+0.07
+0.07
+0.07
+0.06
+0.06
+0.05
+0.05
+0.05
+0.05
+0.04
+0.00
+0.00
+0.00
+
+Gene Symbol
+HBB
+DEFA1/DEFA3
+SYT1
+HSPB1
+DEFA1/DEFA3
+HSPB1
+HBB
+MYH10
+VCL
+HSPB1
+MYH10, VCL
+
+DEFA1/DEFA3
+
+MYH10
+TAC1
+MYH10, SYT1, RGS4
+RGS4
+MYH10, VCL
+SLC18A2
+SYT1
+CDC42
+HSBP1, VCL
+CDC42
+TAC1, SYT1
+VCL
+CDC42
+RPS4Y
+SLC18A2, SLC6A3
+MYH10, SYT1
+MYH10
+
+Applying ARACNE, we constructed the relevance network for both cases and controls for the 35 enriched pathways for late stage PD
+case and 42 pathways for early stage PD. Table 2 reports the most biologically relevant pathways, ranked for decreasing normalized IpsenMikhailov distance ˆ. The full list of the analyzed pathways is provided as Appendix Table 6.
+Having characterized the functional alteration of pathways for both early and late stage PD, we attempt a comparative analysis of the
+outcome, commenting the most meaningful results from the biological viewpoint. We expected some common pathways between the
+two stages, especially within pathways that represent general processes and functions, but as commented in Section 2 the pipeline does
+not consider pathways having more that 1000 nodes, hence discarding the general terms in the GO. Indeed, the only common pathway
+is GO:0003779, i.e. actin binding. Actin participates in many important cellular processes, including muscle contraction, cell motility,
+
+5
+
+Barla et al
+
+cell division and cytokinesis, vescicle and organelle movement, cell signaling. Clearly, this term is strictly associated to the most evident
+movement-related symptoms in PD, including shaking, rigidity, slowness of movement and difficulty with walking and gait.
+In both early and late PD we note some alteration within the biological process class of response to stimulus. In the early PD list we
+identified GO:0006950 i.e. response to stress, GO:0009615 i.e. response to virus and GO:0051707 i.e. response to other organism. In the late
+PD list we found GO:0042493, i.e. response to drug, GO:0009725 i.e. response to hormone stimulus, GO:0042221 i.e. response to chemical
+stimulus, GO:0014070 i.e. response to organic cyclic substance and GO:0009266 response to temperature stimulus.
+The pathways specific to early PD show a great involvement of the immune system, which is greatly stimulated by inflammation especially
+located in particular brain regions (mainly substantia nigra). Indeed, we identified: GO:0006952 i.e. defense response, GO:0045087 i.e.
+innate immuno response also visualized in Figure 3, GO:0006955 i.e. immune response and GO:0030097 i.e. hemopoiesis.
+
+(a) early PD patients
+
+(b) controls
+
+Fig. 3. Networks of the pathway GO:0045087 (innate immune response) for PD early development patients (a) compared with healty subjects (b). Node
+diameter is proportional to the degree, and edge width is proportional to connection strength (estimated correlation).
+
+From Figure 3 it is clear that since the early stages of PD the innate immune system is severly compromised: the body is highly subjected
+to the invasion and proliferation of microbes (like bacteria or viruses), resulting in a debilitated organism, less effective in fighting the
+consequent inflammation.
+In late stage PD, we detected several differentiated terms related to the Central Nervous System. Among others, we mention: GO:0019226
+i.e. transmission of nerve impulse, GO:0007611 i.e. learning or memory, GO:0007610 i.e. behavior and GO:007268 i.e. synaptic
+transmission. These findings are fitting the late stage PD scenario, where cognitive and behavioral problems may arise with dementia.
+Table 2, and Appendix Table 7 and 8 report the genes belonging to the most relevant pathways for early and late PD, respectively.
+Four common genes were identified between early and late stage PD: MYH10, SYT1, VCL and HSPB1. MYH10 is involved in several
+pathways: acting binding and calmodulin binding, neural cell body, neuron projection and cell cortex. These pathways indicate that the
+damage mostly occurs in the neurons and especially the actin binding and the cell cortex affect the cytoskeleton and the muscular tissue.
+At the same time, the calmodulin binding pathway indicates that other preprocesses, related to calmodulin and relevant for PD, might be
+damaged. These processes are related to the inflammation, metabolism, apoptosis, smooth muscle contraction, intracellular movement, shortterm, long-term memory, nerve growth and the immune response. Moreover, it is known that MYH10 is involved in the regulation of the
+actin cytoskeleton pathways but also in that ones related to the axon guidance. Mutations in this gene are known to be present in disease
+phenotypes affecting the heart and the brain (Kim et al. (2005)). The synaptotagmin SYT1, also involved in the calmoduling binding, is
+an integral membrane protein of synaptic vesicles thought to serve as Ca(2+) sensor in the process of vesicular trafficking and exocytosis.
+Calcium binding to SYT1 participates in triggering neurotransmitter release at the synapse. This protein is therefore involved in the synaptic
+transmission and it predominantly works in the neuron projections and synapses. Vinculin (VCL) is a cytoskeletal protein associated with
+cell-cell and cell-matrix junctions, where it is thought to function as one of several interacting proteins involved in anchoring F-actin to the
+membrane. Defects in VCL are the cause of cardiomyopathy dilated type 1W. This protein is involved in cell motility, proliferation and
+differentiation but also in smooth muscle contraction, inflammation and immune surveillance. VCL is located on a locus of chromosome
+10 strongly associated with late onset AD (Grupe et al. (2006)). HSPB1 is a heat shock protein induced by environmental stress and
+developmental changes. The encoded protein is involved in stress resistance and actin organization and translocates from the cytoplasm to
+the nucleus upon stress induction. This translocation occurs in order to modulate SP1-dependent transcriptional activity to promote neuronal
+protection (Friedman et al. (2009)). Furthermore, defects in this gene cause two neurophatic diseases (i.e. Charcot-Marie-Tooth disease type
+2F and distal hereditary motor neuropathy).
+Beside the common genes, early stage PD is characterized by several meaningful genes. HBB encodes for hemoglobin beta that, together
+with another hemoglobin beta and two hemoglobin alpha, forms the adult hemoglobin. The work of Atamna and Boyle (2006) shows that the
+binding of Abeta to the heme group (hemoglobins bond to iron) supports a unifying mechanism by which excessive Amyloid-beta (Abeta)
+induces heme deficiency, causes oxidative damage to macromolecules, and depletes specific neurotransmitters. Althought Abeta is a known
+marker for AD, a recent publication also places it within a panel of PD biomarkers (Shi et al. (2011)). DEFA1 and DEFA3 are both defensins,
+a family of microbicidal and cytotoxic peptides thought to be involved in host defense. They are abundant in the granules of neutrophils and
+also found in the epithelia of mucosal surfaces such as those of the intestine, respiratory tract, urinary tract, and vagina. Recently, Andrianov
+et al. (2007) presented some evidence for the recruitment of defensins in communication between the immune and nervous systems in the
+frog.
+
+6
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+Among the genes specific to the late PD, we note CDC42, a GTPase of the Rho-subfamily, which regulates signaling pathways controlling
+diverse cellular functions including cell morphology, migration, endocytosis and cell cycle progression. Through the interaction with other
+proteins, CDC42 is known to regulate actin polymerization constituent both of the cytoskeleton and of the muscle cells. SLC6A3 is a
+dopamine transporter which is a member of the sodium- and chloride-dependent neurotransmitter transporter family. This gene is associated
+with Parkinsonism-dystonia infantile (Kurian et al. (2009)). Other significant genes within Table 2 are: TAC1, RGS4, SLC18A2 and RPS4Y.
+
+4.3
+
+Alzheimer’s Disease Experiment
+
+Classification and feature selection via `1 `2 , performed within a 9-fold nested CV schema for AD early and 8-fold for AD late, gives
+respectively 90% accuracy and 95% with 50 probesets for both cases.
+
+(a) early AD patients
+
+(b) controls
+
+Fig. 4. Networks of the pathway GO:0019787 for AD early development patients (a) compared with healthy subjects (b). Node diameter is proportional to
+the degree, and edge width is proportional to connection strength (estimated correlation).
+
+We apply in the AD case the same network analysis strategy as in the PD experiment inferring for both cases and controls 51 selected
+pathways for early stage AD and 34 for late stage AD. The full list of reconstructed pathways is reported in Table 9. In Table 3 we summarize
+the main findings discussed hereafter.
+Similarly to the PD analysis, we attempt a comparative analysis of the outcome for early and late stage AD having characterized the
+functional alteration of pathways for the two AD stages and comment the most meaningful results from the biological viewpoint.
+Four common pathways were identified: GO:0019226 i.e. transmission of nerve impulse, GO:0008015 i.e. blood circulation, GO:0000267
+i.e. cell fraction and GO:0042598 i.e. vesicular fraction.
+The majority of pathways characterizing early stages of AD are related to the nervous system, and the blood. Among the nervous
+system related pathways the most damaged are: GO:0007399 i.e. nervous system development, GO:0007417 i.e. central nervous system
+development, GO:0042391 i.e. regulation of membrane potential, GO:0042552 i.e. myelination, GO:0050877 i.e. neurological system
+process, GO:0001508 i.e. regulation of action potential and GO:0019226 i.e. transmission of nerve impulse.
+The majority of the pathways characterizing late stage AD are related to the cell, to the nervous system and to the response of the organism
+to various stimuli, see Table 3 and 9. Among the pathways centered on the cell, mentioned in descending order based on the numerosity of
+the genes, there are: GO:0008283 i.e. cell proliferation, GO:0008283 i.e. negative regulation of cell proliferation, GO:0008284 i.e. positive
+regulation of cell proliferation, GO:0042127 i.e. regulation of cell proliferation, GO:0030334 i.e. regulation of cell migration. The pathways
+related to the nervous system are: GO:0007268 i.e. synaptic transmission, GO:0007610 i.e. behavior, GO:0050890 i.e. cognition. Other
+relevant nodes are those related to the transcription regulation (GO:0016564, GO:0045892), the visual perception (GO:0007601), and the
+heme and lipid binding (i.e. GO:0020037, GO:0008289).
+The genes characterizing the early stage AD are reported in Table 3 and 10. UBE2D3 is an ubiquitin, targeting abnormal or short-lived
+proteins for degradation. It is a member of the E2 ubiquitin-conjugating enzyme family. This enzyme functions in the ubiquitination of the
+tumor-suppressor protein p53. It is also involved in several signaling pathways (BMP, TGF-β, TNF-α/NF-kB and in the immune system),
+in the protein processing in the endoplasmatic reticulum. PTGDS is an enzyme that catalyzes the conversion of prostaglandin H2 (PGH2) to
+postaglandin D2 (PGD2). It functions as a neuromodulator as well as a trophic factor in the central nervous system and it is also involved
+in smooth muscle contraction/relaxation and is a potent inhibitor of platelet aggregation. This gene is preferentially expressed in brain.
+Quantifying the protein complex of PGD2 and TTR in CSF may be useful in the diagnosis of AD, possibly in the early stages of the disease
+(Lovell et al. (2008)). EGFR is a transmembrane glycoprotein that is a member of the protein kinase superfamily. This protein is a receptor
+for members of the epidermal growth factor family that binds to epidermal growth factor. Binding of the protein to a ligand induces receptor
+dimerization and tyrosine autophosphorylation and leads to cell proliferation. This gene is involved in several pathways related to signaling,
+some type of cancer, to the cell proliferation, migration and adhesion and to the axon guidance. It is expressed in pediatric brain tumors
+(Patereli et al. (2010)). NTRK2 is member of the neurotrophic tyrosine receptor kinase (NTRK) family. This kinase is a membrane-bound
+receptor that upon neurotrophin binding phosphorylates itself and members of the MAPK pathway. Signalling through this kinase leads to
+cell differentiation. Mutations in this gene have been associated with obesity and mood disorders. SNPs in this gene is associated with AD
+(Cozza et al. (2008)).
+The genes associated to late stage AD are listed in Table 3 and 11. Even if SNCA is a known hallmark for PD, it also known to be
+expressed in late-onset familial AD (Tsuang et al. (2006)). Other relevant genes are: SPEN, EIF2AK1, CAT, HBD, ATXN1, XK. The
+
+7
+
+Barla et al
+
+Table 3. AD: most important pathways ranked by normalized Ipsen-Mikhailov distance ˆ. The Entrez gene symbol ID is also provided for the selected
+probesets g1 , ..., gk in the corresponding pathway. In bold, common pathways between early and late stage AD.
+
+AD early
+
+AD late
+
+Pathway Code
+
+ˆ
+
+GO:0042598
+GO:0019787
+GO:0007417
+GO:0001508
+GO:0051246
+GO:0016874
+GO:0004842
+GO:0005768
+GO:0016567
+GO:0050877
+GO:0042552
+GO:0008015
+GO:0042391
+GO:0007399
+GO:0046982
+GO:0006633
+GO:0019226
+GO:0000267
+
+0.21
+0.16
+0.10
+0.14
+0.15
+0.12
+0.11
+0.08
+0.07
+0.06
+0.05
+0.04
+0.04
+0.04
+0.03
+0.02
+0.00
+0.00
+
+GO:0040012
+GO:0042598
+GO:0019226
+GO:0030334
+GO:0045892
+GO:0042493
+GO:0042127
+GO:0008283
+GO:0005215
+GO:0008217
+GO:0007601
+GO:0007268
+GO:0007610
+GO:0008289
+GO:0008015
+GO:0016564
+GO:0008284
+GO:0008285
+GO:0020037
+GO:0000267
+GO:0050890
+
+0.36
+0.23
+0.12
+0.10
+0.09
+0.06
+0.05
+0.04
+0.03
+0.03
+0.03
+0.03
+0.03
+0.03
+0.02
+0.02
+0.02
+0.02
+0.02
+0.00
+0.00
+
+Gene Symbol
+
+UBE2D3
+MPB
+UBE2D3
+UBE2D3
+UBE2D3
+EGFR
+UBE2D3
+
+NTRK2
+EGFR
+PTGDS
+
+SNCA
+
+SPEN
+SNCA
+CAT
+XK
+HBD
+
+SPEN, ATXN1
+EIF2AK1
+EIF2AK1, CAT, HBD
+
+first gene a hormone inducible transcriptional repressor. Repression of transcription by this gene product can occur through interactions
+with other repressors by the recruitment of proteins involved in histone deacetylation or through sequestration of transcriptional activators.
+SPEN is involved in the Notch signaling pathway that is important for cell-dell communication since it involves gene regulation mechanisms
+that control multiple cell differentiation processes (i.e. neuronal function and development, stabilization of arterial endothelial fate and
+angiogenesis, cardiac valve homeostasis) during embryonic and adult life. EIF2AK1 acts at the level of translation initiation to downregulate
+protein synthesis in response to stress, therefore it seems to have a protective role diminishing the overproduction of proteins such as
+SNCA or beta amyloid. CAT encodes for catalase a key antioxidant enzyme in the bodies defense against oxidative stress, therefore it act
+against the oxidative stress present in the brain of AD patients. This gene together with EIF2AK1 seems to fight against the disease. HBD
+like, HBB commented in subsection 4.2, could display the same role (Atamna and Boyle (2006)). ATXN1 i s involved in the autosomal
+dominant cerebellar ataxias (ADCA), an heterogeneous group of neurodegenerative disorders characterized by progressive degeneration of
+
+8
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+the cerebellum brain stem and spinal cord. Therefore, because of specific characteristics of these diseases (like the affected brain areas and the
+characteristics of the movement disorders), it might as well play a role in AD. Finally, mutations of XK have been associated with McLeod
+syndrome an X-linked recessive disorder characterized by abnormalities in the neuromuscular and hematopoietic systems.
+
+5
+
+CONCLUSION
+
+The theory of complex networks has recently proven to be a helpful tool for a systematic and structural knowledge of the cell mechanisms.
+Here we propose to enhance its capabilities by coupling it with a machine learning driven approach aimed at moving from a global to a
+local interaction scales, that is, focussing on pathways which are most likely to change, for instance within particular pathological stages.
+Such strategy is also better tailored to deal with situations where small sample size may affect the reliability of the network inference on a
+global scale. The method, demonstrated on three disease datasets of environmental pollution, PD and AD, was able to detect biologically
+meaningful differential pathways.
+
+9
+
+Barla et al
+
+6
+
+APPENDIX
+
+6.1
+
+Experimental setup for the examples
+
+The presented analysis pipeline is independent from the single algorithms chosen for each step of the workflow. Here we give some details
+about the methods used for the experiments described in Section 4.
+6.1.1 Spectral Regression Discriminant Analysis (SRDA). SRDA belongs to the Discriminant Analysis algorithms family (Cai et al.
+(2008)). Its peculiarity is to exploit the regression framework for improving the computational efficiency. Spectral graph analysis is used for
+solving only a set of regularized least squares problems avoiding the eigenvector computation. A score is assigned to each feature and can be
+interpreted as a feature weight, allowing directly feature ranking and selection. The regularization value α is the only parameter needed to be
+tuned. The method is implemented in Python and it is available within the mlpy library 1 .
+6.1.2 The `1 `2 feature selection framework (`1 `2F S ). `1 `2F S with double optimization is a feature selection method that can be tuned
+to give a minimal set of discriminative genes or larger sets including correlated genes (Zou and Hastie (2005); De Mol et al. (2009)). The
+objective function is a linear model f (x) = βx, whose sign gives the classification rule that can be used to associate a new sample to one of
+the two classes. The sparse weight vector β is found by minimizing the `1 `2 functional: ||Y −βX||22 +τ ||β||1 +µ||β||22 where the least square
+error is penalized with the `1 and `2 norm of the coefficient vector β. The training for selection and classification requires a careful choice
+of the regularization parameters for both `1 `2 and RLS. Indeed, model selection and statistical significance assessment is performed within
+two nested K-cross validation loops as in Fardin et al. (2009). The framework is implemented in Python and uses the L1L2Py library2 .
+6.1.3 Functional Characterization. The Gene Set Enrichment Analysis (GSEA) was performed by using WebGestalt, an online toolkit3 .
+This web-service takes as input a list of relevant genes/probesets and performs a GSEA analysis (Subramanian et al. (2005)) in Kyoto
+Encyclopedia of Genes and Genomes (KEGG, Kanehisa and Goto (2000)) and Gene Ontology (GO, Ashburner et al. (2000)), identifying the
+most relevant pathways and ontologies in the signatures. Both for KEGG and GO we selected the WebGestalt human genome as reference
+set, 0.05 as level of significance, 3 as the minimum number of genes and the default Hypergeometric test as statistical method.
+6.1.4 Weighted Gene Co-Expression Networks (WGCN). WGCN networks are based on the idea of using (a function of) the absolute
+correlation between the expression of a couple of genes across the samples to define a link between them. Soft thresholding techniques are
+then employed to obtain a binary adjacency matrix, where a suitable biologically motivated criterion (such as the scale-free topology, or some
+other prior knowledge) can be adopted (Zhang and Horvath (2005); Zhao et al. (2010)). Due to the very small sample size, scale-freeness
+can not be considered as a reliable criterion for threshold selection so we adopted a different heuristics: for both networks in the two classes
+the selected threshold is the one maximising the average Ipsen-Mikhailov distance on the selected pathways.
+6.1.5 Algorithm for the Reconstruction of Accurate Cellular Networks (ARACNE). ARACNE is a recent method for inferring
+networks from the transcription level (Margolin et al. (2006)) to the metabolic level (Nemenman et al. (2007)). Beside it was originally
+designed for handling the complexity of regulatory networks in mammalian cells, it is able to address a wider range of network deconvolution
+problems. This information-theoretic algorithm removes the vast majority of indirect candidate interactions inferred by co-expression
+methods by using the data processing inequality property (Cover and Thomas (1991)). In this work we use the MiNET (Mutual Information
+NETworks) Bioconductor package keeping the default value for the data processing inequality tolerance parameter (Meyer et al. (2008)).
+The adopted threshold criterion is the same as the one applied for WGCN.
+6.1.6 Ipsen-Mikhailov distance . Although already fruitfully used even in a biological context (Sharan and Ideker (2006)), the problem
+of quantitatively comparing network (e.g. using a metric instead of evaluating network properties) is a widely open issue affecting many
+scientific disciplines. As discussed in (Jurman et al. (2011)), many classical distances (such as those of the edit family) have a relevant
+drawback in being local, that is focussing only on the portions of the network interested by the differences in the presence/absence of matching
+links. More recently, other metrics can overcome this problem so to consider the global structure of the compared topologies; among such
+distances, the spectral ones - based on the list of eigenvalues of the laplacian matrix of the underlying graph - are quite interesting, and, in
+particular, the Ipsen-Mikhailov (Ipsen and Mikhailov (2002)) distance has been proven to be the most robust in a wide range of situations.
+The definition of the  metric follows the dynamical interpretation of a N -nodes network as a N -atoms molecules connected by identical
+elastic strings, where the pattern of connections is defined by the adjacency matrix of the corresponding network (Ipsen and Mikhailov
+(2002)). The vibrational frequencies ωi of the dynamical system are given by the eigenvalues of the Laplacian matrix of the network: λi =
+N
+−1
+X
+γ
+−ωi2 , with λ0 = ω0 = 0. The spectral density for a graph as the sum of Lorentz distributions is defined as ρ(ω) = K
+,
+(ω
+−
+ω
+k )2 + γ2
+i=1
+R∞
+where γ is the common width4 and K is the normalization constant solution of 0 ρ(ω)dω = 1. Then the spectral distance  between two
+qR
+∞
+graphs G and H with densities ρG (ω) and ρH (ω) can then be defined as
+[ρG (ω) − ρH (ω)]2 dω . To get a meaningful comparison
+0
+1
+2
+3
+4
+
+http://mlpy.fbk.eu/
+http://slipguru.disi.unige.it/Research/L1L2Py
+http://bioinfo.vanderbilt.edu/webgestalt/ (Zhang et al. (2005b))
+γ specifies the half-width at half-maximum (HWHM), equal to half the interquartile range.
+
+10
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+(G, H)
+, where En ,
+(Fn , En )
+Fn indicate respectively the empty and the fully connected network on n nodes: they are the two most -distant networks for each n. The
+common width γ is set to 0.08 as in the original reference: being a multiplicative factor, it has no impact on comparing different values of
+the Ipsen-Mikhailov distance. The network analysis phase is implemented in R through the igraph package.
+of the value of  on pairs of networks with different number of nodes, we define the normalized version ˆ(G, H) =
+
+6.2
+
+Experiments
+
+6.2.1 Air Pollution Experiment Table 4 lists the 11 enriched pathways identified during the analysis of the air pollution dataset and the
+total number of the genes belonging to each pathway. The list is ranked by the normalized Ipsen-Mikhailov distance ˆ (see Section 6.1.6):
+the top elements of the list are the most disrupted pathways between the two conditions. The pathways listed in Table 1 are a subset of those
+reported in Table 4.
+Most of these pathways concern the developmental processes: this GO class contains ontologies especially related to the development of
+skeletal and nervous systems (GO:0001501 and GO:0007399) that undergo a rapid and constant growth in children. Other enriched terms are
+related to the capacity of an organism to defend itself (i.e response to wounding, GO:0009611 and inflammatory response, GO:0006954), to
+the regulation of the cell death (i.e. negative regulation of apoptosis, GO:0043066), the multicellular organismal process, GO:0032501, the
+glycerlolipid metabolic process, GO:0046486, the response to external stimuli (i.e. inflammatory response, response to wounding) and to the
+locomotion (i.e. GO:0040011, GO:0007626).
+Table 4. Air Pollution Experiment: pathways corresponding to mostly discriminant genes g1 , ..., gk ranked by the normalized Ipsen-Mikhailov distance ˆ.
+The number of genes belonging to the pathway is also provided.
+
+Pathway
+
+ˆ
+
+# Genes
+
+GO:0043066
+GO:0001501
+GO:0009611
+GO:0007399
+GO:0016787
+GO:0005516
+GO:0007275
+GO:0006954
+GO:0005615
+GO:0007626
+GO:0006066
+
+0.257
+0.149
+0.123
+0.093
+0.078
+0.076
+0.076
+0.048
+0.038
+0.000
+0.000
+
+21
+89
+16
+252
+718
+116
+453
+180
+417
+5
+8
+
+Table 5 provides the subset of Agilent probesets (together with their corresponding Gene Symbol and GO pathway) belonging to the
+signature g1 , ..., gk and having a non zero value of the differential node degree ∆d. Since the ∆d score is computed as the difference
+between the weighted degree in the two classes, the top elements in Table 5 are those whose number of interactions varies most between the
+two conditions.
+
+11
+
+Barla et al
+
+Table 5. Air Pollution Experiment: list of Agilent probesets in the signature with their corresponding Entrez Gene Symbol ID and GO pathway. The list is
+ranked according to the decreasing absolute value of the differential node degree ∆d.
+
+Agilent ID
+4701
+12235
+8944
+3697
+4701
+12537
+13835
+11673
+16424
+13094
+8944
+14787
+15797
+15797
+11302
+15797
+
+12
+
+Gene Symbol
+
+Pathway
+
+∆d
+
+NRGN
+DUSP15
+CLC
+ITGB5
+NRGN
+PROK2
+OLIG1
+HOXB8
+FKHL18
+DHX32
+CLC
+MATN3
+CXCL1
+CXCL1
+MYH1
+CXCL1
+
+GO:0007399
+GO:0016787
+GO:0016787
+GO:0007275
+GO:0005516
+GO:0006954
+GO:0007275
+GO:0007275
+GO:0007275
+GO:0016787
+GO:0007275
+GO:0001501
+GO:0006954
+GO:0005615
+GO:0005516
+GO:0007399
+
+-2.477
+-1.586
+-1.453
+-1.390
+-1.357
+1.069
+0.834
+-0.750
+-0.685
+-0.575
+0.561
+0.495
+0.467
+0.338
+-0.194
+0.131
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+6.2.2 Parkinson’s Disease Experiment Table 6 reports the list of the pathways selected by the presented approach both for the early and
+late PD case, ranked by the normalized distance ˆ. Some of these pathways are also reported in Table 2.
+
+Table 6. PD Experiment: selected pathways for early (left) and late (right) stage corresponding to mostly discriminant genes g1 , ..., gk ranked by the
+normalized Ipsen-Mikhailov distance ˆ. The number of genes belonging to the pathway is also provided. In bold, the common pathways.
+
+Pathway
+
+PD early
+ˆ
+
+GO:0012501
+GO:0005764
+GO:0019901
+GO:0005506
+GO:0008219
+GO:0016323
+GO:0006952
+GO:0046983
+GO:0045087
+GO:0046914
+GO:0016265
+GO:0042802
+GO:0042803
+GO:0050896
+GO:0006955
+GO:0006915
+GO:0042981
+GO:0030218
+GO:0006950
+GO:0020037
+GO:0005938
+GO:0005856
+GO:0016567
+GO:0003779
+GO:0042592
+GO:0051607
+GO:0016564
+GO:0005200
+GO:0030097
+GO:0009615
+GO:0008092
+GO:0030099
+GO:0019900
+GO:0034101
+GO:0051707
+
+0.49
+0.39
+0.38
+0.38
+0.38
+0.37
+0.37
+0.36
+0.36
+0.35
+0.33
+0.33
+0.32
+0.31
+0.31
+0.31
+0.30
+0.29
+0.28
+0.26
+0.26
+0.24
+0.23
+0.23
+0.22
+0.21
+0.18
+0.16
+0.15
+0.14
+0.12
+0.07
+0.04
+0.00
+0.00
+
+PD late
+ˆ
+
+# Genes
+
+Pathway
+
+4
+257
+116
+434
+110
+111
+160
+153
+112
+51
+6
+473
+411
+213
+778
+687
+206
+33
+253
+176
+50
+816
+103
+431
+9
+26
+229
+127
+76
+111
+77
+19
+32
+8
+5
+
+GO:0019226
+GO:0010033
+GO:0007611
+GO:0030234
+GO:0042493
+GO:0032403
+GO:0019717
+GO:0009725
+GO:0030424
+GO:0005096
+GO:0007267
+GO:0050790
+GO:0019001
+GO:0017111
+GO:0007585
+GO:0005516
+GO:0005626
+GO:0045202
+GO:0007610
+GO:0005624
+GO:0043087
+GO:0003779
+GO:0008047
+GO:0042995
+GO:0006928
+GO:0003924
+GO:0007568
+GO:0043234
+GO:0007268
+GO:0030030
+GO:0005525
+GO:0006412
+GO:0043005
+GO:0006836
+GO:0043025
+GO:0042221
+GO:0009266
+GO:0014070
+GO:0046578
+GO:0050804
+GO:0017076
+
+0.31
+0.20
+0.16
+0.15
+0.15
+0.12
+0.12
+0.11
+0.10
+0.09
+0.09
+0.09
+0.09
+0.09
+0.09
+0.09
+0.09
+0.08
+0.08
+0.08
+0.08
+0.08
+0.07
+0.07
+0.07
+0.07
+0.06
+0.06
+0.06
+0.05
+0.05
+0.05
+0.05
+0.05
+0.04
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+
+# Genes
+20
+30
+34
+20
+109
+14
+79
+27
+93
+252
+264
+15
+34
+157
+47
+215
+41
+278
+40
+616
+22
+423
+60
+231
+166
+294
+35
+233
+201
+27
+450
+466
+51
+42
+82
+16
+6
+13
+8
+11
+7
+
+The only common pathway between early and late stage PD is actin binding (GO:0003779), as commented in Section 4.2. The specific
+ones for the early stage PD concern the immune system (i.e. GO:0045087, GO:0006955), the response to stimulus (i.e. stress or other
+organism like virus, GO:0006950, GO:0009615), the regulation of metabolic processes, the biological quality and cell death. The specific
+
+13
+
+Barla et al
+
+pathways for late stage are related to the nervous system (e.g. neurotransmitter transport, transmission of nerve impulse, learning or memory,
+GO:0006836, GO:0019226) and to response to stimuli (e.g. behavior, temperature, organic substances, drugs or endogenous stimuli).
+Figure 5 visualizes the enriched pathways in the Molecular Function and Biological Process domains. Despite only one pathway was found
+as common between early and late AD, it is easy to note that the majority of selected pathways belong to common GO classes.
+
+(a) MF
+
+(b) BP
+
+Fig. 5. GO subgraphs for Parkinson’s early and late stage (Molecular Function and Biological Processes domains). Selected nodes are represented in light
+gray, gray and dark gray for late, early and common nodes.
+
+Tables 7 and 8 list respectively the subset of elements of the early PD signature and late PD signature having non zero differential node
+degree ∆d. We recall here that the top elements in the two tables are those whose number of interactions varies most between the two
+case/control conditions.
+In Table 7, we note that the most disrupted genes for early PD (IFI44L, HSPB1, MAFF, DEFA1/DEFA3, OXR1) belong to pathways
+related to response to stress and to virus. Moreover, several genes (HLA-DQB1, HBB, HBA1/HBA2, DEFA1/DEFA3) are related to the
+following pathways: heme binding, iron ion binding and immune response.
+In Table 8 the majority of disrupted genes for late PD (RGS4, CDC42, RABGAPIL) occur in pathways that are related to GTP, a purine
+nucleotide that can function either as source of energy for protein synthesis and in the signal transduction particularly with G-proteins. Other
+genes in the list (MYH10, RGS4, PHACTR1, SYT1, VCL) are related to the acting and calmodulin binding, to the synaptic transmission,
+the neurotransmitter transport, the cell-cell signaling, the translation and the cellular component movement. The majority of the disrupted
+pathways are located in several components of the neurons.
+
+14
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+Table 7. PD Experiment (early): list of Affymetrix probesets in the early stage signature with their corresponding Entrez Gene Symbol ID and GO pathway.
+The list is ranked according to the decreasing absolute value of the differential node degree ∆d.
+
+Affy Probeset ID
+200931 s at
+200931 s at
+213067 at
+202887 s at
+201841 s at
+204439 at
+201841 s at
+209480 at
+209116 x at
+203998 s at
+36711 at
+209116 x at
+36711 at
+214414 x at
+205033 s at
+217232 x at
+205033 s at
+213067 at
+214414 x at
+201841 s at
+217232 x at
+218197 s at
+205033 s at
+
+Gene Symbol
+
+Pathway
+
+∆d
+
+VCL
+VCL
+MYH10
+DDIT4
+HSPB1
+IFI44L
+HSPB1
+HLA-DQB1
+HBB
+SYT1
+MAFF
+HBB
+MAFF
+HBA1/HBA2
+DEFA1/DEFA3
+HBB
+DEFA1/DEFA3
+MYH10
+HBA1/HBA2
+HSPB1
+HBB
+OXR1
+DEFA1/DEFA3
+
+GO:0005856
+GO:0003779
+GO:0003779
+GO:0006915
+GO:0042802
+GO:0006955
+GO:0005856
+GO:0006955
+GO:0005506
+GO:0042802
+GO:0006950
+GO:0020037
+GO:0046983
+GO:0020037
+GO:0009615
+GO:0005506
+GO:0006955
+GO:0005938
+GO:0005506
+GO:0006950
+GO:0020037
+GO:0006950
+GO:0006952
+
+-2.124
+-2.107
+1.879
+-1.872
+-1.691
+-1.585
+-1.532
+-1.340
+-1.008
+0.862
+-0.807
+-0.599
+0.567
+-0.376
+-0.360
+-0.239
+-0.228
+0.183
+-0.182
+-0.154
+-0.088
+-0.059
+0.027
+
+15
+
+Barla et al
+
+Table 8. PD Experiment (late): list of Affymetrix probesets in the late stage signature with their corresponding Entrez Gene Symbol and GO pathway. The
+list is ranked according to the decreasing absolute value of the differential node degree ∆d.
+
+Affy Probeset ID
+213638
+213067
+213067
+204337
+213067
+213067
+214230
+213638
+213067
+205857
+206552
+206552
+205110
+203998
+208319
+201909
+200931
+204337
+205105
+205857
+201841
+214230
+214230
+203998
+203998
+200931
+200931
+206836
+215342
+211727
+203998
+
+16
+
+at
+at
+at
+at
+at
+at
+at
+at
+at
+at
+s at
+s at
+s at
+s at
+s at
+at
+s at
+at
+at
+at
+s at
+at
+at
+s at
+s at
+s at
+s at
+at
+s at
+s at
+s at
+
+Entrez Gene Symbol
+
+Pathway
+
+∆d
+
+PHACTR1
+MYH10
+MYH10
+RGS4
+MYH10
+MYH10
+CDC42
+PHACTR1
+MYH10
+SLC18A2
+TAC1
+TAC1
+FGF13
+SYT1
+RBM3
+RPS4Y
+VCL
+RGS4
+MAN2A1
+SLC18A2
+HSPB1
+CDC42
+CDC42
+SYT1
+SYT1
+VCL
+VCL
+SLC6A3
+RABGAP1L
+COX11
+SYT1
+
+GO:0045202
+GO:0003779
+GO:0005516
+GO:0005096
+GO:0043025
+GO:0043005
+GO:0003924
+GO:0003779
+GO:0030424
+GO:0006836
+GO:0007268
+GO:0007267
+GO:0007267
+GO:0005516
+GO:0006412
+GO:0006412
+GO:0043234
+GO:0005516
+GO:0007585
+GO:0005624
+GO:0006928
+GO:0042995
+GO:0005525
+GO:0043005
+GO:0045202
+GO:0003779
+GO:0006928
+GO:0006836
+GO:0005096
+GO:0007585
+GO:0007268
+
+-3.255
+-3.252
+-2.597
+-2.194
+-2.107
+-1.696
+1.677
+-1.587
+-1.170
+-1.094
+-0.834
+0.809
+-0.804
+-0.787
+-0.759
+-0.688
+-0.655
+-0.602
+-0.502
+-0.428
+0.424
+-0.379
+0.370
+-0.357
+-0.339
+-0.311
+-0.308
+-0.238
+-0.211
+0.188
+-0.159
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+6.2.3 Alzheimer’s Disease Experiment Table 9 reports the most discriminant pathways for the two AD stages as selected by the
+presented pipeline, ranked by decreasing normalized ˆ distance. Table 3 summarizes the main results here detailed in Table 9, 10 and
+11. The common pathways are: GO:0019226 i.e. transmission of nerve impulse, GO:0008015 i.e. blood circulation, GO:0000267 i.e. cell
+fraction and GO:0042598 i.e. vesicular fraction. The relevance of blood circulatory system in AD has already been highlighted in Brown
+and Thore (2011) and references therein.
+Figure 6 visualizes the enriched pathways in the Molecular Function and Biological Process domains. Despite only 4 pathways were found
+as common between early and late AD, it is easy to note that the majority of selected pathways belong to common GO classes.
+
+(a) MF
+
+(b) BP
+
+Fig. 6. GO subgraphs for Alzheimer’s early and late stage (Molecular Function and Biological Processes domains). Selected nodes are represented in light
+gray, gray and dark gray for late, early and common nodes.
+
+Tables 10 and 11 provide details of the network analysis results on early and late stage AD, respectively. The elements of the two signatures
+having non zero ∆d are listed for decreasing absolute value of the differential node degree score, thus giving top positions to genes that change
+most the interaction network between the case/control condition.
+Table 10 reports the most disrupted probesets within the early stage AD, ranked according to the differential node degree ∆d. We note that
+the most disrupted gene is HBB, within regulation of blood vessel size and regulation of blood vessels.
+Table 11 reports the most disrupted genes within the late stage AD, ranked according to the differential node degree ∆d. The majority
+of such genes (SPEN, SNCA, EIF2AK1, ELF1, CAT, ATXN1, HBD) belong to regulation of locomotion, transcription repressor activity,
+response to drug and heme binding.
+
+17
+
+Barla et al
+
+Table 9. AD Experiment: selected pathways for early (left) and late (right) stage corresponding to mostly discriminant genes g1 , ..., gk ranked by the
+normalized Ipsen-Mikhailov distance ˆ. The number of genes belonging to the pathway is also provided. In bold, the common pathways.
+
+AD early
+Pathway
+ˆ
+GO:0048514
+GO:0042598
+GO:0016881
+GO:0019787
+GO:0019725
+GO:0051246
+GO:0001508
+GO:0006631
+GO:0030234
+GO:0016874
+GO:0004842
+GO:0007417
+GO:0012505
+GO:0050880
+GO:0048471
+GO:0005792
+GO:0005768
+GO:0004857
+GO:0031982
+GO:0016567
+GO:0008217
+GO:0001666
+GO:0030141
+GO:0050877
+GO:0042552
+GO:0001568
+GO:0048511
+GO:0016023
+GO:0007399
+GO:0008015
+GO:0042391
+GO:0031410
+GO:0046982
+GO:0006633
+GO:0045121
+GO:0004866
+GO:0008366
+GO:0019228
+GO:0006873
+GO:0042592
+GO:0001974
+GO:0019226
+GO:0001944
+GO:0048771
+GO:0048856
+GO:0019838
+GO:0017076
+GO:0030414
+GO:0001882
+GO:0000267
+GO:0031090
+
+18
+
+0.22
+0.21
+0.19
+0.16
+0.16
+0.15
+0.14
+0.14
+0.13
+0.12
+0.11
+0.10
+0.10
+0.09
+0.08
+0.08
+0.08
+0.08
+0.07
+0.07
+0.07
+0.07
+0.06
+0.06
+0.05
+0.05
+0.04
+0.04
+0.04
+0.04
+0.04
+0.03
+0.03
+0.02
+0.02
+0.02
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+0.00
+
+AD late
+ˆ
+
+# Genes
+
+Pathway
+
+22
+16
+109
+116
+14
+121
+31
+171
+29
+735
+368
+199
+216
+26
+263
+409
+490
+57
+34
+206
+105
+225
+69
+31
+36
+79
+49
+108
+806
+103
+67
+482
+364
+109
+136
+194
+22
+19
+10
+25
+28
+27
+4
+12
+20
+85
+11
+42
+8
+4
+6
+
+GO:0040012
+GO:0042598
+GO:0019226
+GO:0030334
+GO:0045892
+GO:0009968
+GO:0042493
+GO:0050877
+GO:0042127
+GO:0009725
+GO:0042277
+GO:0015630
+GO:0008283
+GO:0005819
+GO:0008217
+GO:0005626
+GO:0000165
+GO:0005215
+GO:0007268
+GO:0007601
+GO:0008289
+GO:0007610
+GO:0008284
+GO:0001503
+GO:0007243
+GO:0008285
+GO:0008015
+GO:0016564
+GO:0020037
+GO:0051270
+GO:0010033
+GO:0050890
+GO:0050953
+GO:0000267
+
+0.36
+0.23
+0.12
+0.10
+0.09
+0.06
+0.06
+0.06
+0.05
+0.05
+0.05
+0.05
+0.04
+0.04
+0.03
+0.03
+0.03
+0.03
+0.03
+0.03
+0.03
+0.03
+0.02
+0.02
+0.02
+0.02
+0.02
+0.02
+0.02
+0.00
+0.00
+0.00
+0.00
+0.00
+
+# Genes
+9
+16
+27
+93
+218
+107
+160
+31
+140
+47
+63
+99
+785
+142
+106
+68
+94
+685
+377
+402
+285
+84
+507
+171
+220
+578
+103
+380
+265
+9
+44
+31
+24
+5
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+Table 10. AD Experiment (early): list of Affymetrix probesets in the early stage signature with their corresponding Entrez Gene Symbol and GO pathway.
+The list is ranked according to the decreasing absolute value of the differential node degree ∆d.
+
+Affy Probeset ID
+
+Gene Symbol
+
+209116
+209116
+211748
+240383
+240383
+201061
+240383
+201983
+221795
+212226
+201983
+211696
+209072
+211696
+212187
+201185
+240383
+209072
+240383
+
+HBB
+HBB
+PTGDS
+UBE2D3
+UBE2D3
+STOM
+UBE2D3
+EGFR
+NTRK2
+PPAP2B
+EGFR
+HBB
+MBP
+HBB
+PTGDS
+HTRA1
+UBE2D3
+MBP
+UBE2D3
+
+x at
+x at
+x at
+at
+at
+s at
+at
+s at
+at
+s at
+s at
+x at
+at
+x at
+x at
+at
+at
+at
+at
+
+Pathway
+
+∆d
+
+GO:0050880
+GO:0008217
+GO:0006633
+GO:0016874
+GO:0019787
+GO:0045121
+GO:0051246
+GO:0046982
+GO:0007399
+GO:0001568
+GO:0005768
+GO:0050880
+GO:0008366
+GO:0008217
+GO:0006633
+GO:0019838
+GO:0004842
+GO:0007417
+GO:0016567
+
+1.670
+1.445
+1.273
+-1.165
+-0.703
+-0.662
+-0.613
+-0.476
+-0.262
+0.259
+-0.256
+-0.224
+0.166
+-0.149
+-0.139
+0.124
+0.120
+0.113
+-0.047
+
+Table 11. AD Experiment (late): list of Affymetrix probesets in the late stage signature with their corresponding Entrez Gene Symbol and GO pathway. The
+list is ranked according to the decreasing absolute value of the differential node degree ∆d.
+
+Affy Probeset ID
+
+Gene Symbol
+
+201996
+211546
+211546
+201996
+217736
+201005
+210943
+204466
+207827
+206698
+209184
+212420
+207827
+205592
+211922
+211922
+203231
+217736
+204466
+206834
+206834
+
+SPEN
+SNCA
+SNCA
+SPEN
+EIF2AK1
+CD9
+LYST
+SNCA
+SNCA
+XK
+IRS2
+ELF1
+SNCA
+SLCA4A1
+CAT
+CAT
+ATXN1
+EIF2AK1
+SNCA
+HBD
+HBD
+
+s at
+x at
+x at
+s at
+s at
+at
+s at
+s at
+x at
+at
+s at
+at
+x at
+at
+s at
+s at
+s at
+s at
+s at
+at
+at
+
+Pathway
+
+∆d
+
+GO:0016564
+GO:0040012
+GO:0042493
+GO:0045892
+GO:0020037
+GO:0008285
+GO:0015630
+GO:0042493
+GO:0040012
+GO:0005215
+GO:0008283
+GO:0016564
+GO:0042493
+GO:0005215
+GO:0008283
+GO:0020037
+GO:0016564
+GO:0008285
+GO:0040012
+GO:0008217
+GO:0020037
+
+1.590
+1.410
+1.310
+1.246
+-1.066
+0.725
+0.706
+0.461
+0.434
+0.433
+0.208
+-0.203
+0.201
+0.180
+0.173
+-0.094
+-0.073
+-0.072
+0.048
+0.045
+0.019
+
+19
+
+Barla et al
+
+REFERENCES
+Andrianov, G. N., Nozdrachev, A. D., and Ryzhova, I. V. (2007). The role of defensins in the excitability of the peripheral vestibular system in the frog: evidence for the presence of
+communication between the immune and nervous systems. Hear Res, 230(1-2), 1–8.
+Ashburner, M., Ball, C. A., Blake, J. A., Botstein, D., Butler, H., Cherry, J. M., Davis, A. P., K., D., Dwight, S. S., Eppig, J. T., Harris, M. A., Hill, D. P., Issel-Tarver, L., Kasarskis,
+A., Lewis, S., Matese, J. C., Richardson, J. E., Ringwald, M., Rubin, G. M., and Sherlock, G. (2000). Gene ontology: tool for the unification of biology. the gene ontology
+consortium. Nature Genetics, 25(1), 25–9.
+Atamna, H. and Boyle, K. (2006). Amyloid-beta peptide binds with heme to form a peroxidase: relationship to the cytopathologies of Alzheimer’s disease. PNAS, 103(9), 3381–6.
+Barabasi, A. L., Gulbahce, N., and Loscalzo, J. (2011). Network medicine: a network-based approach to human disease. Nature Review Genetics, 12, 56–68.
+Baralla, A., Mentzen, W., and de la Fuente, A. (2009). Inferring Gene Networks: Dream or Nightmare? Ann. N.Y. Acad. Sci., 1158, 246–256.
+Boccaletti, S., Latora, V., Moreno, Y., Chavez, M., and Hwang, D.-U. (2006). Complex networks: Structure and dynamics. Physics Reports, 424(4–5), 175–308.
+Brown, W. R. and Thore, C. R. (2011). Review: cerebral microvascular pathology in ageing and neurodegeneration. Neuropathol Appl Neurobiol, 37(1), 56–74.
+Buchanan, M., Caldarelli, G., De Los Rios, P., Rao, F., and Vendruscolo, M., editors (2010). Networks in Cell Biology. Cambridge University Press.
+Cai, D., He, X., and Han, J. (2008). Srda: An efficient algorithm for large-scale discriminant analysis. IEEE Transactions on Knowledge and Data Engineering, 20, 1–12.
+Cover, T. and Thomas, J. (1991). Elements of Information Theory. Wiley.
+Cozza, A., Melissari, E., Iacopetti, P., Mariotti, V., Tedde, A., Nacmias, B., Conte, A., Sorbi, S., and Pellegrini, S. (2008). Snps in neurotrophin system genes and alzheimer’s disease
+in an italian population. J Alzheimers Dis, 15(1), 61–70.
+De Mol, C., Mosci, S., Traskine, M., and Verri, A. (2009). A regularized method for selecting nested groups of relevant genes from microarray data. Journal of Computational
+Biology, 16, 1–15.
+De Smet, R. and Marchal, K. (2010). Advantages and limitations of current network inference methods. Nature Review Microbiology, 8, 717–729.
+Fardin, P., Barla, A., Mosci, S., Rosasco, L., Verri, A., and Varesio, L. (2009). The l1-l2 regularization framework unmasks the hypoxia signature hidden in the transcriptome of a
+set of heterogeneous neuroblastoma cell lines. BMC Genomics.
+Friedman, M. J., Li, S., and Li, X.-J. (2009). Activation of gene transcription by heat shock protein 27 may contribute to its neuronal protection. J Biol Chem, 284(41), 27944–51.
+Grupe, A., Li, Y., Rowland, C., Nowotny, P., Hinrichs, A. L., Smemo, S., Kauwe, J. S. K., Maxwell, T. J., Cherny, S., Doil, L., Tacey, K., van Luchene, R., Myers, A., Vrièze,
+F. W.-D., Kaleem, M., Hollingworth, P., Jehu, L., Foy, C., Archer, N., Hamilton, G., Holmans, P., Morris, C. M., Catanese, J., Sninsky, J., White, T. J., Powell, J., Hardy, J.,
+O’Donovan, M., Lovestone, S., Jones, L., Morris, J. C., Thal, L., Owen, M., Williams, J., and Goate, A. (2006). A scan of chromosome 10 identifies a novel locus showing strong
+association with late-onset alzheimer disease. Am J Hum Genet, 78(1), 78–88.
+He, F., Balling, R., and Zeng, A.-P. (2009). Reverse engineering and verification of gene networks: Principles, assumptions, and limitations of present methods and future
+perspectives. J. Biotechnol., 144(3), 190–203.
+Ipsen, M. and Mikhailov, A. (2002). Evolutionary reconstruction of networks. Phys. Rev. E, 66(4), 046109.
+Jurman, G., Visintainer, R., and Furlanello, C. (2011). An introduction to spectral distances in networks. In Proc. WIRN 2010, pages 227–234.
+Kanehisa, M. and Goto, S. (2000). KEGG: Kyoto Encyclopedia of Genes and Genomes. Nucleic Acids Res, 28(1), 27–30.
+Kim, K.-Y., Kovács, M., Kawamoto, S., Sellers, J. R., and Adelstein, R. S. (2005). Disease-associated mutations and alternative splicing alter the enzymatic and motile activity of
+nonmuscle myosins ii-b and ii-c. J Biol Chem, 280(24), 22769–75.
+Kurian, M. A., Zhen, J., Cheng, S.-Y., Li, Y., Mordekar, S. R., Jardine, P., Morgan, N. V., Meyer, E., Tee, L., Pasha, S., Wassmer, E., Heales, S. J. R., Gissen, P., Reith, M. E. A., and
+Maher, E. R. (2009). Homozygous loss-of-function mutations in the gene encoding the dopamine transporter are associated with infantile parkinsonism-dystonia. J Clin Invest,
+119(6), 1595–603.
+Liang, W., Reiman, E., Valla, J., Dunckley, T., Beach, T., Grover, A., Niedzielko, T., Schneider, L., Mastroeni, D., Caselli, R., Kukull, W., Morris, J., Hulette, C., Schmechel, D.,
+Rogers, J., and Stephan, D. (2008). Alzheimer’s disease is associated with reduced expression of energy metabolism genes in posterior cingulate neurons. PNAS, 105, 4441–4446.
+Liang, W., Dunckley, T., Beach, T., Grover, A., Mastroeni, D., Ramsey, K., Caselli, R., Kukull, W., Mckeel, D., Morris, J., Hulette, C., Schmechel, D., Reiman, E., Rogers, J., and
+Stephan, D. (2010). Neuronal gene expression in non-demented individuals with intermediate alzheimer’s disease neuropathology. Neurobiol Aging, 31, 1–16.
+Lovell, M. A., Lynn, B. C., Xiong, S., Quinn, J. F., Kaye, J., and Markesbery, W. R. (2008). An aberrant protein complex in csf as a biomarker of alzheimer disease. Neurology,
+70(23), 2212–8.
+Marbach, D., Prill, R., Schaffter, T., Mattiussi, C., Floreano, D., and Stolovitzky, G. (2010). Revealing strenghts and weaknesses of methods for gene network inference. PNAS,
+107(14), 6286–6291.
+Margolin, A., Nemenman, I., Basso, K., Wiggins, C., Stolovitzky, G., Dalla-Favera, R., and Califano, A. (2006). Aracne: an algorithm for the reconstruction of gene regulatory
+networks in a mammalian cellular context. BMC Bioinform., 7(7).
+Meyer, P., Lafitte, F., and Bontempi, G. (2008). minet: A R/Bioconductor Package for Inferring Large Transcriptional Networks Using Mutual Information. BMC Bioinform., 9(1),
+461.
+Nemenman, I., Escola, G., Hlavacek, W., Unkefer, P., Unkefer, C., and Wall, M. (2007). Reconstruction of Metabolic Networks from High-Throughput Metabolite Profiling Data.
+Ann. N.Y. Acad. Sci., 1115, 102–115.
+Newman, M. (2003). The Structure and Function of Complex Networks. SIAM Review, 45, 167–256.
+Newman, M. (2010). Networks: An Introduction. Oxford University Press.
+Patereli, A., Alexiou, G. A., Stefanaki, K., Moschovi, M., Doussis-Anagnostopoulou, I., Prodromou, N., and Karentzou, O. (2010). Expression of epidermal growth factor receptor
+and her-2 in pediatric embryonal brain tumors. Pediatr Neurosurg, 46(3), 188–92.
+Scherzer, C., Eklund, A., Morse, L., and al. (2007). Molecular markers of early Parkinson’s disease based on gene expression in blood. PNAS.
+Sharan, R. and Ideker, T. (2006). Modeling cellular machinery through biological network comparison. Nature Biotechnology, 24(4), 427–433.
+Shi, M., Bradner, J., Hancock, A. M., Chung, K. A., Quinn, J. F., Peskind, E. R., Galasko, D., Jankovic, J., Zabetian, C. P., Kim, H. M., Leverenz, J. B., Montine, T. J., Ginghina, C.,
+Kang, U. J., Cain, K. C., Wang, Y., Aasly, J., Goldstein, D., and Zhang, J. (2011). Cerebrospinal fluid biomarkers for parkinson disease diagnosis and progression. Ann Neurol,
+69(3), 570–80.
+Strogatz, S. (2001). Exploring complex networks. Nature, 410, 268–276.
+Subramanian, A., Tamayo, P., Mootha, V. K., Mukherjee, S., Ebert, B. L., Gillette, M. A., Paulovich, A., Pomeroy, S. L., Golub, T. R., Lander, E. S., and Mesirov, J. P. (2005). Gene
+set enrichment analysis: A knowledge-based approach for interpreting genome-wide expression profiles. PNAS, 102(43), 15545–15550.
+The MicroArray Quality Control Consortium, . (2010). The MAQC-II Project: A comprehensive study of common practices for the development and validation of microarray-based
+predictive models. Nature biotechnology, 28(8), 827–838.
+Tsuang, D. W., Riekse, R. G., Purganan, K. M., David, A. C., Montine, T. J., Schellenberg, G. D., Steinbart, E. J., Petrie, E. C., Bird, T. D., and Leverenz, J. B. (2006). Lewy body
+pathology in late-onset familial alzheimer’s disease: a clinicopathological case series. J Alzheimers Dis, 9(3), 235–42.
+van Leeuwen, D., van Herwijnen, M., Pedersen, M., Knudsen, L., Kirsch-Volders, M., Sram, R., Staal, Y., Bajak, E., van Delft, J., and Kleinjans, J. (2006). Genome-wide differential
+gene expression in children exposed to air pollution in the czech republic. Mutation Research/Fundamental and Molecular Mechanisms of Mutagenesis, 600(1–2), 12–22.
+van Leeuwen, D., Pedersen, M., Hendriksen, P., Boorsma, A., van Herwijnen, M., Gottschalk, R., Kirsch-Volders, M., Knudsen, L., Sram, R., Bajak, E., van Delft, J., and Kleinjans,
+J. (2008). Genomic analysis suggests higher susceptibility of children to air pollution. Carcinogenesis, 29(5).
+
+20
+
+Machine Learning Pipeline for Discriminant Pathways Identification
+
+Zhang, B. and Horvath, S. (2005). A General Framework for Weighted Gene Co-Expression Network Analysis. Statistical Applications in Genetics and Molecular Biology, 4(1),
+Article 17.
+Zhang, B., Kirov, S., and Snoddy, J. (2005a). WebGestalt: an integrated system for exploring gene sets in various biological contexts. Nuc. Acid. Res., 33.
+Zhang, B., Kirov, S., and Snoddy, J. (2005b). Webgestalt: an integrated system for exploring gene sets in various biological contexts. Nucleic Acids Res, 33.
+Zhang, Y., James, M., Middleton, F., and Davis, R. (2005c). Transcriptional analysis of multiple brain regions in Parkinson’s disease supports the involvement of specific protein
+processing, energy metabolism and signaling pathways and suggests novel disease mechanisms. American Journal of Medical Genetics Part B Neuropsychiatric Genetics, 137B,
+5–16.
+Zhao, W., Langfelder, P., Fuller, T., Dong, J., Li, A., and Horvath, S. (2010). Weighted gene coexpression network analysis: state of the art. Journal of Biopharmaceutical Statistics,
+20(2), 281–300.
+Zou, H. and Hastie, T. (2005). Regularization and variable selection via the elastic net. Journal of the Royal Statistical Society, Series B.
+
+21
+
+

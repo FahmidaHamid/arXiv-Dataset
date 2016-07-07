@@ -1,0 +1,679 @@
+Spectral gene set enrichment (SGSE)
+H. Robert Frost ∗†‡, Zhigang Li∗† and Jason H. Moore ∗†‡
+
+arXiv:1405.3241v1 [q-bio.QM] 13 May 2014
+
+May 14, 2014
+
+Abstract
+Motivation: Gene set testing is typically performed in a supervised context to quantify the
+association between groups of genes and a clinical phenotype. In many cases, however, a gene
+set-based interpretation of genomic data is desired in the absence of a phenotype variable.
+Although methods exist for unsupervised gene set testing, they predominantly compute enrichment relative to clusters of the genomic variables with performance strongly dependent on the
+clustering algorithm and number of clusters. Results: We propose a novel method, spectral
+gene set enrichment (SGSE), for unsupervised competitive testing of the association between
+gene sets and empirical data sources. SGSE first computes the statistical association between
+gene sets and principal components (PCs) using our principal component gene set enrichment
+(PCGSE) method. The overall statistical association between each gene set and the spectral
+structure of the data is then computed by combining the PC-level p-values using the weighted
+Z-method with weights set to the PC variance scaled by Tracey-Widom test p-values. Using
+simulated data, we show that the SGSE algorithm can accurately recover spectral features from
+noisy data. To illustrate the utility of our method on real data, we demonstrate the superior
+performance of the SGSE method relative to standard cluster-based techniques for testing the
+association between MSigDB gene sets and the variance structure of microarray gene expression data. Availability: http://cran.r-project.org/web/packages/PCGSE/index.html Contact: rob.frost@dartmouth.edu or jason.h.moore@dartmouth.edu
+
+1
+
+Introduction
+
+Gene set testing has become an indispensable tool for the analysis and interpretation of high
+dimensional genomic data, including measures of DNA sequence variation, DNA methylation, RNA
+expression and protein abundance (Khatri et al., 2012; Hung et al., 2012). By focusing on the
+collective effect of biologically meaningful groups of genomic variables, rather than just the marginal
+effect of individual variables, gene set testing methods can significantly improve statistical power,
+replication of results and biological interpretation. Because of these benefits, significant effort has
+been devoted over the last decade to building large repositories of functional gene sets (Ashburner
+et al., 2000; Kanehisa and Goto, 2000; Liberzon et al., 2011), creating methods for refining and
+customizing these gene set collections (Alterovitz et al., 2010; Davis et al., 2010; Frost and Moore,
+2014) and developing effective statistical techniques for gene set testing (Subramanian et al., 2005;
+Efron and Tibshirani, 2007; Barry et al., 2008; Frost and McCray, 2012; Wu and Smyth, 2012;
+Zhou et al., 2013).
+∗
+
+Institute for Quantitative Biomedical Sciences, Geisel School of Medicine, Lebanon, NH 03756
+Section of Biostatistics and Epidemiology, Department of Community and Family Medicine, Geisel School of
+Medicine, Lebanon, NH 03756
+‡
+Department of Genetics, Dartmouth College, Hanover, NH 03755
+†
+
+1
+
+Gene set testing is normally used to quantify the association between functional groups of genomic variables and a clinical phenotype, e.g., cancer case/control status. Many important use cases
+exist, however, where a gene set-based interpretation of genomic data is desired in the absence of a
+phenotype variable, e.g., case-only data collections. For such unsupervised applications, the standard approach for gene set testing involves the computation of the association between gene sets
+and a categorical variable defined by disjoint clusters of genomic variables. Such methods typically
+compute the association between each gene set and the variable clustering using either information
+theoretic measures (Gibbons and Roth, 2002; Steuer et al., 2006) or contingency table-based statistical tests which incorrectly assume independence among the genomic variables (Robinson et al.,
+2002; Toronen, 2004; Freudenberg et al., 2009).
+Although these techniques provide a measure of gene set enrichment for a given clustering of
+genomic data, the motivation for most methods is cluster evaluation rather than unsupervised
+biological interpretation. Cluster-based gene set enrichment results are strongly dependent on
+the clustering method employed and the number of computed clusters. This sensitivity to the
+clustering method and number of clusters makes these methods very useful for clustering evaluation
+but unreliable as general measures of unsupervised gene set enrichment. Specifically, since these
+methods advocate the use gene set enrichment results to select the clustering method and number
+of clusters, instead of often unreliable metrics such as the gap statistic (Tibshirani et al., 2001) or
+average silhouette width (Kaufman and Rousseeuw, 2005), it is unclear what clustering method or
+number of clusters should be used if the goal is unbiased gene set testing.
+An alternative approach for unsupervised gene set testing with many similarities to cluster-based
+methods is gene set enrichment of gene networks. This approach typically involves the computation
+of a network from a genomic dataset with network nodes represented by genomic variables, e.g., a
+co-expression network for gene expression data (Zhao et al., 2010), a community detection algorithm
+is then used to decompose the network nodes into distinct groups and, finally, gene set testing is
+performed relative to each community or all communities. If the network communities are treated
+like gene clusters, the same information theoretic or contingency table-based methods employed for
+cluster-based enrichment can be used to calculate the association between gene sets and network
+communities. Approaches have also been developed that directly leverage the network structure to
+test for the association between gene sets and single network nodes (Wolfe et al., 2005) or groups
+of nodes (Glaab et al., 2012). Similar to cluster-based approaches, gene set enrichment of networks
+is highly dependent on the method used to build the network from genomic data and algorithms
+employed for community detection.
+Methods have also been developed to test the association between gene sets and latent variables
+computed from genomic data sets via techniques such as principal component analysis (PCA)
+or independent component analysis (ICA). Most of these methods test for the association with
+just a single latent variable and employ an anti-conservative contingency-table based test on a
+dichotomized version of the loadings for the latent variable (Lee and Batzoglou, 2003; Roden et al.,
+2006; Yao et al., 2012). An exception is our recently developed principal component gene set
+enrichment (PCGSE) method (Frost et al., 2014) that performs competitive gene set testing relative
+to each PC using a statistical test that adjusts for correlation among gene set members. Similar to
+single cluster gene set testing methods, methods that perform gene set testing relative to a single
+latent variable can only provide an interpretation for a portion of a genomic data set. To test for the
+association between gene sets and a collection of latent variables representative of the entire data
+set, matrix correlation methods (Jolliffe, 2002; Ramsay et al., 1984) have been employed, however,
+such methods are dependent on the number of latent variables included in the test and can only
+be used for self-contained gene set testing (Goeman and Buehlmann, 2007) (Q2 in the terminology
+of Tian et al. (Tian et al., 2005)).
+2
+
+Effective methods do not currently exist for unsupervised gene set testing against a competitive
+null hypothesis that are independent of specific cluster analysis or network analysis approaches. To
+address this shortcoming, we have developed spectral gene set enrichment (SGSE), an approach for
+unsupervised competitive testing of the association between gene sets and empirical data sources
+independent of cluster or network analysis. The SGSE method first computes the statistical association between gene sets and principal components (PCs) using our principal component gene
+set enrichment (PCGSE) method. The overall statistical association between each gene set and
+the spectral structure of the data is then computed by combining the PC-level p-values using the
+weighted Z-method with weights set to the PC variance scaled by lower-tailed p-value computed for
+the PC variance according to the Tracey-Widom distribution. Although described in the context of
+gene sets and genomic data, the SGSE method can be used to compute the statistical association
+between any collection of variable groups and the spectral structure of any empirical data set. To
+facilitate use of the SGSE method by other researchers, we have included an implementation of the
+algorithm in the PCGSE R package, which is available from the CRAN repository. Using simulated gene expression data and simulated gene sets, we show that the SGSE method can accurately
+recover known spectral features from noisy data, features that are undetectable using cluster-based
+approaches. To illustrate the utility of our method on real genomic data, we compare the performance of the SGSE method and a cluster-based technique on testing the association between
+MSigDB gene sets and the spectra of two cancer microarray gene expression data sets.
+
+2
+
+Methods
+
+2.1
+
+SGSE inputs
+
+Similar to our principal component gene set enrichment (PCGSE) method (Frost et al., 2014),
+the SGSE method takes as input both an n × p genomic data matrix X quantifying p genomic
+variables under n experimental conditions and an f × p binary annotation matrix A that specifies
+the association between the p genomic variables and f functional categories.
+The genomic data held in X, e.g., mRNA expression levels, will be modeled as a sample of n
+independent observations from a p-dimensional random vector x. It is assumed that any desired
+transformations on X have been performed and that missing values have been imputed or removed.
+Although the SGSE method is robust to departures from multivariate normality, as discussed in
+Section 2.4 below, it will be assumed that x ∼ M V N (µ, Σ) with correlation matrix P. This
+distributional assumption is usually well justified since sources of genomic data, especially gene
+expression data, typically follow a multivariate normal distribution after appropriate transformations.
+The rows of A represent f biological categories, e.g., KEGG pathways or GO categories, and
+the elements ai,j hold indicator variables whose value depends on whether an annotation exists
+between the function i and genomic variable j.
+
+2.2
+
+SGSE algorithm
+
+Enrichment of the gene sets defined by A relative to the spectra of X is performed using the
+following steps, which are explained in detail in sections 2.3 thru 2.7 below.
+1. Perform PCA on X.
+2. Determine q, the number of PCs used to represent the spectra of X.
+
+3
+
+3. For all q PCs, use the PCGSE method to compute the statistical significance of the association
+between each PC and each of the f gene sets defined by A according to a competitive null
+hypothesis.
+4. Compute the statistical significance of the association between each of the f gene sets and
+the spectra of X using the weighted Z-method on the q PCGSE p-values with weights based
+on the PC variances optionally scaled according to PC statistical significance.
+
+2.3
+
+PCA for SGSE
+
+Because PCs are not invariant under scaling of the data (Jolliffe, 2002), the PCA solution for SGSE
+is computed on a mean centered and standardized version of X, X̃. The PC loading vectors and
+variances of X̃ are thus the eigenvectors and eigenvalues of:
+S=
+
+1
+X̃T X̃
+n−1
+
+(1)
+
+The spectral decomposition of S is defined as:
+S=
+
+rX̃
+X
+
+λi vi viT
+
+(2)
+
+i=1
+
+where rX̃ is the rank of X̃, λi is the ith eigenvalue of S and the variance of the ith PC of X̃, vi is the
+ith eigenvector of S and the loadings for the ith PC of X̃ and X̃vi is the ith PC. It is assumed that
+the eigenvalues are sorted in decreasing order: λ1 ≥ λ2 ≥ ... ≥ λrX̃ . Because x ∼ MVN, (n − 1)S
+is approximately Wishart distributed:
+(n − 1)S = X̃T X̃ ∼ W (n, P)
+
+(3)
+
+Similar to PCGSE, the PCA solution for SGSE realized via the singular value decomposition (SVD)
+of a, X̃ = UEVT , where the columns of V represent the PC loading vectors, the entries in the
+diagonal matrix E are proportional to the square roots of the PC variances and the columns of UE
+are the PCs.
+
+2.4
+
+PC statistical significance
+
+Random matrix theory (RMT) methods provide useful distributional results for the bulk and extreme eigennvalues of matrices with Wishart distributions (Johnstone, 2001; Izenman, 2008; Johnstone, 2009). As outlined by Johnstone (2001), the principal eigenvalue of a sample covariance
+matrix with a white Wishart distribution, where white implies that Σ = I, tends to a distribution described by a Tracey-Widom law of order 1 (Tracy and Widom, 1994). Specifically, if
+n, p → ∞, n/p → η ≥ 1, then the distribution of the rescaled principal eigenvalue:
+λ1 − µ(p, n)
+σ(p, n)
+
+(4)
+
+√
+√
+√
+√ 
+( n−1+ p)2
+n−1+ p
+√1
+tends to a Tracey-Widom law of order 1, where µ(p, n) =
+and
+σ(p,
+n)
+=
++
+n
+n
+n−1
+For p > n, the Tracey-Widom distribution still holds with p and n simply reversed in the µ(p, n)
+and σ(p, n) parameter definitions. Although an asymptotic result, this distribution was found to
+hold well even for p and n values as small as p = 20 and n = 5 (Johnstone, 2001; Izenman, 2008). It
+
+4
+
+√1
+p
+
+1/3
+
+.
+
+also holds well even when the underlying distribution of the elements of X̃ is not normal (Soshnikov,
+2002).
+In cases where Σ has q variances greater than 1, i.e., a spiked covariance model, Johnstone (2001)
+demonstrated that this distribution approximates the distribution of the (q + 1)th eigenvalue but
+with slightly heavier tails. This result can therefore be used to compute a conservative statistical
+significance for all of the PCs of X̃ based on the associated eigenvalues under a null hypothesis
+of uncorrelated MVN data (e.g., use of PCA for population genetics (Patterson et al., 2006)).
+Specifically, the statistical significance of PC i can be determined by first computing a TraceyWidom distributed statistic, twi , for the eigenvalue, λi , associated with the PC using equation
+(4):
+λi − µ(p − i + 1, n)
+twi =
+(5)
+σ(p − i + 1, n)
+Under the H0 that the data is a sample from a MVN distribution with no pair-wise correlation
+among the individual variables, the p-value for PC i is then computed as the probability of a
+Tracey-Widom law of order 1 statistic more extreme than twi :
+p-valuePCi = 1 − FTW (twi )
+
+(6)
+
+where FT W () is the cumulative distribution function of a Tracey-Widom law of order 1 random
+variable. This probability can be computed using either numerical lookup tables such as those
+supported by the RMTstat R package or via the Gamma approximation to the Tracey-Widom
+distribution detailed in Chiani (2012). The SGSE method currently uses the Gamma approximation
+for more accurate coverage of the tails of the distribution.
+
+2.5
+
+Number of PCs used to represent data
+
+The SGSE method supports three options for determining q, the number of PCs used to represent
+the spectra of X:
+1. All PCs with non-zero variance: q = maxi λi > 0 = rX̃
+2. All statistically significant PCs at a specific α level where statistical significance of a given
+PC i is determined according (6).
+3. A specified number, q ∗ , with the constraint that q ∗ cannot be greater than the number of
+PCs with non-zero variance: q = q ∗ , s.t. q ∗ ≤ rX̃ . If specified, q ∗ will typically be set to a
+small number, e.g., 1 or 2, to minimize computational cost of the SGSE algorithm.
+
+2.6
+
+PCGSE for SGSE
+
+Our PCGSE method (Frost et al., 2014) is used to compute the statistical significance of the
+association between each of the f gene sets defined in A and each of the first q PCs of X̃ where q is
+determined using one of the three methods detailed in Section 2.5 above. Let the p-value computed
+via PCGSE for PC i and gene set j be represented using the notation p-valuePCi ,gsj .
+Although any supported PCGSE options can be used with SGSE, by default, the SGSE method
+executes PCGSE using the Fisher-transformed Pearson correlation coefficient between each variable
+and each PC as the gene-level test statistic and the correlation-adjusted standardized mean difference statistic as the gene set test statistic with statistical significance of the gene set test statistic
+under a competitive H0 computed using a two-sided t-test as detailed in Frost et al. (2014).
+
+5
+
+2.7
+
+Combined significance of PCGSE p-values
+
+For each of the f gene sets, the p-values computed via PCGSE for the q selected PCs of X̃ are
+combined using the weighted Z-method, a generalization of the untransformed Z-transform test
+(Whitlock, 2005; Won et al., 2009). The weighted Z-method combines Z-statistics generated for
+each of multiple independent p-values using weights specific to each p-value. This approach for
+combining p-values is justified for SGSE under the assumption of multivariate normality for x
+making both the uncorrelated PCs of X̃, and the p-values generated by PCGSE with respect to
+those PCs, independent. If x is significantly non-Gaussian, then the PC-specific p-values will be
+dependent and techniques such as Kost’s method (Kost and McDermott, 2002) must be employed
+instead of the weighted Z-method. In the context of SGSE, a weighed Z-statistic is generated for
+each of the f gene sets as follows:
+Pq
+−1
+i=1 wi Φ (1 − p-valuePCi ,gsj )
+qP
+Zgsj =
+(7)
+q
+2
+w
+i=1 i
+where wi is a weight specific to PC i of X̃ and Φ−1 () is the inverse standard normal CDF. Two
+options are supported for determining the PC-specific weights, wi :
+1. The weight is set to the variance of each PC: wi = λi
+2. The weight is set to the variance of each PC scaled by the lower-tailed p-value computed
+for the PC variance according to the Tracey-Widom distribution as detailed in Section 2.4:
+wi = (1 − p-valuePCi )λi = FTW (twi )λi
+The overall p-value representing the statistical significance of the association between gene set j
+and the spectra of X is then computed using a one-sided z-test on Zgsi :
+p-valuegsj = 1 − Φ(Zgsj )
+
+2.8
+2.8.1
+
+(8)
+
+SGSE evaluation
+Benchmark cluster-based gene set testing method
+
+To support comparative evaluation of the SGSE method, we implemented a cluster-based gene set
+testing method that is representative of a large number of existing cluster and network-based gene
+set testing methods. Our benchmark cluster-based method computes the statistical significance of
+the association between gene sets and a data set as follows:
+1. Cluster the p genomic variables in X̃ using k-means clustering with the Hartigan and Wong
+algorithm (Hartigan and Wong, 1979), 5 restarts and k set according to the global maximum
+of the gap statistic (Tibshirani et al., 2001) as computed using the clusGap() function in the
+cluster R package (Maechler et al., 2014) with the number of bootstrap resamples defaulting
+to 100.
+2. Compute the statistical significance of the association between each of the f gene sets defined
+in A and the k-means clustering using Pearson’s χ2 test of independence on a 2×k contingency
+table whose first row holds the counts of gene set members in each of the k clusters and whose
+second row holds the total size of each of the k clusters.
+
+6
+
+2.8.2
+
+Evaluation using simulated gene sets and simulated data.
+
+As a simple example to demonstrate the ability of the SGSE method to recover true associations
+between gene sets and the variance structure of genomic data, SGSE was used to compute the
+statistical association between 20 disjoint gene sets, each of size 10, and the spectra of 100 simulated
+gene expression datasets each comprised by 50 independent observations of a 200 dimension random
+vector simulated according to a single factor multivariate normal distribution ∼ MVN(0, Σ). The
+population covariance matrix was generated as: Σ = λ1 α1 αT1 + λd I, where λ1 = 2, λd = 0.1 and
+α
+√1 is a 200-dimensional vector with all elements equal to 0 except for the first 10 which were set to
+.1. The SGSE method was executed on the 100 simulated datasets using all 50 PCs with non-zero
+eigenvalues, default settings were used for PCGSE, as specified in Section 2.6, and both weighting
+methods outlined in Section 2.7 were employed.
+2.8.3
+
+Evaluation using MSigDB C2 v4.0 gene sets and Armstrong et al. leukemia
+gene expression data.
+
+The SGSE method and the benchmark cluster-based method were used to compute the statistical
+association between the MSigDB C2 v4.0 gene sets and the spectra of the leukemia gene expression
+data (Armstrong et al., 2002) used in the 2005 GSEA paper (Subramanian et al., 2005). The
+MSigDB C2 v4.0 gene sets and collapsed leukemia gene expression data were both downloaded from
+the MSigDB repository. With a minimum gene set size of 15 and maximum gene set size of 200,
+3,076 gene sets out of the original 4,722 were used in the analysis. The SGSE method was executed
+on the leukemia gene expression data using all PCs with non-zero eigenvalues, PCGSE was called
+with default settings as specified in Section 2.6, and both weighting methods outlined in Section
+2.7 were employed. The benchmark cluster-based enrichment method was executed as outlined
+in Section 2.8.1 (k=10 was selected as optimal by the gap statistic test). The enrichment of the
+MSigDB C2 gene sets was also computed relative to the acute myeloid leukemia (AML) versus acute
+lymphoblastic leukemia (ALL) phenotype using the competitive enrichment method CAMERA (Wu
+and Smyth, 2012) with default settings. To quantify how well SGSE and the benchmark clusterbased method were able to capture the known strong association between AML/ALL status and
+the second PC in the data (see analysis in Frost et al. (2014)), the Spearman correlation coefficient
+was calculated between unsupervised enrichment p-values and phenotype enrichment p-values for all
+MSigDB C2 gene sets. For gene sets with phenotype enrichment p-values less than 0.05, contingency
+table statistics were also computed measuring how well SGSE and the cluster-based enrichment
+method were able to identify MSigDB C2 gene sets significantly associated with the AML/ALL
+phenotype.
+2.8.4
+
+Evaluation using Rosenwald et al. DLBCL gene expression data and MSigDB
+C2 v4.0 gene sets.
+
+The SGSE method and the benchmark cluster-based method were also used to compute the statistical association between the MSigDB C2 v4.0 gene sets and the spectra of the Rosenwald et al.
+(2002) diffuse large B-cell lymphoma (DLBCL) gene expression data. The Rosenwald et al. data
+set consists of gene expression measurements for 240 patients with DLBCL made using the Lymphochip microarray on 7,399 genes. Microarray data and clinical covariates from the Rosenwald
+et al. (2002) study were both downloaded from the paper’s supplemental information web site. To
+support spectral and phenotype enrichment analysis, the subset of the MSigDB C2 v4.0 gene sets
+whose members were measured in the Rosenwald et al. data was generated by mapping each of
+the Lymphochip probes, via Genbank accession numbers, to Entrez gene identifiers and MSigDB
+7
+
+C2 v4.0 gene sets. Prior to execution of SGSE and the benchmark cluster-based method, all censored subjects were removed and missing values in the Rosenwald et al. data were imputed using
+k-nearest neighbor imputation using the impute.knn() function from the R impute package with
+default settings (Troyanskaya et al., 2001). With a minimum gene set size of 15 and maximum
+gene set size of 200, 3,106 gene sets out of the original 4,722 were used in the analysis. The SGSE
+method was executed on the DLBCL gene expression data using all PCs with non-zero eigenvalues,
+PCGSE was called with default settings as specified in Section 2.6, and both weighting methods
+outlined in Section 2.7 were employed. The benchmark cluster-based enrichment method was executed as outlined in Section 2.8.1 (k=10 was selected as optimal by the gap statistic test). The
+enrichment of the MSigDB C2 gene sets was also computed relative to the log of survival time with
+the competitive enrichment method CAMERA (Wu and Smyth, 2012) using, as a gene-level test
+statistic, the z-transformed t-statistic associated with the estimated coefficient from a linear model
+between gene expression and log survival time. To quantify how well SGSE and the benchmark
+cluster-based method were able to capture the association between gene set expression and survival time, the Spearman correlation coefficient was computed between unsupervised enrichment
+p-values and phenotype enrichment p-values for all MSigDB C2 gene sets. For gene sets with phenotype enrichment p-values less than 0.05, contingency table statistics were computed measuring
+how well SGSE and the cluster-based enrichment method were able to identify MSigDB C2 gene
+sets significantly associated with log survival time.
+
+3
+3.1
+
+Results and Discussion
+Simulation example
+
+According to the population covariance matrix, Σ, used to simulate the 100 datasets, only the first
+gene set is significantly associated with the population covariance matrix, Σ, via the first PC. As
+seen in the Figure 1, plot (a), this association is easily detected via the PCGSE method. The power
+of the SGSE method to detect an overall association between the first gene set and the spectra
+of the simulated data, however, is strongly dependent on the choice of weights used to combine
+the PCGSE-generated p-values in the weighted Z-method, as detailed in Section 2.7. Results from
+our benchmark cluster-based gene set testing method are not shown in Figure 1 because, in this
+case, the gap statistic only identified a single cluster in the data, making the χ2 test for gene set
+enrichment meaningless. Standard cluster-based methods are therefore completely uninformative
+in such single factor cases.
+The impact of PCGSE p-value weights for the simulation example can be seen in Figure 1
+plots (b) and (c). Plot (b) shows both the PC variance weights for the simulated datasets as
+well as weights calculated by scaling the PC variance using the lower-tailed p-value computed
+using the Tracey-Widom distribution for the PC variance. This scaled PC variance weighting will
+result in weights being very close to the standard PC variance weights if the PC variance is highly
+significant according to the distribution of the principal eigenvalue of a matrix with a white Wishart
+distribution. As the PC variance becomes less significant, the scaling coefficient decreases lowering
+the effective weight for the PCGSE-computed p-value associated with that PC. As seen in Figure 1
+plot (c), this significance-based scaling of the PC variance weights can have a dramatic impact on
+the power of the SGSE method to detect true associations that exist between groups of variables
+and the covariance structure of the data. For this simulation example, when the PC variance is
+used direct as the weight, the SGSE method is unable to identify a significant association between
+the first gene set and the spectra of the simulated data, however, when significance scaled PC
+variances are used as weights, markedly lower p-vales for the first gene set are generated.
+8
+
+Figure 1: SGSE results on simulated single-factor data. For all plots, error bars represent ±1SE
+for the mean value over all 100 simulated datasets. (a) Mean p-values computed using the PCGSE
+method for the first simulated gene set relative to the first 5 PCs over all 100 simulated datasets.
+(b) Mean weights used by the SGSE method to combine the PCGSE-computed p-values for each
+gene set relative to the first 5 PCs. PC variance weights are shown as round points connected
+by a solid line. PC variance scaled by the lower-tailed p-value computed using the Tracey-Widom
+distribution for the PC variance is shown using square points connected by a dashed line. (c) Mean
+p-value computed using the SGSE method for the first simulated gene set using either PC variance
+weights (Var.) or weights defined by the PC variance scaled by the lower-tailed Tracey-Widom
+p-value of the PC variance (TW*Var.).
+
+3.2
+
+Leukemia gene expression example
+
+The Armstrong et al. (2002) leukemia gene expression dataset and MSigDB C2 v4.0 gene sets
+were selected for SGSE analysis because of the known association between AML/ALL status and
+the spectra of the gene expression data, as illustrated in Frost et al. (2014), the easy accessibility of
+the data and gene sets from the MSigDB repository and the common use of both the gene expression
+data and curated gene sets in the gene set enrichment literature (e.g., Subramanian et al. (2005)).
+Figure 2 shows the association between phenotype and unsupervised gene set enrichment pvalues computed using both the benchmark cluster-based method and the SGSE method for the
+MSigDB C2 v4.0 gene sets, the AML versus ALL phenotype and the Armstrong et al. leukemia
+gene expression data. Although the true unsupervised enrichment status of the MSigDB C2 v4.0
+gene sets relative to the variance structure of the Armstrong et al. (2002) gene expression data
+is unknown, the phenotype enrichment results can be used as a proxy for the true unsupervised
+gene set enrichment based on the strong association between PC 2 and AML versus ALL status
+(Frost et al., 2014) as well as the recent finding by Gorlov et al. (2014) that the genes with a
+large expression variance among cancer cases have a very high likelihood of having a known role in
+tumor-genesis. As indicated by the correlation between phenotype enrichment and unsupervised
+gene set enrichment p-values, the SGSE method was able to capture a greater proportion of the
+AML versus ALL enrichment signal than the benchmark cluster-based method, irrespective of the
+method used to weight the PC-specific gene set enrichment p-values, with the best performance
+obtained when PC statistical significance was used to compute the SGSE weights. The benefits of
+the SGSE method relative to cluster-based enrichment are most clearly visible when considering
+9
+
+Figure 2: Scatter plot showing the association between phenotype gene set enrichment p-values and
+unsupervised gene set enrichment p-values computed using the benchmark cluster-based method
+(plot (a)) and SGSE (plots (b) and (c)) for the Armstrong et al. (2002) leukemia gene expression
+data, AML/ALL phenotype, and MSigDB C2 v4.0 gene sets. Phenotype enrichment, unsupervised
+cluster-based enrichment and spectral gene set enrichment p-values were computed as outlined in
+Section 2.8.3. Displayed in each plot is the Spearman correlation coefficient between phenotype and
+unsupervised gene set enrichment p-values and the positive predictive value of unsupervised gene
+set enrichment for identifying gene sets that are significantly enriched relative to the phenotype at
+an α = 0.05 (shown by grey lines). The results from the two different SGSE weighting methods
+outlined in Section 2.7 are shown in plots (b) and (c) with (b) plotting SGSE p-values generated
+using PC variance weighting and (c) plotting SGSE p-values generated using weights defined by
+the PC variance scaled by the lower-tailed Tracey-Widom p-value for the variance.
+identification of AML/ALL-associated gene sets via unsupervised enrichment using a phenotype
+enrichment threshold of α =0.05. In this case, anti-conservative nature of the χ2 test used in the
+cluster-based method leads to a high type I error rate and a very low positive predictive value
+(PPV) of 0.066 as displayed in plot (a), whereas the SGSE method has a PPV 0.29 when using PC
+variance weights as displayed in plot (b) and a PPV of 0.36 when using as weights the PC variance
+scaled by the lower-tailed Tracey-Widom p-value for the variance as shown in plot (c).
+SGSE analysis of the MSigDB C2 v4.0 gene sets and Armstrong et al. (2002) leukemia gene
+expression data illustrates the biological motivation for spectral gene set enrichment, shows the clear
+superiority of the SGSE approach relative to standard cluster-based gene set tests and demonstrates
+the importance of PC-specific p-value weights that take into account the statistical significance of
+each PC.
+
+3.3
+
+DLBCL gene expression example
+
+The Rosenwald et al. (2002) DLBCL gene expression dataset is another good example of a clear
+association between the variance structure of gene expression data and an interesting clinical phenotype, in this case log survival time. Similar to the Armstrong et al. leukemia gene expression
+data, the Rosenwald et al. DBLCL gene expression data is easily accessible and has been widely
+reanalyzed in the genomics literature, factors that will support interpretation and replication of
+the reported SGSE results by other researchers.
+Figure 3 shows the association between phenotype and unsupervised gene set enrichment pvalues for the MSigDB C2 v4.0 gene sets, log survival time and the spectra of the Rosenwald et
+10
+
+Figure 3: Scatter plot showing the association between phenotype gene set enrichment p-values and
+unsupervised gene set enrichment p-values computed using the benchmark cluster-based method
+(plot (a)) and SGSE (plots (b) and (c)) for the Rosenwald et al. (2002) DLBCL gene expression data,
+log survival time phenotype, and MSigDB C2 v4.0 gene sets. Phenotype enrichment, unsupervised
+cluster-based enrichment and spectral gene set enrichment p-values were computed as outlined in
+Section 2.8.4. Displayed in each plot is the Spearman correlation coefficient between phenotype and
+unsupervised gene set enrichment p-values and the positive predictive value of unsupervised gene
+set enrichment for identifying gene sets that are significantly enriched relative to the phenotype at
+an α = 0.05 (shown by grey lines). The results from the two different SGSE weighting methods
+outlined in Section 2.7 are shown in plots (b) and (c) with (b) plotting SGSE p-values generated
+using PC variance weighting and (c) plotting SGSE p-values generated using weights defined by
+the PC variance scaled by the lower-tailed Tracey-Widom p-value for the variance.
+al. DLBCL gene expression data. Although the true enrichment status of the MSigDB C2 v4.0
+gene sets relative to the variance structure of the Rosenwald et al. (2002) gene expression data is
+unknown, the phenotype enrichment results can again be used as a proxy for the true spectral gene
+set enrichment based on association between expression variance and cancer-related genes (Gorlov
+et al., 2014). Although the association between SGSE and cluster-based p-values and phenotype
+p-values was lower for the Rosenwald et al. DLBCL gene expression data than for the Armstrong
+et al. leukemia gene expression data, the SGSE method was still able to capture an appreciably
+greater proportion of the survival time enrichment signal as compared to the benchmark clusterbased method, irrespective of the method used to weight the PC-specific gene set enrichment
+p-values. Similar to the findings for the leukemia gene expression data, incorporating the PC
+statistical significance in the SGSE weights improved the Spearman correlation between phenotype
+enrichment p-values and SGSE p-values for the Rosenwald et al. data. The superior performance
+of the SGSE method relative to the benchmark cluster-based method was again most apparent
+when considering identification of survival time-associated gene sets via unsupervised enrichment
+using just a phenotype enrichment threshold of α =0.05. In this case, the choice of SGSE weighting
+method also had a significant impact with a positive predictive value (PPV) of 0.04 for clusterbased enrichment as displayed in plot (a), a PPV of 0 for SGSE when using PC variance weights
+as displayed in plot (b) and a PPV of 0.27 when using as weights the PC variance scaled by the
+lower-tailed Tracey-Widom p-value for the variance as shown in plot (c).
+
+11
+
+4
+
+Conclusion
+
+Almost universally, gene set testing is performed in a supervised context to measure the association between functional groups of genes and a clinical phenotype. Many important examples
+exist, however, where a gene set-based interpretation of genomic data is desired in the absence of
+a phenotype variable. Although techniques have been developed for unsupervised gene set testing, they predominantly compute enrichment relative to a categorical variable defined by disjoint
+clusters of the genomic variables. Because such cluster-based methods often use anti-conservative
+contingency table-based tests and have performance that is strongly dependent on the clustering
+algorithm and number of clusters, they are more useful for clustering evaluation than for gene
+set-based interpretation of genomic data. To address the lack of effective statistical methods for
+unsupervised competitive gene set testing, we have developed spectral gene set enrichment (SGSE),
+available in the PCGSE R package from CRAN. The SGSE method first computes the statistical
+association between gene sets and principal components (PCs) using our principal component gene
+set enrichment (PCGSE) method. The overall statistical association between each gene set and
+the spectral structure of the data is then computed by combining the PC-level p-values using the
+weighted Z-method with weights set to the PC variance scaled by lower-tailed p-values from the
+Tracey-Widom distribution of the eigenvalue associated with each PC. On both simulated gene sets
+with simulated data and on curated gene sets with real gene expression data, the SGSE method has
+been shown to provide superior estimates of unsupervised gene set enrichment relative to standard
+cluster-based approaches.
+
+Acknowledgement
+Funding: National Institutes of Health R01 grants LM010098, LM011360, EY022300, GM103506
+and GM103534.
+Conflict of Interest: None declared.
+
+References
+Alterovitz, G., Xiang, M., Hill, D. P., Lomax, J., Liu, J., Cherkassky, M., Dreyfuss, J., Mungall, C., Harris, M. A., Dolan, M. E., Blake,
+J. A., and Ramoni, M. F. (2010). Ontology engineering. Nature Biotechnology, 28(2), 128–130.
+Armstrong, S. A., Staunton, J. E., Silverman, L. B., Pieters, R., den Boer, M. L., Minden, M. D., Sallan, S. E., Lander, E. S., Golub,
+T. R., and Korsmeyer, S. J. (2002). Mll translocations specify a distinct gene expression profile that distinguishes a unique leukemia.
+Nature Genetics, 30(1), 41–7.
+Ashburner, M., Ball, C. A., Blake, J. A., Botstein, D., Butler, H., Cherry, J. M., Davis, A. P., Dolinski, K., Dwight, S. S., Eppig, J. T.,
+Harris, M. A., Hill, D. P., Issel-Tarver, L., Kasarskis, A., Lewis, S., Matese, J. C., Richardson, J. E., Ringwald, M., Rubin, G. M.,
+and Sherlock, G. (2000). Gene ontology: tool for the unification of biology. Nature Genetics, 25(1), 25–29.
+Barry, W. T., Nobel, A. B., and Wright, F. A. (2008). A statistical framework for testing functional categories in microarray data.
+Annals of Applied Statistics, 2, 286–315+.
+Chiani, M. (2012). Distribution of the largest eigenvalue for real Wishart and Gaussian random matrices and a simple approximation
+for the Tracy-Widom distribution. ArXiv e-prints.
+Davis, M. J., Sehgal, M. S. B., and Ragan, M. A. (2010). Automatic, context-specific generation of gene ontology slims. BMC
+Bioinformatics, 11, 498.
+Efron, B. and Tibshirani, R. (2007). On testing the significance of sets of genes. Annals of Applied Statistics, 1(1), 107–129.
+Freudenberg, J. M., Joshi, V. K., Hu, Z., and Medvedovic, M. (2009). Clean: Clustering enrichment analysis. BMC Bioinformatics,
+10, 234.
+
+12
+
+Frost, H. R. and McCray, A. T. (2012). Markov chain ontology analysis (mcoa). BMC Bioinformatics, 13, 23.
+Frost, H. R. and Moore, J. H. (2014). Optimization of gene set annotations via entropy minimization over variable clusters (emvc).
+Bioinformatics.
+Frost, H. R., Li, Z., and Moore, J. H. (2014). Principal component gene set enrichment (PCGSE). ArXiv e-prints. arXiv:1403.5148.
+Gibbons, F. D. and Roth, F. P. (2002). Judging the quality of gene expression-based clustering methods using gene annotation. Genome
+Res, 12(10), 1574–81.
+Glaab, E., Baudot, A., Krasnogor, N., Schneider, R., and Valencia, A. (2012). Enrichnet: network-based gene set enrichment analysis.
+Bioinformatics, 28(18), i451–i457.
+Goeman, J. J. and Buehlmann, P. (2007). Analyzing gene expression data in terms of gene sets: methodological issues. Bioinformatics,
+23(8), 980–987.
+Gorlov, I. P., Yang, J.-Y., Byun, J., Logothetis, C., Gorlova, O. Y., Do, K.-A., and Amos, C. (2014). How to get the most from
+microarray data: advice from reverse genomics. BMC Genomics, 15(1), 223.
+Hartigan, J. A. and Wong, M. A. (1979). A k-means clustering algorithm. Applied Statistics, 28(1), 100–108.
+Hung, J.-H., Yang, T.-H., Hu, Z., Weng, Z., and Delisi, C. (2012). Gene set enrichment analysis: performance evaluation and usage
+guidelines. Brief Bioinform, 13(3), 281–91.
+Izenman, A. (2008). An introduction to random-matrix theory.
+Johnstone, I. M. (2001). On the distribution of the largest eigenvalue in principal components analysis. The Annals of Statistics,
+29(2), pp. 295–327.
+Johnstone, I. M. (2009). Approximate null distribution of the largest root in multivariate analysis. Ann Appl Stat, 3(4), 1616–1633.
+Jolliffe, I. (2002). Principal Component Analysis. Springer Series in Statistics. Springer.
+Kanehisa, M. and Goto, S. (2000). KEGG: kyoto encyclopedia of genes and genomes. Nucleic Acids Research, 28(1), 27–30.
+Kaufman, L. and Rousseeuw, P. J. (2005). Finding groups in data: an introduction to cluster analysis. Wiley, Hoboken, N.J.
+Khatri, P., Sirota, M., and Butte, A. J. (2012). Ten years of pathway analysis: current approaches and outstanding challenges. PLoS
+Computational Biology, 8(2), e1002375.
+Kost, J. T. and McDermott, M. P. (2002). Combining dependent p-values. Statistics and Probability Letters, 60(2), 183 – 190.
+Lee, S.-I. and Batzoglou, S. (2003). Application of independent component analysis to microarrays. Genome Biol, 4(11), R76.
+Liberzon, A., Subramanian, A., Pinchback, R., Thorvaldsdóttir, H., Tamayo, P., and Mesirov, J. P. (2011). Molecular signatures
+database (msigdb) 3.0. Bioinformatics, 27(12), 1739–40.
+Maechler, M., Rousseeuw, P., Struyf, A., Hubert, M., and Hornik, K. (2014). cluster: Cluster Analysis Basics and Extensions. R
+package version 1.15.2 — For new features, see the ’Changelog’ file (in the package source).
+Patterson, N., Price, A. L., and Reich, D. (2006). Population structure and eigenanalysis. PLOS Genetics, 2(12), e190.
+Ramsay, J., Berge, J., and Styan, G. (1984). Matrix correlation. Psychometrika, 49, 403–423.
+Robinson, M. D., Grigull, J., Mohammad, N., and Hughes, T. R. (2002). Funspec: a web-based cluster interpreter for yeast. BMC
+Bioinformatics, 3, 35.
+Roden, J. C., King, B. W., Trout, D., Mortazavi, A., Wold, B. J., and Hart, C. E. (2006). Mining gene expression data by interpreting
+principal components. BMC Bioinformatics, 7, 194.
+Rosenwald, A., Wright, G., Chan, W. C., Connors, J. M., Campo, E., Fisher, R. I., Gascoyne, R. D., Muller-Hermelink, H. K., Smeland,
+E. B., Giltnane, J. M., Hurt, E. M., Zhao, H., Averett, L., Yang, L., Wilson, W. H., Jaffe, E. S., Simon, R., Klausner, R. D., Powell,
+J., Duffey, P. L., Longo, D. L., Greiner, T. C., Weisenburger, D. D., Sanger, W. G., Dave, B. J., Lynch, J. C., Vose, J., Armitage,
+J. O., Montserrat, E., López-Guillermo, A., Grogan, T. M., Miller, T. P., LeBlanc, M., Ott, G., Kvaloy, S., Delabie, J., Holte, H.,
+Krajci, P., Stokke, T., Staudt, L. M., and Lymphoma/Leukemia Molecular Profiling Project (2002). The use of molecular profiling
+to predict survival after chemotherapy for diffuse large-b-cell lymphoma. N Engl J Med, 346(25), 1937–47.
+Soshnikov, A. (2002). A note on universality of the distribution of the largest eigenvalues in certain sample covariance matrices. J.
+Statist. Phys, 108, 1033–1056.
+Steuer, R., Humburg, P., and Selbig, J. (2006). Validation and functional annotation of expression-based clusters based on gene ontology.
+BMC Bioinformatics, 7, 380.
+
+13
+
+Subramanian, A., Tamayo, P., Mootha, V. K., Mukherjee, S., Ebert, B. L., Gillette, M. A., Paulovich, A., Pomeroy, S. L., Golub, T. R.,
+Lander, E. S., and Mesirov, J. P. (2005). Gene set enrichment analysis: A knowledge-based approach for interpreting genome-wide
+expression profiles. Proc Natl Acad Sci U S A, 102(43), 15545–15550.
+Tian, L., Greenberg, S. A., Kong, S. W., Altschuler, J., Kohane, I. S., and Park, P. J. (2005). Discovering statistically significant
+pathways in expression profiling studies. Proc Natl Acad Sci U S A, 102(38), 13544–9.
+Tibshirani, R., Walther, G., and Hastie, T. (2001). Estimating the number of clusters in a data set via the gap statistic. Journal of
+the Royal Statistical Society. Series B (Methodological), 63(Part 2), 411–423.
+Toronen, P. (2004). Selection of informative clusters from hierarchical cluster tree with gene classes. BMC Bioinformatics, 5, 32.
+Tracy, C. and Widom, H. (1994). Level-spacing distributions and the airy kernel. Communications in Mathematical Physics, 159(1),
+151–174.
+Troyanskaya, O., Cantor, M., Sherlock, G., Brown, P., Hastie, T., Tibshirani, R., Botstein, D., and Altman, R. B. (2001). Missing
+value estimation methods for dna microarrays. Bioinformatics, 17(6), 520–5.
+Whitlock, M. C. (2005). Combining probability from independent tests: the weighted z-method is superior to fisher’s approach. J Evol
+Biol, 18(5), 1368–73.
+Wolfe, C. J., Kohane, I. S., and Butte, A. J. (2005). Systematic survey reveals general applicability of ”guilt-by-association” within
+gene coexpression networks. BMC Bioinformatics, 6, 227.
+Won, S., Morris, N., Lu, Q., and Elston, R. C. (2009). Choosing an optimal method to combine p-values. Stat Med, 28(11), 1537–53.
+Wu, D. and Smyth, G. K. (2012). Camera: a competitive gene set test accounting for inter-gene correlation. Nucleic Acids Research,
+40(17), e133.
+Yao, F., Coquery, J., and Lê Cao, K.-A. (2012). Independent principal component analysis for biologically meaningful dimension
+reduction of large biological data sets. BMC Bioinformatics, 13, 24.
+Zhao, W., Langfelder, P., Fuller, T., Dong, J., Li, A., and Hovarth, S. (2010). Weighted gene coexpression network analysis: state of
+the art. J Biopharm Stat, 20(2), 281–300.
+Zhou, Y.-H., Barry, W. T., and Wright, F. A. (2013). Empirical pathway analysis, without permutation. Biostatistics, 14(3), 573–85.
+
+14
+
+

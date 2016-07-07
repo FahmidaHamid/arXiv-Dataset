@@ -1,0 +1,357 @@
+Vol. 00 no. 00 2015
+Pages 1–2
+
+BIOINFORMATICS
+Correcting Illumina sequencing errors for human data
+Heng Li
+Broad Institute, 75 Ames Street, Cambridge, MA 02142, USA
+Received on XXXXX; revised on XXXXX; accepted on XXXXX
+
+arXiv:1502.03744v1 [q-bio.GN] 12 Feb 2015
+
+Associate Editor: XXXXXXX
+
+ABSTRACT
+Summary: We present a new tool to correct sequencing errors in
+Illumina data produced from high-coverage whole-genome shotgun
+resequencing. It uses a non-greedy algorithm and shows comparable
+performance and higher accuracy in an evaluation on real human
+data. This evaluation has the most complete collection of highperformance error correctors so far.
+Availability and implementation: https://github.com/lh3/bfc
+Contact: hengli@broadinstitute.org
+
+Algorithm 1: Error correction for one string in one direction
+Input: K-mer size k, set H of trusted k-mers, and one string S
+Output: Set of corrected positions and bases changed to
+
+3
+
+Function C ORRECT E RRORS (k,H, S) begin
+Q ←H EAP I NIT()
+⊲ Q is a priority queue
+H EAP P USH(Q,(k − 2, S[0, k − 2], ∅, 0))
+⊲ 0-based strings
+while Q is not empty do
+(i, W, C, p) ←H EAP P OP B EST(Q)
+⊲ current best state
+i ←i+1
+if i = |S| then return C
+⊲ reaching the end of S
+N ← {(i, A), (i, C), (i, G), (i, T)}
+⊲ set of next bases
+foreach (j, a) ∈ N do
+⊲ try all possible next bases
+W′ ← W ◦ a
+⊲ “◦” concatenates strings
+if i = j and a = S[j] then
+⊲ no correction
+if W ′ ∈ H then
+⊲ good read base; no penalty
+H EAP P USH(Q,(j, W ′ [1, k − 1], C, p))
+else
+⊲ bad read base; penalize
+H EAP P USH(Q,(j, W ′ [1, k − 1], C, p + 1))
+
+4
+
+else if W ′ ∈ H then
+⊲ make a correction with penalty
+H EAP P USH(Q, (j, W ′ [1, k−1], C∪{(j, a)}, p+1))
+
+1
+
+2
+
+1 INTRODUCTION
+Error correction is a process to fix sequencing errors on a sequence
+read by using other overlapping reads that do not contain the errors.
+Many de novo assemblers, in particular short-read assemblers for
+large genomes, use error correction to reduce the complexity of the
+assembly graph such that the graph can be fitted to limited RAM.
+Error correction was first expressed as the spectrum alignment
+problem (Pevzner et al., 2001), whereby we take a set of trusted kmers and attempt to find a sequence with minimal corrections such
+that each k-mer on the corrected sequence is trusted. The majority
+of error correctors are based on this idea and take a greedy approach
+to solving this problem. They make a correction based on the local
+sequence context and do not revert the decision. They may not
+find the sequence with the minimal corrections. We worried that
+the greedy strategy might affect the accuracy given reads from a
+repeat-rich diploid genome, so derived a new algorithm. It is optimal
+provided that we know there is an error-free k-mer in the read.
+
+2 METHODS
+Algorithm 1 is the key component of BFC. It defines a state of correction as
+a 4-tuple (i, W, C, p), which consists of the position i of the preceding base,
+the last (k-1)–mer W ending at i, the set C of previous corrected positions
+and bases (called a solution) up to i, and the penalty p of solution C. BFC
+keeps all possible states in a priority queue Q. At each iteration, it retrieves
+the state (i, W, C, p) with the lowest penalty p (line 1) and adds a new state
+(i + 1, W [1, k − 2] ◦ a, C ′ , p′ ) if a is the read base or W ◦ a is a trusted
+k-mer. If the first k-mer in S is error free and we disallow untrusted k-mers
+by removing line 3, this algorithm finds the optimal solution to the spectrum
+alignment problem.
+It is possible to modify the algorithm to correct insertion and deletion
+errors (INDELs) by augmenting the set of the “next bases” at line 2 to:
+N = {(j, a)|j ∈ {i − 1, i}, a ∈ {A, C, G, T}} ∪ {(i, ǫ)}
+
+c Oxford University Press 2015.
+
+
+In this set, (i, a) substitutes a base at position i, (i, ǫ) deletes the base and
+(i − 1, a) inserts a base a before i. We have not implemented this INDELaware algorithm because such errors are rare in Illumina data.
+The worse-case time complexity of Algorithm 1 is exponential in the
+length of the read. In implementation, we use a heuristic to reduce the search
+space by skipping line 4 if the base quality is 20 or higher (Q20) and the
+k-mer ending at it is trusted, or if five bases or two Q20 bases have been
+corrected in the last 10bp window. If BFC still takes too many iterations
+before finding an optimal solution, it stops the search and marks the read
+uncorrectable.
+Given a read, BFC finds the longest substring on which each k-mer
+is trusted. It then extends the substring to both ends of the read with
+Algorithm 1. If a read does not contain any trusted k-mers, BFC exhaustively
+enumerates all k-mers one-mismatch away from the first k-mer on the read
+to find a trusted k-mer. It marks the read uncorrectable if none or multiple
+trusted k-mers are found this way.
+We provided two related implementations of Algorithm 1, BFC-bf and
+BFC-ht. BFC-bf uses KMC2 (Deorowicz et al., 2015) to get exact kmers counts and then keeps k-mers occurring three times or more in
+a blocked bloom filter (Putze et al., 2007). BFC-ht uses a combination
+of bloom filter and in-memory hash table to derive approximate k-mer
+counts (Melsted and Pritchard, 2011) and counts of k-mers consisting of
+Q20 bases. We modified Algorithm 1 such that missing trusted high-quality
+k-mers incurs an extra penalty. This supposedly helps to correct systematic
+sequencing errors which are recurrent but have lower base quality.
+
+1
+
+Li
+
+Table 1. Performance of error correction
+
+Prog.
+
+k
+
+Time
+
+RAM
+
+Perfect
+
+Chim.
+
+Better
+
+Worse
+
+raw data
+BBMap
+BFC-ht
+BFC-ht
+BFC-bf
+BFC-bf
+BLESS
+BLESS
+Bloocoo
+Fermi2
+Lighter
+Musket
+SGA
+
+–
+31
+31
+55
+31
+55
+31
+55
+31
+29
+31
+27
+55
+
+–
+3h22m
+7h15m
+5h51m
+7h32m
+4h41m
+6h31m
+5h09m
+5h52m
+17h14m
+5h12m
+21h33m
+48h40m
+
+–
+33.0G
+83.5G
+67.9G
+23.3G
+23.3G
+22.3G
+22.3G
+4.0G
+64.7G
+13.4G
+77.5G
+35.6G
+
+2.40M
+2.78M
+3.03M
+3.05M
+3.01M
+3.05M
+2.91M
+3.01M
+2.88M
+3.00M
+2.98M
+2.94M
+3.01M
+
+12.4k
+12.4k
+13.6k
+11.7k
+13.1k
+11.8k
+13.1k
+11.5k
+14.1k
+17.7k
+13.0k
+22.5k
+12.1k
+
+–
+505k
+816k
+830k
+783k
+819k
+674k
+775k
+764k
+849k
+756k
+790k
+755k
+
+–
+19.2k
+10.8k
+9.0k
+9.2k
+11.4k
+20.8k
+10.3k
+31.5k
+42.8k
+30.1k
+36.3k
+12.8k
+
+4.45 million pairs of ∼150bp reads were downloaded from BaseSpace, under the
+sample “NA12878-L7” of project “HiSeq X Ten: TruSeq Nano (4 replicates of
+NA12878)”, and were corrected together. On a subset of two million randomly
+sampled read pairs, the original and the corrected sequences were mapped to hs37d5
+(http://bit.ly/GRCh37d5) with BWA-MEM (Li, 2013). A read is said to become
+better (or worse) if the best alignment of the corrected sequence has more (or
+fewer) identical bases to the reference genome than the best alignment of the original
+sequence. The table gives k-mer size (maximal size used for Bloocoo, fermi2, Lighter
+and Musket), the wall-clock time when 16 threads are specified if possible, the peak
+RAM measured by GNU time, number of corrected reads mapped perfectly, number
+of chimeric reads, number of corrected reads becoming better and the number of reads
+becoming worse than the original reads. For each metric, the best tool is highlighted
+in the bold fontface.
+
+potentially demonstrates that a non-greedy algorithm might work
+better, though subtle differences in heuristics and hidden thresholds
+between the tools could also play a role. We should note that it is
+possible to tune the balance between accuracy, speed and memory
+for each tool. We have not fully explored all the options.
+In the table, error correctors appear to be faster and more accurate
+when longer k-mers are in use. A possible explanation is that longer
+k-mers resolve more repeat sequences and also reduce the search
+space. However, when we use BFC-ht to correct errors in this
+dataset, fermi2 (Li, 2012) derived longer contigs and better variant
+calls with shorter k-mers. We speculate that this observation is
+caused by reduced k-mer coverage firstly because there are fewer
+long k-mers on each read and secondly because longer k-mers are
+more likely to harbor errors. The reduced k-mer coverage makes
+it harder to correct errors in regions with low coverage and thus
+increases the chance of breaking contigs. To take advantage of both
+shorter and longer k-mers, we have also tried a two-round correction
+strategy with two k-mer sizes. The strategy leads to better numbers
+in the table (861k reads corrected to be better and 9.5k worse) at the
+cost of speed, but does not greatly improve the assembly. We will
+focus on understanding the interaction between error correctors and
+assemblers in future works.
+
+ACKNOWLEDGEMENT
+Funding: NHGRI U54HG003037; NIH GM100233
+
+REFERENCES
+Deorowicz, S. et al. (2015). KMC 2: Fast and resource-frugal k-mer counting.
+Bioinformatics, 31.
+Drezen, E. et al. (2014). GATB: Genome assembly & analysis tool box. Bioinformatics,
+We evaluated BFC along with BBMap-34.38 (http://bit.ly/bbMap),
+30:2959–61.
+BLESS-v0p23 (Heo et al., 2014), Bloocoo-1.0.4 (Drezen et al.,
+Gnerre, S. et al. (2011). High-quality draft assemblies of mammalian genomes from
+2014), fermi2-r175 (Li, 2012), Lighter-20150123 (Song et al.,
+massively parallel sequence data. Proc Natl Acad Sci, 108:1513–8.
+2014), Musket-1.1 (Liu et al., 2013) and SGA-0.9.13 (Simpson and Durbin,
+Heo, Y. et al. (2014). BLESS: bloom filter-based error correction solution for high2012) on real data (Table 1). We ran the tools on a Linux
+throughput sequencing reads. Bioinformatics, 30:1354–62.
+Li, H. (2012). Exploring single-sample SNP and INDEL calling with whole-genome
+server with 20 cores of Intel E5-2660 CPUs and 128GB RAM.
+de novo assembly. Bioinformatics, 28:1838–44.
+Precompiled binaries are available through http://bit.ly/biobin and
+Li, H. (2013). Aligning sequence reads, clone sequences and assembly contigs with
+the command lines were included in the BFC source code
+BWA-MEM. arXiv:1303.3997.
+package (http://bit.ly/bfc-eval). Notably, BLESS only works with
+Lim, E.-C. et al. (2014). Trowel: a fast and accurate error correction module for Illumina
+sequencing reads. Bioinformatics, 30:3264–5.
+uncompressed files. The rest of tools were provided with gzip’d
+Liu, Y. et al. (2013). Musket: a multistage k-mer spectrum-based error corrector for
+files as input. We have also tried AllPaths-LG (Gnerre et al., 2011),
+Illumina sequence data. Bioinformatics, 29:308–15.
+Fiona (Schulz et al., 2014) and Trowel (Lim et al., 2014), but they
+Melsted, P. and Pritchard, J. K. (2011). Efficient counting of k-mers in DNA sequences
+require more RAM than our machine. QuorUM-1.0.0 (Zimin et al.,
+using a bloom filter. BMC Bioinformatics, 12:333.
+2013) always trims reads, making it hard to be compared to others
+Pevzner, P. A. et al. (2001). An Eulerian path approach to DNA fragment assembly.
+Proc Natl Acad Sci, 98:9748–53.
+which keep full-length reads.
+Putze, F., Sanders, P., and Singler, J. (2007). Cache-, hash- and space-efficient bloom
+As is shown in the table, BBMap is the fastest. BFC, BLESS,
+filters. In Experimental Algorithms, 6th International Workshop, WEA 2007, Rome,
+Bloocoo and Lighter are comparable in speed. Bloocoo is the most
+Italy, June 6-8, 2007, Proceedings, pages 108–121.
+lightweight. Other bloom filter based tools, BFC-bf, BLESS and
+Schulz, M. H. et al. (2014). Fiona: a parallel and automatic strategy for read error
+correction. Bioinformatics, 30:i356–63.
+Lighter, also have a small memory footprint. Most evaluated tools
+Simpson, J. T. and Durbin, R. (2012). Efficient de novo assembly of large genomes
+have broadly similar accuracy. BFC-ht is more accurate than BFCusing compressed data structures. Genome Res, 22:549–56.
+bf overall, suggesting retaining high-quality k-mers helps error
+Song, L. et al. (2014). Lighter: fast and memory-efficient sequencing error correction
+correction; both BFC implementations are marginally better in
+without counting. Genome Biol, 15:509.
+this evaluaton, correcting more reads with fewer or comparable
+Zimin, A. V., Marçais, G., Puiu, D., Roberts, M., Salzberg, S. L., and Yorke, J. A.
+(2013). The MaSuRCA genome assembler. Bioinformatics, 29:2669–77.
+overcorrections when a similar k-mer length is in use, which
+
+3 RESULTS AND DISCUSSIONS
+
+2
+
+

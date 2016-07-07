@@ -1,0 +1,2982 @@
+In silico Support for
+Eschenmoser’s Glyoxylate Scenario
+Jakob L. Andersen1 , Christoph Flamm2 , Daniel Merkle1 , Peter F. Stadler2−7
+
+arXiv:1502.07555v1 [q-bio.MN] 26 Feb 2015
+
+1
+
+Department of Mathematics and Computer Science
+University of Southern Denmark, Denmark
+2
+
+Institute for Theoretical Chemistry
+University of Vienna, Austria
+3
+
+4
+
+Department of Computer Science
+University of Leipzig, Germany
+
+Max Planck Institute for Mathematics in the Sciences
+Leipzig, Germany
+
+5
+
+Fraunhofer Institute for Cell Therapy and Immunology
+Leipzig, Germany
+
+6
+
+Center for non-coding RNA in Technology and Health
+University of Copenhagen, Denmark
+7
+
+Santa Fe Institute, Santa Fe, USA
+
+Abstract
+A core topic of research in prebiotic chemistry is the search for plausible synthetic routes that connect
+the building blocks of modern life such as sugars, nucleotides, amino acids, and lipids to “molecular food
+sources” that have likely been abundant on Early Earth. In a recent contribution, Albert Eschenmoser
+emphasised the importance of catalytic and autocatalytic cycles in establishing such abiotic synthesis
+pathways. The accumulation of intermediate products furthermore provides additional catalysts that
+allow pathways to change over time. We show here that generative models of chemical spaces based on
+graph grammars make it possible to study such phenomena is a systematic manner. In addition to reproducing the key steps of Eschenmoser’s hypothesis paper, we discovered previously unexplored potentially
+autocatalytic pathways from HCN to glyoxylate. A cascading of autocatalytic cycles could efficiently
+re-route matter, distributed over the combinatorial complex network of HCN hydrolysation chemistry,
+towards a potential primordial metabolism. The generative approach also has it intrinsic limitations:
+the unsupervised expansion of the chemical space remains infeasible due to the exponential growth of
+possible molecules and reactions between them. Here in particular the combinatorial complexity of the
+HCN polymerisation and hydrolysation networks forms the computational bottleneck. As a consequence,
+guidance of the computational exploration by chemical experience is indispensable.
+
+1
+
+Introduction
+
+The Origin of Life is among the most fascinating and most interdisciplinary scientific problems. Despite
+a century of research, however, it still presents itself as an enigma. On the one hand, we still lack both a
+detailed understanding of the principles that govern the transition from non-living matter to living systems
+in general, and a clear historical scenario of the emergence of Life on Earth. See, e.g., Ruiz-Mirazo et al.
+[24] for a recent review.
+
+1
+
+2
+
+FORMAL APPROACH
+
+A key topic of prebiotic chemistry is to find synthetic routes to the bio-molecular building blocks of
+modern life that are chemically plausible given the environmental conditions on Early Earth. In particular,
+these synthetic routes need to start with material that has been reasonable abundant after the formation
+of the planet. This is a notoriously difficult research problem for several reasons: (1) The chemical search
+space is vast, in fact it is by far too large to enumerate exhaustively, and it cannot be confined to only those
+compounds that are well-characterised and described in current chemistry databases. (2) The constraints
+imposed by our current knowledge of the conditions on early earth are too vague to exclude large portions of
+the search space. (3) The problem of finding synthetic routes to target molecules itself, even for a fixed set
+of chemical reactions, is a very difficult combinatorial problem. (4) Experimental verification of potential
+routes is inherently slow. Consequently, conceptual guiding by skilled organic chemists is indispensable to
+direct research towards regions of prebiotic chemical space worthwhile of being explored in more detail.
+On the other hand, efficient formal, computational approaches are required to handle the combinatorial
+complexity in practice.
+Recently, Albert Eschenmoser published a conceptual paper [17] detailing the hypothetical relationships
+between HCN chemistry and the constituents of the reductive citric acid cycle. Eschenmoser suggested
+to look for catalytic and/or autocatalytic processes in the non-robust subspace of HCN chemistry since
+these have the potential to canalise this fragile chemistry towards the formation of C4 and C6 compounds,
+which in turn could function as precursors of α-keto acids and carbohydrates. In this scenario [16] glyoxylate (CID 760) and its formal dimer, dihydroxyfumarate (CID 54678503), serve as the pivotal entry points
+into sugar chemistry. Both compounds can be formally viewed as “aquo-oligomeres” of carbon monoxide
+(CID 281) and open up a route to sugars that is independent of formaldehyde (CID 712) as basic building block. Eschenmoser furthermore pointed out that aldehydes have the potential to catalyse both the
+oligomerisation of HCN (CID 768) to the tetramer DAMN (CID 2723951), and the hydrolysation of the
+cyanide groups (−CN) of the DAMN to the respective amide groups (−CONH2 ). This type of chemistry
+makes oxaloglycolate (CID 524) (a tautomer of dihydroxyfumerate) and glyoxylate accessible from HCN.
+Finally, Eschenmoser proposes a hypothetical autocatalytic cycle feeding on glyoxylate in which oxaloglycolate (or its diamides) acts as “umpolung-catalyst” for its on production. Umpolung is an important process
+in organic chemistry where the reactivity of a functional group (e.g., of a carbonyl group C = O) is inverted
+via chemical modification. The majority of bonds in organic reactions are formed between atoms of different
+polarity. Heteroatoms usually polarise the carbon skeleton in consequence of their high electronegativity.
+Therefore the carbon atom of the carbonyl group is partially positively charged allowing carbanions (carbon
+atoms carrying a negative charge) to attack the carbonyl carbon atom to form a novel carbon-carbon bond.
+Umpolung now chemically modifies the carbonyl group in such a way that the polarity of the carbonyl group
+is inverted. This means that the carbonyl carbon atom, after umpolung, carries a negative charge and can,
+in contrast to its normal mode of reactivity, attack itself a positively charged carbon center to form a novel
+carbon-carbon bond. (for a review on “umpolung” in organic synthesis see e.g., Seebach [28])
+Albert Eschenmoser arrived at hypotheses put forward in “The Chemistry of Life’s Origin” based on
+his extensive knowledge of organic chemistry. In this contribution we ask whether these scenarios could
+also have been found by formal computational methods and whether there are plausible alternatives, e.g.,
+other autocatalytic processes hidden in the combinatorial chemical space of HCN chemistry. To this end we
+employ a computational framework we have developed specifically to explore very large chemical reaction
+networks. It combines a generative approach that implements chemical reactions as graph transformations
+with network flow analysis on the resulting hypergraph representing the reaction network [3, 4]. This
+framework allows, for example, to detect autocatalytic cycles [1] and to establish the existence of synthesis
+routes connecting a pair of compounds [5]. We will use it here to redraw and elaborate on Eschenmoser’s
+pictures by computational means.
+
+2
+
+Formal Approach
+
+The vastness of chemical spaces renders the common methods of computational chemistry, from empirical
+potentials to full-fledged quantum chemistry, infeasible for large-scale explorations. A purely combinatorial
+approach that views molecules as graphs and chemical reactions as graph transformations, however, brings
+
+2
+
+2.1
+
+Graph Grammars and the Double Pushout Approach
+
+2
+
+G
+
+H
+H
+
+N
+
+H
+
+N
+
+H
+
+C
+
+H
+
+N
+
+H
+C
+
+H
+
+FORMAL APPROACH
+
+O
+
+N
+
+H
+
+H
+C
+
+C
+
+N
+
+O
+
+C
+
+N
+
+C
+C
+
+N
+
+C
+O
+
+H
+
+O
+
+H
+
+C
+C
+
+C
+
+N
+
+O
+
+H
+
+C
+O
+
+H
+
+Figure 1: Graph Grammar derivation splitting the precursor G in into a HCN-tetramer and glyoxylate. The
+latter two molecules together form the graph H. The underlying production rule, a generalised reverse aldol
+addition r18 , is indicated by the coloured atoms and bonds so that L is visible in G and R is visible in H.
+chemical spaces into reach of present-day computational capabilities. The use of graphs as models of
+molecules dates back to seminal work by Arthur Cayley [10] and James J. Sylvester, who introduced the
+term “graph” in his Nature paper [30] in 1878 in order to combine algebra and chemistry for the enumeration
+of isomers. We follow the same natural paradigm: atoms are the vertices labelled by atom type and
+chemical bonds become edges in the graph, labelled by the bond type. A chemical reaction is then simply a
+transformation of a collection of educt graphs into a collection of product graphs that preserves atom labels.
+However, not all such transformations are chemically meaningful. Instead, chemical reactions follow a quite
+restrictive set of rules that corresponds to the reaction mechanisms and “name reactions”.1
+
+2.1
+
+Graph Grammars and the Double Pushout Approach
+
+Despite the ubiquity of graphs in the chemistry literature, graph transformations [19] have been introduced
+only quite recently as an explicit models of chemical reactions [8]. They provide a more general and more
+versatile framework for specifying chemical reactions than earlier, matrix-centred approaches such as the
+Dugundji-Ugi theory [13, 18].
+The basic idea behind graph transformations is that each transformation rule r specifies that a “left”
+graph L can be replaced by a “right” graph R. The rule r can be applied to a graph G provided L is
+contained as a subgraph in G. The application of r to G then consists in replacing the subgraph L within
+G by R, resulting in a new graph H. A simple example of such a rule is the addition of Br2 to a CH2 = CH2
+double bound resulting in an dibromide Br−CH2 −CH2 −Br. Graph transformation systems generalise the
+string or term rewriting systems familiar in mathematics, computer science, and logic [7].
+Several different mathematical frameworks have been explored for graph rewriting [14]. They vary in
+the exact definitions of how L has to be contained in G, i.e., when the precondition for applying a rule is
+satisfied, and how exactly the replacement R is inserted into G to form the rewritten graph H. We adopted
+one of the more restrictive frameworks known as the Double-Pushout approach (DPO) because it has several
+features that are appealing for applications to chemistry. In DPO a rule, usually called a production, consists
+of three graphs, the “educt” L, the “product” R, and a “context” K that remains unchanged during the
+reaction. The DPO formalism stipulates that K is contained as a subgraph in both L and R. Since atoms
+are neither lost nor gained in chemical reactions, K in particular contains all atoms that take part in the
+reaction. Together, L, K, and R completely specify the formal transition state and the atom map of the
+transformation. A further advantage of DPO is that exchanging the roles of L and R automatically leads
+to the production for the reverse reaction. We refer to Andersen et al. [3] for more information on these
+technicalities.
+The application of a production to a graph G is called a derivation. In a compressed representation
+1
+
+http://www.organic-chemistry.org/namedreactions/
+
+3
+
+2.2
+
+Generation and Exploration of Chemical Spaces
+
+2
+
+FORMAL APPROACH
+
+we can depict it as in Fig. 1. The production is shown by the two highlighted subgraphs (red bonds and
+green atoms) in the graphs denoted as G and H. The highlighted patters in G corresponds to an instance
+of precondition L, so that the production can be applied. In H, thus, L is replaced by R. The full DPO
+representation of the rule application, along with the 18 chemical reaction mechanisms considered in this
+contribution, can be found in the appendix (the rule depicted in Fig. 1 is denoted as r18 in the appendix).
+An important technical consideration is that the graphs considered in our framework are usually not
+connected. Chemical production rules indeed often describe the formation of new bonds between two or
+even more educt molecules or may lead to splitting of a single molecule into multiple fragments. The graphs
+G and H, hence, are not just molecules but rather multi-sets of molecules taken from a certain chemical
+space.
+The application of a production of a given graph G is a computationally non-trivial task since it requires
+the solution of a subgraph isomorphism problem namely that of finding L as a subgraph of G. This is a
+well-known NP-hard problem [11]. Nevertheless, it can theoretically be solved efficiently for chemical graphs
+since they are almost always planar and the pattern L is small, see Eppstein [15]. Our implementation uses
+the VF2 algorithm [12] for this purpose.
+
+2.2
+
+Generation and Exploration of Chemical Spaces
+
+The set of chemical reactions, modelled as production rules, can be applied iteratively to a set of starting
+compounds. In principle, this procedure generates the universe of all molecules and all reactions between
+them that can be theoretically constructed from a given “chemical repertoire”. In each step, the chemical
+space grows. The production rules are intentionally modelled in a generic way, such that the same rule can
+be applied to many different combinations of compounds and even in many different ways on the same set
+of compounds. The generative approach thus very quickly leads to huge chemical spaces and the brute-force
+approach can only be applied for a very limited number of steps. A practical issue in constructing a chemical
+space is that we need to determine whether the result of a derivation is a new molecule, and hence needs to
+be added to the space, or whether it is a compound that we have already seen. This requires a large number
+of solutions of the graph isomorphism problem. For chemical systems, this issue is usually dealt with by
+using canonical SMILES strings [32]. Since errors in the canonicalisation algorithm have surfaced [20], we
+again use the VF2 algorithm [12] to verify results.
+In order to control the computational effort, we employ methods from programming language design
+in computer science and use these to define a high-level strategy language. This will allow us to apply
+exploration strategies and expand the chemical spaces in a much more controlled way. For example, in
+contrast to a brute-force expansion, we can decide to only apply a smaller subset of rules to particular subsets
+of compounds specified in terms of certain graph-theoretical properties. Furthermore, the framework allows
+us to prune uninteresting parts of the chemical space by filtering the results of derivation again based on
+graph-theoretical properties. For a more formal introduction to the strategy framework we refer to Andersen
+et al. [4].
+Eschenmoser [17] presented several schemes to investigate the relationship between HCN and the precursors of amino acids. To model some of his schemes, we followed strict strategies, i.e., we modelled specific
+reactions paths based on an explicit sequence of rule applications. The reason for this restriction is that
+a brute-force strategy in which all rules from the HCN chemistry are applied in an iterative way expands
+the chemical space so quickly that the computational resource are exhausted long before the products of
+interest are reached. Still, even a strict strategy with a pre-determined order in which production rules
+are applied, can lead to a plethora of different compounds because each individual rule potentially can be
+applied in many different ways. This follows from the fact that L often admits several different subgraph
+isomorphisms into G.
+We also employ the very useful technique of an expansion step with a subsequent closure of the chemical
+space, i.e., we apply (potentially all) chemical reactions to a set of chemical compounds, and subsequently
+infer all possible reactions between all compounds. When applying this strategy to a given network that
+fulfills a certain property (e.g., being autocatalytic), then the space that results from an expansion step with
+a subsequent closure operation can be used as an input to find neighbouring solutions to the given specific
+chemical transformation motif. How to find such motifs is discussed in the next section.
+4
+
+2.3
+
+2.3
+
+Detection of Chemical Transformation Motives
+
+3
+
+RESULTS
+
+Detection of Chemical Transformation Motives
+
+A chemical transformation motif is a subnetwork of a chemical space with the following properties: (1) The
+motif has a well-defined boundary to the outside, i.e., the educts, the products, and the food molecules
+are predefined. (2) The motif is stoichiometrically balanced, i.e., each chemical reactions contributes an
+integer flux that reflects how often a specific reaction in the chemical space is used within a specific pattern.
+Formally, the chemical spaces are hypergraphs, and a chemical motif can be expressed as a hyperflow on
+this hypergraph. Conceptually, integer hyperflows are similar to the flows obtained from Flux Balance
+Analysis, see e.g., Orth et al. [22]. The insistence on integer flows, however, allows to infer mechanistically
+important properties. E.g., this approach allows to distinguish between autocatalytic subsystems that need
+to be seeded by their products and those that can “auto-start”.
+In order to bias the search for chemical transformation motifs or the search for alternatives to predefined
+motifs, we use an objective function. The probably most natural objective function will provide a maximum
+parsimonious solution by minimizing the number of reactions that are used to realise a sought transformation
+motif. Other possible objective functions include the fluxes on the reactions, or they use a quantification for
+the reactions that reflect the likelihood of reactions happening. For finding chemical transformation motifs
+we formulate the question to be answered as an Integer Linear Programming (ILP) problem. The technical
+details of this approach are far beyond the scope of this paper and we refer to Andersen et al. [6].
+
+3
+
+Results
+
+In his conceptual paper [17] Eschenmoser proposed to re-investigate the non-robust parts of HCN chemistry,
+and emphasises glyoxylate as key a compound for the emergence of a primordial metabolism. A recent
+experimental study explored the aldol-type chemistry of dihydroxyfumarate, a tautomer of oxaloglycolate,
+and small aldehydes including glyoxylate [26]. It demonstrates that under moderate-pH conditions (pH
+7–8) in water, biologically relevant ketoses are formed selectively with high yield. A follow-up study [9]
+revealed that, in contrast, tartrate (CID 875) and oxalate (CID 971) are produced under high-pH conditions.
+Dehydration and decarboxylation of tartrate, both well-known reactions, readily yield oxaloacetate and
+pyruvate. Although high-pH conditions are considered problematic in the prebiotic context, these studies
+nicely illustrate that even under consistent basic conditions even the most abundant products depend very
+sensitively on details of the reaction conditions. In silico explorations of the chemical space in the vicinity
+of experimentally known or theoretically inferred reaction sequences may drastically speed up the search for
+novel and unconventional routes to biologically relevant molecules. To demonstrate this point, we modelled
+the necessary HCN reaction chemistry proposed in Eschenmoser’s paper [17] with the help of our graph
+grammar framework. In this manner we can explicitly construct the reaction network surrounding the
+suggested pathways, so that we can explore potential alternatives in the chemical space where these routes
+are embedded. The hypothetical reaction sequences generated by the graph grammar framework can be
+refined whenever experimental evidence is collected. The 18 reaction types used in this contribution are
+listed in the appendix. We have deliberately specified as little context as possible to guarantee a broad
+applicability.
+
+3.1
+
+Overview
+
+Fig. 2 summarises our contribution. It merges several of Eschenmoser’s schemes [17] and integrates them
+with our findings. The figure shows only key compounds and is intended to facilitate the navigation through
+the much more detailed analysis of the individual components that we have modelled and analysed with our
+graph grammar framework.
+All results given in this section are based on the automatic computational inference of chemical transformation motifs within a large chemical space. Solutions of the various underlying optimisation questions
+correspond to automatically inferred detailed descriptions of the corresponding mechanism for the question
+asked. These computational results contain a plethora of additional information that we neither use nor
+discuss in this paper. For example, a complete set of atom maps is obtained as a by-product. From these,
+
+5
+
+3.2
+
+Pathways from the HCN-tetramer to Oxaloglycolate
+
+3
+
+Pyruvate
+
+Oxaloacetate
+
+RESULTS
+
+Glycolaldehyde
+
+O
+CH3
+OH
+
+HO
+
+OH
+
+O
+
+O
+O
+O
+
+HC
+
+O
+
+OH
+
+N
+
+O
+
+Oxaloglycolate
+HO
+
+Glyoxylate
+
+OH
+
+O
+O
+
+OH
+
+N
+
+OH
+
+NH
+O
+
+Glyoxylate
+
+O
+
+OH
+NH2
+
+O
+O
+
+NH2
+
+HO
+
+O
+
+O
+N
+
+N
+
+O
+
+N
+
+N
+
+NH2
+O
+
+DAMN
+
+H2 N
+
+N
+NH2
+
+H2 N
+
+NH2
+
+OH
+
+NH2
+NH2
+
+NH2
+
+O
+O
+
+NH2
+
+Figure 2: Overview of Eschenmoser’s hypothetical chemical space.
+one could immediately infer atom traces for specific isotope labelling experiments to distinguish alternative
+pathways [5].
+In Fig. 2, any edge drawn as a solid line indicates that a single production rule, i.e., a single reaction
+has been used. Dashed edges or hyperedges denote larger chemical subspaces, i.e., sub-hypergraphs. The
+two dashed orange (hyper-)edges refer to the hypothetical autocatalytic subnetwork of oxaloglycolate, using
+glyoxylate as food molecule. Such a hypothetical autocatalytic cycle has been presented and discussed in
+detail by Eschenmoser [17]. Below, we will discuss alternative routes found by computational inference.
+The dashed green hyperedge depicts the hypothetical autocatalytic subnetwork of Glyoxylate, using HCN
+as food molecule. Such a subsystem has not been proposed in earlier work. In section 3.3 we will discuss
+several alternative co-optimal solutions for this chemical transformation motif.
+Oxaloglycolate and its oligomeres are precursors of carbohydrates and α-keto acids, which themselves
+are potential starting compounds for a primordial metabolism. In Fig. 2 oxaloglycolate is depicted as a
+precursor to glycolaldehyde, the dashed line corresponds to four subsequent production rules that correspond
+to a decarboxylation. Furthermore, via two production rule steps oxaloglycolate is reduced to oxaloacetate,
+which in two subsequent steps leads to pyruvate.
+
+3.2
+
+Pathways from the HCN-tetramer to Oxaloglycolate
+
+At first glance the conversion of the HCN-tetramer into oxaloglycolate seems to be a straightforward hydrolysation process. Eschenmoser’s paper [17] and Fig. 2 illustrates this process in strongly abstracted form
+with just 3 steps. A mechanistic model, however, shows that 11 steps are required. Fig. 3 summarises a
+superposition of all pathways of minimum length starting at DAMN and ending in oxaloglycolate. The figure
+emphasises the combinatorial nature of the HCN hydrolysation chemistry. Although all connections in the
+graph in Fig. 2 seem to be 1-to-1, this is in fact not the case. The simple molecules H2 O, NH3 , and HCN were
+suppressed in the drawing to reduce cluttering. The intermediate compounds selected as representatives in
+the overview figure (see Fig. 2) are highlighted in Fig. 3. A closer inspection of the structure of the network
+in Fig. 3 shows that it closely resembles a Cartesian graph product[25]. This feature is based on the fact that
+the temporal order of several of the intermediate steps can be permuted. A consequence of the product-like
+structure is a high level of confluence, i.e., the fact that a large number of partially overlapping alternative
+
+6
+
+3.3
+
+The Autocatalytic Production of Glyoxylate
+
+3
+
+RESULTS
+
+pathways lead from the same educts to the same products. The hydrolysation chemistry of DAMN behaves
+like a dynamic combinatorial library that can adjust the internal fluxes upon change of the source or sink
+reactions.
+
+3.3
+
+The Autocatalytic Production of Glyoxylate
+
+Eschenmoser [17] discussed the usage of glyoxylate as a starting material for the autocatalytic production
+of oxaloglycolate. Glyoxylate itself is produced via slow hydrolysation chemistry from the HCN-dimer
+iminoacetonitrile (CID 14496737). The production of oxaloglycolate and a potential downstream primordial
+metabolism therefore also depends on HCN as food source. If an alternative pathway for the production
+of glyoxylate becomes accessible, the dependent downstream metabolism remains unaffected and formally
+adapts to the new precursor of glyoxylate as food source. However, the production of glyoxylate from its
+precursor molecule is the rate-limiting step for the downstream processes. An autocatalytic cycle feeding
+on a slow hydrolysation process can not exhibit exponential growth characteristics and thus cannot canalise
+the reaction network. Eschenmoser therefore asked how glyoxylate could be produced more efficiently from
+its precursor compound(s).
+We searched for potential autocatalytic cycles that produce glyoxylate from HCN. Even in the very
+strict modelling approach we applied, several autocatalytic solutions were found. Two arbitrarily chosen
+solutions with a minimum number of reactions have been analysed in more detail, see Fig. 4. The HCN
+hydrolysation chemistry contains many more solutions in particular if the constraint on the minimality of
+the autocatalytic cycle is relaxed. Both solutions produce two glyoxylate molecules from a single glyoxylate
+(acting as autocatalyst) and HCN as food source. The solutions are depicted as hyperflows, i.e., any reaction
+has an assigned integer value (shown as edge label). As usual H2 O and NH3 (with a balance of +3 and −2,
+resp.), are suppressed from the drawing. The food molecule for both autocatalytic cycles are produced via
+slightly different pathways (Fig. 4a via iminoacetonitrile, Fig. 4b via formamide). Although the chemistry
+in the two cycles differ, the last step which produces two copies of glyoxylate are identical in both solutions.
+It involves amide hydrolysis which, depending on the reaction conditions, can be a slow process. During one
+turnover, both cycles consume two HCN molecules. We want to emphasise that these solutions only possess
+the proper topology for being autocatalytic cycles. We do not make any assumption about the kinetic rates
+or potential draining reactions which both can dampen the flux around the cycle to such an extend, that the
+autocatalytic behaviour is lost. However, our approach would allow to include such properties via additional
+constraints or an adequate modification of the objective function that is used in our optimisation approach.
+
+3.4
+
+The Autocatalytic Production of Oxaloglycolate
+
+Eschenmoser [17] proposed an hypothetical autocatalytic cycle, that produces oxaloglycolate from glyoxylate.
+This transformation requires that the glyoxylate dimer or its amides acts as “umpolung-catalyst”. With
+the help of the strict expansion strategy we reproduced this model computationally. The corresponding
+autocatalytic cycle is depicted in the overview figure (simplified in Fig. 2, as two dashed orange (hyper)edges). The right-hand side of Fig. 5 shows the detailed reaction pathway generated by the graph grammar
+approach. More precisely, it represents an optimal hyperflow in the chemical space in which both glyoxylate
+and oxaloglycolate are produced autocatalytically. This pathway illustrates the coupling of two autocatalytic
+cycles, one producing oxaloglycolate from glyoxylate and the other producing glyoxylate from HCN. The
+overall pathway consumes 4 HCN in order to produce one oxaloglycolate.
+A cascading of autocatalytic reaction cycles has the advantage, that the downstream cycles are not
+rate limited by the upstream processes that produce their food molecules, and that symmetry-breaking of a
+homogeneous mixture can be very fast. In our particular case, when the autocatalytic cycle of the glyoxylate
+production kicks in, all the molecular mass distributed over the large reversible HCN-hydrolysation network
+(Fig. 3) is re-absorbed into the autocatalytic glyoxylate cycle. The effect of this “flux focusing” is an efficient
+re-routing of potentially lost raw material towards the downstream primordial metabolic processes.
+At this point the question arises if there are alternative cascades of autocatalytic cycles hidden in the
+chemical space using glyoxylate and oxaloglycolate? In order to search for such alternatives we expanded
+the chemical space spanned by the hypergraph underlying Fig. 5 and then applied a closure operation, which
+
+7
+
+3.4
+
+The Autocatalytic Production of Oxaloglycolate
+
+3
+
+RESULTS
+
+N
+
+N
+
+DAMN
+
+NH2
+NH2
+
+N
+NH2
+O
+
+N
+
+H2 N
+
+N
+
+NH2
+
+NH
+NH2
+
+N
+
+NH2
+
+OH
+
+H2 N
+
+NH2
+HN
+
+NH2
+
+NH2
+
+O
+OH
+
+O
+
+H2 N
+
+NH2
+
+NH2
+H2 N
+
+N
+
+NH2
+N
+
+O
+
+O
+
+NH
+
+N
+
+NH2
+
+N
+
+NH2
+
+NH2
+NH2
+
+NH2
+
+NH2
+
+O
+
+N
+
+O
+
+HN
+
+OH
+
+HN
+
+O
+N
+
+O
+
+NH2
+
+NH2
+
+OH
+
+HO
+
+NH2
+
+O
+HO
+
+H2 N
+
+N
+
+NH2
+N
+
+NH2
+
+O
+
+NH2
+
+NH2
+
+N
+
+N
+
+NH2
+
+NH2
+
+N
+
+NH2
+
+NH2
+
+NH2
+
+NH2
+
+NH
+
+O
+
+O
+
+NH2
+
+OH
+
+NH2
+
+O
+
+N
+O
+
+NH2
+
+HO
+
+O
+
+NH2
+
+HO
+
+O
+
+NH2
+
+N
+HO
+
+NH2
+
+H2 N
+
+O
+
+OH
+
+NH2
+
+O
+
+N
+OH
+
+NH2
+
+HN
+
+O
+
+O
+
+OH
+NH2
+
+OH
+
+O
+
+N
+O
+
+O
+
+O
+
+N
+NH2
+
+NH2
+H2 N
+
+O
+
+NH2
+
+NH2
+
+NH2
+
+NH
+
+OH
+
+O
+
+O
+
+OH
+
+O
+
+OH
+
+NH
+NH2
+
+NH2
+
+O
+
+NH2
+
+NH2
+
+N
+
+OH
+
+NH2
+
+NH2
+
+OH
+
+H2 N
+
+OH
+
+OH
+
+O
+
+NH2
+
+NH2
+
+N
+O
+
+H2 N
+
+O
+
+OH
+NH2
+
+N
+
+O
+
+N
+OH
+
+NH2
+
+OH
+
+O
+
+O
+
+O
+
+O
+
+NH2
+
+O
+
+O
+
+HO
+
+NH2
+
+NH2
+
+O
+
+NH2
+
+O
+
+N
+
+NH2
+HN
+
+NH2
+
+NH2
+
+NH2
+
+NH2
+
+OH
+
+NH2
+
+O
+
+O
+
+NH2
+
+O
+
+O
+
+O
+
+NH2
+
+O
+
+O
+
+O
+
+N
+
+NH2
+
+OH
+
+HO
+
+HO
+
+N
+
+NH2
+NH
+
+N
+
+OH
+
+N
+
+O
+
+NH2
+N
+
+OH
+
+OH
+
+OH
+
+HO
+
+OH
+
+HO
+
+N
+OH
+
+HN
+
+O
+O
+
+O
+
+OH
+
+O
+
+OH
+
+OH
+
+NH2
+
+O
+
+OH
+
+O
+
+HO
+
+NH2
+
+NH2
+
+O
+
+N
+
+OH
+
+OH
+OH
+
+OH
+
+OH
+
+O
+
+OH
+
+OH
+
+O
+
+NH2
+
+N
+
+O
+
+HN
+
+N
+HO
+
+NH2
+
+NH2
+
+NH2
+
+NH2
+HO
+
+O
+
+NH2
+
+NH2
+
+N
+HO
+
+O
+
+O
+
+O
+
+NH2
+N
+
+O
+
+OH
+
+H2 N
+
+O
+
+NH
+
+NH2
+
+O
+
+NH
+
+OH
+
+OH
+
+OH
+
+O
+
+NH2
+
+O
+
+N
+
+N
+
+OH
+
+OH
+
+O
+
+OH
+
+OH
+
+H2 N
+
+O
+
+OH
+
+OH
+
+OH
+
+N
+
+N
+H2 N
+
+O
+NH2
+
+OH
+
+N
+
+OH
+
+HN
+
+O
+
+OH
+
+HO
+
+NH2
+
+OH
+
+OH
+
+O
+
+NH2
+
+O
+
+HO
+
+OH
+
+O
+
+NH2
+
+O
+
+OH
+
+NH2
+
+O
+
+O
+
+OH
+
+OH
+
+OH
+
+H2 N
+
+NH2
+
+HO
+
+NH
+
+OH
+
+OH
+
+OH
+
+OH
+
+OH
+NH2
+
+N
+O
+
+O
+
+O
+
+O
+
+NH2
+
+O
+
+O
+
+HO
+
+O
+
+OH
+
+O
+
+OH
+
+N
+H2 N
+
+O
+
+OH
+
+O
+O
+
+O
+O
+
+N
+O
+
+H2 N
+
+HO
+
+NH2
+O
+
+O
+
+O
+
+HO
+
+O
+
+OH
+
+OH
+O
+
+NH2
+
+NH2
+
+O
+
+O
+
+H2 N
+
+OH
+
+OH
+
+OH
+
+O
+
+NH2
+OH
+
+O
+
+OH
+
+NH2
+
+NH
+
+O
+
+O
+
+HO
+O
+
+O
+
+OH
+
+OH
+
+O
+
+Oxaloglycolate
+
+HO
+
+OH
+
+O
+O
+
+OH
+
+Figure 3: A superposition of optimal pathways from the HCN-tetramer to oxaloglycolate, illustrating the
+combinatorial complexity for even small subspaces.
+8
+
+4
+
+DISCUSSION AND CONCLUSIONS
+
+N
+
+2
+
+HO
+
+OH
+
+OH
+
+O
+HC
+
+N
+
+1
+r2
+
+NH
+
+O
+
+NH2
+N
+H
+
+HO
+
+r1 1
+
+O
+
+OH
+OH
+H2 N
+
+N
+
+O
+
+r7 1
+
+NH
+
+r7 1
+
+O
+
+1 r4
+
+1
+OH
+
+r3
+
+N
+OH
+
+OH
+
+1
+r7
+
+O
+
+HO
+O
+
+O
+
+NH2
+
+2
+
+NH2
+
+Glyoxylate
+
+1
+
+(a)
+N
+HO
+O
+
+1
+r7
+
+NH
+
+2
+
+O
+N
+
+HO
+
+HC
+
+N
+OH
+
+OH
+N
+
+O
+
+r8 1
+
+1 r16
+
+1
+
+NH2
+
+NH2
+
+r7
+
+OH
+O
+
+1 r2
+
+HO
+
+OH
+
+1 r2
+
+1
+r3
+
+NH2
+O
+O
+
+2
+
+1
+
+H2 N
+O
+O
+
+Glyoxylate
+
+(b)
+
+Figure 4: Two autocatalytic pathways for the autocatalytic production of glyoxylate. Hyperedges are
+labelled with the reaction id and the integer flux value of the specific reaction.
+embeds the reaction network employed for Fig. 5 into its nearby “shadow network”. The resulting chemical
+space is composed of 415 compounds connected by 1116 reactions (compared to the network of 95 compounds
+and 133 reactions, which was used as the underlying network for inferring the chemical transformation motif
+depicted in Fig. 5).
+The objective function used for the inference of Fig. 5 was applied to this larger chemical space to
+search for alternative autocatalytic cascades. A solution is depicted in Fig. 6. The number of reactions in
+the alternative solution dropped from 24 to 22. Notice that both autocatalytic sub-networks are slightly
+different from the solution depicted in Fig. 5. The splitting step of the glyoxylate cycle, which generates the
+two copies of glyoxylate uses only the break-down of a hemiaminal, which can be considered to be a fast
+reaction. In the oxaloglycolate cycle the addition step of the first glyoxylate goes via a different tautomer
+of oxoaspartate. Although the oxaloglycolate sub-network was combinatorially modified, the number of
+reactions stayed the same. However, even one expansion step followed by a closure operation reduced the
+number of reactions used in the glyoxylate sub-network from 9 to 7.
+
+4
+
+Discussion and Conclusions
+
+The analysis of autocatalytic subsystems of chemical reaction networks has become a lively research area
+in prebiotic chemistry [23]. Autocatalysis has the potential to canalise reactions in such a way that a
+relatively small number of well-defined organic molecules can accumulate in substantial concentrations. The
+key interest is, of course, in the production of the current constituents of living cells and in pathways that
+9
+
+4
+
+O
+
+O
+
+O
+
+HO
+
+4
+
+O
+
+O
+
+HO
+
+O
+
+N
+
+O
+
+2 r1
+
+N
+
+1
+r15
+
+O
+
+O
+
+HO
+
+N
+
+O
+
+1
+r4
+
+OH
+
+HO
+NH
+
+O
+
+HO
+
+O
+OH
+
+O
+
+OH
+
+OH
+
+N
+
+OH
+
+OH
+OH
+
+O
+
+O
+
+OH
+
+HC
+
+DISCUSSION AND CONCLUSIONS
+
+OH
+HO
+
+OH
+
+NH
+
+2 r4
+N
+OH
+HO
+
+HO
+
+O
+
+O
+
+NH2
+O−
+
+1 r14
+
+O
+N
+
+2 r8
+
+1
+r13
+
+O
+
+O
+N
+
+OH
+HO
+
+OH
+
+O
+
+HO
+
+O
+
+1 r5
+OH
+
+O
+
+H
+N
+
+HO
+
+OH
+O
+
+O
+
+2
+r3
+
+O
+
+Glyoxylate
+
+O
+
+NH2
+
+OH
+
+2 r6
+OH
+
+OH
+
+1
+
+NH2
+
+NH2
+
+NH
+
+O
+
+Oxoaspartate
+
+O
+NH2
+
+O
+
+1 r7
+
+OH
+
+1 r8
+
+OH
+
+HN
+
+O
+N
+H
+
+O
+
+2 r7
+
+N
+
+OH
+
+OH
+
+O
+
+HO
+
+2
+
+O
+O
+
+HO
+
+OH
+
+Oxaloglycolate
+O
+
+2 r7
+O
+
+2 r17
+
+1, r9
+
+O
+
+OH
+
+O
+
+1, r10
+
+1, r8
+
+NH2
+
+OH
+OH
+N
+
+2
+r4
+
+HO
+
+NH2
+
+HO
+
+OH
+
+1, r11
+
+O
+
+1, r5
+
+HO
+
+OH
+
+1, r7
+O
+
+NH
+
+OH
+
+O
+
+NH2
+
+O
+O
+
+OH
+
+HO
+
+OH
+
+OH
+HN
+O
+
+O
+
+1, r12
+
+O
+O
+
+OH
+
+1, r4
+
+O
+O
+
+OH
+
+HO
+NH2
+OH
+
+OH
+
+Figure 5: The autocatalytic production of oxaloglycolate, using glyoxylate as a food source (to the right
+of the separating green-orange dashed line). This chemical space follows Eschenmoser’s suggestions and
+integrates a subspace for the autocatalytic production of the glyoxylate (left of the green-orange dashed
+line) as found in Section 3.3.
+may feed core subsystems of present-day metabolisms such as the reductive citric acid cycle [29]. A good
+example of such hypothetical autocatalytic feeding networks are those that start from the “formal hydrates
+of CO”, in particular glyoxylate and 2,3-hydroxyfumarate.
+The scenario of prebiotic synthesis proposed by Albert Eschenmoser [17] is one of the most popular ones
+of this type. Other hypotheses worth mentioning in this context are, e.g., a model for the cyclic production
+of HCN [27] and a model of sugar chemistry [31]. A key feature of Eschenmoser’s model is the idea that
+the main “food sources”, and hence the main pathways, have evolved in a step-wise manner. Transitions
+between dominating reaction pathways are triggered whenever intermediate compounds become available
+that “kick-start” new autocatalytic cycles leading to their own production. In Eschenmoser’s model, first
+HCN is used as a food source in order to produce glyoxylate. Later-on glyoxylate is consumed as a food
+source for the autocatalytic production of oxaloglycolate, using itself as an (umpolung-)catalyst.
+In order to study the possible chemical pathways in a more systematic manner efficient computational
+approaches are required to deal with the combinatorial nature and the immense size of chemical spaces.
+This in turn calls for a modelling approach that has a solid formal background. Here we use a graph-
+
+10
+
+4
+
+O
+
+DISCUSSION AND CONCLUSIONS
+
+O
+
+HO
+
+O
+
+O
+
+OH
+O
+
+N
+
+O
+
+HO
+
+OH
+
+O
+OH
+
+1
+r15
+
+O
+
+O
+
+N
+
+OH
+
+OH
+HO
+
+O
+
+OH
+
+O
+
+OH
+
+4
+
+OH
+
+HC
+
+O−
+
+1 r14
+
+N
+
+O
+N
+
+1 r4
+OH
+
+r1 2
+
+HO
+
+O
+
+OH
+
+1 r13
+N
+
+HO
+
+NH
+
+O
+
+O
+
+OH
+
+OH
+
+O
+
+2 r4
+
+O
+
+O
+N
+
+N
+OH
+
+O
+
+HN
+OH
+
+H
+N
+
+1
+r5
+
+HO
+
+HO
+
+OH
+O
+
+O
+
+NH2
+
+O
+
+OH
+
+O
+
+OH
+HO
+
+OH
+
+O
+
+O
+
+OH
+
+O
+
+1 r10
+OH
+
+r7 1
+
+2 r8
+OH
+O
+
+OH
+
+N
+HO
+
+O
+
+Glyoxylate
+
+OH
+
+O
+
+OH
+
+2
+r7
+
+HO
+NH
+
+O
+
+1
+r8
+
+O
+
+HO
+
+OH
+N
+H
+OH
+
+Oxaloglycolate
+
+NH2
+
+HO
+
+r7 2
+
+2 r2
+
+O
+O
+OH
+
+OH
+
+OH
+
+HO
+
+O
+
+NH2
+N
+H
+O
+
+O
+
+2
+r3
+
+O
+
+HO
+
+HO
+
+O
+
+HO
+
+O
+
+O
+
+OH
+
+Oxoaspartate
+
+1, r11
+
+1, r8
+
+O
+O
+
+OH
+
+O
+
+O
+
+OH
+
+1, r12
+
+1
+r9
+
+2
+
+O
+
+NH2
+
+OH
+
+NH2
+
+OH
+
+OH
+
+1
+
+O
+
+O
+
+OH
+
+1, r7
+
+OH HO
+
+1, r5
+
+NH2
+
+NH
+O
+
+HO
+
+HO
+OH
+
+OH
+NH
+
+1, r4
+
+O
+OH
+HO
+
+Figure 6: One of the optimal subspaces within which oxaloglycolate is produced autocatalytically from
+HCN as food source and the in which the intermediate food source glyoxylate is itself is produced in an
+autocatalytic manner. To find this solution the space depicted in Fig. 5 was expanded and a closure operation
+was applied to the expanded space. The two autocatalytic cycles are separated by the green-orange dotted
+line, cmp. Fig. 5.
+theoretical approach, more precisely graph transformation systems. These make it possible to generate
+well-defined subsets of chemical spaces. This type of computational modelling indeed allows the exploration
+of large numbers of alternative pathways, some of which are rather unexpected. In a recent investigation into
+HCN-polymerisation/-hydrolysis chemistry [2], for example, we found several plausible alternatives to Oró’s
+prebiotic adenine synthesis [21]. In the computational re-analysis of Eschenmoser’s hypothesis outlined here,
+we find that autocatalytic pathways can be found abundantly, often involving the same key intermediates.
+The formal approach not only recovers the proposals put forward by experienced chemists but also
+reveals a plethora of alternatives that nevertheless match the same chemical transformation motives as
+those proposed in Eschenmoser’s work.
+In some cases, such as the production of glyoxylate from HCN we found previously undescribed autocatalytic production cycles (see Fig. 4 and Fig. 5). In other parts of the network we found plausible alternative
+pathways such as the autocatalytic umpolung cycle for the oxaloglycolate production (see Fig. 6). Some of
+these solutions are particularly appealing since they involve even fewer reaction steps than their previously
+described alternatives. The superposition of the optimal pathways from the HCN-tetramer to oxaloglycolate, Fig. 3, highlights a product like organisation of a large number of confluent reaction sequences. The
+analysis of the shadow, i.e., the immediate vicinity of the union of the networks autocatalytic in glyoxylate
+
+11
+
+REFERENCES
+
+and oxaloglycolate, illuminates a complex interplay of alternative routes.
+Of course, the combinatorial analysis of the network only describes possibilities and plausibilities. Considerations of thermodynamic stability and in particular of the kinetics of alternative reactions have to be
+invoked to further narrow down the scenarios to those that are good candidates for having taken place on
+Early Earth. Nevertheless, the generation of the chemical spaces remains a necessary first step for any form
+of more refined and more realistic model of prebiotic chemistry.
+
+Acknowledgments
+This work was supported in part by the EU-FET grant RiboNets 323987, the COST Action CM1304 “Emergence and Evolution of Complex Chemical Systems”, and the Danish Council for Independent Research,
+Natural Sciences.
+
+References
+[1] J. L. Andersen, C. Flamm, D. Merkle, and P. F. Stadler. Maximizing output and recognizing autocatalysis in chemical reaction networks is NP-complete. J. Syst. Chem., 3:1, 2012.
+[2] J. L. Andersen, T. Andersen, C. Flamm, M. Hanczyc, D. Merkle, and P. F. Stadler. Navigating the
+chemical space of HCN polymerization and hydrolysis: Guiding graph grammars by mass spectrometry
+data. Entropy, 15:4066–4083, 2013.
+[3] J. L. Andersen, C. Flamm, D. Merkle, and P. F. Stadler. Inferring chemical reaction patterns using
+graph grammar rule composition. J. Syst. Chem., 4:4, 2013.
+[4] J. L. Andersen, C. Flamm, D. Merkle, and P. F. Stadler. Generic strategies for chemical space exploration. Int. J. Comp. Biol. Drug Design, 7:225–258, 2014.
+[5] J. L. Andersen, C. Flamm, D. Merkle, and P. F. Stadler. 50 Shades of rule composition: From chemical
+reactions to higher levels of abstraction. In F. Fages and C. Piazza, editors, Formal Methods in MacroBiology, volume 8738 of Lect. Notes Comp. Sci., pages 117–135, Berlin, 2014. Springer.
+[6] J. L. Andersen, C. Flamm, D. Merkle, and P. F. Stadler. Mechanistic transformation patterns in
+chemical reaction networks using integer flows on directed hypergraphs. Technical report, University
+of Southern Denmark, 2015.
+[7] F. Baader and T. Nipkow. Term Rewriting and All That. Cambridge University Press, Cambridge,
+UK, revised edition, 2008.
+[8] G. Benkö, C. Flamm, and P. F. Stadler. A graph-based toy model of chemistry. J. Chem. Inf. Comput.
+Sci., 43:1085–1093, 2003.
+[9] C. Butch, E. D. Cope, P. Pollet, L. Gelbaum, R. Krishnamurthy, and C. L. Liotta. Production of
+tartrates by cyanide-mediated dimerization of glyoxylate: A potential abiotic pathway to the citric acid
+cycle. J. Am. Chem. Soc., 135:13440–13445, 2013. doi: 10.1021/ja405103r.
+[10] A. Cayley. On the mathematical theory of isomers. Philos. Mag., 47(314):444–446, 1874.
+[11] S. A. Cook. The complexity of theorem-proving procedures. In Proc. of the 3rd ACM Symposium on
+Theory of Computing, STOC ’71, pages 151–158, 1971.
+[12] L. P. Cordella, P. Foggia, C. Sansone, and M. Vento. An improved algorithm for matching large graphs.
+In Proc. of the 3rd IAPR-TC15 Workshop on Graph-based Representations in Pattern Recognition,
+pages 149–159, 2001.
+[13] J. Dugundji and I. K. Ugi. An algebraic model of constitutional chemistry as a basis for chemical
+computer programs. Topics Curr. Chem., 39:19–64, 1973.
+
+REFERENCES
+
+[14] H. Ehrig, K. Ehrig, U. Prange, and G. Taenthzer. Fundamentals of Algebraic Graph Transformation.
+Springer, Berlin, 2006.
+[15] D. Eppstein. Subgraph isomorphism in planar graphs and related problems. J. Graph Alg. Appl., 3:
+1–27, 1999.
+[16] A. Eschenmoser. The search for the chemistry of life’s origin. Tetrahedron, 63:12821–12844, 2007. doi:
+10.1016/j.tet.2007.10.012.
+[17] A. Eschenmoser. On a hypothetical generational relationship between HCN and constituents of the
+reductive citric acid cycle. Chem. Biodivers., 4:554–573, 2007.
+[18] E. Fontain and K. Reitsam. The generation of reaction networks with RAIN. 1. The reaction generator.
+J. Chem. Inf. Comput. Sci., 31:96–101, 1991.
+[19] M. Nagl. Graph-Grammatiken, Theorie, Implementierung, Anwendung. Vieweg, Braunschweig, 1979.
+[20] G. Neglur, R. L. Grossman, and B. Liu. Assigning unique keys to chemical compounds for data integration: Some interesting counter examples. In B. Ludäscher and L. Raschid, editors, Data Integration in
+the Life Sciences, volume 3615 of Lect. Notes Comp. Sci., pages 145–157. Springer, Berlin, 2005. ISBN
+978-3-540-27967-9. doi: 10.1007/11530084 13. URL http://dx.doi.org/10.1007/11530084_13.
+[21] J. Oró. Mechanisms of synthesis of adenine from hydrogen cyanide under possible primitive earth
+conditions. Nature, 181:1193–1194, 1961.
+[22] J. D. Orth, I. Thiele, and B. Ø. Palsson. What is flux balance analysis? Nature Biotechn., 28:245–248,
+2010.
+[23] J. Peretó. Out of fuzzy chemistry: from prebiotic chemistry to metabolic networks. Chem. Soc. Rev.,
+41(16):5394–5403, 2012.
+[24] K. Ruiz-Mirazo, C. Briones, and A. de la Escosura. Prebiotic Systems Chemistry: New Perspectives
+for the Origins of Life. Chem. Rev., 14:285–366, 2014. doi: 10.1021/cr2004844.
+[25] G. Sabidussi. Graph multiplication. Mathematische Zeitschrift, 72:446–457, 1960.
+[26] V. N. Sagi, V. Punna, F. Hu, G. Meher, and R. Krishnamurthy. Exploratory experiments on the
+chemistry of the “glyoxylate scenario”: Formation of ketosugars from dihydroxyfumarate. J. Am.
+Chem. Soc., 134:3577–3589, 2012. doi: 10.1021/ja211383c.
+[27] A. W. Schwartz and M. Goverde. Acceleration of HCN oligomerization by formaldehyde and related
+compounds: implications for prebiotic syntheses. J. Mol. Evol., pages 351–353, 1982.
+[28] D. Seebach. Methods of reactivity umpolung. Angew Chem Int Ed, 18(4):239–258, 1979.
+[29] E. Smith and H. J. Morowitz. Universality in intermediary metabolism. Proc. Natl. Acad. Sci., 101:
+13168–13173, 2004.
+[30] J. J. Sylvester. On an application of the new atomic theory to the graphical representation of the invariants and covariants of binary quantics, with three appendices. Amer. J. Math., 1(1):64–128, 1878.
+[31] A. L. Weber. The sugar model: Autocatalytic activity of the triose-ammonia. Origins Life Evol.
+Biospheres, 37:105–111, 2007.
+[32] D. Weininger, A. Weininger, and J. L. Weininger. SMILES. 2. Algorithm for generation of unique
+SMILES notation. J. Chem. Inf. Comput. Sci., 29:97–101, 1989.
+
+APPENDIX
+
+Appendix
+Graph Grammar Rules
+The following list contains 18 chemical reactions modelled as graph grammar production rules. A production
+rule in the DPO framework is usually denoted as r = (L ←
+−K→
+− R), where each rule r consist of three graphs
+(fragments of molecules) L, R, and K called the left, right, and context graph, respectively. Informally, the
+left graph L can be replaced by a right graph R if the corresponding subgraphs were found (see section 2.1).
+The indices of the production rules are consistent to the indices of the production rules as used throughout
+the paper.
+r1 , Add HCN
+L
+
+N
+C
+
+R
+
+K
+
+HC
+
+N
+
+H
+
+NH
+
+C
+
+C
+
+C
+
+N
+
+C
+
+N
+
+N
+
+r2 , CN to Amide
+L
+
+C
+
+R
+
+K
+
+H2 O
+
+N
+
+C
+
+O
+
+N
+
+HH
+
+C
+
+O
+
+NH2
+
+r3 , Amide to Acid
+L
+
+K
+
+NH2
+C
+
+H2 O
+
+O
+
+R
+
+NH2
+
+H
+
+NH3
+
+C
+
+OH
+
+C
+
+O
+
+OH
+
+O
+
+r4 , Water to Imine
+
+H2 O
+C
+
+R
+
+K
+
+L
+
+N
+
+OH
+
+H
+
+OH
+
+C
+
+N
+
+C
+
+NH
+
+APPENDIX
+
+r5 , Imine to Water
+L
+
+K
+
+OH
+C
+
+NH
+
+R
+
+OH
+
+H
+
+H2 O
+
+C
+
+N
+
+C
+
+N
+
+r6 , Add Alcohol
+L
+
+N
+C
+
+R
+
+K
+
+HO
+
+N
+
+H
+
+NH
+
+C
+
+O
+
+C
+
+C
+
+O
+
+C
+
+C
+
+r7 , Aminal
+L
+
+R
+
+K
+
+C
+
+N
+
+OH
+
+C
+
+N
+
+C
+
+O
+
+H
+
+O
+
+NH
+
+r8 , Aminal (Inverse)
+L
+
+C
+
+R
+
+K
+
+NH
+
+O
+
+C
+
+N
+
+C
+
+N
+
+O
+
+H
+
+OH
+
+r9 , Keto to Enol
+L
+
+R
+
+K
+
+C
+
+O
+
+CH
+
+C
+
+O
+
+C
+
+C
+
+H
+
+C
+
+OH
+
+r10 , Enol to Keto
+L
+
+C
+C
+
+R
+
+K
+
+OH
+
+C
+
+O
+
+C
+
+C
+
+H
+
+CH
+
+O
+
+APPENDIX
+
+r11 , Ketimine to Enolimine
+L
+
+C
+
+C
+C
+H
+
+R
+
+K
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+N
+
+H
+
+N
+
+C
+C
+
+C
+NH
+
+r12 , Enolimine to Ketimine
+L
+
+K
+
+C
+
+C
+C
+
+R
+
+C
+
+C
+
+C
+
+C
+
+C
+
+NH
+
+H
+
+N
+
+C
+
+C
+C
+H
+
+C
+N
+
+r13 , Keto to Enol (Umpolung)
+L
+
+R
+
+K
+
+C
+
+H
+
+HC
+
++
+
+C
+
+O
+
+H
+
+C
+
+C
+
+O
+
+O−
+
+C
+
+r14 , Addition (Umpolung)
+K
+
+L
+C
+O−
+
+C
+
+C
+
+HC
+
+N
+C
+
+O
+
+O
+
+N
+C
+
+R
+
+CH
+C
+
+O
+
+C
+O
+
+H+
+
+H
+C
+
+N
+C
+
+C
+
+OH
+
+H
+
+r15 , CNC Enol Swap
+L
+
+HC
+
+R
+
+K
+
+N
+
+C
+
+N
+
+C
+
+H
+
+C
+
+C
+
+N
+CH
+
+r16 , Add HCN to Aldehyde
+L
+
+R
+
+K
+
+O
+
+O
+
+H
+
+CH HC
+
+CH
+
+C
+
+N
+
+OH
+HC
+N
+
+C
+N
+
+APPENDIX
+
+r17 , Ether Break
+K
+
+L
+
+R
+
+O
+
+O
+C
+
+C
+
+NH
+
+N
+
+C
+
+C
+
+N
+
+N
+
+O
+
+H
+
+C
+
+C
+
+N
+
+NH
+
+r18 , Aldol Addition N (Inverse)
+K
+
+L
+
+R
+
+C
+
+C
+C
+
+C
+
+N
+
+OH
+
+C
+
+C
+
+N
+
+O
+
+C
+
+H
+
+C
+
+C
+
+NH
+
+O
+
+Double Pushout Diagram for Figure 1
+This section givens an example of using production rule r18 for the derivation from an educt (graph G)
+to the two products (graph H, which represents two chemical compounds, namely the HCN-tetramer and
+glyoxylate). The edges changed by the transformation are shown in red and the vertices from K are shown
+in green. All arrows represent embeddings of one graph into another, formally a subgraph monomorphism.
+L
+
+K
+
+R
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+N
+
+O
+
+N
+
+O
+
+N
+
+O
+
+H
+H
+H
+
+N
+
+H
+N
+
+H
+
+C
+
+H
+
+N
+
+H
+C
+
+H
+
+O
+
+C
+
+H
+
+N
+
+C
+
+N
+
+O
+H
+
+H
+
+C
+
+H
+H
+
+C
+O
+H
+
+G
+
+N
+
+N
+C
+
+C
+
+H
+
+O
+
+C
+
+H
+
+N
+
+C
+
+N
+
+O
+H
+
+H
+
+C
+O
+H
+
+D
+
+C
+
+N
+C
+
+C
+
+N
+
+O
+
+C
+C
+
+C
+
+N
+
+O
+H
+
+H
+
+C
+O
+
+H
+
+

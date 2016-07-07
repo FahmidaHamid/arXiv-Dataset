@@ -1,0 +1,4103 @@
+arXiv:1503.08138v1 [q-bio.PE] 27 Mar 2015
+
+New Routes to Phylogeography
+Nicola De Maio1,2 , Chieh-Hsi Wu2 , Kathleen M O’Reilly3 , Daniel Wilson1,2,4,*
+1 Institute for Emerging Infections, Oxford Martin School, Oxford, United
+Kingdom
+2 Nuffield Department of Medicine, University of Oxford, Oxford, United
+Kingdom
+3 MRC Centre for Outbreak Analysis and Modelling, School of Public
+Health, Faculty of Medicine, Imperial College London, London, United
+Kingdom
+4 Wellcome Trust Centre for Human Genetics, University of Oxford,
+Oxford, United Kingdom
+* E-mail: daniel.wilson@ndm.ox.ac.uk
+
+Abstract
+Phylogeographic methods aim to infer migration trends and the history of sampled
+lineages from genetic data. Applications of phylogeography are broad, and in the
+context of pathogens include the reconstruction of transmission histories and the origin
+and emergence of outbreaks. Phylogeographic inference based on bottom-up population
+genetics models is computationally expensive, and as a result faster alternatives based
+on the evolution of discrete traits have become popular. In this paper, we show that
+inference of migration rates and root locations based on discrete trait models is
+extremely unreliable and sensitive to biased sampling. To address this problem, we
+introduce BASTA (BAyesian STructured coalescent Approximation), a new approach
+implemented in BEAST2 that combines the accuracy of methods based on the
+structured coalescent with the computational efficiency required to handle more than
+just few populations. We illustrate the potentially severe implications of poor model
+choice for phylogeographic analyses by investigating the zoonotic transmission of Ebola
+virus. Whereas the structured coalescent analysis correctly infers that successive human
+Ebola outbreaks have been seeded by a large unsampled non-human reservoir
+population, the discrete trait analysis implausibly concludes that undetected
+human-to-human transmission has allowed the virus to persist over the past four
+decades. As genomics takes on an increasingly prominent role informing the control and
+prevention of infectious diseases, it will be vital that phylogeographic inference provides
+robust insights into transmission history.
+
+Author Summary
+When studying infectious diseases it is often important to understand how germs spread
+from location-to-location, person-to-person, or even one part of the body to another.
+Using phylogeographic methods, it is possible to recover the history of spread of
+pathogens (or other organisms) by studying their genetic material. Here we compare
+different phylogeographic methods based on principled population models and fast
+alternatives. We found that different approaches can give diametrically opposed results,
+and we offer a concrete example in the context of the ongoing Ebola outbreak in West
+Africa. We found that the most popular phylogeographic method often produces
+
+1/24
+
+completely inaccurate conclusions. One of the reasons of this popularity has been its
+computational speed, which has allowed users to analyse large genetic datasets with
+complex models. More accurate approaches have until now been considerably slower,
+and therefore we propose a new method called BASTA that achieves good accuracy in a
+reasonable time. We are relying more and more on genetic sequencing to learn about
+the origin and spread of infections, and as this role continues to grow, it will be essential
+to use accurate phylogeographic methods when designing policies to prevent or kerb the
+spread of disease.
+
+Introduction
+Phylogeographic methods aim to infer many aspects of population evolution from
+genetic data. The phylogeography term often encompasses methods to infer changes in
+population sizes (phylodynamics) and population divergence events (see [1]). In this
+work, we focus on the inference of migration between distinct subpopulations (such as in
+the structured coalescent, see [2]). For many years, nested clade phylogeographic
+analysis (NCPA, see e.g. [3, 4]) was the leading method to test isolation and migration
+(reviewed in [1, 5]). More recently, model-based inference for phylogeography has
+flourished and has replaced NCPA as the new standard approach (reviewed in [6, 7]).
+Phylogeographic model-based approaches for migration have predominantly been
+used to study the spread of pathogens through geographic locations and to infer their
+original source [8–11], but is also commonly used to study the migration history of
+animals [12–14], plants [15, 16], and even languages [17]. Phylogeographic methods can
+also be useful to address a wider range of questions in epidemiology, for example when
+studying transmission of pathogens between body compartments in the same host [18],
+between individual hosts [19], between host social groups [20], or between host
+species [21].
+The first class of model-based approaches that we consider are likelihood-based
+methods implementing the structured coalescent [22–26]. These approaches use the
+structured coalescent without approximation to infer migration rates and effective
+population sizes. These methods are not practical in scenarios with large numbers of
+populations and migration events due to their computational demand. In fact, they not
+only explore the space of parameters of primary interest (such as migration rates,
+population sizes, and phylogeny) but also the space of all possible migration histories,
+vastly increasing the computational complexity.
+Recently, an alternative phylogeographic approach has been proposed, which models
+the evolution of locations as a discrete trait, in the same way as evolution of genetic loci
+is usually modeled [8, 9, 14]. Since migration is modelled similarly to genetic mutations,
+this model is referred to as “Mugration” by [27, 28], or more commonly as “discrete trait
+analysis” (DTA in the following). This approximation has become very popular (see
+e.g. [1]) thanks also to its computational efficiency and user-friendly software. Yet, this
+model is based on a set of approximations that profoundly diverge from classical models
+of migration in population genetics (see e.g. [29–31]). While methods based on the
+structured coalescent, which accounts for the effects of migration on the genealogy, are
+preferable over DTA, the latter is often chosen due to the computational demands of
+current implementations of the structured coalescent. DTA is also commonly used to
+describe the evolution of discrete phenotypes. In such cases, DTA may be
+appropriate [32, 33]. However, this requires some assumptions that are usually not met
+when the studied trait is a geographic location, including that trait frequencies in the
+global population can drift and reach loss or fixation and that trait sampling is random,
+i.e., that the number of samples carrying each trait is not pre-determined, but is
+obtained by sampling randomly from a single population containing all traits.
+
+2/24
+
+There is a scarcity of studies in the scientific literature assessing the accuracy of
+DTA and comparing different phylogeographic approaches, but concerns have been
+raised because, among other other issues, DTA is thought to be sensitive to the
+sampling locations chosen [11, 34]. Also, because DTA conceptually separates the
+coalescent and the migration process, it might lead to non-optimal use of information.
+Here we demonstrate that these concerns are well founded, in that DTA suffers from
+various biases and statistical inefficiency despite its efficient approximation.
+To address this problem we introduce a new model-based approach that uses a close
+approximation to the structured coalescent (similar in spirit to [35, 36]). The idea
+behind this approximation is to efficiently integrate over the parameter space of all
+possible migration histories, therefore reducing the computational effort needed to
+explore the space of parameters of interest. We implement this approach in the
+Bayesian phylogenetic package BEAST2 [28], and call it BASTA (BAyesian STructured
+coalescent Approximation). We compare its performance to DTA and MultiTypeTree
+(MTT, a recent Bayesian structured coalescent software, see [26]) using simulations
+based on the structured coalescent.
+To demonstrate the importance of model choice, we analysed genomic data from
+previous and ongoing Ebola outbreaks [37] using different phylogeographic approaches,
+and studied the contribution of zoonotic events to Ebola contagion. We show that,
+based both on simulations and real data analyses, DTA and structured coalescent
+methods can lead to different conclusions, and in particular DTA is often inaccurate.
+
+Materials and Methods
+The Structured Coalescent
+Using the notation of [26], we introduce the structured coalescent model in a Bayesian
+inference setting. Data from a given set of samples I consist of three elements:
+S = {si |i ∈ I} the aligned genetic sequences, tI = {ti |i ∈ I} the sampling dates, and
+L = {li |i ∈ I} the sampling locations. We are interested in estimating parameters
+describing the migration and coalescent processes: m the matrix of migration rates
+between demes and θ the vector of effective population sizes for the considered demes.
+Lastly, the model has additional “nuisance” parameters: T the coalescent tree, µ the
+substitution rate matrix, and M the migration history of lineages in the tree. We want
+to estimate the posterior distribution of the parameters of interest using Bayes’ theorem:
+P (T, M, µ, m, θ|S, tI , L) ∝ P (S|T, tI , µ)P (T, M |tI , L, m, θ)P (µ, m, θ).
+
+(1)
+
+The first term P (S|T, tI , µ) can be computed using Felsenstein’s pruning
+algorithm [38]. The second term represents the probability of the migration and
+coalescent history under the structured coalescent model given the population genetic
+parameters (the migration rates m and population sizes θ). The last term, P (µ, m, θ)
+represents the prior distribution of the parameters, and may be factored to
+P (µ)P (m)P (θ) assuming independence of µ, m, and θ.
+We now briefly describe how P (T, M |tI , L, m, θ) is calculated within the structured
+coalescent. We assume that we have a set of unique demes D, where each deme d ∈ D
+has an effective population size θd . We further assume that mdd0 is the
+backward-in-time instantaneous migration rate from population d to population d0 . We
+consider the sequence of time intervals Ii , i ∈ 1 . . . B of length τi between subsequent
+events (coalescent, sampling, or migration), starting from the most recent sample and
+going back to the root of the phylogeny. The contribution to the likelihood of interval i
+is, assuming haploidy:
+
+3/24
+
+
+Li = exp −τi
+
+X
+d∈D
+
+
+
+
+ ki,d 1 + ki,d
+2 θd
+
+
+X
+
+mdd0  Ei
+
+(2)
+
+d0 ∈D,d0 6=d
+
+where ki,d is the number of lineages in deme d in interval i, and Ei is the contribution
+of the event that ends interval i:
+
+1
+if it is a sampling event
+
+
+0
+m
+if
+it
+is
+a
+migration event from d to d0
+dd
+Ei =
+(3)
+
+ 1
+if it is a coalescence event in deme d.
+θd
+The full likelihood is obtained by taking the product of Eq. (2) over all intervals.
+In the structured coalescent migration events affecting lineages in the tree are
+explicitly parameterized and estimated (Fig. 1). The next two methods presented, DTA
+and BASTA, avoid this, therefore reducing statistical complexity and computational
+demand.
+Figure 1. Graphical representation of phylogeographic models. In this study
+we consider three phylogeographic methods: the structured coalescent, DTA, and
+BASTA. This figure shows some of the differences in these models, in particular in the
+modelled events and time intervals. Coloured dots show different populations (one red
+population and one green) for both sampled and internal phylogenetic nodes. a) In the
+structured coalescent eight events are considered, delimiting seven time intervals of
+lengths τ1 . . . τ7 . Three of these events are sampling events (denoted by the grey
+horizontal lines), one is a migration event (represented by an arrow between two
+coloured dots), and four are coalescence events. b) In DTA, migration events are not
+explicitly parameterised, so we have a total of seven sampling or coalescence events,
+delimiting six time intervals of lengths τ1 . . . τ6 . While in the figure locations for
+internal nodes are depicted, the method effectively integrates over all possible ancestral
+locations at each MCMC step. c) As in DTA, BASTA does not consider migration
+events, and therefore has seven events and six time intervals. Yet, each of these intervals
+is split exactly in half (blue horizontal dotted lines), and the two halves are considered
+separately. Again, as in DTA, at each MCMC step BASTA integrates over all possible
+internal nodes locations.
+
+Discrete Trait Analysis
+Here we give a short introduction to the Bayesian implementation of the discrete trait
+analysis [8, 14], (DTA). Similarly to the structured coalescent, the focus is on the
+inference of migration parameters, but there are some noticeable differences: all demes
+have the same effective population size; the effects of migration on the coalescent
+process are ignored, and a standard coalescent prior is used for the coalescent tree. As
+mentioned above, migration is modelled as if it were genetic mutation. In summary,
+instead of Eq.(1), the DTA model adopts the following approximation:
+P (T, µ, m, θ|S, tI , L) ≈ P (S|T, tI , µ)P (L|T, tI , m)P (T |tI , θ)P (µ, m, θ)
+
+(4)
+
+where again P (µ, m, θ) may be factored to P (µ)P (m)P (θ), both likelihoods
+P (S|T, tI , µ) and P (L|T, tI , m) are calculated with the pruning algorithm, and
+P (T |tI , θ) is simply a neutral coalescent prior for an unstructured population. The
+consequences of this approximation have not been thoroughly explored in the literature,
+
+4/24
+
+despite the popularity of DTA. One concern is that the effects of migration rates on the
+shape of the phylogeny are ignored. For example, when migration rates are very low,
+long branches close to the root are expected. This type of information is ignored by
+DTA, and this could lead to reduced accuracy.
+Furthermore, sampling locations L are treated as data (with likelihood
+P (L|T, tI , m)), similarly to genetic alignment, while in the structured coalescent they
+are conditioned upon as auxiliary variables in the tree prior P (T, M |tI , L, m, θ), in a
+similar manner to sample size. Sampling locations are usually arbitrarily chosen by the
+investigator, and are not a consequence of the migration process, as assumed in DTA.
+This could upwardly bias estimated migration rates towards over-sampled populations,
+and we explore this eventuality using simulations. An effect of sampling intensity over
+migration rates and ancestral locations estimated using DTA has already been shortly
+reported elsewhere [11, 34], but has never been explored in detail.
+DTA is also commonly used to describe the evolution of discrete phenotypes (in this
+sense, it is more appropriately referred to as “discrete trait analysis”). This model has
+not to be considered an approximation in such cases, and we do not refer to those cases
+here, but we only consider when DTA are used to model migration.
+
+BASTA
+We pursue an approximation to the Bayesian structured coalescent that is both accurate
+and computationally efficient. Similarly to Eq 1 we define:
+P (T, µ, m, θ|S, tI , L) ∝ P (S|T, tI , µ)P (T |tI , L, m, θ)P (µ, m, θ).
+
+(5)
+
+where P (S|T, tI , µ) and P (µ, m, θ) are calculated as in the structured coalescent.
+However, we marginalise over M , and instead of calculating the joint likelihood of the
+coalescent and migration history P (T, M |tI , L, m, θ), we approximate the likelihood of
+the coalescent history alone P (T |tI , L, m, θ) by integrating over all possible migration
+histories M . This reduces the parameter space at the cost of introducing an
+approximation similar to [35, 36].
+As in the structured coalescent, we consider a sequence of events backward in time,
+but now they can only be sampling or coalescence events (Fig. 1). These events define a
+sequence of time intervals Ii , i ∈ 1 . . . B of lengths τi between successive events.We
+describe here the contribution to the likelihood of any single interval Ii = [αi−1 , αi ]
+(with |αi−1 − αi | = τi , and αi being the older event time of Ii and αi−1 the more recent
+one). The total likelihood is then obtained by multiplying the contribution from each
+interval. The likelihood of the interval Ii , that we want to approximate, is:
+
+
+Z αi X X X
+1
+(6)
+Li = exp −
+P (l ∈ d, l0 ∈ d|t) dt Ei
+θ
+d
+αi−1
+0
+0
+d∈D l∈Λ l ∈Λ,l 6=l
+
+where Λ is the set of all extant lineages during Ii , and P (l ∈ d, l0 ∈ d|t) is the
+probability that lineages l and l0 are in these same deme d at time t (we are implicitly
+conditioning on the more recent coalescent history). Ei is the contribution of the
+coalescent or sampling event (defined later). Eq. (6) is different from Eq. (2) in that we
+are considering intervals delimited only by sampling or coalescence events, and not by
+migration events. In fact, Eq. (6) integrates over all possible migration histories.
+The first approximation we do is to replace P (l ∈ d, l0 ∈ d|t) by P (l ∈ d|t)P (l0 ∈ d|t),
+that is, modeling the migration of lineages as independent from one another. We will
+call Pl,t the vector whose element d is Pl,t,d := P (l ∈ d|t). Our further approximation is
+to split Ii into two sub-intervals of equal length Ii1 = [αi−1 , (αi + αi−1 )/2] and
+
+5/24
+
+Ii2 = [(αi + αi−1 )/2, αi ], such that Pl,t is approximated as Pl,αi−1 for all t in Ii1 and
+Pl,αi for all t in Ii2 . Then the approximated likelihood contribution of Ii1 becomes:
+
+
+X
+X
+X
+1
+τ
+i
+Pl,αi−1 ,d Pl0 ,αi−1 ,d 
+(7)
+L̃i1 = exp −
+2
+θd
+0
+0
+d∈D l∈Λ l ∈Λ,l 6=l
+
+and similarly is defined L̃i2 .
+Pl,t is a row vector of dimension D, and if l is sampled at time t, Pl,t is an indicator
+vector representing the deme of sampling. Given Pl,αi−1 we can calculate Pl,αi as:
+Pl,αi = Pl,αi−1 exp (τi · m)
+(8)
+P
+where time is scaled in Ne = d∈D θd generations, the exponential is a matrix
+exponential, and m is the matrix of instantaneous backward migration rates with
+diagonal elements set such that rows sum up to 0. If lineages l1 and l2 coalesce to an
+ancestral lineage l at time t, then
+
+
+Pl ,t,|D| Pl2 ,t,|D|
+Pl1 ,t,1 Pl2 ,t,1
+,..., 1
+θ1
+θ|D|
+Pl,t =
+(9)
+P|D| Pl1 ,t,d Pl2 ,t,d
+d=1
+θd
+which is the normalised entrywise product (element by element product) of the
+distributions of the coalescing lineages, where Pl,t,d is entry d of vector Pl,t .
+Lastly, the contribution to the likelihood of the event at time αi is:
+
+ 1
+if it is a sampling event,
+P
+1
+Ei =
+0
+if it is a coalescence event of l and l0 .
+
+d∈D Pl,αi ,d Pl ,αi ,d
+θd
+
+(10)
+
+The contribution to the likelihood of sampling events might in principle be modified to
+account for an informative sampling process [39]. Details of how we efficiently calculate
+these quantities, in particular Eq. (7), are given in Supplementary Text S1.
+
+Simulations
+We performed simulations under the structured coalescent [29, 40], simulating a neutral
+coalescent of samples from different locations (also called demes or populations).
+Lineages can only coalesce while in the same location, and migration events happen
+according to a pre-specified backward-in-time instantaneous migration rate matrix. So
+to fit the assumptions of DTA, all populations have the same effective population size
+(Nd = 1), and effective population size parameters are not estimated.
+In the first simulation setting (called “continents”) we have two locations, with
+lineages in the same location coalescing freely. The migration rate matrix was different
+for each replicate, each time being sampled from the prior used in DTA: the total
+forward migration rate was sampled from an exponential distribution with mean
+m̂ ∈ {0.5, 2.0, 5.0}; The two forward migration rates (that from location 1 to 2, m̂12 ,
+and that from two to 1, m̂21 ) were sampled independently from Γ(1.0, 1.0) distributions.
+The forward migration rates then were scaled such that the total migration rate (as
+2m̂12 m̂21
+defined in DTA:
+) was m̂. Lastly, the instantaneous backward migration
+m̂12 + m̂21
+rates used to simulate the coalescent process were defined as m12 = m̂21 and
+m21 = m̂12 . This favours DTA by matching its prior on forward migration rates, but
+
+6/24
+
+not the one of MTT or BASTA, where backward migration rates priors are log-normal
+distributions with µ = ln(m̂) and σ = 4.
+In every simulation the structured coalescent process was simulated starting from
+the leaves (all samples are contemporaneous) and iteratively sampling waiting times for
+events, each of which is heither a coalescence ori a migration, according to the
+
+P
+P
+distribution exp( d∈D n2d + nd d0 6=d mdd0 ) where nd is the number of extant
+lineages in population d. This process was repeated until the root is reached.
+In a second simulation setting (called “archipelagos”) we have eight locations
+subdivided in two groups, each containing four locations. Each location represents an
+island, while each of the two groups is an archipelago, so that migration rate within an
+archipelago is high, while it is low between archipelagos. All migration rates between
+locations in the same group are identical (m1 ) as are all migration rates between
+locations in different groups (m2 ). We fixed m1 /m2 = 10, and sampled m2 from an
+exponential distribution with mean 0.5.
+From all simulations, migration rates and root location were then estimated using
+DTA [8, 14], MTT and BASTA, all as implemented in BEAST2. Genetic/phylogenetic
+information provided in input to the three methods was generated from the simulated
+coalescent histories in 3 different ways: in the first setting (“fixed tree”), we assume
+abundant genomic information, such that the coalescent tree is perfectly known and
+only the total tree height scale in coalescent units is unknown, which was achieved by
+fixing the phylogeny in BEAST2 to the simulated one, and only estimating the total
+tree height; in a second strategy (“no data”), we assume that genetic data is extremely
+scarce, and provided no genetic/phylogenetic information at all (this is not realistic, but
+is useful to learn about prior biases of different models); lastly, in the third strategy
+(“variable tree”) we provided an alignment of 2000 bp generated from the simulated
+coalescent tree using SeqGen [41] with a transition/transversion ratio of κ = 3 and
+mutation rate of 0.01 in units of Ne generations, while we estimated the phylogenetic
+tree in BEAST2 along with the phylogeographic parameters.
+
+Ebola Transmission Study
+To study changes of host type in Ebola we used whole genome Ebola sequences from 78
+patients recently obtained and aligned with sequences from previous outbreaks [37].
+The authors of this study investigated the phylogenetic relationship of samples within or
+between Ebola outbreaks. Here, we apply the three phylogeographic methods presented
+above to infer the contribution of zoonotic events to Ebola spread. We used the same
+alignment provided in [37] for the BEAST analysis, including sampling dates, but we
+also added information regarding host type. All samples were specified to be from
+human hosts, but despite this, we allowed lineages to switch to an animal reservoir
+during their history. Migration was only allowed from animal to human host, and not
+vice-versa. So in our phylogeographic model we had two locations (respectively human
+and animal reservoir) but migration was only assumed to occur in one direction. This
+results in a structured coalescent model with three parameters for MTT and BASTA
+(one migration rate and two effective population sizes), but only two parameters for
+DTA, as only a single general effective population size can be defined in that model. A
+peculiarity of this analysis is that only genetic samples from one of the two considered
+populations were available. While this might seem an impassable limitation, previous
+studies have shown that the structured coalescent provides meaningful estimates even in
+the absence of samples from one populations (i.e. “ghost deme”, see [42]), suggesting
+that it is possible to perform statistical inference of zoonosis rates from this dataset.
+
+7/24
+
+Results
+DTA is Inherently Biased by the Sampling Process
+The introduction of approximation can lead to biases in parameter estimation. To test
+for the presence of biases associated with sampling strategy in DTA, MTT and BASTA,
+we performed simulations paired with estimation in the scenario where the genetic data
+was completely uninformative. In the absence of informative genetic data, such as in our
+“no data” scenario, the posterior distribution of a well calibrated Bayesian approach
+should coincide with the prior distribution, and we want to test if this is the case here.
+One of the differences between DTA and the structured coalescent is that the sampling
+locations in the structured coalescent are auxiliary variables which are always
+conditioned over, while in DTA they are treated as part of the data. Usually, sampling
+locations should not be treated in the same way as genetic data because they may be
+quite arbitrary.
+Simulations show that the posterior inference of DTA depends heavily on the
+distribution of sampling locations, unlike the two structured coalescent methods.
+Particularly with high migration rates (prior mean 5.0) DTA posteriors show large
+biases (Fig. 2A), meaning that the sampling strategy chosen significantly influences the
+inference. The posterior distributions of the other two methods are noticeably less
+smooth (Fig. 2B and C), reflecting the larger computational demand of MTT and
+BASTA. When migration rates are low (prior mean 0.1) DTA over-estimates them
+(Figure S1A). This is because sampling from two locations implies the presence of at
+least one migration event. However, under the DTA model there is a high prior
+probability of no migration when migration rates are sufficiently low. In contrast, the
+structured coalescent accounts for the fact that there must be at least D − 1 migration
+events when D locations are sampled.
+Figure 2. DTA is inherently biased by the sampling process. To show this, we
+considered the case of a dataset with totally uninformative sequences (this mimics
+extremely short or uniform sequences). DTA treats the sampling process as informative
+about migration parameters, unlike the structured coalescent. This can be seen by the
+perturbation of the posterior relative to the prior distribution, as inferred by (a) DTA,
+(b) MTT, (c) BASTA. We used high migration rates, with prior mean 5.0, and two
+sampling strategies: homogeneous (100 samples per locations, azure) and
+inhomogeneous (respectively 10 and 190 samples per location, green). In pink is the
+prior distribution. On X axis is the ratio of the two migration rates, on Y axis the
+density of the corresponding value in the distribution. Each plot is obtained from 10
+merged posteriors of independent MCMC runs each of 5 × 106 iterations.
+
+DTA Under-represents Uncertainty
+Next we addressed the accuracy of the methods when dealing with highly informative
+sequences. At the opposite extreme to before, methods are expected to perform best
+when genetic information is so informative that the phylogenetic tree can be estimated
+with great detail. When genetic data are extremely informative, for example in some
+cases when whole genomes are available, it may be convenient to assume that the
+phylogeny is known. Here we consider this scenario by providing the true tree topology
+and relative branch lengths as input, and estimating only the tree height together with
+the migration rate parameters.
+The absolute migration rates have different scales under DTA and the structured
+coalescent, so we focus on estimation of the relative migration rate, the ratio of the two
+
+8/24
+
+considered migration rates. DTA exhibits generally poor performance (Fig. 3 and
+Figure S2). The 95% confidence intervals are not well calibrated (they include the truth
+56%-81% of the time, compared to 80%-96% for MTT and 84%-97% for BASTA;
+Table 1), and the correlation between simulated and estimated values is lower
+(0.33-0.64) than competing methods (0.51-0.85 for BASTA and 0.42-0.77 for MTT;
+Table 1). Estimation of root location shows similar trends (Fig. 4 and Figure S3).
+Earlier structured coalescent methods had increased computational demands with
+elevated migration rates due to the increased parameter space needed to represent
+migration histories [24]. Here we found that MTT performed similarly well with
+different total migration rates, supporting the view that its new proposal functions
+represent a very considerable improvement over previous efforts [26].
+We also compared the performance of the different approaches at intermediate levels
+of information, when there is both phylogenetic signal and phylogenetic uncertainty (the
+“variable tree” scenario). This scenario is probably the most common in practice, but
+also the most complex as phylogenetic uncertainty makes inference more
+computationally demanding. All three methods account for phylogenetic uncertainty by
+exploring the space of possible trees with MCMC. To investigate scenarios with
+phylogenetic uncertainty, we simulated alignments of 2000 bp with a mutation rate of
+0.01 per Ne generation. We simulated 50 replicates and a single scenario (prior total
+migration rate of 2.0, and 50 samples per population). All methods reported greater
+uncertainty in this setting, as expected, with DTA showing weaker correlation between
+point estimates and the truth and severely underestimating posterior uncertainty
+compared to BASTA. While MTT most faithfully captures posterior uncertainty, it
+shows the worst correlation between point estimates and the truth, possibly reflecting
+its greater computational demands in the presence of phylogenetic uncertainty (Figure
+S4 and Table 2).
+Figure 3. DTA retrieves partial information and is not calibrated. We
+simulated the scenario of complete phylogenetic information, that is, when the
+phylogenetic tree is perfectly known to each of the methods. In this scenario methods
+are expected to give the best accuracy. We plot the estimates of the ratio of the two
+migration rates between the two simulated populations using (a) DTA, (b) MTT, (c)
+BASTA. Furthermore, for each method we show the Pearson correlation between the
+true value and the posterior median (“Correlation”), and the proportion of replicates in
+which the true value lies in the 95% confidence interval (“Calibration”). We simulated
+high migration rates (prior mean 5.0), homogeneous sampling (100 samples per
+locations), and 100 replicates. The simulated (true) ratio of the two migration rates is
+on the X-axis, while the estimated ratio is on the Y-axis. The diagonal dashed line
+represents the hypothetical perfect estimate. Each dot represents a posterior median,
+and intervals show the posterior 95% coverage. Number of MCMC steps for DTA, MTT
+and BASTA are respectively 106 , 2 × 105 and 105 so to achieve similar running times
+(respectively approximately 180, 200 and 150 seconds per replicate).
+
+BASTA is Faster than Structured Coalescent Methods
+So far, we have considered scenarios with only two populations, for which structured
+coalescent models are expected to work well. Yet, with more populations, structured
+coalescent methods can be too computationally demanding for practical inference. To
+test the performance of BASTA in such situations, and compare it to MTT, we
+simulated a scenario with eight populations and fixed the tree to facilitate inference
+under the structured coalescent. We subdivided the populations into two archipelagoes
+(clusters of islands), each of four islands, and with 40 samples from each island.
+
+9/24
+
+Table 1. Summaries of simulations with two populations in the “fixed tree”
+scenario.
+Sampling
+Rate Method Calibration Correlation RMSE
+Homogeneous
+Fast DTA
+0.56
+0.58
+1.83
+MTT
+0.87
+0.77
+1.32
+BASTA
+0.95
+0.83
+1.51
+Homogeneous
+Slow DTA
+0.81
+0.64
+1.65
+MTT
+0.96
+0.75
+1.52
+BASTA
+0.97
+0.81
+1.30
+Inhomogeneous Fast DTA
+0.68
+0.33
+1.79
+MTT
+0.80
+0.46
+2.50
+BASTA
+0.84
+0.70
+2.08
+Inhomogeneous Slow DTA
+0.80
+0.39
+1.73
+MTT
+0.85
+0.42
+2.49
+BASTA
+0.88
+0.51
+2.29
+For each scenario 100 replicates were performed. For each summary the value of interest
+is the logarithm of the ratio of the two migration rates. “Sampling” refers to the
+sampling strategy adopted: “Homogeneous” means that 100 samples per populations
+were used, “Inhomogeneous” means that we used 10 samples for one population and 190
+for the other. “Rate” refers to the total migration rate: “Fast” represents a prior mean
+of 5.0, while “Slow” a prior mean of 0.5. “Calibration” represents the proportion of
+replicates for which the true value falls within the 95% posterior interval. “Correlation”
+represent the Pearson correlation between the simulated value and the posterior median.
+“RMSE” represent the root mean square error of the posterior median.
+Table 2. Summaries of simulations with two populations and variable trees.
+Method Calibration Correlation RMSE
+DTA
+0.70
+0.51
+1.68
+MTT
+0.92
+0.49
+2.56
+BASTA
+0.86
+0.56
+2.61
+The datasets are simulated under moderate migration rates (prior mean 2.0),
+homogenous sampling (50 samples per location), with a total of 50 replicates. For each
+summary the value of interest is the logarithm of the ratio of the two migration rates.
+“Calibration” represents the proportion of replicates for which the true value falls within
+the 95% posterior interval. “Correlation” represent the Pearson correlation between the
+simulated value and the posterior median. “RMSE” represent the root mean square
+error of the posterior median.
+
+Migration between islands in the same archipelago was fast (mean 5.0) while migration
+between archipelagoes was 10-fold lower. Both methods reported considerable
+uncertainty in their estimates of the migration rates and root location (Figure S6).
+However, BASTA reached convergence and acceptable effective sample sizes in
+reasonable time (2 × 106 MCMC steps for a total of approximately 1.3 × 104 seconds
+per chain); instead, with similar computational effort, MTT was far from convergence
+(see e.g. Fig. 5 and Figure S6 for some randomly sampled replicates) with most
+parameters having an effective sample size (ESS, measuring how well the posterior has
+been explored, see [43]) below 20, way below the generally accepted limit of 200. These
+results show that not only does BASTA produce a modest but consistent improvement
+in calibration and informativeness over MTT (see also Table 3) but has also broader
+
+10/24
+
+Figure 4. Structure coalescent improves ancestral location inference. We
+measured the accuracy in inferring the location of phylogeny roots for different methods:
+(a) DTA, (b) MTT, (c) BASTA. Each bar represents the posterior support for the true
+root location for a replicate, so taller bars represent better inference. Simulations were
+performed with two locations, fixed trees, high migration rates (prior mean 5.0), and
+homogeneous sampling (100 samples per locations). For every scenario there are 100
+replicates, but only replicates for which the simulated root is in the first location are
+shown. Bars are in increasing order. Number of MCMC steps for DTA, MTT and
+BASTA are respectively 106 , 2 × 105 and 105 so to achieve similar running times
+(respectively approximately 180, 200 and 150 seconds per replicate).
+
+applicability to scenarios with more populations.
+Figure 5. BASTA has broader applicability than MTT. When simulating a
+scenario with eight populations, BASTA always seemed to efficiently explore the
+parameter space in acceptable time, while MTT, with comparable computational
+resources, never achieved convergence. With these plots we show the traces of the
+posterior probability (Y axis) over the MCMC steps (X axis) in one random replicate.
+Similar plots for further replicates are found in Figure S6. For these simulations we used
+fixed trees.
+
+Table 3. BASTA improves rate estimation.
+Method
+Calibration Correlation
+within archipelago
+MTT
+0.815
+0.62
+BASTA
+0.95
+0.69
+between archipelagos
+MTT
+0.98
+0.61
+BASTA
+1.00
+0.67
+
+RMSE
+1.49
+1.33
+1.57
+1.47
+
+To compare migration rate estimation between MTT and BASTA in a setting with
+many populations, we simulated a scenario with two groups of populations (two
+archipelagos) each containing four populations (four islands) and with 40 samples per
+population. 50 replicates were simulated. The values of interest considered here are the
+logarithm of the migration rate between islands in the same archipelago (top part of the
+table) and between islands in different archipelagos (bottom part of the table).
+“Calibration” represents the proportion of rates among all replicates for which the true
+value falls within the 95% posterior interval. “Correlation” represent the Pearson
+correlation between the simulated value and the posterior median. “RMSE” represent
+the root mean square error of the posterior median.
+
+Model Choice Strongly Influences Reconstruction of Ebola
+Transmission Dynamics
+While we write, the most deadly known outbreak of Ebola virus is ongoing in West
+Africa. In recent work, Gire et al. [37] have collected and whole genome sequenced 99
+Ebola virus samples from 78 patients. Using these and previous data, the authors have
+shown that all available sequences within each outbreak since 1976 cluster together
+phylogenetically; furthermore, divergence of lineages leading to different outbreaks
+
+11/24
+
+usually considerably pre-dates the older outbreak. This fact and the shape of the
+inferred phylogeny suggest that of independent zoonotic transmissions are the source of
+different Ebola outbreaks in humans. Ebola infections in different animals have been
+directly observed more than 50 times, with bats thought to be the main reservoir [44].
+We addressed this subject in order to explore the potential impact of modelling
+considerations on epidemiological conclusions based on genetic data. We defined a
+highly simplified phylogeographic model with two subpopulations: the first representing
+human hosts, the second representing an animal reservoir. In this model, coalescence
+events within the human population represent human-to-human transmission; similarly
+coalescence events in the animal reservoir represent transmission between animal hosts.
+Migration from the animal reservoir to the human population corresponds to a zoonotic
+transmission. Migration from human to animal was assumed sufficiently rare to be
+ignored (see [44]).
+Using this phylogeographic model, we investigated the effect of model choice - DTA
+versus structured coalescent - on the epidemiological conclusions concerning the role of
+zoonotic transmission in seeding human outbreaks of Ebola. We found that the two
+models gave diametrically opposed results.
+Consistent with general understanding of the emergence of Ebola outbreaks in
+humans, the structured coalescent models, implemented in MTT, inferred that each
+outbreak was seeded by an independent zoonosis from the Ebola reservoir population
+(Fig. 6a), with 18 animal-human zoonoses inferred in the history of the sample (95% CI
+[15.0, 22.0]), from 1976 until present. In keeping with this, the effective size of the
+animal reservoir was inferred to be very large (95% CI [7.3, 22.9]) compared to the
+effective size of the virus population sustained in humans (95% CI [0.27, 0.60] ). The
+most recent common ancestor of all sampled human outbreaks was inferred to have
+originated in the animal reservoir population with 100% posterior probability. These
+results were also supported by BASTA.
+In direct contrast, the DTA painted a very different picture of Ebola outbreak
+emergence that does not accord with scientific understanding. With high confidence, no
+zoonotic transmissions from animals to humans were inferred in the history of the
+sampled outbreaks (100% posterior probability), with the most recent common ancestor
+inferred to have occurred in the human population. Despite the implausibility of
+undetected human outbreaks having sustained Ebola virus in humans over four decades,
+the discrete trait model supported this scenario with high confidence.
+These results illustrate the strong influence of model choice on phylogeographic
+inference. They demonstrate the possibility of obtaining implausible results supported
+by high confidence with DTA. Although in the case of Ebola, the strength of evidence
+concerning the epidemiology of the disease is more than sufficient to disregard the
+discrete trait analysis out of hand, it demonstrates the potential to produce highly
+misleading inference when independent epidemiological understanding is scarce.
+Figure 6. Different histories are inferred by different methods. The trees
+were inferred using (a) DTA and (b) MTT. In red we show regions of the phylogeny
+inferred to be in human host, while in blue are regions inferred to be in animal
+reservoirs. The scale of the axis is in number of years from present. Sampling dates and
+locations are included in sample names. Part (a) shows the maximum clade credibility
+tree with median node height inferred with DTA, while part (b) displays a tree sampled
+from MTT output.
+
+12/24
+
+Discussion
+Phylogeography has rapidly gained prominence in a wide range of settings where it can
+quantify historical patterns of migration from genetic data alone. In the context of
+infectious disease epidemics, phylogeographic methods can infer transmission rates and
+patterns of spread even in the complete absence of reliable epidemiological information
+(see e.g. [8–10, 45]). Yet, these methods have only partially been tested and compared.
+Here, with simulations based on explicit process-driven population genetics-based
+models, we showed that different methods exhibit dramatic differences in their inference
+properties.
+While discrete trait analysis (DTA) is extremely fast and accounts for phylogenetic
+uncertainty, it has problems estimating the correct migration rates even with as few as
+two populations. In particular, DTA is sensitive to the relative sampling intensity of
+populations, such that the sampling strategy adopted can influence the results,
+particularly when migration rates are high and genetic data are sparse. We reiterate
+that here we have assessed the performance of DTA as a model of migration, and not in
+the context of evolution of discrete traits, such as some phenotypes, for which the
+discrete trait analysis is appropriate. MTT, on the other hand, proved better calibrated,
+with less biased estimates, with a stronger correlation between simulated and estimated
+values.
+Together with other methods based on structured coalescent, MTT also has the
+advantage over DTA of being able to estimate and account for differences in population
+sizes between populations. Also, it provides estimates of absolute migration rates that
+are meaningful from a population genetics perspective. We want to acknowledge that
+MTT proved useful even in contexts of elevated migration rates, where previous
+structured coalescent-based methods showed convergence problems. Yet, we also show
+that when several demes are considered (we simulated eight demes, but [26] suggest not
+to exceed four) MTT can have convergence issues. To deal with this problem, we
+propose a new approach, BASTA, based on an approximation of the structured
+coalescent similar to some recently proposed [35, 36]. BASTA integrates over all the
+possible migration histories rather than sampling them, therefore considerably reducing
+the parameter space that needs to be explored. Not only did this approach show
+appreciable improvements in accuracy with respect to MTT with just two populations,
+but it was possible to obtain MCMC convergence with BASTA for as many as eight
+populations, which was beyond the reach of MTT in feasible time (3-4 hours).
+Finally, using real data from Ebola outbreaks in humans we showed that the choice
+of model is very important, because different models can lead in practice to completely
+different results. In fact, diametrically opposite phylogeographic patterns were
+estimated using DTA rather than structured coalescent-based methods. MTT and
+BASTA gave instead comparable estimates. We recommend that users exercise caution,
+and we point out that methods based on the structured coalescent are in general more
+reliable, although also more computationally demanding. The fact that all three
+approaches considered here are all implemented in the same phylogenetic package
+(BEAST2) is a considerable advantage, as it is possible to run and compare different
+methods while installing a single piece of software and using similar formats.
+In the future, we will work on extending BASTA by including estimates of ancestral
+locations of internal nodes other than the root, and estimates of expected numbers of
+migrations between populations.
+
+13/24
+
+Acknowledgments
+We thank Erik Volz for the insightful discussion and suggestions on the BASTA
+approximations. We also thank Timothy Vaughan for the help with MultiTypeTree, on
+which BASTA is strongly based.
+
+References
+1. Bloomquist EW, Lemey P, Suchard MA (2010) Three roads diverged? routes to
+phylogeographic inference. Trends Ecol Evol 25: 626–632.
+2. Nordborg M (1997) Structured coalescent processes on different time scales.
+Genetics 146: 1501–1514.
+3. Templeton AR, Boerwinkle E, Sing CF (1987) A cladistic analysis of phenotypic
+associations with haplotypes inferred from restriction endonuclease mapping. i.
+basic theory and an analysis of alcohol dehydrogenase activity in drosophila.
+Genetics 117: 343–351.
+4. Templeton AR, Sing CF (1993) A cladistic analysis of phenotypic associations
+with haplotypes inferred from restriction endonuclease mapping. iv. nested
+analyses with cladogram uncertainty and recombination. Genetics 134: 659–669.
+5. Templeton AR (2010) Coalescent-based, maximum likelihood inference in
+phylogeography. Mol Ecol 19: 431–435.
+6. Hey J, Machado CA (2003) The study of structured populations-new hope for a
+difficult and divided science. Nat Rev Genet 4: 535–543.
+7. Beaumont MA, Nielsen R, Robert C, Hey J, Gaggiotti O, et al. (2010) In defence
+of model-based inference in phylogeography. Mol Ecol 19: 436–446.
+8. Lemey P, Rambaut A, Drummond AJ, Suchard MA (2009) Bayesian
+phylogeography finds its roots. PLoS Comput Biol 5: e1000520.
+9. Lemey P, Rambaut A, Welch JJ, Suchard MA (2010) Phylogeography takes a
+relaxed random walk in continuous space and time. Mol Biol Evol 27: 1877–1885.
+10. Allicock OM, Lemey P, Tatem AJ, Pybus OG, Bennett SN, et al. (2012)
+Phylogeography and population dynamics of dengue viruses in the americas. Mol
+Biol Evol 29: 1533–1543.
+11. Faria NR, Hodges-Mameletzis I, Silva JC, Rodés B, Erasmus S, et al. (2012)
+Phylogeographical footprint of colonial history in the global dispersal of human
+immunodeficiency virus type 2 group a. J Gen Virol 93: 889–899.
+12. Campos PF, Willerslev E, Sher A, Orlando L, Axelsson E, et al. (2010) Ancient
+DNA analyses exclude humans as the driving force behind late pleistocene musk
+ox (ovibos moschatus) population dynamics. Proc Natl Acad Sci U S A 107:
+5675–5680.
+13. Brandley MC, Wang Y, Guo X, de Oca ANM, Ferı́a-Ortı́z M, et al. (2011)
+Accommodating heterogenous rates of evolution in molecular divergence dating
+methods: an example using intercontinental dispersal of plestiodon (eumeces)
+lizards. Syst Biol 60: 3–15.
+
+14/24
+
+14. Edwards CJ, Suchard MA, Lemey P, Welch JJ, Barnes I, et al. (2011) Ancient
+hybridization and an irish origin for the modern polar bear matriline. Curr Biol
+21: 1251–1258.
+15. Drummond CS, Eastwood RJ, Miotto ST, Hughes CE (2012) Multiple continental
+radiations and correlates of diversification in lupinus (leguminosae): testing for
+key innovation with incomplete taxon sampling. Syst Biol 61: 443–460.
+16. LIU JQ, SUN YS, GE XJ, GAO LM, QIU YX (2012) Phylogeographic studies of
+plants in china: advances in the past and directions in the future. J Syst Evol 50:
+267–275.
+17. Bouckaert R, Lemey P, Dunn M, Greenhill SJ, Alekseyenko AV, et al. (2012)
+Mapping the origins and expansion of the indo-european language family. Science
+337: 957–960.
+18. Chaillon A, Gianella S, Wertheim JO, Richman DD, Mehta SR, et al. (2014) Hiv
+migration between blood and cerebrospinal fluid or semen over time. Journal of
+Infectious Diseases 209: 1642–1652.
+19. Didelot X, Eyre DW, Cule M, Ip C, Ansari MA, et al. (2012) Microevolutionary
+analysis of clostridium difficile genomes to investigate transmission. Genome Biol
+13: R118.
+20. Grad YH, Kirkcaldy RD, Trees D, Dordel J, Harris SR, et al. (2014) Genomic
+epidemiology of neisseria gonorrhoeae with reduced susceptibility to cefixime in
+the USA: a retrospective observational study. Lancet Infect Dis 14: 220–226.
+21. Spoor LE, McAdam PR, Weinert LA, Rambaut A, Hasman H, et al. (2013)
+Livestock origin for a human pandemic clone of community-associated
+methicillin-resistant staphylococcus aureus. MBio 4: e00356–13.
+22. Beerli P, Felsenstein J (1999) Maximum-likelihood estimation of migration rates
+and effective population numbers in two populations using a coalescent approach.
+Genetics 152: 763–773.
+23. Beerli P, Felsenstein J (2001) Maximum likelihood estimation of a migration
+matrix and effective population sizes in n subpopulations by using a coalescent
+approach. Proc Natl Acad Sci U S A 98: 4563–4568.
+24. Ewing G, Nicholls G, Rodrigo A (2004) Using temporally spaced sequences to
+simultaneously estimate migration rates, mutation rate and population sizes in
+measurably evolving populations. Genetics 168: 2407–2420.
+25. Beerli P (2006) Comparison of bayesian and maximum-likelihood inference of
+population genetic parameters. Bioinformatics 22: 341–345.
+26. Vaughan TG, Kühnert D, Popinga A, Welch D, Drummond AJ (2014) Efficient
+bayesian inference under the structured coalescent. Bioinformatics : btu201.
+27. Kühnert D, Wu CH, Drummond AJ (2011) Phylogenetic and epidemic modeling
+of rapidly evolving infectious diseases. Infect Genet Evol 11: 1825–1841.
+28. Bouckaert R, Heled J, Kühnert D, Vaughan T, Wu CH, et al. (2014) Beast 2: a
+software platform for bayesian evolutionary analysis. PLoS Comput Biol 10:
+e1003537.
+
+15/24
+
+29. Notohara M (1990) The coalescent and the genealogical process in geographically
+structured population. J Math Biol 29: 59–75.
+30. Herbots HMJD (1994) Stochastic models in population genetics: genealogy and
+genetic differentiation in structured populations. Ph.D. thesis.
+31. Wilkinson-Herbots HM (1998) Genealogy and subpopulation differentiation under
+various models of population structure. J Math Biol 37: 535–585.
+32. Cunningham CW, Omland KE, Oakley TH (1998) Reconstructing ancestral
+character states: a critical reappraisal. Trends Ecol Evol 13: 361–366.
+33. Pagel M (1999) The maximum likelihood approach to reconstructing ancestral
+character states of discrete characters on phylogenies. Syst Biol : 612–622.
+34. Lemey P, Rambaut A, Bedford T, Faria N, Bielejec F, et al. (2014) Unifying viral
+genetics and human transportation data to predict the global transmission
+dynamics of human influenza H3N2. PLoS Pathog 10: e1003932.
+35. Volz EM (2012) Complex population dynamics and the coalescent under
+neutrality. Genetics 190: 187–201.
+36. Rasmussen DA, Volz EM, Koelle K (2014) Phylodynamic inference for structured
+epidemiological models. PLoS Comput Biol 10: e1003570.
+37. Gire SK, Goba A, Andersen KG, Sealfon RS, Park DJ, et al. (2014) Genomic
+surveillance elucidates ebola virus origin and transmission during the 2014
+outbreak. Science 345: 1369–1372.
+38. Felsenstein J (1981) Evolutionary trees from DNA sequences: a maximum
+likelihood approach. J Mol Evol 17: 368–376.
+39. Volz EM, Frost SD (2014) Sampling through time and phylodynamic inference
+with coalescent and birth–death models. Journal of The Royal Society Interface
+11: 20140945.
+40. Hudson RR, et al. (1990) Gene genealogies and the coalescent process. Oxford
+surveys in evolutionary biology 7: 44.
+41. Rambaut A, Grassly NC (1997) Seq-Gen: an application for the monte carlo
+simulation of DNA sequence evolution along phylogenetic trees. Comput Appl
+Biosci 13: 235–238.
+42. Ewing G, Rodrigo A (2006) Estimating population parameters using the
+structured serial coalescent with bayesian MCMC inference when some demes are
+hidden. Evol Bioinform Online 2: 227.
+43. Kass RE, Carlin BP, Gelman A, Neal RM (1998) Markov chain monte carlo in
+practice: A roundtable discussion. Am Stat 52: 93–100.
+44. Pigott DM, Golding N, Mylne A, Huang Z, Henry AJ, et al. (2014) Mapping the
+zoonotic niche of ebola virus disease in africa. Elife 3: e04395.
+45. May FJ, Davis CT, Tesh RB, Barrett AD (2011) Phylogeography of west nile
+virus: from the cradle of evolution in africa to eurasia, australia, and the
+americas. J Virol 85: 2964–2974.
+
+16/24
+
+Supplementary Text S1: Computational Details of
+BASTA - Eq. (7)
+Calculating Eqs. 8 and 9 requires similar steps to Felsenstein’s pruning algorithm, and
+also has similar computational demands. We therefore do not focus on its details here.
+Instead we show how we calculate the coalescent rates (Eq. (7)), and in particular, the
+sum
+XX X
+1
+d
+Pl,t
+Pld0 ,t
+(11)
+θ
+d
+0
+0
+d∈D l∈Λ l ∈Λ,l 6=l
+
+d
+for a given time t, a given set of extant lineages Λ, and given the probabilities Pl,t
+. For
+brevity, from now on we ignore the P
+time index t. If the expected number of lineages in a
+deme d is represented as E(nd ) := l∈Λ Pld , we have:
+
+XX
+
+X
+
+d∈D l∈Λ l0 ∈Λ,l0 6=l
+
+1
+=
+θd
+"
+X
+XX
+
+Pld Pld0
+
+d∈D
+
+l∈Λ l0 ∈Λ
+
+Pld Pld0
+
+1
+θd
+
+!
+−
+
+X
+l∈Λ
+
+Pld Pld
+
+1
+θd
+
+!#
+=
+
+"
+#
+X 1
+X
+E(nd )E(nd ) −
+Pld Pld . (12)
+θd
+
+d∈D
+
+l∈Λ
+
+Let us call Sd = l∈Λ Pld Pld . Calculating Sd requires O(|Λ|) time and is needed for
+each deme and twice for each coalescent event. So, if n denotes the number of samples,
+the total cost of computing Sd for the whole tree is approximately O(n2 · |D|).
+Updating Sd after a coalescent or sampling event is trivial and negligible in time.
+Calculating E(nd ) is also faster, as we can use the same procedure in Eq. (8) which
+avoids the sum over lineages, giving a required time of ≈ O(n · |D|2 ). Updating E(nd )
+after coalescence and sampling events is trivial and fast. Calculating the exponential of
+the migration rate matrix used in Eq. (8) is required once per event, for a total
+computational cost < O(n · |D|3 ). Lastly, while Eq. (9) requires negligible time, Eq. (8)
+has computational cost ≈ O(|D|2 ), that repeated over all lineages and over all events,
+brings to a total cost of ≈ O(n2 · |D|2 ), which is the computational bottleneck of
+BASTA (generally n >> |D|).
+To further reduce the computational time, we adopt a caching technique that
+consists in using the same vectors for lineages that have undergone the same history
+since sampling (including same sampling location). If many leaves are sampled at the
+same time, this leads to important savings, but in the worst scenario the total
+computational demand remains ≈ O(n2 · |D|2 ).
+P
+
+17/24
+
+Figure 7. Figure 1
+
+Figure
+8. Figure 2
+distributions
+Prior(dis2bu2on(
+prior
+Samples_10−190
+Posterior(distribu2on,(dishomogeneous(sampling((10;190)(
+Samples_100−100
+Posterior(distribu2on,(homogeneous(sampling((100;100)(
+
+(a)(Mugra2on(
+
+(b)(Mul2TypeTree(
+
+(c)(BaStA(
+
+0.06
+0.075
+
+Posterior(density(
+density
+
+0.4
+
+0.04
+
+density
+
+density
+
+distributions
+
+0.050
+
+prior
+Samples_10−190
+Samples_100−100
+
+distributions
+
+distributions
+
+prior
+
+prior
+
+Samples_10−190
+
+Samples_10
+
+Samples_100−100
+
+Samples_10
+
+0.2
+
+−5
+
+0
+
+5
+
+0.02
+
+0.025
+
+10
+
+Log_Rate_Ratio
+0.0
+
+0.00
+
+0.000
+−10
+
+−5
+
+0
+
+5
+
+10
+
+Log_Rate_Ratio
+Migra2on(rates(log;ra2o(
+
+−20
+
+−10
+
+0
+
+10
+
+20
+
+Log_Rate_Ratio
+Migra2on(rates(log;ra2o(
+
+−20
+
+−10
+
+0
+
+10
+
+20
+
+Log_Rate_Ratio
+Migra2on(rates(log;ra2o(
+
+18/24
+
+Ratio
+(b)(Mul7TypeTree(
+
+●
+
+●
+●
+
+●● ●
+
+●
+
+●
+
+●
+
+1e−06
+
+(((Calibra7on:(56%(
+((Correla7on:(0.58(
+1e−03
+
+1e−01
+
+1e+01
+
+Migra7on(rates(ra7o(
+Simulated Ratio
+
+1e+06
+●
+●
+
+●
+
+●
+
+●
+●
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+(((Calibra7on:(87%(
+((Correla7on:(0.77(
+
+1e+03
+
+1e−03
+
+Figure 10. Figure 4
+(a)(Mugra/on(
+
+Posterior(support(for(true(root(loca/on(
+
+●
+●●
+
+●
+●●●
+● ●●
+●
+●
+●
+● ●●●● ●● ●●
+●
+● ● ● ●
+●●
+● ●●●
+●●● ● ● ●●
+●●
+●● ●
+●
+●
+●
+● ●● ●
+●●
+●
+●●
+● ●
+●
+●
+
+1e−01
+
+1e+03
+
+1e+03
+
+●
+
+●
+
+1e+01
+
+●
+
+●
+●
+●
+
+●
+
+●
+●●●
+●
+●
+●
+●●
+●
+●● ● ●
+● ●● ●
+● ●● ● ●● ● ● ●● ● ●●● ●
+●●
+● ● ● ●●● ● ●
+●●
+●
+● ● ● ●●●
+●
+●
+●● ● ●
+● ●
+●
+●
+● ● ●
+●
+●
+
+●
+●
+
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+●
+●
+●
+
+●
+
+(((Calibra7on:(95%(
+((Correla7on:(0.83(
+
+1e+03
+
+1e−03
+
+1e−01
+
+1e+01
+
+1e+03
+
+Migra7on(rates(ra7o(
+Simulated Ratio
+
+(c)(BaStA(
+
+Replicate(
+
+Replicate(
+
+(b)(BaStA(
+
+-750
+
+9000
+
+●
+
+●
+
+(b)(Mul/TypeTree(
+
+Figure 11. Figure 5
+(a)(Mul0TypeTree(
+
+●
+
+●
+
+Migra7on(rates(ra7o(
+Simulated Ratio
+
+Replicate(
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+1e+00
+
+●
+
+Posterior median and 95% interval
+
+●
+
+●
+
+●
+●
+
+1e−03
+
+●●
+●●
+●● ●
+●●
+●
+● ●● ●
+● ● ●●●●●●●●
+●●
+●
+● ● ●●●●●●●
+●●●●● ● ●●●●●
+●
+●
+● ●●
+● ●●
+●
+●● ●●●● ● ●●●
+● ●● ●
+●●
+● ●●
+●
+●
+
+●
+
+●
+●
+
+●
+
+1e−06
+
+●
+
+●
+
+●
+●
+
+1e+00
+
+●●
+
+1e−03
+
+●
+
+●
+
+Posterior median and 95% interval
+
+●
+
+●
+
+1e−03
+
+1e+00
+
+●
+
+●
+
+●
+
+1e−06
+
+1e+03
+
+Posterior median and 95% interval
+
+Ratio
+(c)(BaStA(
+
+1e+06
+
+1e+06
+
+Posterior(median(and(95%(interval(
+
+Figure 9. Figure 3
+Ratio
+(a)(Mugra7on(
+
+AppStrCoal_8pop_samples40_rep10_fixedTree_mean0.5_niter2M.xml.log
+
+7000
+
+Posterior(score(
+
+StrCoal_8pop_samples40_rep10_fixedTree_mean0.5_niter2M.xml.log
+
+8000
+
+6000
+
+5000
+
+4000
+
+3000
+
+2000
+
+-775
+
+-800
+
+-825
+
+-850
+
+-875
+
+1000
+
+0
+
+0
+
+250000
+
+500000
+
+750000
+
+1000000
+
+1250000
+
+MCMC(state(
+State
+
+1500000
+
+1750000
+
+2000000
+
+-900
+
+0
+
+250000
+
+500000
+
+750000
+
+1000000
+
+1250000
+
+1500000
+
+1750000
+
+2000000
+
+MCMC(state(
+State
+
+19/24
+
+Figure 12. Figure 6
+deme
+
+EBOV|AA000000|G3825|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3848|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3834|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3857|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3829|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3851|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3752|SierraLeone_G|2014-06-10
+EBOV|AA000000|EM110|SierraLeone_EM|2014-06-03
+EBOV|AA000000|EM115|SierraLeone_EM|2014-06-03
+EBOV|AA000000|EM104|SierraLeone_EM|2014-06-02
+EBOV|AA000000|G3819|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3817|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3809|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3816|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3821|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3822|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3735|SierraLeone_G|2014-06-07
+EBOV|AA000000|G3750|SierraLeone_G|2014-06-10
+EBOV|AA000000|EM106|SierraLeone_EM|2014-06-02
+EBOV|AA000000|EM124|SierraLeone_EM|2014-06-04
+EBOV|AA000000|EM113|SierraLeone_EM|2014-06-03
+EBOV|AA000000|G3856|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3814|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3798|SierraLeone_G|2014-06-15
+EBOV|AA000000|EM112|SierraLeone_EM|2014-06-03
+EBOV|AA000000|EM111|SierraLeone_EM|2014-06-03
+EBOV|AA000000|G3764|SierraLeone_G|2014-06-12
+EBOV|AA000000|G3765|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3840|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3845|SierraLeone_G|2014-06-18
+EBOV|AA000000|EM119|SierraLeone_EM|2014-06-03
+EBOV|AA000000|G3770|SierraLeone_G|2014-06-12
+EBOV|AA000000|G3826|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3827|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3707|SierraLeone_G|2014-05-31
+EBOV|AA000000|G3850|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3846|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3724|SierraLeone_G|2014-06-05
+EBOV|AA000000|G3771|SierraLeone_G|2014-06-12
+EBOV|AA000000|G3713|SierraLeone_G|2014-06-09
+EBOV|AA000000|G3818|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3789|SierraLeone_G|2014-06-14
+EBOV|AA000000|NM042|SierraLeone_NM|2014-06-04
+EBOV|AA000000|G3805|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3838|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3795|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3734|SierraLeone_G|2014-06-07
+EBOV|AA000000|G3729|SierraLeone_G|2014-06-07
+EBOV|AA000000|G3820|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3786|SierraLeone_G|2014-06-14
+EBOV|KM034552|EM098|SierraLeone_EM|2014-05-26
+EBOV|AA000000|G3769|SierraLeone_G|2014-06-12
+EBOV|AA000000|EM121|SierraLeone_EM|2014-06-04
+EBOV|AA000000|EM120|SierraLeone_EM|2014-06-03
+EBOV|KM034551|EM096|SierraLeone_EM|2014-05-26
+EBOV|KM034558|G3679|SierraLeone_G|2014-05-28
+EBOV|AA000000|G3807|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3841|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3782|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3831|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3787|SierraLeone_G|2014-06-14
+EBOV|KM034553|G3670|SierraLeone_G|2014-05-27
+EBOV|KM034556|G3677|SierraLeone_G|2014-05-26
+EBOV|AA000000|G3788|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3810|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3800|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3799|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3758|SierraLeone_G|2014-06-11
+EBOV|AA000000|G3808|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3796|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3823|SierraLeone_G|2014-06-15
+EBOV|KM034560|G3682|SierraLeone_G|2014-05-28
+EBOV|KM034559|G3680|SierraLeone_G|2014-05-28
+EBOV|KM034554|G3676|SierraLeone_G|2014-05-27
+EBOV|KM034550|EM095|SierraLeone_EM|2014-05-25
+EBOV|KM034562|G3686|SierraLeone_G|2014-05-28
+EBOV|KM034561|G3683|SierraLeone_G|2014-05-28
+EBOV|KM034563|G3687|SierraLeone_G|2014-05-28
+EBOV|KJ660348|Gueckedou-C05|Gueckedou_Guinea|2014-03-19
+EBOV|KJ660346|Kissidougou-C15|Kissidougou_Guinea|2014-03-17
+EBOV|KJ660347|Gueckedou-C07|Gueckedou_Guinea|2014-03-20
+EBOV|HQ613403|M-M|DRC|2007-08-31
+EBOV|HQ613402|034-KS|DRC|2008-12-31
+EBOV|KC242786|Luebo1|Luebo_DRC|2007
+EBOV|KC242789|Luebo4|Luebo_DRC|2007
+EBOV|KC242784|Luebo9|Luebo_DRC|2007
+EBOV|KC242790|Luebo5|Luebo_DRC|2007
+EBOV|KC242785|Luebo0|Luebo_DRC|2007
+EBOV|KC242788|Luebo43|Luebo_DRC|2007
+EBOV|KC242787|Luebo23|Luebo_DRC|2007
+EBOV|EU051637|GOR1_Odz|Odzala_RCongo|2005-06
+EBOV|EU051650_EU051638|GOR2_Odz|Odzala_RCongo|2005-06
+EBOV|EU051647_EU051634|Etoumbi|GrandEtoumbi_Gabon|2005-05
+EBOV|EU051636|GOR_Mbandza|Gabon|2003-06
+EBOV|EU051648_EU051635|Mbandza|Gabon|2003-11
+EBOV|EU051632|GOR_Ekata|Ekata_Gabon|2001-11
+EBOV|KC242800|Ilembe|Gabon|2002
+EBOV|EU051633|CH_Lossi|Lossi_RCongo|2003-02
+EBOV|EU051649_EU051630|GOR1_Lossi|Lossi_RCongo|2002-12
+EBOV|EU051631|GOR2_Lossi|Lossi_RCongo|2002-12
+EBOV|AY526101|Makoukou|Gabon|2001-12
+EBOV|EU051641_AY526098|Mendemba_B|Gabon|2001-10
+EBOV|EU051640_AY526105|Mendemba_A|Gabon|2001-10
+EBOV|EU051642_AY526100|Etakangaye|Gabon|2001-12
+EBOV|EU051643_AY526099|Olloba|Gabon|2001-12
+EBOV|EU051644_AY526102|Entsiami|RCongo|2002-01
+EBOV|EU051646_AY526103|Yembelengoye|RCongo|2002-12
+EBOV|EU051645_AY526104|Mvoula|RCongo|2003-01
+EBOV|KC242798|1Ikot|Gabon|1996
+EBOV|KC242794|2Nza|Gabon|1996
+EBOV|AY058895_AY058898|Bouee-96|Gabon|1996
+EBOV|KC242795|1Mbie|Gabon|1996
+EBOV|KC242793|1Eko|Gabon|1996
+EBOV|KC242797|1Oba|Gabon|1996
+EBOV|EU051639_HQ849547|Mayibout|Gabon|1996
+EBOV|KC242792|Gabon|Mekouka_Gabon|1994
+EBOV|KC242796|13625|Kikwit_DRC|1995
+EBOV|KC242799|13709|Kikwit_DRC|1995
+EBOV|JQ352763|Kikwit|Kikwit_DRC|1995-05-04
+EBOV|AY354458|Zaire|Kikwit_DRC|1995
+
+(a)$Mugra(on$
+
+human
+
+1
+
+Posterior(density(
+density
+
+0
+
+5
+
+10
+
+density
+
+EBOV|KC242801|deRoover|DRC|1976
+EBOV|KC242791|Bonduni|Tandala_DRC|1977
+EBOV|AF272001|Mayinga|Yambuku_DRC|1976
+
+Log_Rate_Ratio
+
+EBOV|AA000000|G3857|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3848|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3851|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3825|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3752|SierraLeone_G|2014-06-10
+EBOV|AA000000|G3834|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3829|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3827|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3826|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3814|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3850|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3840|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3765|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3735|SierraLeone_G|2014-06-07
+EBOV|AA000000|G3713|SierraLeone_G|2014-06-09
+EBOV|AA000000|G3819|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3821|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3816|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3809|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3822|SierraLeone_G|2014-06-15
+EBOV|AA000000|EM124|SierraLeone_EM|2014-06-04
+EBOV|AA000000|EM110|SierraLeone_EM|2014-06-03
+EBOV|AA000000|EM106|SierraLeone_EM|2014-06-02
+EBOV|AA000000|G3724|SierraLeone_G|2014-06-05
+EBOV|AA000000|EM113|SierraLeone_EM|2014-06-03
+EBOV|AA000000|EM104|SierraLeone_EM|2014-06-02
+EBOV|AA000000|G3817|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3750|SierraLeone_G|2014-06-10
+EBOV|AA000000|G3707|SierraLeone_G|2014-05-31
+EBOV|AA000000|G3818|SierraLeone_G|2014-06-15
+EBOV|AA000000|EM115|SierraLeone_EM|2014-06-03
+EBOV|AA000000|EM112|SierraLeone_EM|2014-06-03
+EBOV|AA000000|G3771|SierraLeone_G|2014-06-12
+EBOV|AA000000|G3764|SierraLeone_G|2014-06-12
+EBOV|AA000000|G3856|SierraLeone_G|2014-06-18
+EBOV|AA000000|G3798|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3805|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3789|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3846|SierraLeone_G|2014-06-18
+EBOV|AA000000|NM042|SierraLeone_NM|2014-06-04
+EBOV|AA000000|G3845|SierraLeone_G|2014-06-18
+EBOV|AA000000|EM111|SierraLeone_EM|2014-06-03
+EBOV|AA000000|G3770|SierraLeone_G|2014-06-12
+EBOV|AA000000|EM119|SierraLeone_EM|2014-06-03
+EBOV|AA000000|G3795|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3782|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3796|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3810|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3841|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3800|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3758|SierraLeone_G|2014-06-11
+EBOV|AA000000|G3769|SierraLeone_G|2014-06-12
+EBOV|AA000000|G3831|SierraLeone_G|2014-06-16
+EBOV|AA000000|G3787|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3799|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3808|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3734|SierraLeone_G|2014-06-07
+EBOV|KM034553|G3670|SierraLeone_G|2014-05-27
+EBOV|AA000000|G3838|SierraLeone_G|2014-06-17
+EBOV|AA000000|G3807|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3820|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3823|SierraLeone_G|2014-06-15
+EBOV|AA000000|G3788|SierraLeone_G|2014-06-14
+EBOV|AA000000|G3786|SierraLeone_G|2014-06-14
+EBOV|KM034556|G3677|SierraLeone_G|2014-05-26
+EBOV|AA000000|EM121|SierraLeone_EM|2014-06-04
+EBOV|KM034552|EM098|SierraLeone_EM|2014-05-26
+EBOV|KM034560|G3682|SierraLeone_G|2014-05-28
+EBOV|AA000000|G3729|SierraLeone_G|2014-06-07
+EBOV|AA000000|EM120|SierraLeone_EM|2014-06-03
+EBOV|KM034558|G3679|SierraLeone_G|2014-05-28
+EBOV|KM034551|EM096|SierraLeone_EM|2014-05-26
+EBOV|KM034559|G3680|SierraLeone_G|2014-05-28
+EBOV|KM034554|G3676|SierraLeone_G|2014-05-27
+EBOV|KM034562|G3686|SierraLeone_G|2014-05-28
+EBOV|KM034563|G3687|SierraLeone_G|2014-05-28
+EBOV|KM034550|EM095|SierraLeone_EM|2014-05-25
+EBOV|KM034561|G3683|SierraLeone_G|2014-05-28
+EBOV|KJ660348|Gueckedou-C05|Gueckedou_Guinea|2014-03-19
+EBOV|KJ660346|Kissidougou-C15|Kissidougou_Guinea|2014-03-17
+EBOV|KJ660347|Gueckedou-C07|Gueckedou_Guinea|2014-03-20
+EBOV|EU051650_EU051638|GOR2_Odz|Odzala_RCongo|2005-06
+EBOV|EU051647_EU051634|Etoumbi|GrandEtoumbi_Gabon|2005-05
+EBOV|EU051637|GOR1_Odz|Odzala_RCongo|2005-06
+EBOV|EU051648_EU051635|Mbandza|Gabon|2003-11
+EBOV|EU051636|GOR_Mbandza|Gabon|2003-06
+EBOV|EU051632|GOR_Ekata|Ekata_Gabon|2001-11
+EBOV|KC242800|Ilembe|Gabon|2002
+EBOV|EU051633|CH_Lossi|Lossi_RCongo|2003-02
+EBOV|EU051649_EU051630|GOR1_Lossi|Lossi_RCongo|2002-12
+EBOV|EU051631|GOR2_Lossi|Lossi_RCongo|2002-12
+EBOV|HQ613403|M-M|DRC|2007-08-31
+EBOV|HQ613402|034-KS|DRC|2008-12-31
+EBOV|KC242786|Luebo1|Luebo_DRC|2007
+EBOV|KC242789|Luebo4|Luebo_DRC|2007
+EBOV|KC242784|Luebo9|Luebo_DRC|2007
+EBOV|KC242790|Luebo5|Luebo_DRC|2007
+EBOV|KC242785|Luebo0|Luebo_DRC|2007
+EBOV|KC242788|Luebo43|Luebo_DRC|2007
+EBOV|KC242787|Luebo23|Luebo_DRC|2007
+EBOV|KC242795|1Mbie|Gabon|1996
+EBOV|KC242793|1Eko|Gabon|1996
+EBOV|KC242797|1Oba|Gabon|1996
+EBOV|EU051639_HQ849547|Mayibout|Gabon|1996
+EBOV|KC242792|Gabon|Mekouka_Gabon|1994
+EBOV|KC242798|1Ikot|Gabon|1996
+EBOV|KC242794|2Nza|Gabon|1996
+EBOV|AY058895_AY058898|Bouee-96|Gabon|1996
+EBOV|EU051642_AY526100|Etakangaye|Gabon|2001-12
+EBOV|AY526101|Makoukou|Gabon|2001-12
+EBOV|EU051641_AY526098|Mendemba_B|Gabon|2001-10
+EBOV|EU051640_AY526105|Mendemba_A|Gabon|2001-10
+EBOV|EU051644_AY526102|Entsiami|RCongo|2002-01
+EBOV|EU051643_AY526099|Olloba|Gabon|2001-12
+EBOV|EU051646_AY526103|Yembelengoye|RCongo|2002-12
+EBOV|EU051645_AY526104|Mvoula|RCongo|2003-01
+EBOV|KC242796|13625|Kikwit_DRC|1995
+EBOV|JQ352763|Kikwit|Kikwit_DRC|1995-05-04
+EBOV|KC242799|13709|Kikwit_DRC|1995
+EBOV|AY354458|Zaire|Kikwit_DRC|1995
+
+(b)$Mul(TypeTree$
+
+1
+
+EBOV|KC242801|deRoover|DRC|1976
+EBOV|KC242791|Bonduni|Tandala_DRC|1977
+EBOV|AF272001|Mayinga|Yambuku_DRC|1976
+
+density
+
+0
+
+−5
+
+0
+
+EBOV|AA000000|G3857|Si
+EBOV|AA000000|G3848|Si
+EBOV|AA000000|G3851|Si
+EBOV|AA000000|G3825|Si
+EBOV|AA000000|G3752|Si
+EBOV|AA000000|G3834|Si
+Human$
+EBOV|AA000000|G3829|Si
+EBOV|AA000000|G3827|Si
+EBOV|AA000000|G3826|Si
+Animal$
+EBOV|AA000000|G3814|Si
+EBOV|AA000000|G3850|Si
+EBOV|AA000000|G3840|Si
+EBOV|AA000000|G3765|Si
+EBOV|AA000000|G3735|Si
+EBOV|AA000000|G3713|Si
+EBOV|AA000000|G3819|Si
+EBOV|AA000000|G3821|Si
+EBOV|AA000000|G3816|Si
+EBOV|AA000000|G3809|Si
+EBOV|AA000000|G3822|Si
+EBOV|AA000000|EM124|Si
+EBOV|AA000000|EM110|Si
+EBOV|AA000000|EM106|Si
+EBOV|AA000000|G3724|Sie
+EBOV|AA000000|EM113|Si
+EBOV|AA000000|EM104|Si
+EBOV|AA000000|G3817|Si
+EBOV|AA000000|G3750|Si
+EBOV|AA000000|G3707|Sie
+EBOV|AA000000|G3818|Si
+EBOV|AA000000|EM115|Si
+EBOV|AA000000|EM112|Si
+EBOV|AA000000|G3771|Si
+EBOV|AA000000|G3764|Si
+EBOV|AA000000|G3856|Si
+EBOV|AA000000|G3798|Si
+EBOV|AA000000|G3805|Si
+EBOV|AA000000|G3789|Si
+EBOV|AA000000|G3846|Si
+EBOV|AA000000|NM042|Si
+EBOV|AA000000|G3845|Si
+EBOV|AA000000|EM111|Si
+EBOV|AA000000|G3770|Si
+EBOV|AA000000|EM119|Si
+EBOV|AA000000|G3795|Si
+14100 1 0355 1 0 03 0 9 5 2 5 9 0 2 08 5 185 0 1705 7 50 6 50 6 0 5 5 5 0 4 5 4 0 3 5 3 0 2 5 2 0 1 5 1 0
+5
+0
+EBOV|AA000000|G3782|Si
+EBOV|AA000000|G3796|Si
+Years$from$present$
+Years$from$present$
+EBOV|AA000000|G3810|Si
+EBOV|AA000000|G3841|Si
+EBOV|AA000000|G3800|Si
+Figure
+13.
+Figure
+S1
+EBOV|AA000000|G3758|Si
+distributions
+EBOV|AA000000|G3769|Si
+EBOV|AA000000|G3831|Si
+Prior(dis2bu2on(
+prior
+EBOV|AA000000|G3787|Si
+EBOV|AA000000|G3799|Si
+Samples_10−190
+Posterior(distribu2on,(dishomogeneous(sampling((10;190)(
+EBOV|AA000000|G3808|Si
+EBOV|AA000000|G3734|Si
+Samples_100−100
+Posterior(distribu2on,(homogeneous(sampling((100;100)(
+EBOV|KM034553|G3670|Si
+EBOV|AA000000|G3838|Si
+EBOV|AA000000|G3807|Si
+(a)(Mugra2on(
+(b)(Mul2TypeTree(
+(c)(BaStA(
+EBOV|AA000000|G3820|Si
+EBOV|AA000000|G3823|Si
+0.100
+EBOV|AA000000|G3788|Si
+0.12
+EBOV|AA000000|G3786|Si
+EBOV|KM034556|G3677|Si
+EBOV|AA000000|EM121|Si
+0.3
+EBOV|KM034552|EM098|Si
+EBOV|KM034560|G3682|Si
+0.075
+EBOV|AA000000|G3729|Si
+EBOV|AA000000|EM120|Si
+EBOV|KM034558|G3679|Si
+0.08
+EBOV|KM034551|EM096|Si
+distributions
+distributions
+EBOV|KM034559|G3680|Si
+0.2
+distributions
+prior
+prior
+EBOV|KM034554|G3676|Si
+prior
+0.050
+Samples_10−190
+Samples_10−190
+EBOV|KM034562|G3686|Si
+Samples_10−190
+Samples_100−100
+Samples_100−100
+EBOV|KM034563|G3687|Si
+Samples_100−100
+EBOV|KM034550|EM095|Si
+EBOV|KM034561|G3683|Si
+EBOV|KJ660348|Gueckedou
+0.04
+0.1
+EBOV|KJ660346|Kissidougo
+0.025
+EBOV|KJ660347|Gueckedou
+EBOV|EU051650_EU051638|GOR2_Odz|Odzala
+EBOV|EU051647_EU051634|Etoumbi|GrandEto
+EBOV|EU051637|GOR1_Odz|Odzala_RCongo|2
+EBOV|EU051648_EU051635|Mbandza|Gabon|2003
+EBOV|EU051636|GOR_Mbandza|Gabon|2003-06
+0.0
+0.000
+0.00
+EBOV|EU051632|GOR_Ekata|Ekata_Gabon|2001-11
+EBOV|KC242800|Ilembe|Gabon|2002
+−75
+−50
+−25
+0
+−20
+−10
+0
+10
+−20
+−10
+0
+10
+EBOV|EU051633|CH_Lossi|Lossi_RCongo|2003-02
+Log_Rate2
+Log_Rate2
+Log_Rate2
+Migra2on(rates(log;ra2o(
+Migra2on(rates(log;ra2o(
+Migra2on(rates(log;ra2o(
+EBOV|EU051649_EU051630|GOR1_Lossi|Lossi_RCon
+EBOV|EU051631|GOR2_Lossi|Lossi_RCongo|2002-12
+EBOV|HQ613403|M-M|DRC|2007-08-31
+EBOV|HQ613402|034-KS|DRC|2008-1
+EBOV|KC242786|Luebo1|Luebo_DRC|2007
+EBOV|KC242789|Luebo4|Luebo_DRC|2007
+EBOV|KC242784|Luebo9|Luebo_DRC|2007
+EBOV|KC242790|Luebo5|Luebo_DRC|2007
+EBOV|KC242785|Luebo0|Luebo_DRC|2007
+20/24
+EBOV|KC242788|Luebo43|Luebo_DRC|2007
+EBOV|KC242787|Luebo23|Luebo_DRC|2007
+EBOV|KC242795|1Mbie|Gabon|1996
+EBOV|KC242793|1Eko|Gabon|1996
+EBOV|KC242797|1Oba|Gabon|1996
+EBOV|EU051639_HQ849547|Mayibout|Gabon|1996
+EBOV|KC242792|Gabon|Mekouka_Gabon|1994
+EBOV|KC242798|1Ikot|Gabon|1996
+
+type
+
+180 175 170 165 160 155 150 145 140 135 130 125 120 115
+
+type
+
+Figure 14. Figure S2
+
+●
+
+(Calibra5on:(68%(
+Correla5on:(0.33(
+1e+00
+
+1e+01
+
+●
+●
+●
+
+●
+●
+
+●
+●●
+●
+
+●
+
+●
+
+●●
+
+●
+●
+
+●
+●
+● ●
+
+●
+
+●
+
+●
+
+●
+●
+●
+
+●●
+●
+●
+
+●
+●
+●
+●
+●
+●
+●
+●
+● ●
+
+●
+● ●
+●
+●
+
+●
+
+● ●
+●●
+●
+●
+●
+● ●
+●●
+●
+● ● ●●
+●
+● ●
+●
+●
+
+●
+
+●
+●
+●
+
+●
+
+●
+
+●
+●
+
+●
+●
+
+●
+●
+●
+
+●
+
+1e−03
+
+●
+
+●
+●
+● ● ●●
+●●
+●●
+●
+●
+● ●●
+●
+● ●
+
+1e−06
+
+(Calibra5on:(80%(
+Correla5on:(0.39(
+1e−02
+
+1e−01
+
+1e+00
+
+1e+01
+
+Migra5on(rates(ra5o(
+Simulated Ratio
+
+1e+02
+
+●
+● ●
+●
+●● ●
+● ●
+●
+
+●●
+●
+
+●
+
+Posterior median and 95% interval
+
+●
+
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+●
+●
+
+(Calibra5on:(80%(
+Correla5on:(0.46(
+Ratio
+1e+00
+
+1e−01
+
+(h)(
+
+1e+01
+
+●
+●
+
+●
+● ●
+●
+●
+
+●
+
+●
+●
+●
+●●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●
+
+●
+
+● ●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●●
+
+●●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+●●
+
+●
+●
+
+●
+●
+
+●
+●
+
+●
+
+●
+
+● ●
+●
+
+●
+●
+
+● ●
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●●
+● ●●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+●
+●
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+● ●
+
+●
+
+●
+●
+
+●
+
+●
+
+(Calibra5on:(85%(
+Correla5on:(0.42(
+1e−02
+
+1e−01
+
+1e+00
+
+1e+01
+
+Migra5on(rates(ra5o(
+Simulated Ratio
+
+1e+02
+
+●
+●
+
+●
+●
+●
+
+1e+00
+1e−03
+
+●
+
+●
+●
+
+●
+●
+●
+
+●
+
+●
+
+●
+●
+●
+
+●
+
+●
+●●
+●
+
+●
+
+●
+● ●●
+●●
+
+●
+
+●
+● ●●
+
+●
+
+●
+
+●●
+
+●
+
+●
+●
+
+●
+●
+●
+
+●
+●
+●
+●●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+● ●
+●
+● ●
+●
+●
+●
+
+●●
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+●●
+
+●
+●
+●
+
+●
+●
+
+●
+●
+
+● ●●
+
+●
+●
+
+●
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+(Calibra5on:(84%(
+Correla5on:(0.70(
+1e−02
+
+●
+
+●
+
+●
+●
+●
+●
+
+1e+02
+
+Simulated Ratio
+
+●
+
+1e−06
+1e+06
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+1e+01
+
+Simulated Ratio
+
+●
+
+●●
+●
+
+●
+
+●
+
+●
+
+1e+03
+
+1e+06
+●
+
+●
+
+●
+
+1e−01
+
+(f)(
+
+1e+03
+
+1e+00
+
+●●
+
+●
+
+● ●
+
+1e−02
+
+Posterior median and 95% interval
+
+1e+00
+
+●
+
+●
+● ●
+●●
+
+●
+
+●
+●
+
+● ●
+
+●
+
+●
+
+1e+02
+
+Simulated Ratio
+
+●
+●
+●
+
+●
+
+●
+●
+●
+● ●● ● ●
+
+●
+
+●
+
+1e+06
+
+1e−01
+
+(g)(
+
+1e+03
+
+1e+06
+
+Ratio
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●
+
+●
+●
+
+●
+
+(Calibra5on:(97%(
+Correla5on:(0.81(
+Ratio
+
+1e+00
+
+●
+
+●
+
+Posterior median and 95% interval
+
+●
+
+●
+
+1e−03
+
+●
+
+●●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+1e−06
+
+●
+
+●●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+1e+06
+
+● ●
+●
+
+●
+
+●
+●
+
+●
+●●
+
+●
+●
+
+●
+
+●● ●
+●
+
+Ratio
+
+1e−01
+
+1e+00
+
+(i)(
+
+1e+01
+
+1e+02
+
+Simulated Ratio
+
+1e+03
+
+●
+●
+
+1e+03
+
+1e+06
+
+●
+●
+●
+●● ● ●
+● ●
+● ● ●●●
+●
+●●
+●
+●
+● ● ●● ● ● ●
+●
+●
+● ● ●● ● ● ● ●
+●
+● ●
+
+●
+
+●
+
+● ●
+● ●
+
+●
+
+●
+
+●
+
+1e−03
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+●
+● ●
+●●
+●
+
+●
+
+1e+01
+
+Simulated Ratio
+
+●●
+
+●●●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+●
+●
+●
+
+●
+●
+
+●
+
+●
+
+● ●
+
+●
+●
+●
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+●
+
+●●
+●
+●●
+
+●
+●
+●●
+
+●
+●
+
+●
+●
+●
+●
+
+●
+●
+●
+● ●●
+●
+●
+
+● ●
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+●
+●
+
+●
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+1e+00
+
+●
+●
+
+●
+
+1e−01
+
+Posterior median and 95% interval
+
+●
+●
+●
+● ●●
+
+(Calibra5on:(96%(
+Correla5on:(0.75(
+
+●
+
+●
+●
+●
+●
+● ●
+
+●
+
+●
+●
+
+●
+
+1e−03
+
+●
+
+●
+
+Ratio
+
+(e)(
+
+●
+●
+●
+●
+●
+●
+
+●
+
+●
+●
+●
+●
+●●
+● ●●
+●
+●
+●
+● ●
+●
+●
+●
+● ● ● ●●
+● ● ●●
+●
+●
+● ● ●
+●
+●
+●
+● ●
+●
+● ●
+●
+●
+●
+●●
+
+(Calibra5on:(88%(
+Correla5on:(0.51(
+
+1e−06
+
+●
+●
+●
+
+1e+03
+
+1e+06
+●
+
+●
+
+●
+●
+●
+●
+
+●
+
+1e+00
+
+● ●● ●
+●
+●●
+●
+●
+●
+●
+●
+● ● ● ●●
+●
+●
+●
+
+● ● ●
+
+●
+
+●
+
+1e−03
+
+Posterior median and 95% interval
+
+●
+●
+
+●
+
+●
+
+●
+●
+●
+
+1e−03
+
+●
+
+●
+
+● ●
+
+●
+●
+
+●
+
+●
+
+1e−06
+
+1e+00
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+● ● ●●
+●
+● ●
+●●
+●
+●
+●
+● ●
+●
+●
+●
+●● ●
+●●
+●
+●
+●
+● ●●
+●
+●
+
+● ● ●
+●
+●
+●
+●
+●
+● ●
+
+●●
+
+●
+●
+
+●
+
+●
+●●
+●
+
+●
+
+1e+01
+
+Simulated Ratio
+
+1e+03
+
+1e+06
+
+1e−01
+
+(d)(
+
+●
+
+●
+●●
+
+●
+●
+●
+●● ●●●
+●
+
+(c)(
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+1e−03
+
+Posterior median and 95% interval
+
+(Calibra5on:(81%(
+Correla5on:(0.64(
+
+●
+
+●
+●
+
+●
+
+●
+
+1e−06
+
+●
+
+1e−03
+
+Posterior median and 95% interval
+Posterior(median(and(95%(interval(
+
+●
+
+Ratio
+
+1e−02
+Posterior median and 95% interval
+Posterior(median(and(95%(interval(
+
+● ●
+
+●
+●● ● ●●● ●
+●
+●
+
+1e+03
+
+●
+●
+
+●
+
+1e+00
+
+●
+
+●●● ●
+●●
+●
+
+●
+
+1e−03
+
+●
+
+●
+
+1e−06
+
+Inhomogeneous,(
+high(rates(
+
+●
+●
+
+Ratio
+BaStA(
+
+(b)(
+
+1e−06
+
+1e+06
+1e+03
+1e+00
+
+●
+
+● ●● ●
+●
+● ●●●
+● ●
+●● ●
+●
+●
+●●
+● ●●
+●
+●●
+●●
+● ● ●● ●
+●●
+● ●
+●● ●
+●●
+●
+●
+● ● ●
+●●
+●●
+●
+● ● ● ●●
+●
+● ● ●
+● ●
+●
+●
+
+1e−03
+
+Posterior median and 95% interval
+Posterior(median(and(95%(interval(
+
+●
+●
+
+1e−03
+
+Inhomogeneous,(
+low(rates(
+
+Ratio
+Mul5TypeTree(
+
+(a)(
+
+1e−06
+
+Homogeneous,(
+low(rates(
+
+Ratio
+Mugra5on(
+
+1e−02
+
+1e−01
+
+1e+00
+
+1e+01
+
+1e+02
+
+Migra5on(rates(ra5o(
+Simulated Ratio
+
+21/24
+
+Mugra&on)
+
+Posterior)support)for)true)root)loca&on) Posterior)support)for)true)root)loca&on) Posterior)support)for)true)root)loca&on)
+
+Inhomogeneous,)
+low)rates)
+
+Inhomogeneous,)
+high)rates)
+
+Homogeneous,)
+low)rates)
+
+Figure 15. Figure S3
+Mul&TypeTree)
+
+BaStA)
+
+(a))
+
+(b))
+
+(c))
+
+(d))
+
+(e))
+
+(f))
+
+(g))
+
+(h))
+
+(i))
+
+Replicate)
+
+Replicate)
+
+Replicate)
+
+Figure 16. Figure S4
+Ratio
+Mul&TypeTree)
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●●●● ●●
+● ●
+
+●
+● ●
+●
+●● ●
+● ●
+●
+
+●
+
+●
+
+●
+●
+●
+
+●
+
+●
+●
+
+1e−02
+
+)Calibra&on:)70%)
+Correla&on:)0.51)
+1e−01
+
+1e+00
+
+1e+01
+
+Migra&on)rates)ra&o)
+Simulated Ratio
+
+(d))
+
+1e+02
+
+●
+●
+●
+●
+●●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+● ●
+
+●
+●
+
+●
+●
+
+●
+●
+
+●
+
+●
+
+)Calibra&on:)92%)
+Correla&on:)0.49)
+1e−02
+
+1e−01
+
+1e+00
+
+1e+01
+
+Migra&on)rates)ra&o)
+Simulated Ratio
+
+(e))
+
+Replicate)
+
+●
+
+●●
+
+●
+●
+●
+
+1e+02
+
+1e+01
+
+1e+01
+
+●
+
+●
+
+●
+● ●
+
+●
+
+●
+
+●
+●
+●
+●
+
+●
+
+●
+
+●
+
+●●
+●
+●
+
+●
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●●
+
+●
+
+●
+●
+
+●
+●
+●
+●
+●
+●
+
+●
+
+●
+●
+
+● ●
+
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+1e−02
+
+●
+● ●
+
+● ●
+
+●
+
+●
+●
+●
+●
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+)Calibra&on:)86%)
+Correla&on:)0.56)
+
+1e−05
+
+●●
+
+●
+
+●
+
+●
+
+1e−02
+
+●
+
+●
+●
+
+Posterior median and 95% interval
+
+1e+04
+
+1e+04
+
+(c))
+
+1e−05
+
+●
+
+Posterior median and 95% interval
+
+1e+01
+
+●
+●
+
+1e−05
+
+Posterior median and 95% interval
+
+●
+●
+
+●
+
+1e−02
+
+Posterior)support)for)true)root)loca&on)
+
+Ratio
+BaStA)
+
+(b))
+
+(a))
+
+1e+04
+
+Posterior)median)and)95%)interval)
+
+Ratio
+Mugra&on)
+
+1e−02
+
+1e−01
+
+1e+00
+
+1e+01
+
+1e+02
+
+Simulated Ratio
+Migra&on)rates)ra&o)
+
+(f))
+
+Replicate)
+
+Replicate)
+
+22/24
+
+Figure 17. Figure S5
+
+Mul-TypeTree(
+
+9000
+
+(a)((
+AppStrCoal_8pop_samples40_rep20_fixedTree_mean0.5_niter2M.xml.log
+
+(b)((
+
+7000
+
+6000
+
+Posterior(score(
+
+StrCoal_8pop_samples40_rep20_fixedTree_mean0.5_niter2M.xml.log
+
+8000
+
+BaStA(
+
+-725
+
+5000
+
+4000
+
+3000
+
+2000
+
+1000
+
+-750
+
+-775
+
+-800
+
+-825
+
+-850
+
+0
+
+-1000
+
+0
+300
+
+500000
+
+750000
+
+1000000
+
+1250000
+
+1500000
+
+1750000
+
+State
+
+(c)((
+
+-875
+0
+2000000
+-650
+
+AppStrCoal_8pop_samples40_rep30_fixedTree_mean0.5_niter2M.xml.log
+
+Posterior(score(
+
+StrCoal_8pop_samples40_rep30_fixedTree_mean0.5_niter2M.xml.log
+
+200
+
+250000
+
+100
+
+0
+
+-100
+
+-200
+
+-300
+
+-400
+
+-500
+
+-600
+
+250000
+
+500000
+
+750000
+
+1000000
+
+1250000
+
+1500000
+
+1750000
+
+2000000
+
+1250000
+
+1500000
+
+1750000
+
+2000000
+
+State
+
+(d)((
+
+-675
+
+-700
+
+-725
+
+-750
+
+-700
+
+-800
+
+0
+
+250000
+
+500000
+
+750000
+
+1000000
+
+1250000
+
+1500000
+
+MCMC(state(
+State
+
+1750000
+
+-775
+2000000
+0
+
+250000
+
+500000
+
+750000
+
+1000000
+
+MCMC(state(
+State
+
+23/24
+
+Figure 18. Figure S6
+
+1e+03
+●
+●
+
+●
+
+●
+●
+●
+
+●
+
+1e−01
+
+●
+●●
+
+●
+
+● ●
+
+● ●
+●●
+
+●
+●● ●●
+●
+●
+
+●●
+●
+
+●●
+●
+
+●
+●
+
+● ●●
+
+●
+●
+●
+
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+●
+●
+
+●
+
+●
+
+1e+01
+
+●
+
+(b)*
+*Calibra$on:*95%*
+*Correla$on:*0.69*
+●
+● ●
+●●
+●
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+●
+●
+
+●
+
+●
+
+●
+●
+●
+
+●● ●● ●
+●
+●
+
+●●
+●
+
+●●
+●
+
+●
+
+●
+● ●
+
+●
+●
+●
+●
+
+●
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+●
+
+1e−03
+
+1e−01
+
+Calibra$on:*82%*
+Correla$on:*0.62*
+
+Posterior median and 95% interval
+
+1e+03
+1e+01
+
+(a)*
+
+0.1
+
+Posterior*support*for*true*root*loca$on*
+
+Rate1
+BaStA*
+
+1e−03
+
+Posterior median and 95% interval
+Posterior*median*and*95%*interval*
+
+Rate1
+Mul$TypeTree*
+
+0.2
+
+0.5
+
+1.0
+
+2.0
+
+5.0
+
+True*migra$on*rate*
+Simulated Rate1
+
+(c)*
+
+10.0
+
+20.0
+
+0.1
+
+0.2
+
+0.5
+
+1.0
+
+2.0
+
+5.0
+
+True*migra$on*rate*
+Simulated Rate1
+
+10.0
+
+20.0
+
+(d)*
+
+Replicate*
+
+Replicate*
+
+24/24
+
+

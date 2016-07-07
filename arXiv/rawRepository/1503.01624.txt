@@ -1,0 +1,1138 @@
+GDC 2: Compression of large collections of
+genomes
+Sebastian Deorowicz1,*, Agnieszka Danek1 , and Marcin Niemiec2
+1 Institute
+
+of Informatics, Silesian University of Technology, Akademicka 16, 44-100 Gliwice, Poland
+40-684 Katowice, Poland
+* sebastian.deorowicz@polsl.pl
+
+arXiv:1503.01624v1 [cs.DS] 5 Mar 2015
+
+2 Nubitech,
+
+ABSTRACT
+The fall of prices of the high-throughput genome sequencing changes the landscape of modern genomics. A number of large
+scale projects aimed at sequencing many human genomes are in progress. Genome sequencing also becomes an important
+aid in the personalized medicine. One of the significant side effects of this change is a necessity of storage and transfer
+of huge amounts of genomic data. In this paper we deal with the problem of compression of large collections of complete
+genomic sequences. We propose an algorithm that is able to compress the collection of 1092 human diploid genomes about
+9,500 times. This result is about 4 times better than what is offered by the other existing compressors. Moreover, our algorithm
+is very fast as it processes the data with speed 200 MB/s on a modern workstation. In a consequence the proposed algorithm
+allows storing the complete genomic collections at low cost, e.g., the examined collection of 1092 human genomes needs
+only about 700 MB when compressed, what can be compared to about 6.7 TB of uncompressed FASTA files. The source
+code is available at http://sun.aei.polsl.pl/REFRESH/index.php?page=projects&project=gdc&subpage=about.
+
+Introduction
+The genome sequencing technology has recently become so cheap that it started to be considered as a useful tool in medicine.
+Companies like Illumina offer whole human genome sequencing for medical purposes for five thousand U.S. dollars.1 There
+are also large scale projects designed to find the common differences between individual genomes. One of the most famous
+is the 1000 Genome Project2 which aims at sequencing the genomes of several thousand humans and determining the genetic
+variants with at least 1% frequency. There are, however, even broader attempts for human genome sequencing, to mention the
+UK10K project,3 the Personal Genomes Project,4 and the Million Veteran Project (MVP).5 The planned number of sequenced
+genomes are 10K, 100K, and 1M, respectively. Large collections of genomes are built also for other species. E.g., in the 1001
+Genomes Project (1001GP)6, 7 about 1000 of genomes of Arabidopsis thaliana are to be sequenced.
+The sequencing is of course challenging, but due to the large amounts of produced data, the pure storage and transfer of the
+results becomes a challenge too. The recent papers8, 9 show that the IT costs are (or will be soon) comparable to the sequencing
+costs. Due to the slow progress in reducing the IT prices, the effective ways of representing genomic data in compact form are
+intensively investigated. Several subproblems can be identified here. The first is the compression of raw sequencing reads10–12
+The second is the compression of reads after mapping onto reference genomes.10, 13, 14 The third is the compression of results
+of variant calling.15–17 The fourth is the compression of complete genomic sequences.18–21 These subproblems are related,
+nevertheless require different approaches. The recent surveys discuss most of the existing algorithms.9, 22, 23
+In this paper we deal with the last of the mentioned tasks, i.e., storage of collections of genomes. We propose Genome
+Differential Compressor 2 (GDC 2), a utility for compression of large sets of genomes of the same species. Since such
+genomes are highly similar, e.g., it was estimated that two humans have their genomes identical in 99.5 percent,24 it is clear
+that when compressing a collection of genomes one can obtain better compression ratios than when compressing the sequences
+separately. Initially, the researchers tried to use the similarity between a sequence to be compressed and a reference sequence.
+The first impressive result was by Christley et al.15 They showed that the description of differences between James Watson’s
+genome and the reference genome can be stored in as little as 4.1 MB. Taking into account that the complete haploid human
+genome is of size 3.1 Gbases, this translates to ∼750-fold compression. This result was recently improved by Pavlichin et
+al.16 who reduced the space for the JW genome to about 2.5 MB (compression ratio ∼1250).
+Such large compression ratio was possible since the data were preprocessed, i.e., precise information of all variants were
+available. This is not always the case, as the genomes can be obtained in different experiments with different reference
+genomes or the genomes can be de novo assembled. In such situations the data to be compressed are collections of complete genomic sequences. This significantly complicates the compression task, as the differences between sequences are not
+given explicitly; they have to be found, e.g., by multiple complete genome alignment, which is a very complex problem.
+
+Moreover, for technological reasons, the differences between de novo assembled genomes are usually larger than between the
+reassembled genomes.
+Several papers for the problem of compression of collections of genomic sequences were published.18, 19, 21, 25, 26 In majority of them, each single sequence is compressed separately, by identifying the differences between it and a single reference
+genome. This allowed to obtain compression ratios for human genomes up to 400, much poorer than ∼1250 obtained by
+Pavlichin et al.16 This is the price for the lack of prior knowledge about the compressed data. The most successful attempts at
+obtaining higher compression ratios were possible by exploring the knowledge of similarities between more sequences in the
+collection. Since such approaches are the real competitors to the proposed algorithm, we will describe them a little more.
+The first attempt in this direction was GDC-ultra.18 It takes a single reference sequence and constructs a search structure
+(namely, hash table) for it. Then it compresses the first sequence of the collection by looking for similarities between this
+sequence and the reference. When the sequence is processed, it is used as an additional reference sequence for further
+sequences, so a separate search structure is constructed for it. The same is for the following sequences, so for example,
+the 25th input sequence of the collection is compressed by looking for the differences between it and: the main reference
+sequence, the formerly processed 24 sequences of the collection. The number of additional reference sequences is limited
+to 39 (for technical reasons only, mainly to keep the necessary amount of memory at a reasonable level). If the collection
+consists of more than 39 sequences, the 40th, 41st, etc. sequence is compressed with the 40 references only. The differences
+between the current sequence and the referential sequences is finally Huffman coded. Such approach proved to be promising,
+since the collection of 69 human genomes were compressed with ratio ∼1000.
+A different approach was used by Wandelt et al.20 in their FRESCO algorithm. They investigated several variants, and
+below we will describe the one that gave the best results. The collection is divided into two sets: (i) additional references,
+(ii) remaining sequences. FRESCO constructs a search structure (suffix tree) for the main reference sequence. Then it looks
+for similarities between the additional reference sequences and the main reference performing classical Ziv–Lempel parsing
+of additional reference sequences. As a results it obtains for each additional reference a sequence of triples (position in the
+main reference, length of the identical part, next symbol). For the Ziv–Lempel-parsed additional reference sequences a search
+structure (hash table) is built. After that FRESCO is ready to perform the compression of the remaining sequences from
+the collection. Each sequence is Ziv–Lempel-parsed against the main reference sequence. Then, the sequence of triples is
+compressed using the additional Ziv–Lempel-parsed reference sequences serving as the second level reference. The obtained
+compression ratios are impressive as they are approximately 3000 for the collection of about 1000 haploid genomes of the
+1000GP, when 70 additional reference sequences were used.
+The best compression ratios for the genomic collection was obtained by TGC algorithm.17 It is, however, from a different
+category, since as an input it takes a Variant Call Format (VCF)27 file describing the differences between genomes and the
+reference sequence, so it processes essentially the same data as Pavlichin et al.16 In this work we deal with complete genomes
+stored in FASTA format. In theory it is possible to convert FASTA files into VCF files, but it would require making a perfect
+alignment of many complete genomes, which is far from being trivial, especially due to a presence of long structural variants.
+Nevertheless, comparing the obtained results with TGC will be interesting, as it will allow us to see how far we are from the
+top algorithm for the similar problem. The main idea of TGC is to split the VCF file into two files. The first (dictionary of
+variants) stores a description of each variant (i.e., its type, position, alternative alleles, etc.). The second file stores the binary
+representation of presence/absence of each single variant in each single sequence. The bit vectors (one for each individual)
+are compressed using a specialized Ziv–Lempel-based algorithm. The dictionary file is also compressed using a specialized
+algorithm. The compression ratios of TGC for the collection of 1092 diploid human genomes (when taking only 1 reference
+sequence) is about 15,500.
+
+Methods
+Definitions
+For precise description of the proposed algorithm let us define some terms. As an input we have a single reference sequence R
+and a collection of genome sequences S = {S1 , S2 , . . . , Sn }. Each sequence is composed of symbols from some alphabet Σ,
+i.e, Sk = sk1 sk2 . . . sk|Sk | for each 1 ≤ k ≤ n, where ski ∈ Σ for each valid i and |Sk | denotes the length of Sk . Also R = r1 r2 . . . r|R| ,
+where ri ∈ Σ for each valid i and |R| denotes the length of R. For any sequence X (a reference or from the collection)
+Xi, j = xi xi+1 . . . x j .
+For the DNA sequences the alphabet should ideally contain only 4 symbols (A, C, G, T), but in practice N (unknown)
+symbols are quite frequent. Moreover, sometimes also other IUPAC codes appear. Thus in the work we assume only that the
+symbols are letters from the ASCII code (we also distinguish between lower- and uppercase letters).
+2/11
+
+Compression algorithm
+At the beginning, the compression algorithm reads the reference sequence R and constructs a search structure HT R (namely,
+hash table with linear probing) for it. The hash value is computed for each h1m -symbol long substring of R (h1m = 15 by
+default, but a different value can be specified by a user), i.e., for all Ri,i+h1m −1 , where 1 ≤ i ≤ |R| − h1m + 1. After that, the
+main processing of the collection S starts. The compression algorithm is two-level.
+At the first level, we perform the Ziv-Lempel factoring of all sequences from the collection S . This means that for each
+sequence Sk from S we produce a sequence Lk composed of tuples. To this end, we start from i = 1 and look for the longest
+common substring Si,k j present in R. Since the search structure HT R contains substrings of length h1m it is not possible to find
+shorter matches. There are two possibilities here:
+• No match of length at least h1m is found. Then, we append a tuple describing single symbol ski , i.e., h fliteral , ski i to Lk ,
+and update the current sequence position: i ← i + 1.
+• Otherwise we have a match Si,k j = R p,p+ j−i of length j − i + 1. We encode it by appending the tuple h fmatch 1st lev , p,
+j − i + 1i to Lk . Then, we update the current sequence position: i ← j + 1.
+There is, however, some exception to the general rule that no shorter than h1m symbols match can be found. Genomic
+sequences often differ by single nucleotide polymorphism (SNPs) or short indels (a few symbols long insertions or deletions).
+Thus, when some match is found, before looking for another match in R using the hash table HT R , we do 3 (or 5, depending
+on the user-specified option) simple verifications. We check whether the next symbol(s) after the current match is just a
+single nucleotide mutation or a single-symbol (or double-symbol) indel. We allow matches found after such variation to be
+of length h1e (equal to 4 by default). The rationale for such decision is two-fold. Firstly, it speeds up the searching as for
+the verification we do not need to query the hash table HT R . Secondly, such matches (even if they are short) can be quite
+efficiently encoded as the match position is easy to predict (encoding of Ziv–Lempel parsing results is described below). Thus,
+even if the sequence Lk will be longer when such short matches are allowed, the final compression ratio can be better.
+At the second level, the algorithm performs a similar Ziv–Lempel factoring of the collection L = {L1 , L2 , . . . , Ln } to
+obtain the collection D = {D1 , D2 , . . . , Dn }. We will use here similar notations as for the sequences S , i.e., lik is the ith tuple
+k . . . l k . Additionally we define the weight of a substring Lk as the sum of weights of the tuples it
+of sequence Lk , Lki, j is lik li+1
+j
+i, j
+is composed of, where the weight of a literal tuple is 1 and the weight of a match tuple is 7 (values chosen experimentally).
+A search structure HT L (namely, hash table with linear probing) is used here to look for matches in L . At the beginning
+HT L is empty, but we update it by adding the already processed sequences of L , i.e., when processing Lk the hash table HT L
+contains all substrings of tuples of weights “close” to h2 = 11 of L1 , L2 , . . . , Lk−1 . (For each position i in the tuple sequence Lu
+we take the shortest substring (in terms of the number of tuples) Lui, j of weight not smaller than h2 .)
+Now, when we process Lk starting from i = 1 to obtain Dk , we look for the match of the largest weight Lki, j = Lup,p+ j−i.
+There are two possible situations here:
+• No match of weight at least h2 is found. In this case we append the tuple lik (describing the first level literal or the first
+level match) to Dk and update the current sequence position: i ← i + 1.
+• Match Lki, j = Lup,p+ j−i is found. In this case we append the tuple h fmatch 2nd lev , u, i, j − i + 1i to Dk and update the current
+sequence position: i ← j + 1.
+The sequence Dk is composed of tuples of three kinds: first level literal (pair), first level match (triple), second level match
+(quadruple). Since when processing L1 the search structure HT L is empty, D1 = L1 .
+The reason for using two-level Ziv–Lempel factoring is that the genome sequences are usually highly similar, so in the
+whole collection the same series of matches and literals between the current sequence and the reference sequence can be found.
+Thus, instead of storing the series of tuples many times, it is beneficial to encode them once and only reference to them for
+other sequences. Figure 1 shows how the two-level factoring is performed.
+The collection D is a succinct representation of the input collection S . Nevertheless, it has potential to be compressed
+even more if we use an arithmetic coder.28 What is important, instead of encoding the tuples as they are, we predict some
+of their values (e.g., matching positions) and encode only the differences between our predictions and the real values. The
+successive fields of the tuples are arithmetically encoded as follows.
+Flags
+
+There are only 3 different flags distinguishing between the tuple types. We encode them contextually, where the context is
+composed of two recently encoded flags.
+Codes of symbols in the first level literals
+
+Codes of symbols are encoded contextually, where the context is the recently encoded symbol.
+3/11
+
+Figure 1. Example of first and second level factoring in GDC 2 algorithm, where: h1m = 3, h1e = 2, h2 = 3, weight of a
+literal tuple is 1 and weight of a match tuple is 2. Blue and green colors are used only to distinguish between adjacent
+first-level matches. The red underline is to point the second-level matches. The used abbreviations: L1L — fliteral , L1M —
+fmatch 1st lev , L2M — fmatch 2nd lev .
+
+Positions of the first level matches
+
+These positions can be from a broad range, i.e., between 1 and almost |R|. Since, the genomic sequences are similar, the
+position of the current match is likely to be close to the position of the previous match increased by the number of symbols
+encoded in the meantime. Thus, before encoding the position pos we estimate its value expected pos and encode only the
+difference relative pos = expected pos − pos. The expected pos is calculated by increasing the recently encoded pos by:
+(i) the length of the last match, (ii) the number of literals encoded since the last match, (iii) the number of symbols encoded as
+the second level matches seen from the recent first level match. Then, the estimation is classified as: perfect (relative pos = 0),
+good (0 < |relative pos| < 26 ), poor (other values). Finally, the estimation type is encoded without a context and the necessary
+number of bytes (0, 1, or 4) of relative pos are encoded with context being the estimation type and number of encoded byte.
+Lengths of the first level matches
+
+Each length is classified as: short (not longer than 28 symbols), long (of length between 28 and 216 + 28 symbols), very long
+(longer than 216 + 28 symbols). Then, the length type is encoded (without a context). Finally, the necessary number of bytes
+(1, 2, or 4) of the length are encoded with context being the length type and the number of encoded byte.
+Sequence ids of the second level matches
+
+The value id is split into two integers: ⌈id/256⌉ (prefix) and id − 256 × ⌈id/256⌉ (suffix). The prefix is encoded without a
+context. The context of the suffix is the prefix.
+4/11
+
+Positions of the second level matches
+
+Similarly like the positions of the first level matches, these values can be from a broad range. Thus, instead of encoding them
+as they are, we estimate the position and encode only the difference. Let us assume the current sequence is Lk . We need some
+auxiliary array A[1..k] to make the estimations possible. Now we will discuss how A is maintained when processing Lk . Then,
+we will show how it is used to estimate the positions of the second level matches.
+Let us assume that the we have a match in the sequence Lu . After encoding it we store in A[u] the pair hpA , sA i, where pA
+is the match position in Lu and sA is the number of symbols of Sk processed before the current match.
+Thus, the encoding of the match positions is made as follows. For a match in the sequence Lu we calculate the difference d
+between the current position in Sk and the position sA stored in A[u]. Then, we advance the position pA (stored in A[u]) of Lu
+as long as the number of the symbols covered by the first level literals and matches is not larger than d. What we obtain is the
+expected position in Lu for the current match.
+Then, we can calculate the difference between the expectation and the value of the current tuple. The estimations are
+classified as: perfect (difference is 0), good (absolute value of the difference between 1 and 16), moderate (absolute value of
+the difference between 16 and 256), and poor (other values). Finally, the estimation type is encoded without a context and the
+necessary number of bytes of the difference are encoded with context being the estimation type and the number of the encoded
+byte.
+Lengths of the second level matches
+
+The lengths are classified according the their value to: short (not longer than 24 tuples), medium-sized (between 24 and 25 + 24
+tuples), long (between 25 + 24 and 27 + 25 + 24 tuples), very long (between 27 + 25 + 24 and 28 + 27 + 25 + 24 tuples), extremely
+long (the rest). Then, the length type is encoded (without a context). Finally, the necessary number of bytes is encoded, where
+the context is the length type and additionally (for extremely long lengths) also the number of encoded byte.
+Decompression algorithm
+Decompression is straightforward. At the beginning the D collection is obtained by arithmetically decoding the compressed
+file. Then, the collection L is decoded. Finally, the sequences of S are constructed from L and R.
+Access to a single compressed sequence
+A drawback of the proposed algorithm is that to decompress Sn we need to decompress (at least at the second level) all other
+sequences. More precisely, to obtain Sm we need to have L1 , L2 , . . . , Lm−1 as they must be known to obtain Lm . Then, we can
+obtain Sm from Lm and R. This can be important especially when m is large. To partially solve this problem we implemented a
+variant of the compression algorithm in which we allow to set by the user (during compression) the fraction of the sequences
+that can be used as the second-level references. Thus, when this parameter is, e.g., 30%, in the worst case only 30% of L
+must be decompressed. This deteriorates the compression ratio, so this is rather a compromise than a perfect solution.
+Real implementation
+To increase the speed of the compression and decompression we designed the compressor in a multithreaded fashion. There
+are several (user-defined) threads performing the first level compression (and decompression) and a single thread performing
+the second level compression (and decompression). For example, in the compression, each of the first level threads reads
+a sequence Sk from a queue of sequences to compress and performs the Ziv–Lempel factoring of Sk according to R. The
+results Lk are stored in an in-memory queue Q. The second level compression thread reads sequences Lk from Q, performs the
+Ziv–Lempel factoring of it according to the already processed part of sequences from L obtaining Dk and finally performs
+also the entropy coding of Dk . (We use a popular and fast arithmetic coding variant by Schindler, also known as a range coder
+(http://www.compressconsult.com/rangecoder/).) The queue Q has FIFO (first in first out) organization, so there is no
+guarantee in which order the sequences of L will be processed (it depends on the processing time of the sequences by the
+first level threads). Thus, the compression ratios can slightly differ between the executions of the algorithm.
+The parallel design of the decompression algorithm is similar.
+The compression output is composed of three files. The one with extension gdc2 desc stores file names, sequence sizes,
+and ids of the multi-FASTA sequences. It is small, but to provide the best possible compression ratio of the whole algorithm,
+it is compressed using popular zlib library. The file with extension gdc2 rc contains the compressed representation of the
+collection S . Finally, the file with extension gdc2 ref stores the compressed reference sequence R. As it is not a part of the
+collection to be compressed, its size is not counted in the experimental results. Nevertheless, we decided to compress it for
+the situations in which the user is interested in storing both the reference R and the collection S in a single place in a compact
+form. This file is compressed by gathering symbols in triples and encoding them arithmetically.
+5/11
+
+Relation of the proposed compressor to the existing works
+The proposed compressor bares some similarities to the existing works. The main concept of two-level Ziv–Lempel factoring
+is an extension of what was done in FRESCO.20 In FRESCO, the collection of sequences is split into two sets: additional
+references and the remaining sequences. The additional references are compressed only according to the main reference
+sequence. The remaining sequences are compressed only according to the main and the additional references. In GDC 2, we
+do not split the collection into two sets. We just use all of the already processed sequences as the additional references for the
+current sequence, with significant boost in the compression ratio. Moreover, FRESCO uses LZ77 factoring,29 while GDC 2
+uses LZSS factoring.30
+The concept of looking for short matches after some longer ones is an extension of what was made in our previous work.18
+In GDC 2 we, however, allow not only single-letter mismatches, but also short indels. We also do not limit the number of
+short matches in a series. The way the tuples are encoded using an arithmetic coder, especially the calculation of the expected
+positions for the first- and second-level matches, is novel in this context.
+Also the multithreaded design of GDC 2 was not used by existing multi reference genome compressors.
+
+Results
+Our compressor, GDC 2, was implemented in C++11 language using C++ built-in concurrency mechanisms. The test machine
+was equipped with Intel i7 4930K CPU (6 cores, clocked at 3.4 GHz), 64 GB of RAM, and two 3 TB HDDs in RAID 0
+(measured average read speed about 350 MB/s).
+For the experiments we used two large datasets. A.thaliana dataset of total size 94 GB was obtained from the 1001GP7 and
+contains 775 sequences. H.sapiens dataset of total size 6670 GB was obtained from the 1000GP2 and contains 2184 sequences
+(from 1092 diploid human genomes).
+The comparison of all of the existing genomic data compressors would be very hard due to many problems. For example,
+some compressors do not support symbols other than ACGT, some cannot work with so huge data, some are very slow and
+performing complete experiments would take months. Thus we selected the compressors that proved to be the best (in terms of
+compression ratio) in the previous studies: 7z (general purpose compressor from the Ziv–Lempel family), RLZ,25 GReEn,26
+ABRC,19 GDC normal,18 GDC ultra,18 iDoComp,21 FRESCO.20 f In the preliminary experiments (Table 1), we evaluated
+them on subsets of our datasets to select the candidates for more complete evaluation. As the results show, the single-reference
+compressors (RLZ, GReEn, ABRC, GDC-normal, iDoComp) give ratios much smaller than 1000 for H.sapiens chromosomes
+and smaller than 160 for A.thaliana chromosomes.
+Dataset
+
+7z
+
+RLZ
+
+GReEn
+
+ABRC
+
+Chr. 14
+Chr. 21
+
+1,068
+1,561
+
+270
+269
+
+218
+211
+
+472
+460
+
+242
+234
+
+86
+80
+
+64
+59
+
+67
+61
+
+Chr. 1
+Chr. 4
+
+GDC-normal
+
+iDoComp
+
+GDC-ultra
+
+FRESCO
+
+H.sapiens
+674
+685
+
+625
+642
+
+2,455
+2,397
+
+1,946
+2,545
+
+A.thaliana
+154
+141
+
+156
+145
+
+254
+230
+
+186
+170
+
+Table 1. Compression ratios for subsets of the datasets for various compressors
+The general purpose 7z can be seen as a multi-reference compressor since it looks for matches between the present
+sequence and the sequences seen in the past 1 GB. For H.sapiens Chromosome 21 it means about 20 recently processed sequences. Nevertheless, for H.sapiens Chromosome 1 these would be only 4 sequences. The true multi-reference compressors
+GDC-ultra and FRESCO give much better ratios for human chromosomes. For FRESCO we set the number of additional
+reference sequences to 100 as in a preliminary experiment (results not shown) this leaded to better compression ratios than the
+value 70 used in the original paper.20
+In a consequence, for further experiments we selected two best single-reference compressors, i.e., GDC-normal and iDoComp, and two best multi-reference compressors, i.e., GDC-ultra and FRESCO. The results of evaluation of the chosen
+compressors and the proposed GDC 2 are presented in Tables 2 and 3. For the H.sapiens dataset (Table 2) the compression
+ratio of GDC 2 is about 9500, which is approximately 4 times better than the best of the existing competitors.
+In the compression, the fastest is GDC 2, which works with a speed about 200 MB/s. Measuring of the speed of decompression is problematic as some of the compressors work faster than the disk speed (∼350 MB/s), which in practice is more
+than sufficient. Nevertheless, we were interested in what is the true decompression speed of the GDC 2 algorithm, so we
+measured it with the output redirected to /dev/null (i.e., the sequences were decompressed but not stored) obtaining about
+1000 MB/s.
+6/11
+
+Data
+Chr. 1
+Chr. 2
+Chr. 3
+Chr. 4
+Chr. 5
+Chr. 6
+Chr. 7
+Chr. 8
+Chr. 9
+Chr. 10
+Chr. 11
+Chr. 12
+Chr. 13
+Chr. 14
+Chr. 15
+Chr. 16
+Chr. 17
+Chr. 18
+Chr. 19
+Chr. 20
+Chr. 21
+Chr. 22
+Chr. X-fem
+Chr. X-mal
+Chr. Y-mal
+Chr. X-mal1
+Chr. X-mal2
+Complete
+
+Raw size
+[GB]
+551.7
+538.5
+438.4
+422.8
+400.6
+378.7
+352.3
+323.9
+312.5
+300.1
+298.8
+296.2
+255.0
+237.6
+227.0
+200.1
+179.7
+172.9
+130.8
+139.5
+106.5
+113.5
+178.5
+81.0
+30.0
+2.8
+0.35
+6,669.8
+
+Compression speed [MB/s]
+
+GDC normal
+ratio
+
+iDoComp
+ratio
+
+GDC ultra
+ratio
+
+FRESCO
+ratio
+
+GDC 2
+ratio
+
+680
+628
+602
+547
+624
+566
+592
+584
+718
+578
+560
+595
+611
+674
+716
+647
+646
+568
+569
+633
+686
+823
+911
+945
+38,233
+312
+280
+
+659
+608
+552
+503
+576
+522
+545
+543
+666
+564
+521
+547
+564
+625
+664
+604
+594
+525
+519
+619
+642
+772
+826
+896
+59,062
+310
+456
+
+2,508
+2,318
+2,263
+2,202
+2,260
+2,184
+2,138
+2,137
+2,450
+2,123
+2,171
+2,167
+2,452
+2,458
+2,458
+2,068
+2,059
+2,051
+1,773
+2,014
+2,405
+2,455
+2,551
+2,740
+42,870
+587
+741
+
+2,279
+2,113
+2,044
+1,911
+1,997
+1,950
+1,918
+1,916
+2,359
+1,973
+1,967
+1,958
+1,842
+1,946
+2,020
+2,076
+2,090
+2,066
+1,828
+2,240
+2,545
+2,718
+2,628
+2,469
+39,228
+713
+943
+
+10,556
+9,828
+9,564
+8,979
+9,578
+8,832
+8,752
+8,817
+10,400
+9,335
+9,043
+9,127
+10,669
+10,654
+10,815
+8,980
+8,651
+9,033
+7,137
+9,150
+10,414
+10,547
+11,060
+11,546
+132,123
+2,423
+5,914
+
+627
+
+586
+
+2,262
+
+2,065
+
+9,557
+
+73
+
+51
+
+12
+
+111
+
+202
+
+Table 2. Compression ratios for H.sapiens dataset. The ratios are calculated as raw size divided by compressed size rounded
+to the integer. Compression speeds (in MB/s) are given in the bottom line of the table. Raw sizes are in GBs.
+
+Data
+
+Raw size
+[GB]
+
+GDC normal
+ratio
+
+iDoComp
+ratio
+
+GDC ultra
+ratio
+
+FRESCO
+ratio
+
+GDC 2
+ratio
+
+Chr. 1
+Chr. 2
+Chr. 3
+Chr. 4
+Chr. 5
+Chr. C
+Chr. M
+
+23.9
+15.5
+18.4
+14.6
+21.2
+0.12
+0.29
+
+154
+143
+147
+141
+148
+652
+558
+
+156
+148
+152
+145
+151
+1,830
+807
+
+254
+239
+238
+230
+254
+652
+600
+
+186
+175
+169
+170
+187
+1,750
+374
+
+621
+559
+551
+553
+624
+25,061
+1,401
+
+Complete
+
+94.0
+
+148
+
+151
+
+245
+
+179
+
+587
+
+120
+
+47
+
+13
+
+7
+
+94
+
+Compression speed [MB/s]
+
+Table 3. Compression ratios for A.thaliana dataset. The ratios are calculated as raw size divided by compressed size
+rounded to the integer. Compression speeds (in MB/s) are given in the bottom line of the table. Raw sizes are in GBs.
+
+7/11
+
+800
+
+0.6
+
+600
+
+0.4
+
+400
+
+0.2
+
+200
+
+RAM usage [MB] (H.sapiens)
+
+0.8
+
+Comp. ratio (A.thaliana)
+
+0
+
+0
+0
+
+500
+
+1,000
+
+1,500
+
+6,000
+
+6,000
+
+4,000
+
+4,000
+
+2,000
+
+2,000
+
+0
+
+0
+
+2,000
+
+0
+
+500
+
+200
+
+300
+
+150
+
+200
+
+100
+
+100
+
+50
+
+0
+
+0
+500
+
+1,000
+
+1,500
+
+2,000
+
+Decomp. speed [MB/s] (H.sapiens)
+
+400
+
+0
+
+1,500
+
+2,000
+
+No. of sequences
+
+Comp. speed [MB/s] (A.thaliana)
+
+Comp. speed [MB/s] (H.sapiens)
+
+No. of sequences
+
+1,000
+
+2,000
+
+1,000
+
+1,500
+
+750
+
+1,000
+
+500
+
+500
+
+250
+
+0
+
+0
+0
+
+500
+
+No. of sequences
+
+1,000
+
+1,500
+
+2,000
+
+Decomp. speed [MB/s] (A.thaliana)
+
+Comp. ratio (H.sapiens)
+
+1,000
+
+RAM usage [MB] (A.thaliana)
+
+·104
+
+1
+
+No. of sequences
+H.sapiens chromosome 20
+
+A.thaliana chromosome 1
+
+Figure 2. Influence of the number of sequences in the input collection on: compression ratio (left top), memory usage (right
+top), compression speed (left bottom), decompression speed (right bottom). The decompression speed was measured when
+the output was redirected to /dev/null, i.e., the sequences were decompressed but not stored.
+
+The experiment for the A.thaliana dataset (Table 3) shows that the compression ratios are much worse. The best ratio,
+almost 600 was obtained by GDC 2. This result is approximately 2.4 times better than the second best, GDC-ultra. Also the
+compression speeds are worse here.
+In the next experiment, we measured the influence of the number of sequences in the input collection on the compression
+ratio, compression and decompression speeds, and memory usage. The results for two chromosomes are shown in Figure 2.
+As one can see for the human chromosome the compression ratio rapidly achieves about 8000 for 300 input sequences and then
+grows moderately. The same phenomenon can be observed for A.thaliana data, but the ratio is about an order of magnitude
+lower.
+The memory usage of GDC 2 depends mainly on the number of sequences serving as the second level references as
+they must be stored (and indexed) in memory during compression. In this experiment all sequences were used as additional
+references, so the memory consumption grew constantly up to about 6 GB. (The most memory consuming was compression
+of H.sapiens Chromosome 2 for which about 24 GB of RAM was necessary.) The visible stepwise increment of the memory
+usage is a consequence of the assumed possible hash table size (being always a power of 2).
+The compression and decompression speeds for the human dataset initially grow with the increasing number of sequences
+and are the highest for the collection of size about 300–500. This is correlated with the growing compression ratio. Roughly
+speaking, the more second level references, the better the second-level factoring (i.e., longer matches can be found) and
+so, there are significantly less data to process by the arithmetic coder. However, for larger collections, much more data
+must be analyzed during the second level factoring, so the speed of compression falls down. A similar thing happens in the
+decompression. The better second-level factoring means less data to be arithmetically decoded, which increases the speed.
+Unfortunately, more second-level references means much more computations for the estimation of the positions of matches
+and this term dominates for large collections.
+In the next experiment, we measured the influence of the number of reference sequences in the second level of GDC 2
+on the compression ratio, (de)compression speeds and the extraction time of a single sequence of a collection. The most
+important results are presented in Figure 3 (the complete results are in Supplementary Figure S1). Decreasing the number
+8/11
+
+of second level references by half results in a reduced RAM usage (about half less RAM is used) and a noticeable speed up
+of compression (24% for H.sapiens dataset and 17% for A.thaliana dataset) at a cost of some decrease of compression ratio
+(26% and 14%, respectively). Using even less sequences in the second level of GDC 2 leads also to significant gains in speed
+of decompression of complete collection or a single sequence, obviously at a cost of decreased compression ratio. For 10% of
+the sequences used, average single sequence access times decreased from 53 to 31 seconds for H.sapiens dataset (at a cost of
+2.85 worse compression ratio) and from 63 to 21 seconds for A.thaliana dataset (at a cost of 1.79 worse compression ratio).
+·104
+
+800
+
+0.6
+
+600
+
+0.4
+
+400
+
+0.2
+
+200
+0
+
+0
+0
+
+20
+
+40
+
+60
+
+80
+
+60
+
+60
+
+40
+
+40
+
+20
+
+20
+
+0
+
+100
+
+Access time [s] (A.thaliana)
+
+0.8
+
+Access time [s] (H.sapiens)
+
+1,000
+Comp. ratio (A.thaliana)
+
+Comp. ratio (H.sapiens)
+
+1
+
+0
+0
+
+20
+
+Percent of 2nd level references
+
+40
+
+60
+
+80
+
+100
+
+Percent of 2nd level references
+
+H.sapiens chromosome 20
+
+A.thaliana chromosome 1
+
+Figure 3. Influence of the percent of 2nd level references on compression ratio (left), decompression (access) time of a
+single sequence (right).
+GDC 2 is implemented in a multithreaded fashion, so it is natural to ask how its speed scales when when the number of
+threads is increased. By default, GDC 2 uses 4 threads: 3 for the first level Ziv–Lempel factoring and 1 for the second level
+factoring and arithmetic coding. The results presented in Figure 4 show that the value 3 or 4 seems to be an optimal choice.
+The speed is limited by disk speed or (for fast disks) by the single second level compressing thread. This suggest that splitting
+this thread into two, e.g., one performing Ziv–Lempel factoring and other performing arithmetic compression would increase
+the total performance of GDC 2. Nevertheless, since the absolute values of compression speeds are high, we resigned from
+that in the present version of the software.
+1,000
+Decompression speed [MB/s]
+
+Compression speed [MB/s]
+
+300
+
+200
+
+100
+
+0
+
+800
+600
+400
+200
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+No. of threads
+H.sapiens chromosome 20
+
+3
+
+4
+
+5
+
+6
+
+No. of threads
+A.thaliana chromosome 1
+
+Figure 4. Influence of the number of threads used by GDC 2 algorithm on compression and decompression speeds.
+
+Discussion
+We proposed the new algorithm for compression of collections of complete genome sequences. The evaluation shows that its
+compression ratios are roughly 4 times better than the best existing competitors. Moreover, it is very fast, as the compression
+speed for the human data set is about 200 MB/s. The decompression speed is limited by the speed of the disk used in the
+9/11
+
+experiments. When we measured this speed without storing the files onto disks, it was about 1000 MB/s. The algorithm is
+designed primarily to compress and decompress efficiently a large collection of genomes all at once. However, extraction of
+a single sequence is also possible. The access time, although not impressive (counted in tens of seconds), can be significantly
+improved at a cost of some decrease in an overall compression ratio.
+It is also interesting to compare the compression ratios with what is possible, when much more knowledge of the data is
+given. Namely, when the input data are given as differences between the sequences and the reference (in VCF format), the best
+compressor, TGC, was able to obtain even better ratios. For human data set they are about 15,500. When we compare this with
+about 9,500 of GDC 2 we see that we are quite close to what is theoretically possible. Similar results are for A.thaliana dataset:
+∼590 ratio for GDC 2 and ∼860 ratio for TGC. What is, however, worth to stress, GDC 2 is able to compress collections of
+sequences of the same species gathered from various sources (e.g., de novo assembled), when no alignment of them is given,
+while TGC input must be perfectly aligned sequences described as variants between them.
+
+References
+Inc.
+TruGenome
+Clinical
+Sequencing
+Services.
+(2015)
+Available
+1. Illumina
+http://www.illumina.com/clinical/illumina clinical laboratory/trugenome-clinical-sequencing-services.html
+(Accessed: 17th February 2015)
+
+at:
+
+2. The 1000 Genome Project Consortium. An integrated map of genetic variation from 1092 human genomes. Nature, 491,
+56–65 (2012).
+3. The UK10K Consortium. Rare Genetic Variants in Health and Disease. (2013) Available at: http://www.uk10k.org/
+(Accessed: 16th February 2015)
+4. Ball, M.P. et al. A public resource facilitating clinical use of genomes. PNAS, 109(30), 11920–11927 (2012).
+5. U.S. Department of Veteran Affairs. The Million Veteran Program.
+http://www.research.va.gov/mvp/veterans.cfm (Accessed: 16th February 2015)
+
+(2013)
+
+Available
+
+at:
+
+6. Weigel, D. and Mott, R. The 1001 Genomes Project for Arabidopsis thaliana. Genome Biology, 10, Article no. 107 (2009).
+7. Max Planck Institute for Developmental Biology. 1001 Genomes: A Catalog of Arabidopsis thaliana Genetic Variation
+(2012) Available at: http://1001genomes.org/ (Accessed: 16th February 2015)
+8. Kahn, S.D. On the future of genomic data. Science 331, 728–729 (2011).
+9. Deorowicz, S. and Grabowski, S. Data compression for sequencing data. Algorithms for Molecular Biology, 8, Article no.
+25 (2013).
+10. Jones, D.C., Ruzzo, W.L., Peng, X., Katze, M.G. Compression of next-generation sequencing reads aided by highly
+efficient de novo assembly. Nucleic Acids Research, 40, e171 (2012).
+11. Bonfield, J.K., Mahoney, M.V. Compression of FASTQ and SAM format sequencing data. PloS ONE, 8, e59190 (2013).
+12. Roguski, L., Deorowicz, S. DSRC 2—Industry-oriented compression of FASTQ files. Bioinformatics, 30, 2213-2215
+(2014).
+13. Hach, F., Numanagic, I., Sahinalp, S.C. DeeZ: reference-based compression by local assembly, Nature Methods, 11,
+1082–1084 (2014).
+14. Fritz, M.H.-Y., Leinonen, R., Cochrane, G., Birney, E. Efficient storage of high throughput DNA sequencing data using
+reference-based compression. Genome Research, 21, 734–740 (2011).
+15. Christley, S., Lu, Y., Li, C., Xie, X. Human genomes as email attachments. Bioinformatics, 25, 274–275 (2009).
+16. Pavlichin, D., Weissman, T., Yona, G. The human genome contracts again. Bioinformatics, 29, 2199–2202 (2013).
+17. Deorowicz, S., Danek, A., Grabowski S. Genome compression: a novel approach for large collections. Bioinformatics,
+29, 2572–2578 (2013).
+18. Deorowicz, S. and Grabowski, S. Robust relative compression of genomes with random access. Bioinformatics, 27, 2979–
+2986 (2011).
+19. Wandelt, S. and Leser, U. Adaptive efficient compression of genomes. Algorithms for Molecular Biology, 7, Article no.
+30 (2012).
+20. Wandelt, S. and Leser, U. FRESCO: Referential Compression of Highly Similar Sequences. IEEE/ACM Transactions on
+Computational Biology and Bioinformatics, 10(5), 1275–1288 (2013).
+10/11
+
+21. Ochoa, I., Hernaez, M., Weissman, T. iDoComp: a compression scheme for assembled genomes. Bioinformatics, doi:
+10.1093/bioinformatics/btu698 (2014).
+22. Giancarlo, R., Rombo, S.E., Utro, F. Compressive biological sequence analysis and archival in the era of high-throughput
+sequencing technologies. Briefings in Bioinformatics, 15, 390–406 (2014).
+23. Zhu, Z., Zhang, Y., Ji, Z., He, S., Yang, X. High-throughput DNA sequence data. Briefings in Bioinformatics, 16, 1–15
+(2015).
+24. Levy, S. et al. The diploid genome sequence of an individual human. PLoS Biology, 5, e254 (2007).
+25. Kuruppu, S., Puglisi, A.J., Zobel, J. Optimized relative Lempel-Ziv compression of genomes. In: Proceedings of the ACSC
+Australasian Computer Science Conference (ed. Reynolds, M.). Australian Computer Society, Inc., Sydney, Australia, 91–
+98 (2011).
+26. Pinho, A.J., Pratas, D., Garcia, S.P. GReEn: a tool for efficient compression of genome resequencing data. Nucleic Acids
+Research, 40, e27 (2012).
+27. Danecek, P., et al. The variant call format and VCFtools. Bioinformatics, 27, 2156–2158 (2011).
+28. Salomon, D. and Motta, G. Handbook of data compression. Springer, London (2010).
+29. Ziv, J. and Lempel, A. A universal algorithm for sequential data compression. IEEE Transactions of Information Theory,
+23, 337–343 (1977).
+30. Storer, J.A. and Szymanski, T.G. Data compression via text substitution. Journal of the ACM, 29, 928–951 (1982).
+
+Acknowledgments
+The Polish National Science Centre under the project DEC-2011/03/B/ST6/01588. The infrastructure supported by POIG.02.03.0124-099/13 grant: ‘GeCONiI—Upper Silesian Center for Computational Science and Engineering’.
+
+Author contributions statement
+SD and AD designed the algorithm. SD, AD, and MN prepared the implementation. SD and AD performed the experiments.
+SD and AD drafted the manuscript and the supplementary material. All authors read and approved the final manuscript.
+
+Additional information
+The supplementary material contains details on how the data were prepared and how the experiments were performed.
+Competing financial interests
+The authors declare no competing financial interests.
+
+11/11
+
+

@@ -1,0 +1,1025 @@
+arXiv:1105.2359v3 [q-bio.MN] 20 Oct 2011
+
+Existence of Positive Steady States for Mass
+Conserving and Mass-Action Chemical Reaction
+Networks with a Single Terminal-Linkage Class ∗
+Santiago Akle†
+
+Onkar Dalal†
+
+Michael Saunders§
+
+Ronan M.T. Fleming‡
+
+Nicole Taheri†
+
+Yinyu Ye§
+
+Abstract
+We establish that mass conserving, single terminal-linkage networks
+of chemical reactions admit positive steady states regardless of network
+deficiency and the choice of reaction rate constants. This result holds
+for closed systems without material exchange across the boundary, as
+well as for open systems with material exchange at rates that satisfy a
+simple sufficient and necessary condition.
+Our proof uses a fixed point of a novel convex optimization formulation to find the steady state behavior of chemical reaction networks
+that satisfy the law of mass-action kinetics. A fixed point iteration can
+be used to compute these steady states, and we show that it converges
+for weakly reversible homogeneous systems. We report the results of
+our algorithm on numerical experiments.
+
+1
+
+Introduction
+
+One of the interests of systems biology is to deterministically model chemical reaction networks. Models of such systems based on mass-action kinetics depend on the kinetic parameters of the system. However, measuring
+these parameters experimentally is difficult and error-prone. Thus, we seek
+properties of chemical reaction networks that are independent of kinetic
+parameters.
+∗
+
+December 31, 2013.
+Institute for Computational and Mathematical Engineering, Stanford University,
+Stanford, CA 94305. Research supported in part by the U.S. Department of Energy
+(Office of Advanced Scientific Computing Research and Office of Biological and Environmental Research) as part of the Scientific Discovery Through Advanced Computing program, grant de-sc0002009. Email: akle@stanford.edu, onkar@stanford.edu,
+ntaheri@stanford.edu.
+‡
+Center for Systems Biology, University of Iceland, Sturlugata 8, Reykjavik 101, Iceland. Email: ronan.mt.fleming@gmail.com
+§
+Department of Management Science and Engineering, Stanford University, Stanford,
+CA 94305. Research supported in part by NSF grant GOALI 0800151 and DOE grant
+de-sc0002009. Email: saunders@stanford.edu, yinyu-ye@stanford.edu.
+†
+
+1
+
+In this work, we address the issue of existence of positive steady states,
+i.e., positive concentrations of species that will stay constant under the system’s dynamics. In particular, we tackle the case in which a directed graph
+of chemical reactions forms a strongly connected component and the reactions conserve mass. We prove the existence of positive equilibria for such
+networks when they are closed systems, and extend our methods to open systems where complexes are exchanged across the boundary at certain rates.
+How best to compute such a steady state remains uncertain; however, for
+closed systems we suggest a fixed point algorithm and provide results of our
+numerical experiments for several cases.
+
+1.1
+
+Background
+
+Chemical Reaction Network Theory (CRNT), a mathematical theory for this
+problem, has its roots in the seminal work by Fritz Horn, Roy Jackson, and
+Martin Feinberg in [9, 8, 7, 3, 4]. We build on the notation used in these
+works and summarized by Gunawardena et al. in [6]. The system consists
+of a collection of species reacting collectively in some combination to give
+another combination of species in a network of chemical reactions. Let S
+be a set of m species and C be a set of n complexes. The relation between
+species and complexes can be written as a non-negative matrix Y ∈ m×n ,
+where column yj represents complex j, and Yij is the multiplicity of species
+i in complex j. For example, the multiplicity of the species NaCl in the
+complex (H2 O + 2NaCl) is 2.
+A reaction network is represented by the underlying weighted directed
+graph G(V, E), where each node in V represents a complex, each directed
+edge i → j denotes a reaction using i to generate j, and the positive edge
+weight ki→j is the reaction rate. The matrix A ∈ n×n is the weighted
+adjacency matrix of the graph, where Aij = ki→j . Define D := diag(A1),
+where 1 is the vector of all ones, and Ak := AT − D. The P
+elements of this
+new matrix will be (Ak )ij = kj→i for i 6= j, and (Ak )ii = − j kj→i , so that
+ATk 1 = 0.
+Let c ∈ m be the vector of concentrations of each species, and b ∈
+m the vector of species exchange rates across the network boundary. We
+establish necessary and sufficient conditions on the external exchange rates
+b in order to determine the existence of steady state concentrations, and to
+be able to compute it given a specific b.
+n to be a nonlinear function that captures
+We define ψ(c) : m
++ →
+mass-action kinetics:
+Y Yij
+ψj (c) =
+ci .
+
+R
+
+R
+
+R
+
+R
+
+R
+
+R
+
+i
+
+The change in concentration over time can be described by the system of
+ordinary differential equations
+ċ = Y Ak ψ(c) − b.
+2
+
+Hence, steady state concentrations for a chemical reaction network are any
+non-negative vector c⋆ ∈ m such that Y Ak ψ(c⋆ ) = b. Equivalently, a pair
+(c⋆ , v ⋆ ) with c⋆ ∈ m and v ⋆ ∈ n will be a steady state if it satisfies the
+conditions
+
+R
+
+R
+
+R
+
+Y Ak v ⋆ = b
+⋆
+
+ψ(c ) = v
+
+(FB)
+⋆
+
+(MA)
+
+or flux-balance and mass-action, respectively. Thus, finding steady state
+concentrations is equivalent to finding a vector v ⋆ that satisfies both (FB)
+and (MA) for some vector c⋆ ∈ m .
+Observe that if (c⋆ , v ⋆ ) is a positive steady state, then from the definition
+of ψ(c⋆ ),
+
+R
+
+Y T log(c⋆ ) = log(ψ(c⋆ )) = log(v ⋆ ).
+
+(MA-log)
+
+We refer to this alternative condition as the logarithmic form of the massaction condition (MA). In this notation, systems with the property of mass
+conservation can be characterized by the following definition.
+Definition 1. A chemical reaction network is mass conserving if and only
+if there exists a positive vector e ∈ m such that
+
+R
+
+eT Y Ak = 0,
+
+(1)
+
+where e denotes the molecular weights of the species (or atomic weights if
+the species are elements).
+The connectedness of the networks is captured in the following definition
+of a terminal-linkage class.
+Definition 2. A terminal-linkage class is defined as a set of complexes L
+such that for any pair of complexes (i, j) ∈ L there exists a directed path in
+the graph G that leads from i to j.
+We further restrict our analysis to a class of weakly reversible networks.
+Definition 3. A chemical reaction network is weakly reversible if it is
+formed exclusively by one or more terminal-linkage classes.
+A reaction network that consists of exactly one terminal-linkage class is
+called a single terminal-linkage network. Reversibility, at least in a weak
+sense, is a prerequisite for steady states with positive concentrations for all
+species, as suggested by simple examples like a single non-reversible reaction.
+Next we define a stoichiometric subspace and deficiency for a network.
+Definition 4. A stoichiometric subspace S is the subspace defined by the
+span of vectors yj − yi , where yj , yi are the columns of Y representing complexes i and j, for each reaction pair i → j in the network.
+3
+
+Definition 5. The deficiency of a network is defined as δ = n − t − s,
+where t is the number of terminal-linkage classes and s is the dimension of
+the stoichiometric subspace, also known as the stoichiometric compatibility
+class.
+In one of their early works, Horn and Jackson [9] analyzed mass-action
+kinetics for closed systems (with b = 0) and defined a class of equilibrium
+points called complex-balanced equilibria, and defined systems admitting
+such an equilibrium to be complex-balanced systems. These closed systems
+are shown to satisfy the quasi-thermostatic and quasi-thermodynamic conditions regardless of the kinetic rate constants. Following this, Horn [7]
+also proved necessary and sufficient conditions for existence of a complexbalanced equilibrium. In [8], Feinberg and Horn used the existence of a
+Lyapunov function to show the uniqueness of the positive steady state in
+each stoichiometric compatibility class, which is equivalent to specifying all
+the conserved quantities of a system. Later Feinberg [3, 4] proved two theorems, now famously known as Deficiency 0-1 theorems, that provide the
+analysis of positive steady states for a class of networks with deficiency 0
+or networks with deficiency 1 but with each terminal-linkage class having
+deficiency less than 1. For this restricted class of closed systems, the existence of a positive steady state is given by Perron-Frobenius theory for
+a positive eigenvector. Other work in this area is from the perspective of
+dynamical systems and aimed toward proving two open conjectures: Global
+Attractor Conjecture and Persistence Conjecture [1]. Another approach using parametrized convex optimization to compute a non-equilibrium steady
+state is given in [5].
+To the best of our knowledge, the vast majority of CRNT research studies closed complex-balanced systems, which, by definition, admit a complexbalanced equilibrium. In the notation above, a complex-balanced equilibrium
+exists when the vector of concentrations c satisfies Ak ψ(c) = 0, i.e., the vector ψ(c) belongs to the null space of Ak . It can be shown that a network with
+linearly independent complexes will have deficiency δ = 0. However, if some
+of the complexes are linearly dependent (as shown in the example in Section
+3), there are systems that are not complex-balanced yet admit concentrations in equilibria where Ak ψ(c) is in the null space of Y and Ak ψ(c) 6= 0.
+Though the condition of complex-balance is sufficient for thermodynamic
+consistency, [9] shows that it is not necessary. Also, for open systems with
+material exchange across the boundary, complex-balance is not defined. In
+order to handle open systems, these works hint at extending the system using a pseudo 0-complex and adding pseudo reactions. However, it is unclear
+how to choose the pseudo kinetic rates such that the positive eigenvector solution of the extended system will achieve the given external exchange rates
+b. From the point of view of systems biology and bio-chemical engineering,
+analyzing the behavior of a cell under different exchange conditions b is very
+important to control and engineer the cell, for example studying the desired
+effects in pharmacology, or producing specific metabolites in bioreactors.
+4
+
+In this paper, we extend the previous work on two accounts: 1) we prove
+existence of positive equilibria in closed systems for some reaction networks
+that do not satisfy the necessary conditions of the Deficiency 0-1 theorems
+(are not necessarily complex-balanced), and 2) we provide a necessary and
+sufficient condition on the external exchange rate b for some open systems to
+admit a positive steady state. We use a fixed point of a convex optimization
+problem, with an objective function similar to the Helmholtz function defined in [9]. The fixed point of this mapping gives the required steady state.
+We prove the existence of a positive steady state for any weakly reversible
+chemical reaction network with a single terminal-linkage class. We strongly
+believe that this can be extended to systems with multiple terminal-linkage
+classes, as supported by our computational results for randomly generated
+networks. Section 3.2 gives a detailed analysis of a toy network to emphasize
+this claim.
+
+2
+
+A Fixed Point Model
+
+R
+
+Our main result establishes that for any set of positive reaction rates k ∈ n
+and any b in the range of Y Ak , a single terminal-linkage network will admit a
+positive solution pair (c, v) that satisfies the laws (FB) and (MA). We show
+this by defining a positive fixed point of a convex optimization problem, and
+establishing an equivalence between the positive fixed point and positive
+solution to the equations.
+We construct a fixed point mapping of a linearly constrained optimization problem such that the logarithmic form of the mass-action equation
+(MA-log) is an optimality condition, and hence any solution to this optimization problem will also satisfy (MA-log).
+To define the mapping, let b = Y Ak η for some η ∈ n and observe that
+for arbitrary s ∈ n we can write b = Y AT (η + s) − Y D(η + D −1 AT s). In
+particular, we choose s positive and large enough so that η + := η + s and
+η − := η + D −1 AT s are both positive. Also, from Definition 1, eT b = 0 and
+thus
+eT Y Dη − = eT Y AT η + .
+(2)
+
+R
+
+R
+
+R
+
+Define µ := (r, r0 ) ∈ m+1 to be a vector parameter. Observe that if the
+parametric convex optimization problem
+minimize
+
+v T D(log(v) − 1) + v0 (log v0 − 1)
+
+subject to
+
+Y Dv + Y AT η + v0 = Y AT r + Y Dη − r0 : y
+(v, v0 ) ≥ 0
+
+Rn+1
+
+(v,v0 )∈
+
+(3)
+
+has a positive solution (v ⋆ (µ), v0⋆ (µ)), then the optimality conditions
+Y Dv ⋆ (µ) + Y AT η + v0⋆
+DY T y ⋆ (µ)
+(Y AT η + )T y ⋆ (µ)
+(v ⋆ (µ), v0⋆ (µ))
+5
+
+= Y AT r + Y Dη − r0
+= D log(v ⋆ (µ))
+= log(v0⋆ (µ))
+≥0
+
+(4)
+
+are well defined. Since D is nonsingular, the second optimality condition
+⋆
+is equivalent to (MA-log), for c⋆ (µ) := ey (µ) , where the exponent is taken
+element-wise. Hence, the equation (MA-log) holds and c⋆ (µ) satisfies massaction. We show that for some parameter µ, the equality
+Y Ak v ⋆ = v0⋆ b
+
+(5)
+
+is satisfied. This implies that for b = 0, both (FB) and (MA-log) are satisfied,
+and the solution is attained. For the case where b 6= 0, we can construct a
+corresponding solution so that (FB) holds.
+Note that the nonlinear program (3) is strictly convex, so for any feasible
+(r, r0 ) there is a unique minimizer. That is, the mapping
+(r, r0 ) → (v ⋆ (µ), v0⋆ (µ))
+
+(6)
+
+is well defined. If µ̂ = (r, r0 ) is a fixed point of (6), then the linear equality
+constraint in (3) implies
+Y Dv ⋆ (µ̂) + Y AT η + v0⋆ (µ̂) = Y AT v ⋆ (µ̂) + Y Dη − v0⋆ (µ̂)
+or, equivalently,
+Y Ak v ⋆ (µ̂) = Y (AT − D)v ⋆ (µ̂) = v0⋆ (Y AT η + − Y Dη − ) = v0⋆ (µ̂)b.
+Therefore, if such a fixed point exists, the solution v ⋆ (µ̂) at this fixed point
+will satisfy (5). For simplicity, we henceforth refer to the optimal solution
+variables (v ⋆ (µ), v0⋆ (µ)), y ⋆ (µ) as (v ⋆ , v0⋆ ), y ⋆ , but acknowledge their dependence on µ.
+Theorem 1. For any mass conserving, mass-action chemical reaction network and any choice of rate constants k > 0, there exist nontrivial fixed
+points for the mapping (6).
+Proof. Brouwer’s fixed point theorem states that any continuous mapping
+from a convex and compact subset of a Euclidean space Ω to itself must
+have at least one fixed point.
+Let (v ⋆ , v0⋆ ) be defined as in (6) and let γ be a positive fixed scalar.
+Define the set
+
+	
+Ω = (v, v0 ) ∈ ℜn+1 : (v, v0 ) ≥ 0, eT Y Dv + eT Y AT η + v0 = γ ,
+where e is defined in (1). According to Brouwer’s fixed point theorem, if
+the parameter (r, r0 ) ∈ Ω ensures that the corresponding solution to the
+optimization problem (v ⋆ , v0⋆ ) ∈ Ω, then there is a fixed point such that
+the parameter and the solution are equal, i.e., there exists a µ such that
+µ = (r, r0 ) = (v ⋆ (µ), v0⋆ (µ)).
+The set Ω is bounded and formed by an intersection of closed convex
+sets, and hence is convex and compact. Moreover, the mapping µ → (v ⋆ , v0⋆ )
+6
+
+is continuous. Since problem (3) is feasible for any µ ∈ Ω, the mapping
+Ω ∋ µ → (v ⋆ , v0⋆ ) is well defined.
+To show that the image of Ω under the mapping (r, r0 ) → (v ⋆ , v0⋆ ) is in
+Ω, first observe that by the bounds in (3), (v ⋆ , v0⋆ ) ≥ 0. Using the equality
+constraints, Definition (1) and Equation (2), we have
+eT Y Dv ⋆ + eT Y AT η + v0⋆ = eT Y AT r + eT Y Dη − r0
+= eT Y Dr + eT Y AT η + r0 = γ,
+and thus (v ⋆ , v0⋆ ) ∈ Ω.
+Therefore, under the mapping (r, r0 ) → (v ⋆ , v0⋆ ), (r, r0 ) ∈ Ω implies
+⋆
+(v , v0⋆ ) ∈ Ω, and the mapping must have a fixed point. Moreover, since Ω
+does not contain the zero vector, the fixed point(s) are nontrivial.
+Note that the value of Y Dv ⋆ + Y AT η + v0⋆ is the rate of consumption of
+each chemical species and Y AT v ⋆ + Y Dη − v0⋆ is the rate of production of
+each chemical species. At the fixed point, the equality Y Dv ⋆ + Y AT η + v0⋆ =
+Y AT v ⋆ + Y Dη − v0⋆ defines a steady state. The set Ω defines the parameter
+γ = eT (Y Dv ⋆ + Y AT η + v0⋆ ); since the vector e can be interpreted as an
+assignment of relative mass to the species, γ can be interpreted as the total
+amount of mass that reacts per unit time at the steady state. Therefore,
+looking for fixed points in Ω corresponds to looking for steady states where
+the amount of mass that reacts in the system is prescribed.
+We have established the existence of a nontrivial fixed point µ of the
+mapping Ω ∋ µ → (v ⋆ , v0⋆ ) ∈ Ω. Moreover, we have shown that when
+the associated minimizer (v ⋆ , v0⋆ ) is positive, it is a solution to (MA) and
+to Y Ak v ⋆ = v0⋆ b. However, in the case when some entries of v ⋆ are zero,
+the objective function of (3) is non-differentiable and we cannot use the
+optimality conditions to show that (MA) holds.
+
+2.1
+
+Positive fixed points in single terminal-linkage networks
+
+We now consider the case when the network is formed by a single terminallinkage class and show that if µ̂ is a fixed point of the mapping (6), the
+minimizer (v ⋆ (µ̂), v0⋆ (µ̂)), and therefore µ̂, is positive.
+Lemma 1 shows that if problem (3) has a feasible point with support
+J, the minimizer (v ⋆ , v0⋆ ) will have support at least J. Lemma 2 uses the
+single terminal-linkage class hypothesis to show that at a fixed point, there
+is a positive feasible point. These two Lemmas imply that at a fixed point
+µ̂, the minimizer will be positive. Finally Theorem 2 shows that if v̂0 6= 1
+at the solution, we can construct another solution for which v̂0 = 1. This
+establishes that there is a nontrivial steady state for the network.
+To complete the argument we must prove Lemmas 1, 2 and Theorem 2.
+Lemma 1. The support of any feasible point of Problem (3) is a subset of
+the support of the minimizer (v ⋆ , v0⋆ ).
+7
+
+Proof. Let ṽ ∈ ℜn+1 be any of the feasible points with the largest support
+and let z be any feasible direction at ṽ. By construction, for all α in some
+interval [ℓ, u] the points vα := ṽ + αz are non-negative and feasible. The
+interval can be chosen so that when α = l and when α = u, one new bound
+constraint becomes active. This implies that supp(vℓ ) and supp(vu ) are
+strictly contained in supp(ṽ), and supp(vα ) = supp(ṽ) for α ∈ (ℓ, u).
+Without loss of generality, we assume ℓ < 0 < u, since ℓ and u will not
+be of the same sign; if ℓ = 0 and u > 0, any point vα can be written as a
+convex combination of ṽ and ṽ + uz, and thus has support as large as ṽ.
+Define the univariate function
+g(α) := φ(ṽ + αz),
+
+(7)
+
+where φ is the objective function of (3). We will establish that as α → l
+the derivative g′ (α) → −∞, and as α → u the derivative g ′ (α) → ∞. Thus,
+by the mean value theorem, there must exist a zero of the function g in
+the interior of the interval [l, u]. Since this function is strictly convex, if a
+stationary point exists in the interior of the interval, the function value at
+the stationary point must be smaller than at the boundary.
+Observe that if we let di , for i ∈ [1, . . . n], be the diagonal entries of D
+and dn+1 = 1, we can write
+g(α) =
+
+n+1
+X
+
+(ṽ + αzi )di log(ṽi + αzi ).
+
+i=1
+
+An important observation is that if some entry ṽj = 0 then zj = 0,
+otherwise vα would have a larger support for some α 6= 0. This implies that
+(vα )j = 0 for all entries where ṽj = 0. If we let J be the set of nonzero
+entries of ṽ, and L be the subset of J formed by the entries that tend to
+zero as α → l, then
+X
+g ′ (α) =
+zi di (log(ṽi + αzi ))
+i∈J
+
+=
+
+X
+
+zi di (log (v˜i + αzi )) +
+
+i∈(Lc ∩J)
+
+X
+
+zi di (log (v˜i + αzi )).
+
+i∈L
+
+As α → l, the first summation will approach a finite value. Since zi > 0 for
+all i ∈ L, the entries in the logarithm of the second sum tend to zero and
+the term will diverge to −∞.
+Similarly, let U be the subset of J formed by the entries that tend to
+zero as α → u. Observe that for these entries, zi < 0 and
+X
+X
+g′ (α) =
+zi di (log (v˜i + αzi )) +
+zi di (log (v˜i + αzi )).
+i∈(U c ∩J)
+
+i∈U
+
+The first sum will tend to a finite value and the second will diverge to ∞.
+8
+
+Now, assume that for some µ there is a feasible point (ṽ, v˜0 ) with larger
+support than the minimizer (v ⋆ , v0⋆ ) of problem (3). Since (v ⋆ , v0⋆ ) has smaller
+support, we can write (v ⋆ , v0⋆ ) = (ṽ, ṽ0 ) + α⋆ z where α⋆ is on the boundary
+of the corresponding feasible interval. By the previous argument, there is a
+value of α̂ 6= α⋆ in the interior of the interval such that (v ⋆ , v0⋆ ) = (ṽ, ṽ0 )+ α̂z
+has a lower function value than (v ⋆ , v0⋆ ), contradicting its optimality.
+Therefore, by the mean value theorm, there must exist a stationary point
+of g strictly in the interior of the interval [l, u] at which the function value
+is smaller than at the boundary. Moreover, the optimal point will have at
+least the support of any feasible point.
+Lemma 2. If the network is formed by a single terminal-linkage class, when
+Problem (3) is parametrized by a fixed point µ̂, there exists a positive feasible
+point (v̂, v̂0 ).
+Proof. Let Problem (3) be parametrized with a fixed point µ̂, and let (v̂, v̂0 )
+be both the minimizer and the fixed point. We prove by contradiction that
+no entry of the minimizer (v̂, v̂0 ) can be zero. Observe that by the definition
+of Ω the origin is not contained in the set, and therefore the fixed point
+cannot be identically zero.
+First, assume that v̂0 > 0 and observe that ρ := (D −1 AT v̂ + η − v̂0 , 0) is
+a feasible point. Since η − was chosen to be positive and D −1 AT has no zero
+columns, the support of ρ are the first n entries of the vector. A convex
+combination of (v̂, v̂0 ) and ρ will be feasible and have full support.
+Now, assume that v̂0 = 0 and some entry of v̂ is nonzero, and observe that
+(D −1 AT v̂, 0) is feasible. A convex combination of (D −1 AT v̂, 0) and (v̂, 0) is
+feasible and its support contains the union of the supports of the two vectors.
+That is, for β ∈ [0, 1] the point (ṽ, ṽ0 ) = β(D −1 AT v̂, 0) + (1 − β)(v̂, 0) is
+feasible, and using the fact that the support of D −1 AT v̂ is the support of
+AT v̂ along with Lemma 1,
+
+supp(v̂, 0) ∪ supp(AT v̂, 0) ⊂ supp(ṽ, 0).
+(8)
+This relation can be used inductively to show that there is a feasible point
+with support at least as large as the union of the supports of ((AT )p v̂, 0) for
+all positive powers of p.
+The single terminal-linkage class hypothesis implies that for any pair
+(i, j) ∈ [1, . . . , n] × [1, . . . , n], there exists a power p large enough such that
+(AT )pij > 0. More importantly, if v̂j > 0, then there exists a p such that
+[(AT )p v̂j ]i > 0 for all i. Therefore, if v̂0 = 0 and v̂ 6= 0, there is a feasible
+point (ṽ, 0) such that ṽ > 0.
+Finally, if v̂ > 0 then there is a scalar 0 < α small enough such that
+0 < v̂ − D −1 AT η + α,
+
+9
+
+and then the equality
+Y D(v̂ − D −1 AT η + α) + Y AT η + α = Y Dv̂ = Y AT v̂
+implies that the positive point (v̂ − D −1 AT η + α, α) is feasible.
+Therefore, if a network is formed by a single terminal-linkage class, the
+problem (3) has a positive feasible point (v̂, v̂0 ).
+Theorem 2. For a mass conserving single terminal-linkage network, there
+exists a concentration c > 0 such that Y Ak ψ(c) = b if and only if b is in the
+range of Y Ak .
+
+R
+
+R
+
+Proof. We have shown that there exist positive vectors c ∈ m , v ∈ n
+such that Y T log(c) = log(v) and Y Ak v = v0 b. In other words, we have
+proven that there is a positive vector c and a positive scalar α such that
+Y Ak ψ(c) = αb. If we can construct a new concentration vector c̃ > 0 that
+satisfies ψ(c̃) = α1 ψ(c), then
+Y Ak ψ(c̃) =
+
+1
+Y Ak ψ(c) = b
+α
+
+and the steady state concentration c̃ satisfies (FB) and (MA).
+First, we argue that the vector of all ones, 1 ∈ n , is in the range of
+T
+Y when the network consists of a single terminal-linkage class and is mass
+conserving. The condition of mass conservation implies that eT Y Ak = 0,
+or equivalently, Y T e ∈ N (ATk ). Since ATk is the Laplacian matrix of a
+strongly connected graph, N (Ak ) = {β1 : β ∈ }; thus, for some value β̂,
+Y T e = β̂1.
+
+Now, observe that log α1 ψ(c) = log(ψ(c)) − 1 log(α) = Y T log(c) −
+1 log(α), where log(c) is an entry-wise logarithm of the vector and log(α)
+the scalar logarithm. Moreover, since 1 is in the range of Y T , say Y T δ = 1
+for some δ ∈ m , then log(α)1 = Y T (log(α)δ). Thus, if we define c̃ as the
+vector that satisfies log(c̃) = log(c) − log(α)δ , then
+
+R
+
+R
+
+R
+
+Y T log(c̃) = Y T log(c) − log(α)1,
+which implies that
+
+1
+ψ(c).
+α
+Therefore, the inhomogeneous system has a solution if the underlying graph
+of the network is formed by a single terminal-linkage class and the network
+is mass conserving, regardless of the kinetic parameters.
+ψ(c̃) =
+
+3
+
+Numerical Experiments
+
+The results in this section depend on the calculation of positive steady states
+for weakly reversible networks. We use the algorithm described below to
+solve for the associated fixed points.
+10
+
+3.1
+
+Numerical method for finding fixed points
+
+R
+
+Given an initial positive point v̂ ∈ n and a small tolerance τ , we use the
+following fixed point iteration, Algorithm 1, to find a parameter µ = (r, r0 )
+to the problem (3) such that (v ⋆ , v0⋆ ) = (r, r0 ).
+Algorithm 1 Fixed Point Iteration to Find a Steady-State Concentration
+1: (v ⋆ , v0⋆ ) ← (v̂, 0)
+2: (r, r0 ) ← (v ⋆ , v0⋆ )
+3: while kY Ak v ⋆ − (Y Ak η + + Y Dη − )v0⋆ k∞ > τ do
+4:
+(v ⋆ , v0⋆ ) ← unique solution of (3)
+5:
+(r, r0 ) ← 12 (r, r0 ) + 12 (v ⋆ , v0⋆ )
+6: end while.
+Step 4 in the while loop of Algorithm 1 requires solving the linearly
+constrained convex optimization problem (3). Our implementation uses the
+PDCO package [13] to solve this problem.
+Provided that at each iteration k, the unique solution of (3) satisfies
+⋆
+v (µk ) > 0 and the minimization is solved with sufficient accuracy, the
+optimality conditions for (3) will imply that for all k = 1, 2, 3, . . .,
+kY T λ⋆ − log(v ⋆ (µk ))k∞ ≤ ǫ,
+for some small value of ǫ, where λ⋆ is the Lagrange multiplier of the linear
+equality constraint at the solution that corresponds to the logarithm of the
+concentrations. Thus, if the iteration converges to a fixed point (r, r0 ) =
+(v ⋆ , v0⋆ ), then at this fixed point (MA) will be satisfied to a precision ǫ and
+(FB) will be satisfied to a precision τ .
+Algorithm 1 has been tested extensively on randomly generated networks with noteworthy success. The results of our experiments are shown
+in Section 3.4.
+
+3.2
+
+An example network
+
+Figure 1: Example network with two terminal-linkage classes
+In this section we consider the toy network shown in Figure 1. The
+number of complexes is n = 7, the number of terminal-linkage classes is l = 2,
+and the stoichiometric subspace S = span{A + E − C, C − A − D, B − C} has
+11
+
+dimension s = 3. Therefore, the deficiency of this network is δ = 7−2−3 = 2,
+and hence neither of the Deficiency 0-1 theorems [3, 4] can be applied to
+calculate equilibrium points.
+However, since this network is weakly reversible, intuition suggest that a
+non-zero steady state exists. We use Algorithm 1 to solve for the fixed point
+described in Section 2, obtaining a positive steady state. Figure 2 illustrates
+the convergence of the fixed point iterations to the steady state.
+
+Concentration of A
+
+Concentration of B
+
+10
+
+4
+
+5
+
+2
+
+0
+
+0
+
+10
+
+20
+
+30
+
+0
+
+0
+
+Concentration of C
+3
+
+0.15
+
+2
+
+0
+
+10
+
+20
+
+20
+
+30
+
+Concentration of D
+
+0.2
+
+0.1
+
+10
+
+30
+
+1
+
+0
+
+10
+
+20
+
+30
+
+Concentration of E
+4
+
+2
+
+0
+
+0
+
+10
+
+20
+
+30
+
+Iterations
+
+Figure 2: Concentration convergence with iteration
+Figure 3 illustrates the change in steady state as a function of the total mass in the system, where total mass is defined as γ = eT (Y Dv ⋆ +
+Y AT η + v0⋆ ), as described in Theorem 1. The experiment shows that as the
+total mass increases, species A, B and C adjust linearly to the additional
+mass, while species D and E stay at the same levels. This linear growth in
+species A, B and C can be explained analytically by the fact that the vector
+1 lies in range of Y T .
+
+3.3
+
+Generating suitable networks
+
+This section describes the sampling scheme used to generate random mass
+conserving chemical reaction networks with a prescribed number of terminallinkage classes. The output of the method is a network with n complexes, m
+species, and ℓ strongly connected components, where ℓ is the desired number
+of terminal-linkage classes.
+12
+
+Concentration of A
+
+Concentration of B
+
+10
+
+4
+
+5
+
+2
+
+0
+
+0
+
+50
+
+100
+
+150
+
+200
+
+0
+
+0
+
+Concentration of C
+
+50
+
+100
+
+150
+
+200
+
+Concentration of D
+
+1
+
+2.4
+2.38
+
+0.5
+
+2.36
+2.34
+
+0
+
+0
+
+50
+
+100
+
+150
+
+200
+
+2.32
+
+0
+
+50
+
+100
+
+150
+
+200
+
+Concentration of E
+2.44
+
+2.42
+
+2.4
+
+0
+
+50
+
+100
+150
+Variation in γ
+
+200
+
+Figure 3: Equilibrium dependence on total mass
+First, we iteratively generate Erdős-Réyni graphs1 with m nodes until
+we sample a graph with ℓ strongly connected components; call this graph
+Ĝ(V̂ , Ê). We give each edge in Ê a weight of an independent and uniformly
+distributed value in the range (0, 10]. These edge weights represent the
+reaction rates between complexes.
+To generate the stoichiometry, we define a parameter r as the maximum
+number of species in each complex. Each complex is constructed with a
+random sample of q species, where q is a random integer in [1, r]. All samples
+are done uniformly and independently. Finally, we assign the multiplicity of
+each species in a complex with independent samples of the absolute value of
+a standard normal unit variance distribution. To ensure mass is conserved,
+we normalize the sum of the stoichiometry of the species that participate in
+a complex to one, so that Y T 1 = 1 and ATk Y T 1 = 0.
+
+3.4
+
+Convergence of the Fixed Point Algorithm
+
+This section illustrates the convergence of Algorithm 1 on large networks
+that consist of either a single terminal-linkage class or multiple terminallinkage classes, i.e., weakly reversible networks.
+Algorithm 1 produces sequences that, up to a small tolerance, satisfy
+1
+
+An Erdős-Réyni graph is a directed unweighted graph. Each edge is included with
+probability p and all edges are sampled iid.
+
+13
+
+(MA) at every iteration. Ideally, the infeasibility with respect to (FB) also
+monotonically decreases until convergence. Our extensive numerical experiments indicate that this is in fact the behavior for homogeneous networks
+that are weakly reversible.
+Mass balance infeasibility vs iteration count for single linkage network
+2
+10
+
+0
+
+log ||YAkη||∞
+
+10
+
+−2
+
+10
+
+−4
+
+10
+
+−6
+
+10
+
+0
+
+5
+
+10
+
+15
+20
+Iteration
+
+25
+
+30
+
+35
+
+Figure 4: Typical Infeasibility of (FB) vs. Iteration, for network with a
+single terminal-linkage class
+Mass balance infeasibility vs iteration count for multiple linkage network
+2
+10
+
+0
+
+log ||YAkη||∞
+
+10
+
+−2
+
+10
+
+−4
+
+10
+
+−6
+
+10
+
+0
+
+10
+
+20
+
+30
+Iteration
+
+40
+
+50
+
+60
+
+Figure 5: Typical Reduction in Infeasibility of (FB), for network with two
+terminal-linkage classes
+Figure 4 displays the sequence of the infeasibilities kY Ak vk k∞ at each
+iteration k in Algorithm 1, for a network with a single terminal-linkage class,
+14
+
+50 species and 500 complexes, where at most 10 species participate in each
+complex. Figure 5 displays the analogous sequence for a network of equal
+size and two terminal-linkage classes. We have observed this (apparently
+linear) convergence rate consistently over all generated networks, regardless
+of the number of terminal-linkage classes.
+27
+
+Average iteration count
+
+26.5
+26
+25.5
+25
+24.5
+24
+
+0
+
+1000
+
+2000
+3000
+4000
+Number of complexes in network
+
+Figure 6: Average number of iterations for single terminal-linkage class networks
+We have also investigated the number of iterations necessary for Algorithm 1 to converge on networks of different sizes, with either one or two
+terminal-linkage classes. Figures 6 and 7 display the mean number of iterations necessary for convergence on networks ranging from 100 to 5000
+complexes, where each average is taken over 20 instances per network size.
+Notably, the average number of iterations increases less than 10% as the
+network size grows fifty-fold.
+In future work, we plan to prove theoretical results on the existence of
+positive equilibria for chemical reaction networks with multiple terminallinkage classes. However, our comprehensive numerical experiments seem to
+indicate that even for networks with more than one terminal-linkage class,
+there exists at least one positive fixed point of problem (3), and the iterates
+of Algorithm 1 converge to such a fixed point.
+Finally, while conducting this work, we were made aware of related work
+by Deng et al. [2]. Their work extends that of Feinberg and Horn by proving
+that weak reversibility is a necessary and sufficient condition for existence
+of positive equilibria. While their proof is for closed systems (with b = 0),
+it is not clear how to use the 0-complex in their extension to solve for any
+admissible b, as mentioned in Section 1.1. More importantly, our proof is
+15
+
+33
+
+Average iteration count
+
+32.5
+32
+31.5
+31
+30.5
+30
+
+0
+
+1000
+
+2000
+3000
+4000
+Number of complexes in network
+
+Figure 7: Average number of iterations for networks with two terminallinkage classes
+based on a less complicated convex optimization formulation, which gives a
+method to calculate numerical solutions using a fixed point algorithm.
+Acknowledgment: We gratefully acknowledge Anne Shiu and her student
+for helpful discussions and directing us to [2].
+
+References
+[1] David F. Anderson. A proof of the global attractor conjecture in the
+single linkage class case. arXiv:1101.0761v3, 2011.
+[2] Jian Deng, Martin Feinberg, Chris Jones, and Adrian Nachman. On
+the steady states of weakly reversible chemical reaction networks. (submitted), 2008.
+[3] Martin Feinberg. Chemical reaction network structure and the stability
+of complex isothermal reactors I. The deficiency zero and deficiency one
+theorems. Chem. Eng. Sci., 42(10):2229–68, 1987.
+[4] Martin Feinberg. Chemical reaction network structure and the stability
+of complex isothermal reactors II. Multiple steady states for networks
+of deficiency one. Chem. Eng. Sci., 43(1):1–25, 1988.
+[5] R. M. T. Fleming, C. M. Maes, M. A. Saunders, Y. Ye, and B. Ø. Palsson. A variational principle for computing nonequilibrium fluxes and
+16
+
+potentials in genome-scale biochemical networks. Journal of Theoretical
+Biology, 292:71–77, 2012.
+[6] Jeremy Gunawardena. Chemical Reaction Network Theory for In-silico
+Biologists. Bauer Center For Genomics Research, Harvard University,
+Cambridge, MA, 2003.
+[7] Fritz Horn. Necessary and sufficient conditions for complex balancing
+in chemical kinetics. Arch. Rational Mech. Anal., 49:172–186, 1972.
+[8] Fritz Horn and Martin Feinberg. Dynamics of open chemical systems
+and the algebraic structure of the underlying reaction network. Chem.
+Eng. Sci., 29:775–787, 1974.
+[9] Fritz Horn and Roy Jackson. General mass action kinetics. Archives of
+Rational Mech. Anal., 47:81–116, 1972.
+[10] Jeffrey Orth, Ines Thiele, and Bernard Palsson. What is flux balance
+analysis? Nature Biotechnology, 28(3):245–248, 2010.
+[11] Bernhard Palsson. Systems Biology: Properties of Reconstructed Networks. Cambridge University Press, 2006.
+[12] John Ross. Thermodynamics and Fluctuations far from Equilibrium.
+Springer-Verlag, Berlin, Heidelberg, 2008.
+[13] Michael Saunders. Primal-dual interior method for convex objectives.
+http://www.stanford.edu/group/SOL/software/pdco.html.
+
+17
+
+

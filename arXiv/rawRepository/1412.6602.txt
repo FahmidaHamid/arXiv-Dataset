@@ -1,0 +1,678 @@
+Under review as a conference paper at ICLR 2015
+
+G ENERATIVE M ODELING OF H IDDEN F UNCTIONAL
+B RAIN N ETWORKS
+
+arXiv:1412.6602v2 [stat.ML] 27 Feb 2015
+
+Shaurabh Nandy
+School of Behavioral and Brain Sciences
+University of Texas at Dallas
+Richardson, Texas 75080, USA
+shaurabh@utdallas.edu
+Richard M. Golden
+Human Language Technology Research Institute
+University of Texas at Dallas
+BBS, GR4.1, 800 West Campbell Road
+Richardson, Texas, 75080, USA
+golden@utdallas.edu
+
+A BSTRACT
+Resting-state functional connectivity fMRI data is a derivative of the unobservable
+neuronal functional network structure of the human brain. This data is subject to
+multiple sources of noise such as thermal noise, system noise, and physiological noise. Commonly used methods to infer the latent network structure, such as
+thresholding methods, make the implicit assumption that weak links are not as
+important as strong links, and that links are conditionally independent. However,
+such assumptions provide an incomplete description of the biology. Additionally, despite a core set of observations about functional networks such as smallworldness, modularity, exponentially truncated degree distributions, and presence
+of various types of hubs, very little is known about the computational principles
+which can give rise to these observations. This paper presents a Hidden Markov
+Random Field framework for the purpose of representing, estimating, and evaluating latent neuronal functional relationships using fMRI data. The main theoretical
+contributions of this paper are summarized as follows. 1) Provides a method to
+learn a more robust representation of the latent network structure. 2) Provides a
+method for testing multiple competing hypotheses of functional connectivity principles. 3) Provides a method which makes an explicit distinction between blood
+flow fMRI variables and unobservable neuronal activity variables. 4) Provides a
+method to model the conditional dependence structure between functional links,
+thereby assuming a more biologically plausible architecture.
+
+1
+
+I NTRODUCTION
+
+Functional magnetic resonance imaging (fMRI) is a very important neuroimaging technology because it allows us to non-invasively measure whole brain activity in humans. The crucial idea in
+fMRI is the concept of the blood oxygen level dependent (BOLD) signal. Neuronal activity requires
+oxygen which is provided by oxygenated hemoglobin, and in the aftermath of neuronal activity, the
+area of activity is overcompensated by a fresh supply of oxygenated blood. This overcompensation,
+the mechanisms of which are largely unknown, leads to a difference in ratio between oxygenated
+and de-oxygenated hemoglobin in the close vicinity of the brain region that was active. Using properties of magnetic resonance, it is then possible to pick up these differences and image brain activity.
+The signal which captures this difference is called the BOLD signal. With a spatial resolution in
+the order of millimeters (approx. 3mm) and temporal resolution in the order of seconds (approx.
+1-6 seconds), fMRI complements other technologies such as electroencephalography (EEG) and
+positron emission tomography (PET). For example, EEG has excellent temporal resolution (in the
+milliseconds), but suffers in the domain of spatial resolution. Alternatively, PET provides better
+1
+
+Under review as a conference paper at ICLR 2015
+
+spatial resolution than EEG but its temporal resolution can run into the minutes (approx. 90 seconds
+to 30 minutes depending on the type of tracer used).
+As fMRI has established itself as a dominant human brain imaging technology, there has also been
+a steady increase in the number of fMRI data analysis techniques in the toolkit of the practitioner.
+For example, compared to the initial days where the general linear model (GLM) dominated, it is
+now very common to see applications of more advanced techniques such as Structural Equation
+Modeling (Schlosser et al., 2003; Kim et al., 2007), Granger Causality (Roebroeck et al., 2005;
+Hamilton et al., 2011), Independent Component Analysis (Beckmann et al., 1997; Stone et al.,
+2002), Markov Chains (Allen et al., 2012) and Support Vector Machines (De Martino et al., 2008;
+LaConte et al., 2005). The increased repertoire of tools has greatly increased the questions one can
+ask using fMRI data. For example, Nishimoto et al. (2011) were able to show that it is possible to
+reconstruct dynamic images, and Cowen et al. (2014) demonstrated that it is possible to reconstruct
+face images, just from the fMRI activity evoked by such stimuli. These are just two out of many
+impressive innovations in the analysis of fMRI data.
+The earliest paradigm of fMRI was concentrated on task based studies, where different experimental
+tasks were correlated with spatial patterns of brain activation, thereby suggesting which regions
+of the brain are involved in the information processing demands of various task domains such as
+memory, attention, decision making etc. Since then the use of fMRI has expanded, and functional
+connectivity information can now be collected using a non-task paradigm called resting state. In this
+paradigm, data is collected from subjects who lie inside a fMRI scanner and are asked to fixate on a
+cross-hair or keep their eyes closed. There is no information processing demand. Subjects lie in the
+scanner for a couple of minutes to an hour depending on what the researcher considers an appropriate
+amount of time (see Smith et al. (2011) for discussion on length of resting state scans). The utility of
+the resting state paradigm lies in the fact that regions of the brain that share function are correlated
+in the low frequency components of the BOLD signal (Cordes et al., 2001). This crucial observation
+allows us to further our understanding of functional brain organization by looking at functional
+organization holistically, rather than in the isolation of particular task domains. The raw data, i.e.,
+the time series of the low frequency component (<0.1 Hz) of the resting state BOLD signal, is
+first pre-processed to remove artifacts, and then an appropriate measure of interdependency (such as
+Pearson’s correlation coefficient) is used to quantify the functional connectivity between the various
+regions of interest.
+Hidden Markov Random Field’s (HMRF’s), which are latent variable probabilistic graphical models, are another class of models which have previously been applied to brain imaging data analysis.
+For example, HMRF’s have been used for segmentation of MR images into tissue subclasses (Zhang
+et al., 2001; Esteban et al., 2014;) and functional parcellation of the cortex (Honnorat et al., 2015;
+Ryali et al., 2013). In this paper, we develop a novel HMRF framework for two purposes. Acknowledging that the BOLD signal is a proxy for neuronal activity and that resting state data is a noisy
+representation of the latent neuronal functional network, the first goal of this framework is to provide a method to learn a more robust representation of the latent structure. The second goal, which is
+intimately connected to the first goal, is to provide a method for testing multiple competing theories
+of functional connectivity. HMRF’s have never before been applied to tackle the above mentioned
+goals. To motivate the importance of these goals, relevant background is first provided in the next
+section. In light of the background information, the goals of this paper are reiterated in greater detail
+in the section following the background, before finally diving into the mathematical development.
+
+2
+2.1
+
+BACKGROUND
+B RAIN C ONNECTIVITY
+
+The study of brain connectivity is usually divided into three major classes: structural connectivity,
+functional connectivity and effective connectivity. Structural connectivity refers to anatomical connectivity and can be measured via tracer studies in animals (Markov et al., 2012) and diffusion based
+magnetic resonance imaging (MRI) technologies in humans (Johansen-Berg & Rushworth, 2009).
+Functional connectivity refers to the temporal statistical relationship between spatially distinct brain
+regions and is usually inferred from the time series coherence/correlation in brain activity between
+regions of interest (Park & Friston, 2013). In humans, both structural connectivity and functional
+connectivity are commonly represented as undirected graphs because directionality information is
+2
+
+Under review as a conference paper at ICLR 2015
+
+usually not available via the measurement process. In contrast, effective connectivity is represented
+as a directed graph where the edge direction in the graph represents the influence of one node on another, inferred from a particular model of causal dynamics (Friston et al., 2003). This paper focuses
+on human functional connectivity measured via fMRI.
+2.2
+
+O BSERVATIONS
+
+Resting state functional connectivity data is often represented as a graph, where a graph is a collection of nodes and edges. The nodes represent meaningful units of information processing, such
+as brain areas, and the edges, also called functional links, represent the interdependency between
+the nodes. Representation of functional brain organization data as a graph allows us to borrow constructs from the field of network science (Newman, 2010) and has inspired new ways of thinking
+about brain organization. For example, functional networks have been shown to display features
+such as short characteristic path length (Achard et al., 2006), local clustering (Achard et al., 2006),
+modular structure (Ferrarini et al., 2009), exponentially truncated degree distributions (Eguiluz et
+al., 2005; Achard et al., 2006), overabundance of short distance connections (Salvador et al., 2005)
+and the presence of different types of hubs (Buckner et al., 2009; Tomasi & Volkow, 2011). Additionally, it has also been observed that the presence and strength of structural connectivity shapes
+functional connectivity, (Honey et al., 2009) although it is also possible to observe functional connectivity without the presence of direct structural connections (Vincent et al., 2007). Lastly, as
+mentioned earlier, the main value of resting state functional connectivity lies in regions of the brain
+which share function displaying correlation in the low frequency components of the BOLD signal.
+Functional neuroanatomical systems which display this type of correlation are often called resting
+state networks, and numerous such networks have been found such as those related to memory (Vincent et al., 2006), visual (Cordes et al, 2000), language (Hampson et al., 2002), auditory (Cordes
+et al., 2000), salience (Seeley et al., 2007), motor (Biswal et al., 1995) and control (Vincent et al.,
+2008) systems.
+2.3
+
+C OMPUTATIONAL P RINCIPLES : M OVING
+
+FROM
+
+K NOWLEDGE TO U NDERSTANDING
+
+As seen above, a core set of observations for functional brain networks has already been collected.
+As we continue to collect more knowledge about these networks, it is also important to step back
+and ask what type of rules or computational principles (Churchland & Sejnowski, 1992) might give
+rise to these observations. Very little is known about these rules. Vertes et al. (2012) is a recent
+and rare attempt at formalizing this question. The approach taken by Vertes et al. (2012) assumed
+a parameterized probability model that the probability of a functional link between two regions
+of interest in a brain network is present or absent. It was assumed that the likelihood of an edge is
+functionally dependent upon the model’s parameters and the manner in which that edge is connected
+to other edges in the network through specific topological features of the entire network. An “energy
+function” was then constructed which had the property that a global minimizer of the energy function
+corresponded to a solution identifying which topological features are predictive of the likelihood of
+an edge, as well as how those topological properties are predictive. The basic concept of the energy
+function was to encapsulate the idea that the difference in topological indices (clustering, efficiency,
+modularity and degree distribution) between generated model networks and observed brain networks
+should be minimized. Thus, the parameters of their model could be estimated by minimizing an
+energy function. The goal of this analysis was to not only make predictions about the likelihood
+of coupling, but more importantly to identify which topological features are relevant to functional
+brain networks. After the parameters were estimated, networks were generated using the probability
+model with the learned parameter values. Validation consisted of checking if the topological indices
+calculated on generated model networks matched those of the observed brain networks. Their main
+observation was that a probability law for a functional link between two regions, where there is
+competition between a distance penalty term (Euclidean distance used as a proxy for wiring cost)
+and a topological feature which favors links between regions sharing input nodes, can capture many
+known topological indices of these networks. It is important to note, as also emphasized in Vertes
+et al. (2012), that such a rule (despite the biological plausibility) is computationally sufficient but
+not necessary to explain the observations. Multiple semantically similar energy functions were
+constructed, and the main results did not change as a function of the form of the energy function.
+Lastly, they showed that the difference in networks of healthy controls versus a schizophrenic group
+is reflected in differing parameter values.
+3
+
+Under review as a conference paper at ICLR 2015
+
+As expected from any early attempt at a hard problem, the approach of Vertes et al. (2012) leaves
+room for improvement. From a neuroscience perspective, it is important to realize that any generated model network which displays topological indices similar to observed brain networks, is not
+necessarily sufficiently grounded in the known neuroscience. This is because multiple different
+configurations of a network can realize the same index. For example, let’s assume that there is an
+index that quantifies the modular organization of a network. If the value of this index for generated
+model networks matches that of observed brain networks, further validation would still be required
+to ascertain that the modular organization of the generated network does in fact follow the known
+modules of the human brain such as the visual system, sensorimotor system, auditory system etc.
+There are also possibilities for methodological improvements. Due to the lack of a principled choice
+of an energy function, multiple different semantically similar energy functions were tested to increase confidence in the results, and it was shown that the main results do not change qualitatively
+as a function of the energy function. Despite this effort, it is quite conceivable that energy functions
+which were not tested, but are semantically similar, might qualitatively change the main results.
+There is another very crucial methodological limitation. The energy function implicitly informed
+the model of the topological indices which the generative model should learn, since the goal of the
+energy function was to minimize the difference in value of topological indices between generated
+and observed brain networks. Since these same topological indices were then used for the validation
+of the generated networks, there is an inherent circularity. This was explicitly recognized in Vertes
+et al. (2012) and hence during the validation phase the generated model networks were also compared to a set of observed brain networks which had not been used in the training phase. Despite
+this effort, the confidence in the results would have been greater if there was a way to circumvent
+this circularity. Lastly, the difference in parameter values between the healthy and schizophrenic
+group were shown to be qualitatively different, but it is not certain if this difference is real or due to
+sampling error since no error bounds were provided.
+
+3
+
+G OAL
+
+In fMRI, blood flow variables are a proxy for neuronal activity variables. Additionally, it is well
+known that thermal noise, system noise, and physiological artifacts can all affect the fMRI signal
+(Huettel et al., 2004). Hence, resting state functional connectivity fMRI data can be considered a
+noisy representation of the ground truth functional network structure. Thus, the first goal of this
+paper is to develop a methodology which can learn a better representation of the initial fMRI data.
+Additionally, a large number of robust observations has been collected for resting state networks.
+This is truly remarkable considering the large variance in scanner types, imaging parameters and
+pre-processing pipelines. Yet, apart from Vertes et al. (2012), we do not know of other formal
+attempts at moving from these observations to formal explanations which can account for these
+observations. Any new field of inquiry requires a minimal number of observations before it is
+worthwhile to dive into theoretical endeavors. This paper argues that the threshold of minimal
+number of observations has been reached, and takes the philosophical viewpoint that unless we move
+from observations to theory, we will not be able to move from knowledge to understanding. But, this
+is easier said than done. The limitations of the pioneering efforts of Vertes et al. (2012), point toward
+a lack of a principled approach to this problem. Thus, the second goal of this paper is to develop a
+methodology which can address these limitations. To concurrently achieve the above stated goals,
+this paper develops a statistical machine learning framework for generative modeling of functional
+connectivity networks. We specifically call this a framework because we are not developing a single
+model. Rather, we are providing a scaffolding which can be used to postulate and test multiple
+models which represent multiple competing theories of functional connectivity. This is achieved by
+using “feature functions” (explained in Section 4), which allows the researcher to postulate different
+theories of functional connectivity while minimally changing the mathematics.
+The framework is based on a Hidden Markov Random Field (HMRF). A HMRF is a latent variable
+probabilistic graphical model that can represent a joint probability distribution over random variables, some of which are observable and some of which are latent. As eluded above, in fMRI, one
+can conceptualize two variables of interest because hemodynamic response is a proxy for neuronal
+activity. More specifically, the first set of variables can represent the non-observable (latent/hidden)
+neuronal activity, and the second set of variables can represent the hemodynamic response. The distinction between observed variables and latent variables in a HMRF can be used advantageously to
+explicitly recognize that much theoretical work remains to be carried out to understand the coupling
+4
+
+Under review as a conference paper at ICLR 2015
+
+relationship between neuronal activity and hemodynamic response in fMRI (Logothetis, 2008), and
+hence prevent the confounding of observed correlation values (inferred from the hemodynamic response) and hidden functional connectivity network structure. The word “Markov” refers to the idea
+that each random variable is not independent, but rather is dependent upon a subset of the other
+random variables, thereby facilitating the modeling of conditional dependence structures between
+the random variables. The probability rule for an edge in the hidden network structure can then
+be postulated based on a researchers theory of what influences functional connectivity. Once the
+model is explicitly represented, the parameters of the model can be learned in a maximum likelihood estimation (MLE) framework. In MLE, the goal of learning is to find the parameters which
+maximize the likelihood of the observed dataset. Thus, the objective function (energy function) in a
+MLE framework does not implicitly inform the model of the desired topological indices. Once the
+parameter values have been learned, functional brain networks can be generated by sampling from
+the joint probability distribution. The generated networks can be validated by checking if they are
+able to capture the known organizational features of the brain without limiting them a priori to a few
+topological indices. The tools of model selection criteria can be used to compare multiple models,
+model misspecification tests can be used to check if a postulated model is capable of representing the
+data generating process, and hypothesis testing can be carried out to test if parameter values change
+across experimental conditions (such as healthy vs.schizophrenic). Lastly, this estimation framework also allows us to state guarantees on parameter estimates such as its consistency, efficiency,
+asymptotic distribution and error bounds (Greene, 2003).
+It is necessary to highlight that the HMRF framework brings with it two important innovations.
+First, the importance of the ability to make the distinction between observed blood flow variables
+and hidden neuronal variables cannot be overstated. Currently, despite the general acceptance that
+blood flow variables are a very high level approximation of neuronal activity variables, it is often
+assumed by the practitioner that there are no available methods which can distinguish between these
+two variables. Secondly, the importance of the simple “Markov” idea also cannot be overstated.
+For example, thresholding is a common approach to infer the true network structure given the observed fMRI correlational data. In one type of thresholding, the top “x” percent of the strongest
+functional links (where x is usually a number between 2 and 10) are considered important and the
+rest of the links are pruned. This is a “poor man’s approach” to representation learning. The implicit
+assumption here is that weak links are not important, and that functional links are conditionally independent. Such assumptions are not biologically accurate (see Bassett et al., (2011) for an explicit
+example where weak links have been shown to be important), and yet thresholding remains a dominant method to infer network structure due to the absence of other methods which can make better
+assumptions. The HMRF framework tackles both the above problems.
+
+4
+
+H IDDEN M ARKOV R ANDOM F IELD F RAMEWORK : M ATHEMATICAL
+D EVELOPMENT
+
+After data collection and pre-processing, the final form of the data is an adjacency matrix to which
+the Hidden Markov Random Field (HMRF) framework will be applied. It is assumed that the brain
+has already been parcellated into appropriate regions of interest (nodes), and that the interdependency between the nodes (i.e., edges representing functional connectivity) has been quantified as
+Pearson’s correlation coefficient. Pearson’s correlation coefficient is the most commonly used measure of functional connectivity. Additionally, instead of postulating specific computational principles, we introduce the framework more generally via “feature functions” so that researchers can
+postulate and test their own theories of functional connectivity.
+The thinking behind using feature functions goes as follows. It is not sufficient to just identify an
+unresolved problem, build a tool to tackle the problem which clearly presents all the modeling assumptions, and is overall sound in its mathematical formulation. One has to aspire to go beyond,
+and introduce the tool to the practitioner in a manner where ideas can be quickly tested. The feature
+function aids this very important, and often neglected goal, i.e., presenting a new mathematical tool
+to the practitioner where ease of use is fundamentally valued. The basic idea of a “feature function”
+is simple. The feature function is a collection of factors that the researcher postulates as being the
+factors which influence functional connectivity between any two nodes. For example, one could
+postulate the same factor that Vertes et al. (2012) showed to be important, i.e., a feature which
+counts the number of nearest neighbors (i.e. nodes) in common between the the two nodes that an
+5
+
+Under review as a conference paper at ICLR 2015
+
+edge connects. Another type of feature could be a “system membership” feature which represents if
+an edge connecting two nodes is within the same system or between systems. A practitioner is more
+interested in testing various hypotheses about factors/features which affect functional connectivity,
+as compared to the mathematical formulation of the tool. Hence, all they need to do to is simply
+interact with the feature function module in the software package, and test multiple models quickly,
+while the mathematical machinery consisting of undirected graphs, latent variables, learning algorithm, sampling algorithms etc., does not compete for their focus.
+4.1
+
+DATA G ENERATING P ROCESS
+
+The statistical environment of the learning machine is conceptualized as consisting of two variables
+of interest. The first set of variables, x ∈ {0, 1}d, represents the hidden functional network structure.
+The ith individual element of x, xi , takes on the value of 1 if the ith edge in the hidden functional
+network is present and takes on the value of 0 otherwise. The second set of variables, y ∈Rd , represents the observed Fisher transformed correlation in BOLD signal between brain regions. The
+ith individual element of y, yi , is the observed Fisher transformed correlation in BOLD signal between the two brain regions that the ith edge connects. The training data consists of n data records
+(1 data point per subject). The data set Dn is defined by: Dn ≡ {y1 , . . . , yn }, since x1 , . . . , xn are
+never directly observable. Formally, the data set Dn is a realization of a random sample which is a
+stochastic sequence of n independent and identically distributed d-dimensional random vectors with
+common DGP P 0 .
+4.2
+
+N OTATION
+• d : total number of edges in network
+• n : total number of networks/subjects
+
+• x : vector representing the hidden variables in the network, x ∈ {0, 1}d
+
+• xi : ith individual element of x, i = 1 . . . d
+• Ni (x): neighborhood graph of xi
+
+• y : vector representing the observable variables, y ∈Rd
+• yi : ith individual element of y, i = 1 . . . d
+• t : index for subject, t = 1 . . . n
+
+• fi : a function fi : Rd → Rk+1 which is defined such that fi (x) is a nonlinear hidden
+representation of x.
+
+• Di : a function Di : Rd → R which is defined such that Di (x) is the Euclidean distance
+between the two nodes that xi connects. Euclidean distance is used as a proxy for wiring
+cost.
+4.3
+
+P ROBABILITY M ODEL
+
+The probabilistic modeling assumptions are as follows.
+It is assumed that the probability density of a Fisher transformed correlation between BOLD activity
+in two brain regions, , yi , is Gaussian which is conditionally dependent upon the presence/absence
+of a latent functional link, i.e., xi . This is justified by the theoretical result that the sampling distribution of a Fisher transformed correlation coefficient is Gaussian (Fisher, 1915; Fisher, 1921). More
+specifically, it is assumed that yi is distributed as a Gaussian with mean α1 and variance σ1 when
+xi = 1, and as a Gaussian with mean α0 and variance σ0 when xi = 0. α1 , α0 , σ1 and σ0 are treated
+as free parameters. This can be compactly represented as:
+√
+(yi − (α1 xi + α0 (1 − xi ))2
+p(yi | xi ) = ( 2π(σ1 xi + σ0 (1 − xi ))−1 exp(−
+).
+2(σ1 xi + σ0 (1 − xi ))2
+6
+
+(1)
+
+Under review as a conference paper at ICLR 2015
+
+It is assumed that the yi′ s are conditionally independent given the x′i s. m is a d-dimensional vector
+with ith element (xi α1 + (1 − xi )α0 ). C is a d x d dimensional covariance matrix with iith diagonal
+element (xi σ1 + (1 − xi )σ0 ) and all off diagonal elements 0′ s. In addition,
+p(y|x; θ) =
+
+Y
+i
+
+√
+p(yi |xi ; θ) = (( 2π)d det(C))−1 exp(−(1/2)(y−m)T C−1 (y−m))
+
+(2)
+
+where
+θ = [α0 α1 σ0 σ1 ]T
+which is the Multivariate Gaussian Distribution with mean vector m and covariance matrix C.
+A slightly different, but semantically more meaningful approach is taken for the postulation of p(x).
+Instead of directly postulating p(x), a potential function is first postulated for the field x. The potential function is a natural way to formally capture a researcher’s intuition about the hidden network
+structure. The basic idea is that configurations of x which have higher probability are given lower
+potential. Another key idea is that of a neighborhood graph. The neighborhood of an edge xi is
+represented as Ni (x) and consists of a collection of other edges on which xi is conditionally dependent. For example, one could assume that the neighborhood of an edge consists of all the other
+edges which share nodes with that edge. Once a potential function for the field x has been postulated, the Hammersley-Clifford Theorem (Golden, 1996) can be invoked to write down a legitimate
+probability density over x, i.e., p(x) . A step by step procedure for deriving p(x)is now presented.
+• First a potential function for a single edge, V (xi |Ni (x)), is postulated. The quantity “V”
+may be interpreted as the amount of “support” or “evidence” that an edge is present, with
+smaller values of V corresponding to increased support or evidence. The value of V depends upon a set of features or topological properties that is represented in the feature
+function fi . The feature function fi : Rd → Rk+1 is defined such that fi (x) is a collection
+of k + 1 features/factors which are properties of the graph specified by x, and postulated by
+the researcher to influence functional connectivity. For example, as used with good results
+in Vertes et al. (2012), a topological feature which counts the number of nearest neighbors
+(i.e. nodes) in common between the the two nodes that an edge connects, could be one
+of the elements of the feature function. Similarly, k other features can be hypothesized.
+Additionally, regularization can also be introduced. For example, one could penalize the
+likelihood of an edge as a function of wiring cost, Di , where Di : Rd → R is defined such
+that Di (x) is the Euclidean distance between the two nodes that xi connects. Euclidean
+distance as a proxy for wiring cost has previously been shown to yield good results (Vertes
+et al., 2012).
+V (xi |Ni (x); β) = −β T fi + ||β||2 Di
+where
+β = [ β0
+
+β1
+
+β2
+
+. . . βk ]
+
+(3)
+
+T
+
+(The functional form of the potential function can be justified using the “economy” theory
+of brain organization which states that brain organization negotiates a trade-off between
+increasing adaptive value and minimizing wiring costs. See Bullmore & Sporns (2012) for
+extensive neuroscience evidence.)
+
+• The potential function for the entire field can then be written as a summation of the individual potential functions.
+V (x; β) = −β T
+
+X
+i
+
+fi +||β||2
+
+X
+
+Di
+
+(4)
+
+i
+
+The quantity V (x; β) is a monotonically decreasing function of the evidence supporting
+the frequency of occurrence of x.
+
+7
+
+Under review as a conference paper at ICLR 2015
+
+• The joint density function over the field x can then be written as:
+p(x|β) =
+
+X
+X
+1
+1
+Di )
+fi −||β||2
+exp(−V (x)) =
+exp(β T
+Zx
+Zx
+i
+i
+
+(5)
+
+where
+Zx =
+
+X
+
+exp(β T
+
+X
+i
+
+x∈{0,1}d
+
+fi −||β||2
+
+X
+
+Di )
+
+i
+
+Using the definition of conditional probability, the joint density over x and y can now be written as:
+p(x, y|β, θ) = p(y|x; θ)P (x|β)
+4.4
+
+L EARNING
+
+(6)
+
+AND I NFERENCE
+
+The parameter vectors θ and β are simultaneously estimated using the method of maximum likelihood estimation by minimizing the objective function:
+ℓn (θ, β) = −(1/n)
+
+n
+X
+
+log
+
+X
+q
+
+t=1
+
+p(yt |xq ; θ)p(xq |β)
+
+(7)
+
+which maximizes the likelihood of the observed data y1 , . . . , yn . The evaluation of the summation
+in this objective function is computationally intractable. However, contrastive-divergence type of
+methods (Bengio & Delalleau, 2009) in conjunction with the Metropolis-Hastings method (Hastings,
+1970) for sampling from the probability mass function p(x|β), can be used to make the problem
+computationally tractable.
+A Metropolis-Hasting method (Bishop, 2006) can be used to generate latent variable values given
+the observed values, for the purpose of inferring the latent functional network structure from the
+noisy fMRI data. In addition, model selection criteria such as Bayes Information Criterion (BIC)
+(Bishop, 2006) can then be used as the basis for comparing competing hypotheses.
+
+5
+
+D ISCUSSION
+
+This paper starts with two basic premises. 1) Resting state functional connectivity fMRI data is a
+noisy representation of the functional organization of the brain. 2) Researchers have collected a robust set of observations about functional connectivity networks and yet very little is known about the
+type of computational principles which operate in these networks and give rise to the observations.
+Based on these two premises, a Hidden Markov Random Field framework for generative modeling
+of resting state functional connectivity networks has been proposed. This framework serves the joint
+purpose of learning representations of the observable data, while testing computational principles
+which operate in these networks.
+In the proposed framework, two types of functional connectivity variables are conceptualized. One
+set of variables represents the observable functional connectivity blood flow fMRI data, and the
+second set of variables represents the hidden functional connectivity network structure. It is assumed
+that an observed value is conditionally dependent upon the presence or absence of a latent functional
+connectivity link. More specifically, it is assumed that an observable value is a mixture of two
+Gaussian distributions, one signifying the presence of a latent functional link and the other the
+absence. The probability of a latent functional link itself depends upon properties in the hidden
+functional network structure which are hypothesized by a researcher to be predictive of the presence
+or absence of a functional link.
+The theoretical contributions of this paper can be summarized as follows.
+1. A probabilistic framework for resting state functional connectivity fMRI analysis which
+makes an explicit distinction between observable variables (fMRI blood flow variables)
+and latent/hidden variables (neuronal activity variables).
+8
+
+Under review as a conference paper at ICLR 2015
+
+2. Provides a method which can model the conditional dependence structure between functional links, thereby assuming a more biologically plausible architecture than the commonly made conditional independence assumption.
+3. Provides a method to learn a representation of the latent neuronal functional network structure from noisy fMRI data.
+4. Provides a method for testing multiple competing hypotheses of functional connectivity
+principles.
+5. The approach involves the use of “feature mapping functions” which corresponds to different hypotheses regarding what properties of the latent functional connectivity network are
+predictive of the presence or absence of a functional link.
+6. The number of free parameters is relatively small. There are only k + 1 free parameters for
+specifying the latent structure and only 4 parameters specifying the observable structure.
+7. All parameters of the model have semantically interpretable properties.
+8. The probabilistic framework provides guidance regarding what objective function should
+be used to “match” estimated free parameters to the observed data. Specifically, maximum
+likelihood methods are used rather than ad hoc methods of previous approaches.
+9. The probabilistic framework provides a methodology for estimating the likelihood of a
+model given the observed data. This can be used as the basis for a model selection criteria
+for comparing competing hypotheses. For example, deciding which of two probability
+models is most probable given the observed data.
+
+R EFERENCES
+Achard, Sophie, Salvador, Raymond, Whitcher, Brandon, Suckling, John, and Bullmore, Ed. A
+resilient, low-frequency, small-world human brain functional network with highly connected association cortical hubs. The Journal of Neuroscience, 26(1):63–72, 2006.
+Allen, Elena A, Damaraju, Eswar, Plis, Sergey M, Erhardt, Erik B, Eichele, Tom, and Calhoun,
+Vince D. Tracking whole-brain connectivity dynamics in the resting state. Cerebral cortex, pp.
+bhs352, 2012.
+Beckmann, Christian F and Smith, Stephen M. Tensorial extensions of independent component
+analysis for multisubject fmri analysis. Neuroimage, 25(1):294–311, 2005.
+Bengio, Yoshua and Delalleau, Olivier. Justifying and generalizing contrastive divergence. Neural
+Computation, 21(6):1601–1621, 2009.
+Bishop, Christopher M. Pattern Recognition and Machine Learning (Information Science and Statistics). Springer-Verlag New York, Inc., Secaucus, NJ, USA, 2006. ISBN 0387310738.
+Biswal, Bharat, Zerrin Yetkin, F, Haughton, Victor M, and Hyde, James S. Functional connectivity in
+the motor cortex of resting human brain using echo-planar mri. Magnetic resonance in medicine,
+34(4):537–541, 1995.
+Buckner, Randy L, Sepulcre, Jorge, Talukdar, Tanveer, Krienen, Fenna M, Liu, Hesheng, Hedden,
+Trey, Andrews-Hanna, Jessica R, Sperling, Reisa A, and Johnson, Keith A. Cortical hubs revealed
+by intrinsic functional connectivity: mapping, assessment of stability, and relation to alzheimer’s
+disease. The Journal of Neuroscience, 29(6):1860–1873, 2009.
+Bullmore, Ed and Sporns, Olaf. The economy of brain network organization. Nature Reviews
+Neuroscience, 13(5):336–349, 2012.
+Churchland, Patricia Smith and Sejnowski, Terrence J. The computational brain. The MIT press,
+1992.
+Cordes, Dietmar, Haughton, Victor M, Arfanakis, Konstantinos, Wendt, Gary J, Turski, Patrick A,
+Moritz, Chad H, Quigley, Michelle A, and Meyerand, M Elizabeth. Mapping functionally related
+regions of brain with functional connectivity mr imaging. American Journal of Neuroradiology,
+21(9):1636–1644, 2000.
+9
+
+Under review as a conference paper at ICLR 2015
+
+Cordes, Dietmar, Haughton, Victor M, Arfanakis, Konstantinos, Carew, John D, Turski, Patrick A,
+Moritz, Chad H, Quigley, Michelle A, and Meyerand, M Elizabeth. Frequencies contributing to
+functional connectivity in the cerebral cortex in resting-state data. American Journal of Neuroradiology, 22(7):1326–1333, 2001.
+Cowen, Alan S, Chun, Marvin M, and Kuhl, Brice A. Neural portraits of perception: reconstructing
+face images from evoked brain activity. Neuroimage, 94:12–22, 2014.
+De Martino, Federico, Valente, Giancarlo, Staeren, Noël, Ashburner, John, Goebel, Rainer, and
+Formisano, Elia. Combining multivariate voxel selection and support vector machines for mapping and classification of fmri spatial patterns. Neuroimage, 43(1):44–58, 2008.
+Eguiluz, Victor M, Chialvo, Dante R, Cecchi, Guillermo A, Baliki, Marwan, and Apkarian, A Vania.
+Scale-free brain functional networks. Physical review letters, 94(1):018102, 2005.
+Esteban, Oscar, Wollny, Gert, Gorthi, Subrahmanyam, Ledesma-Carbayo, Marı́a-J, Thiran, JeanPhilippe, Santos, Andrés, and Bach-Cuadra, Meritxell. Mbis: Multivariate bayesian image segmentation tool. Computer methods and programs in biomedicine, 115(2):76–94, 2014.
+Ferrarini, Luca, Veer, Ilya M, Baerends, Evelinda, van Tol, Marie-José, Renken, Remco J, van der
+Wee, Nic JA, Veltman, Dirk, Aleman, André, Zitman, Frans G, Penninx, Brenda WJH, et al.
+Hierarchical functional modularity in the resting-state human brain. Human brain mapping, 30
+(7):2220–2231, 2009.
+Fisher, Ronald A. Frequency distribution of the values of the correlation coefficient in samples from
+an indefinitely large population. Biometrika, pp. 507–521, 1915.
+Fisher, Ronald Aylmer et al. On the” probable error” of a coefficient of correlation deduced from a
+small sample. Metron, 1:3–32, 1921.
+Friston, Karl J, Harrison, Lee, and Penny, Will. Dynamic causal modelling. Neuroimage, 19(4):
+1273–1302, 2003.
+Golden, Richard M. Mathematical methods for neural network analysis and design. MIT Press,
+1996.
+Greene, William H. Econometric analysis. Pearson Education India, 2003.
+Hamilton, J Paul, Chen, Gang, Thomason, Moriah E, Schwartz, Mirra E, and Gotlib, Ian H. Investigating neural primacy in major depressive disorder: multivariate granger causality analysis of
+resting-state fmri time-series data. Molecular psychiatry, 16(7):763–772, 2011.
+Hampson, Michelle, Peterson, Bradley S, Skudlarski, Pawel, Gatenby, James C, and Gore, John C.
+Detection of functional connectivity using temporal correlations in mr images. Human brain
+mapping, 15(4):247–262, 2002.
+Hastings, W Keith. Monte carlo sampling methods using markov chains and their applications.
+Biometrika, 57(1):97–109, 1970.
+Honey, CJ, Sporns, O, Cammoun, Leila, Gigandet, Xavier, Thiran, Jean-Philippe, Meuli, Reto, and
+Hagmann, Patric. Predicting human resting-state functional connectivity from structural connectivity. Proceedings of the National Academy of Sciences, 106(6):2035–2040, 2009.
+Honnorat, N, Eavani, H, Satterthwaite, TD, Gur, RE, Gur, RC, and Davatzikos, C. Grasp: Geodesic
+graph-based segmentation with shape priors for the functional parcellation of the cortex. NeuroImage, 106:207–221, 2015.
+Johansen-Berg, Heidi and Rushworth, Matthew FS. Using diffusion imaging to study human connectional anatomy. Annual review of neuroscience, 32:75–94, 2009.
+Kim, Jieun, Zhu, Wei, Chang, Linda, Bentler, Peter M, and Ernst, Thomas. Unified structural
+equation modeling approach for the analysis of multisubject, multivariate functional mri data.
+Human Brain Mapping, 28(2):85–93, 2007.
+10
+
+Under review as a conference paper at ICLR 2015
+
+LaConte, Stephen, Strother, Stephen, Cherkassky, Vladimir, Anderson, Jon, and Hu, Xiaoping. Support vector machines for temporal classification of block design fmri data. NeuroImage, 26(2):
+317–329, 2005.
+Logothetis, Nikos K. What we can do and what we cannot do with fmri. Nature, 453(7197):869–
+878, 2008.
+Markov, NT, Ercsey-Ravasz, MM, Gomes, AR Ribeiro, Lamy, C, Magrou, L, Vezoli, J, Misery, P,
+Falchier, A, Quilodran, R, Gariel, MA, et al. A weighted and directed interareal connectivity
+matrix for macaque cerebral cortex. Cerebral Cortex, pp. bhs270, 2012.
+Newman, Mark. Networks: an introduction. Oxford University Press, 2010.
+Nishimoto, Shinji, Vu, An T, Naselaris, Thomas, Benjamini, Yuval, Yu, Bin, and Gallant, Jack L.
+Reconstructing visual experiences from brain activity evoked by natural movies. Current Biology,
+21(19):1641–1646, 2011.
+Park, Hae-Jeong and Friston, Karl. Structural and functional brain networks: from connections to
+cognition. Science, 342(6158):1238411, 2013.
+Roebroeck, Alard, Formisano, Elia, and Goebel, Rainer. Mapping directed influence over the brain
+using granger causality and fmri. Neuroimage, 25(1):230–242, 2005.
+Ryali, Srikanth, Chen, Tianwen, Supekar, Kaustubh, and Menon, Vinod. A parcellation scheme
+based on von mises-fisher distributions and markov random fields for segmenting brain regions
+using resting-state fmri. Neuroimage, 65:83–96, 2013.
+Salvador, Raymond, Suckling, John, Coleman, Martin R, Pickard, John D, Menon, David, and Bullmore, ED. Neurophysiological architecture of functional magnetic resonance images of human
+brain. Cerebral cortex, 15(9):1332–1342, 2005.
+Schlösser, Ralf, Gesierich, Thomas, Kaufmann, Bettina, Vucurevic, Goran, Hunsche, Stefan,
+Gawehn, Joachim, and Stoeter, Peter. Altered effective connectivity during working memory
+performance in schizophrenia: a study with fmri and structural equation modeling. Neuroimage,
+19(3):751–763, 2003.
+Seeley, William W, Menon, Vinod, Schatzberg, Alan F, Keller, Jennifer, Glover, Gary H, Kenna,
+Heather, Reiss, Allan L, and Greicius, Michael D. Dissociable intrinsic connectivity networks for
+salience processing and executive control. The Journal of neuroscience, 27(9):2349–2356, 2007.
+Smith, Stephen M, Miller, Karla L, Salimi-Khorshidi, Gholamreza, Webster, Matthew, Beckmann,
+Christian F, Nichols, Thomas E, Ramsey, Joseph D, and Woolrich, Mark W. Network modelling
+methods for fmri. Neuroimage, 54(2):875–891, 2011.
+Stone, JV, Porrill, J, Porter, NR, and Wilkinson, ID. Spatiotemporal independent component analysis
+of event-related fmri data using skewed probability density functions. NeuroImage, 15(2):407–
+421, 2002.
+Tomasi, Dardo and Volkow, Nora D. Functional connectivity hubs in the human brain. Neuroimage,
+57(3):908–917, 2011.
+Vértes, Petra E, Alexander-Bloch, Aaron F, Gogtay, Nitin, Giedd, Jay N, Rapoport, Judith L, and
+Bullmore, Edward T. Simple models of human brain functional networks. Proceedings of the
+National Academy of Sciences, 109(15):5868–5873, 2012.
+Vincent, JL, Patel, GH, Fox, MD, Snyder, AZ, Baker, JT, Van Essen, DC, Zempel, JM, Snyder,
+LH, Corbetta, M, and Raichle, ME. Intrinsic functional architecture in the anaesthetized monkey
+brain. Nature, 447(7140):83–86, 2007.
+Vincent, Justin L, Snyder, Abraham Z, Fox, Michael D, Shannon, Benjamin J, Andrews, Jessica R, Raichle, Marcus E, and Buckner, Randy L. Coherent spontaneous activity identifies a
+hippocampal-parietal memory network. Journal of neurophysiology, 96(6):3517–3531, 2006.
+11
+
+Under review as a conference paper at ICLR 2015
+
+Vincent, Justin L, Kahn, Itamar, Snyder, Abraham Z, Raichle, Marcus E, and Buckner, Randy L.
+Evidence for a frontoparietal control system revealed by intrinsic functional connectivity. Journal
+of neurophysiology, 100(6):3328–3342, 2008.
+Zhang, Yongyue, Brady, Michael, and Smith, Stephen. Segmentation of brain mr images through a
+hidden markov random field model and the expectation-maximization algorithm. Medical Imaging, IEEE Transactions on, 20(1):45–57, 2001.
+
+12
+
+

@@ -1,0 +1,2604 @@
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM
+AGREEMENT FORESTS
+
+arXiv:1108.2664v2 [q-bio.PE] 2 May 2013
+
+CHRIS WHIDDEN† ¶, ROBERT G. BEIKO‡ ¶, AND NORBERT ZEH§ ¶
+Abstract. We present new and improved fixed-parameter algorithms for computing maximum
+agreement forests (MAFs) of pairs of rooted binary phylogenetic trees. The size of such a forest
+for two trees corresponds to their subtree prune-and-regraft distance and, if the agreement forest is
+acyclic, to their hybridization number. These distance measures are essential tools for understanding
+reticulate evolution. Our algorithm for computing maximum acyclic agreement forests is the first
+depth-bounded search algorithm for this problem. Our algorithms substantially outperform the best
+previous algorithms for these problems.
+Key words. fixed-parameter tractability, phylogenetics, subtree prune-and-regraft distance,
+lateral gene transfer, hybridization, agreement forest.
+AMS subject classifications. 68W05, 05C05, 05C76
+
+1. Introduction. Phylogenetic trees are a standard model to represent the
+evolutionary relationships among a set of species and are an indispensable tool in
+evolutionary biology [19]. Early methods of building phylogenetic trees used morphology, or structural characteristics of species, to determine their relatedness. However,
+advances in molecular biology have allowed the widespread use of DNA and protein
+sequence data to build phylogenies. Molecular phylogenetics is particularly useful in
+the study of microscopic organisms, due to their high rate of evolution and subtle
+differences in appearance. However, even good phylogenetic inference methods cannot
+guarantee that a constructed tree correctly represents evolutionary relationships—and
+there may not even exist such a tree—because not all groups of species follow a simple
+tree-like evolutionary pattern. Collectively known as reticulation events, nontree-like
+evolutionary processes, such as hybridization, lateral gene transfer (LGT), and recombination, result in species being composites of genes derived from different ancestors.
+These processes allow species to rapidly acquire useful traits and adapt to new environments. This includes harmful traits of pathogenic bacteria, such as antibiotic
+resistance, and LGT appears to have contributed to the emergence of pathogens such
+as Mycobacterium tuberculosis [28].
+Due to reticulation events, phylogenetic trees representing the evolutionary history
+of different genes found in the same set of species may differ. To reconcile these differing
+evolutionary histories, one can use phylogenetic distance measures that determine how
+well the evolutionary hypotheses of two or more phylogenetic trees agree and often
+allow us to discover reticulation events that explain the differences. To simultaneously
+represent these discordant topologies, one can use a hybridization network, which is
+a generalization of a phylogenetic tree that allows species to inherit genetic material
+from more than one parent.
+A number of distance measures are commonly used for comparing phylogenies.
+The Robinson-Foulds distance [26] is popular, as it can be calculated in linear time [13].
+Other measures, such as the subtree prune-and-regraft (SPR) distance [19] and the
+† Supported
+
+by doctoral scholarships from NSERC and the Killam Trust.
+Research Chair; supported in part by NSERC and Genome Atlantic.
+§ Canada Research Chair; supported in part by NSERC.
+¶ Address: Faculty of Computer Science, Dalhousie University, Halifax, Nova Scotia, Canada.
+Email: {whidden, beiko, nzeh}@cs.dal.ca.
+‡ Canada
+
+1
+
+2
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+hybridization number [2], are more biologically meaningful but are NP-hard to compute [1, 8, 10, 18]. The SPR distance is equivalent to the minimum number of lateral
+gene transfers required to transform one tree into the other [2, 3] and thus provides a
+lower bound on the number of reticulation events needed to reconcile the two phylogenies. The hybridization number of two phylogenies is the number of hybridization
+events necessary to explain their differences. These distance measures have been
+regularly used to model reticulate evolution [23, 25], as the minimum number of reticulation events required to reconcile two trees provides the simplest explanation for
+the differences between the trees. The close relationship between SPR operations and
+reticulation events has also led to advances in network models of evolution [2, 10, 25].
+Numerous researchers have focused and continue to focus on the development of
+efficient algorithms to compute the distance between two trees using these measures
+(see §1.1). In this paper, we present the currently fastest fixed-parameter algorithms
+for computing the SPR distance and hybridization number of two rooted binary
+phylogenies. Our algorithms substantially outperform the best previous algorithms.
+Similarly to previous algorithms for these problems, we model these distance measures
+using maximum agreement forests (MAFs) and maximum acyclic agreement forests
+(MAAFs), respectively. These are forests that can be obtained from either tree by
+cutting an appropriate set of edges. The edges that are not cut capture evolutionary
+relationships that agree between both trees. An agreement forest is maximal if it
+maximizes the number of these agreeing relationships, that is, if it minimizes the
+number of edges that need to be cut in either tree to obtain it. Given an agreement
+forest obtained by removing k edges from each tree, a set of k SPR operations that
+transform one tree into the other can be recovered easily. Similarly, if the agreement
+forest is acyclic (a restriction that disallows the donation of genetic information from
+descendant nodes to ancestor nodes), a hybrid network with k hybridization events can
+be constructed quickly [10]. The core of the problem of computing the SPR distance or
+hybridization number of two trees is thus to compute a maximum (acyclic) agreement
+forest.
+1.1. Related Work. While the SPR distance and hybridization number capture
+biologically meaningful notions of similarity between phylogenies, their practical use
+has been limited by the fact that they are NP-hard to compute [1, 8, 10, 18]. This has
+led to numerous efforts to develop approximation and fixed-paramater algorithms, as
+well as heuristics, for computing these distances.
+Hein et al. [16] introduced the notion of a maximum agreement forest and used
+it as the main tool underlying a proposed NP-hardness proof and 3-approximation
+algorithm for computing the SPR distance between unrooted phylogenies. The central
+claim was that the number of components in an MAF of two phylogenies is one
+more than the minimum number of SPR operations needed to transform one into
+the other. Unfortunately, there were subtle mistakes in the proofs, and Allen and
+Steel [1] proved that the number of components in an MAF is in fact one more
+than the closely related tree bisection and reconnection (TBR) distance between
+the two trees. Rodrigues et al. [27] provided instances where the algorithm of [16]
+provides an approximation guarantee no better than 4 for the size of an MAF, thereby
+disproving the 3-approximation claim of [16]. They also proposed a modification to
+the algorithm, which they claimed to produce a 3-approximation for the TBR distance.
+A counterexample to this claim was provided by Bonet et al. [6], who showed, however,
+that both the algorithms of [16] and [27] compute 5-approximations of the SPR distance
+between two rooted phylogenies, and that the algorithms can be implemented in linear
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+3
+
+time. The approximation ratio was improvedto 3 by Bordewich et al. [7], but at the
+expense of an increased running time of O n5 .1 A second
+3-approximation algorithm
+
+presented in [27] achieves a running time of O n2 . Using entirely different ideas,
+Chataigner [11] obtained an 8-approximation algorithm for TBR distances of two or
+more trees. There is currently no constant-factor approximation algorithm for the
+hybridization number of two rooted phylogenies. Kelk et al. [20] recently provided
+an explanation for the difficulty of obtaining such an algorithm by proving that the
+hybridization number of two phylogenetic trees and the size of a minimum feedback
+vertex set of a directed graph are equally hard to approximate.
+Given that the identification of meaningful putative reticulation events from two
+phylogenetic trees is possible only if the trees carry a strong vertical signal, that
+is, if the number of reticulation events is small compared to the size of the trees, a
+promising approach to compute SPR distances and hybridization numbers exactly
+is to use fixed-parameter algorithms that use the distance k between the two trees
+as parameter. The previously best such algorithm for rooted SPR distance is due
+to Bordewich et al. [7] and runs in O 4k · k 4 + n3 time. For TBR distance, the
+best previous result is due to Hallett
+ and McCartin [14], who provided an algorithm
+with running time O 4k · k 5 + p(n) , where p(·) is a polynomial function. An earlier
+
+algorithm for this problem by Allen and Steel [1] had running time O k 3k + p(n) . For
+unrooted SPR, Hickey et al. [17] first claimed a fixed-parameter algorithm, but the
+correctness proof was flawed. Recently, Bonet and St. John [5] presented a corrected
+proof that unrooted SPR is fixed-parameter tractable. In [9], Bordewich and Semple
+provided a fixed-parameter algorithm for the
+ hybridization number of two rooted
+phylogenies with running time O (28k)k + n3 . Linz and Semple [21] extended these
+results to nonbinary rooted phylogenies. Kelk et al. [20] provided an improved analysis
+of the kernel size for hybridization number, which reduces
+the running time of the
+
+algorithm by Bordewich and Semple to O (18k)k + n3 . Chen and Wang [12] recently
+proposed an algorithm for computing all MAAFs of two or more binary phylogenies.
+Their algorithm combines the O 3k n search for agreement forests from [33] with an
+exhaustive search based on an observation in the same paper that a superforest of an
+MAAF can be refined to an MAAF by cutting appropriate edges incident to the roots
+in the current forest.
+Numerous heuristic approaches for computing SPR distances have also been
+proposed. LatTrans by Hallet and Lagergen [15] models lateral gene transfer events by
+a restricted version of rooted SPR operations, considering two ways in which the trees
+can differ. It computes the exact distance under this restricted metric in O 2k n2 time.
+HorizStory by Macleod et al. [22] supports multifurcating trees but does not consider
+SPR operations where the pruned subtree contains more than one leaf. EEEP by
+Beiko and Hamilton [3] performs a breadth-first SPR search on a rooted start tree but
+performs unrooted comparisons between the explored trees and an unrooted reference
+tree. The distance returned is not guaranteed to be exact, due to optimizations and
+heuristics that limit the scope of the search, although EEEP provides options to
+compute the exact unrooted SPR distance with no nontrivial bound on the running
+time. More recently, RiataHGT by Nakhleh et al. [24] computes an approximation of
+the SPR distance between rooted multifurcating trees in polynomial time.
+Two algorithms for computing rooted SPR distances, SPRdist [34] and TreeSAT [4],
+express the problem of computing maximum agreement forests as an integer linear
+1 Using
+
+
+nontrivial but standard data structures, the running time can be reduced to O n4 .
+
+4
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+Table 1.1
+Previous and new results on FPT algorithms for rooted SPR distance and hybridization number
+Previous
+Rooted SPR distance
+Hybridization number
+
+4k k4
+
+New
+n3
+
+
+
+O
++
+time [7]
+O (18k)k + n3 time [9, 20]
+
+
+
+O 2.42k k + n3  or O 2.42k n time
+k
+3
+k
+O 3.18 k + n or O 3.18 n time
+
+program (ILP) and a satisfiability problem (SAT), respectively, and employ efficient
+ILP and SAT solvers to obtain a solution. SPRdist has been shown to outperform
+EEEP and Lattrans [34]. Although such algorithms draw on the close scrutiny that
+has been applied to these problems, experiments show that these algorithms cannot
+compete with the rooted SPR algorithm presented in this paper [31].
+1.2. Contribution. Our contribution is to develop substantially more efficient
+algorithms for computing the SPR distance and the hybridization number of two rooted
+binary phylogenetic trees. Using a “shifting lemma” central to Bordewich et al.’s
+3-approximation algorithm [7], one can obtain a depth-bounded
+search algorithm for
+
+computing the SPR distance with running time O 3k n [33]. We analyze the structure
+of rooted agreement forests further and identify three distinct
+subcases that allow us
+
+to improve the algorithm’s running time to O 2.42k n . By combinining this result
+with kernelization rules by Bordewich
+and Semple [8], we obtain an algorithm with
+
+running time O 2.42k k + n3 . Table 1.1 shows our new results in comparison to the
+best previous results. We note here that the approach discussed in this paper also
+leads to linear-time 3-approximation algorithms
+for rooted SPR distance and unrooted
+
+TBR distance, as well as to an O 4k k + n3 -time algorithm for unrooted TBR distance.
+Details can be found in [30, 32, 33].
+In [31, 33] we also claimed results on computing MAAFs, but we used an incorrect
+definition of an acyclic agreement forest that considers only cycles of length 2. The
+algorithm consisted of two phases. First we produce an agreement forest that is
+guaranteed to be a supergraph of an MAAF. Then we cut additional edges to eliminate
+cycles. The first phase is not affected by our incorrect definition of cycles. To implement
+the second phase correctly, we present a novel method in this paper whose performance
+is close to the one claimed in [31]. Obtaining this solution requires substantial new
+insights into the structure of acyclic agreement forests beyond the results already
+published in [31, 33] and previous work. Our algorithm is the first depth-bounded
+search algorithm for computing hybridization numbers and substantially outperforms
+existing methods.
+The rest of this paper is organized as follows. In §2, we introduce the necessary
+terminology and notation. in §3, we present our algorithm for computing rooted
+MAFs. In §4, we present our MAAF algorithm. This section consists of 5 parts,
+each of which presents one key tool. We first develop a refined cycle graph, analyze
+cycles in agreement forests, and identify subsets of edges that can be removed from a
+cyclic agreement forest to give an MAAF. These methods together provide a simple
+
+cycle breaking step that leads to an MAAF algorithm with running time O 9.68k n .
+We then analyze the tree space explored by our depth-bounded search algorithm
+to halve the exponential base in the running time of the cycle breaking
+algorithm
+
+and thus obtain an MAAF algorithm with running time O 4.84k n . We conclude
+this section with an improved analysis, which shows
+that only slight modifications
+
+to the cycle breaking procedure in the O 4.84k n -time algorithm lead to a greatly
+improved running time of O 3.18k n . The O 3.18k k + n3 -time algorithm in Table 1.1
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+5
+
+ρ
+
+1 2 3 4 5 6
+(a)
+
+1 2
+
+4
+
+1 2
+(c)
+
+(b)
+
+ρ
+
+ρ
+px
+
+x
+1 2 3 4 5 6
+
+4
+
+ρ
+px
+
+p0x
+
+x
+
+1 2 3 4 5 6
+
+p0x
+x
+1 4 5 2 3 6
+
+(d)
+Fig. 2.1. (a) An X-tree T . (b) The subtree T (V ) for V = {1, 2, 4}. (c) T |V . (d) An SPR
+operation.
+
+is obtained once again by combining our algorithm with known kernelization rules [9].
+In §5, we present concluding remarks and suggest future work.
+2. Preliminaries. Throughout this paper, we mostly use the definitions and
+notation from [1, 6–8, 27]. A (rooted binary phylogenetic) X-tree is a rooted tree T
+whose nodes each have zero or two children. The leaves are bijectively labelled with
+the members of a label set X. As in [6–8, 27], we augment the tree with a labelled
+root node whose label is distinct from the labels of all leaves and whose only child is
+the original root of T ; see Figure 2.1(a). In the remainder of this paper, we consider ρ
+to be part of X. For a subset V of X, T (V ) is the smallest subtree of T that connects
+all nodes in V ; see Figures 2.1(b); The V-tree induced by T is the smallest tree T |V
+that can be obtained from T (V ) by suppressing unlabelled nodes with fewer than
+two children; see Figure 2.1(c). Suppressing a node v deletes v and its incident edges;
+if v is of degree 2 with parent u and child w, u and w are reconnected using a new
+edge (u, w).
+A subtree prune-and-regraft (SPR) operation on an X-tree T cuts an edge ex :=
+(x, px ), where px denotes the parent of x. This divides T into subtrees Tx and Tpx
+containing x and px , respectively. Then it introduces a new node p0x into Tpx by
+subdividing an edge of Tpx and adds an edge (x, p0x ), thereby making x a child of p0x .
+Finally, px is suppressed. See Figure 2.1(d).
+SPR operations give rise to a distance measure dSPR (·, ·) between X-trees, defined
+as the minimum number of SPR operations required to transform one tree into the
+other. The trees in Figure 2.2(a), for example, have SPR distance dSPR (T1 , T2 ) = 3.
+A related distance measure for X-trees is their hybridization number, hyb(T1 , T2 ),
+which is defined in terms of hybrid networks of the two trees. A hybrid network of
+two X-trees T1 and T2 is a directed acyclic graph H with a single source ρ, whose
+sinks are labelled bijectively with the labels in X \ {ρ}, and such that both T1 and T2 ,
+with their edges directed away from the root, can be obtained from H by deleting
+
+6
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+ρ
+
+ρ
+
+ρ
+
+ρ
+
+1 2 3 4 5 6
+
+1 2 3 4 5 6
+
+1 2 3 4 5 6
+
+1 2 3 4 5 6
+
+T1
+
+T2
+(a)
+ρ
+
+ρ
+
+ρ
+
+1 2 3 4 5 6
+(b)
+
+1 2 3 4 5 6
+(c)
+
+1 2 3 4 5 6
+(d)
+
+{ρ}
+{ρ, 1, 2}
+
+{1, 2}
+
+{3, 4}
+
+(e)
+
+{5, 6}
+
+{3} {4} {5} {6}
+(f)
+
+Fig. 2.2. (a) SPR operations transforming T1 into T2 . Each operation changes the top endpoint
+of one of the dotted edges. (b) The corresponding agreement forest, which can be obtained by
+cutting the dotted edges in both trees. This is an MAF with 4 components, so m(T1 , T2 ) = 4 and
+e(T1 , T2 , T2 ) = dSPR (T1 , T2 ) = 3. Note that this is not an MAAF, as its cycle graph, shown in (e),
+contains a cycle. (c) A hybrid network of T1 and T2 . This network has 4 nodes with an extra parent,
+so the hybridization number is 4. (d) An MAAF of T1 and T2 . ẽ(T1 , T2 , T2 ) = hyb(T1 , T2 ) = 4.
+Note that this is not an MAF of T1 and T2 , as it has one more component than the MAF in (b).
+(e) The cycle graph of the agreement forest in (b), which contains a cycle. (f ) The cycle graph of the
+agreement forest in (d), which does not contains a cycle.
+
+edges and suppressing nodes. For a vertex x ∈ H,Plet degin (x) be its in-degree. Then
+the hybridization number of T1 and T2 is minH x∈H,x6=ρ (degin (x) − 1), where the
+minimum is taken over all hybrid networks H of T1 and T2 . This is illustrated in
+Figure 2.2(c).
+These distance measures are related to the sizes of appropriately defined agreement
+forests. To define these, we first introduce some terminology. For a forest F whose
+components are rooted phylogenetic trees T1 , T2 , . . . , Tk with label sets X1 , X2 , . . . , Xk ,
+we say F yields the forest with components T1 |X1 , T2 |X2 , . . . , Tk |Xk ; if Xi = ∅, then
+Ti (Xi ) = ∅ and, hence, Ti |Xi = ∅. In other words, the forest yielded by F is the
+smallest forest that can be obtained from F by suppressing unlabelled nodes with less
+than two children. For a subset E of edges of F , we use F − E to denote the forest
+obtained by deleting the edges in E from F , and F ÷ E to denote the forest yielded
+by F − E. We say F ÷ E is a forest of F .
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+a
+
+c
+3 4
+
+1 2
+
+c
+4
+
+a
+
+5
+
+5
+
+6 7
+
+3
+
+6 7
+F1
+
+7
+
+1 2
+
+F2
+
+Fig. 2.3. A sibling pair (a, c) of two forests F1 and F2 : a and c have a common parent in F1 ,
+and both a and c exist also in F2 .
+
+Given X-trees T1 and T2 and forests F1 of T1 and F2 of T2 , a forest F is an
+agreement forest (AF) of F1 and F2 if it is a forest of both F1 and F2 . F is a maximum
+agreement forest (MAF) of F1 and F2 if there is no AF of F1 and F2 with fewer
+components. We denote the number of components in an MAF of F1 and F2 by
+m(F1 , F2 ). For a forest F of F1 or F2 , we use e(F1 , F2 , F ) to denote the size of the
+smallest edge set E such that F ÷ E is an AF of F1 and F2 . Bordewich and Semple [8]
+showed that, for two X-trees T1 and T2 , dSPR (T1 , T2 ) = e(T1 , T2 , T2 ) = m(T1 , T2 ) − 1.
+An MAF of the trees in Figure 2.2(a) is shown in Figure 2.2(b).
+The hybridization number of two X-trees T1 and T2 corresponds to an MAF of T1
+and T2 with an additional constraint. For two forests F1 and F2 of T1 and T2 and an
+AF F = {Cρ , C1 , C2 , . . . , Ck } of F1 and F2 , we define a cycle graph GF of F . Each
+node of GF represents a component of F , and there is an edge from node Ci to node Cj
+if Ci is an ancestor of Cj in one of the trees. Formally, we map every node x ∈ F to two
+nodes φ1 (x) ∈ T1 and φ2 (x) ∈ T2 by defining φi (x) to be the lowest common ancestor
+in Ti of all labelled leaves that are descendants of x in F . We refer to φ1 (x) and φ2 (x)
+simply as x in this paper, except when this creates confusion. For two components Ci
+and Cj of F with roots ri and rj , GF contains the edge (Ci , Cj ) if and only if either
+φ1 (ri ) is an ancestor of φ1 (rj ) or φ2 (ri ) is an ancestor of φ2 (rj ). We say F is cyclic if
+GF contains a directed cycle. Otherwise F is an acyclic agreement forest (AAF) of F1
+and F2 . A maximum acyclic agreement forest (MAAF) of F1 and F2 is an AAF with
+the minimum number of components. We denote its size by m̃(F1 , F2 ) and the number
+of edges in a forest F of F1 or F2 that must be cut to obtain an AAF of F1 and F2 by
+ẽ(F1 , F2 , F ). Baroni et al. [2] showed that hyb(T1 , T2 ) = ẽ(T1 , T2 , T2 ) = m̃(T1 , T2 ) − 1.
+An MAAF of the trees in Figure 2.2(a) is shown in Figure 2.2(d). The cycle graphs
+for the MAF and MAAF of these trees shown in Figures 2.2(b) and 2.2(d) are shown
+in Figures 2.2(e) and 2.2(f), respectively.
+For two nodes a and b of a forest F , we write a ∼F b if there exists a path between
+a and b in F . An internal node of a path P in F is a node of P that is not an endpoint
+of P ; a pendant node of P is a node not in P and whose parent is an internal node
+of P . For a node x of a rooted forest F , F x denotes the subtree of F induced by all
+descendants of x, including x. For two rooted forests F1 and F2 and a node a ∈ F1 , we
+0
+say that a exists in F2 if there is a node a0 ∈ F2 such that F1a = F2a . For simplicity,
+we refer to both a and a0 as a. For forests F1 and F2 and nodes a, c ∈ F1 with a
+common parent, we say (a, c) is a sibling pair of F1 if a and c exist in F2 . Figure 2.3
+shows such a sibling pair.
+
+8
+x
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+f
+
+vf
+
+ve
+
+e
+
+y
+
+x
+
+f
+
+vf
+
+ve
+
+y
+
+e
+
+(a)
+
+(b)
+
+Fig. 2.4. Illustration of the Shifting Lemma. (a) The lemma applies because e and f are on the
+boundary of an “empty” component of F − (E ∪ {e}), shown in grey. (b) The lemma does not apply
+because the component with e and f on its boundary contains a labelled leaf y: vf ∼F −(E∪{e}) y.
+
+The correctness proofs of our algorithms in the next sections make use of the
+following two lemmas. Lemma 2.1 was shown by Bordewich et al. [7] and is illustrated
+in Figure 2.4. Suppose we cut a set of edges E from a forest F to obtain F ÷ E, and
+there is an edge e of F such that F − (E ∪ {e}) has a component without labelled
+nodes. This lemma shows that the forest F ÷ (E \ {f } ∪ {e}) obtained by replacing any
+edge f ∈ E on the boundary of this “empty” component with e is the same as F ÷ E.
+Lemma 2.1 (Shifting Lemma). Let F be a forest of an X-tree, e and f edges of F ,
+and E a subset of edges of F such that f ∈ E and e ∈
+/ E. Let vf be the end vertex of
+f closest to e, and ve an end vertex of e. If vf ∼F −E ve and x F −(E∪{e}) vf , for all
+x ∈ X, then F ÷ E = F ÷ (E \ {f } ∪ {e}).
+Let F1 and F2 be forests of X-trees T1 and T2 , respectively. Any agreement forest
+of F1 and F2 is an agreement forest of T1 and T2 . Conversely, an agreement forest of
+T1 and T2 is an agreement forest of F1 and F2 if it is a forest of F2 and there are no
+two leaves a and b such that a ∼F2 b but a F1 b. This is formalized in the following
+lemma. Our algorithms ensure that any intermediate forests F1 and F2 they produce
+have this latter property. Thus, we can reason about agreement forests of F1 and F2
+and of T1 and T2 interchangeably.
+Lemma 2.2. Let F1 and F2 be forests of X-trees T1 and T2 , respectively. Let F1
+be the union of trees Ṫ1 , Ṫ2 , . . . , Ṫk and F2 be the union of forests Ḟ1 , Ḟ2 , . . . , Ḟk such
+that Ṫi and Ḟi have the same label set, for all 1 ≤ i ≤ k. A forest of F2 is an AF of
+T1 and T2 if and only if it is an AF of F1 and F2 .
+A triple ab|c of a rooted forest F is defined by a set {a, b, c} of three leaves in the
+same component of F and such that the path from a to b in F is disjoint from the
+path from c to the root of the component. A triple of a forest F1 is compatible with a
+forest F2 if it is also a triple of F2 ; otherwise it is incompatible with F2 . An agreement
+forest of two forests F1 and F2 cannot contain a triple incompatible with either of the
+two forests. Thus, we have the following observation.
+Observation 1. Let F1 and F2 be forests of rooted X-trees T1 and T2 , and let
+F be an agreement forest of F1 and F2 . If ab|c is a triple of F1 incompatible with F2 ,
+then a F b or a F c.
+For two forests F1 and F2 with the same label set, two components C1 and C2 of
+F1 are said to overlap in F2 if there exist leaves a, b ∈ C1 and c, d ∈ C2 such that the
+paths from a to b and from c to d in F2 exist and are nondisjoint. Since we consider
+only binary trees in this paper, this means the two paths share an edge. The following
+lemma is an easy extension of a lemma of [7], which states the same result for a tree
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+9
+
+T2 instead of a forest F2 .
+Lemma 2.3. Let F1 and F2 be forests of two X-trees T1 and T2 , and denote
+the label sets of the components of F1 by X1 , X2 , . . . , Xk and the label sets of the
+components of F2 by Y1 , Y2 , . . . , Yl . F2 is a forest of F1 if and only if (1) for every Yj ,
+there exists an Xi such that Yj ⊆ Xi , (2) no two components of F2 overlap in F1 , and
+(3) no triple of F2 is incompatible with F1 .
+3. Computing the SPR Distance. In this section, we present our algorithm
+for computing the SPR distance of two X-trees. It will be obvious from the description
+of the algorithm that it also produces a corresponding MAF. We do not discuss this
+further in the remainder of this section and focus only on computing dSPR (T1 , T2 ).
+As is customary for FPT algorithms, we focus on the decision version of the
+problem: “Given two X-trees T1 and T2 and a parameter k, is dSPR (T1 , T2 ) ≤ k?” To
+compute the distance between two trees, we start with k = 0 and increase it until we
+receive an affirmative answer. This does not increase the running time of the algorithm
+by more than a constant factor, as the running time depends exponentially on k. The
+following theorem states the main result of this section.
+3.1. For two rooted X-trees T1 and T2 and a parameter k, it takes
+ Theorem
+√ k 
+
+O 1 + 2 n = O 2.42k n time to decide whether e(T1 , T2 , T2 ) ≤ k.
+Using reduction rules by Bordewich et al. [8], we can improve the running time in
+Theorem 3.1 for values of k such that k ≥
+ 2 log2.42 n and k = o(n). Given two trees T1
+and T2 , these reduction rules take O n3 time to produce two trees T10 and T20 of size
+at most c · e(T1 , T2 , T2 ) each, for some constant c > 0 (determined by Bordewich et al.),
+and such that e(T10 , T20 , T20 ) = e(T1 , T2 , T2 ). If one of the trees has size greater than ck,
+then e(T1 , T2 , T2 ) > k, and we can answer “no” without any further processing. If
+both trees have size at most ck, we can apply Theorem 3.1 to T10 and T20 to decide in
+O 2.42k k time whether e(T10 , T20 , T20 ) ≤ k. Thus, we obtain the following corollary.
+Corollary
+ 3.2. For two rooted X-trees T1 and T2 and a parameter k, it takes
+O 2.42k k + n3 time to decide whether e(T1 , T2 , T2 ) ≤ k.
+In the remainder of this section, we prove Theorem 3.1. Our algorithm is recursive.
+Each invocation takes two forests F1 and F2 of T1 and T2 and a parameter k as
+inputs, and decides whether e(T1 , T2 , F2 ) ≤ k. We denote such an invocation by
+Maf(F1 , F2 , k). The forest F1 is the union of a tree Ṫ1 and a forest F disjoint from Ṫ1 ,
+while F2 is the union of the same forest F and another forest Ḟ2 with the same label
+set as Ṫ1 . We maintain two sets of labelled nodes: Rd (roots-done) contains the roots
+of F , and Rt (roots-todo) contains roots of (not necessarily maximal) subtrees that
+agree between Ṫ1 and Ḟ2 . We refer to the nodes in these sets by their labels. For the
+top-level invocation, F1 = Ṫ1 = T1 , F2 = Ḟ2 = T2 , and F = ∅; Rd is empty, and Rt
+contains all leaves of T1 .
+Maf(F1 , F2 , k) identifies a small collection {E1 , E2 , . . . , Eq } of subsets of edges of
+Ḟ2 such that e(T1 , T2 , F2 ) ≤ k if and only if e(T1 , T2 , F2 ÷ Ei ) ≤ k − |Ei |, for at least
+one 1 ≤ i ≤ q. It makes a recursive call Maf(F1 , F2 ÷ Ei , k − |Ei |), for each subset Ei ,
+and returns “yes” if and only if one of these calls does. The steps of this procedure
+are as follows.
+1. (Failure) If k < 0, there is no subset E of at most k edges of F2 such that F2 − E
+yields an AF of T1 and T2 : e(T1 , T2 , F2 ) ≥ 0 > k. Return “no” in this case.
+2. (Success) If |Rt | ≤ 2, then Ḟ2 ⊆ Ṫ1 . Hence, F2 = Ḟ2 ∪ F is an AF of F1 and F2
+and, by Lemma 2.2, also of T1 and T2 . Thus, e(T1 , T2 , F2 ) = 0 ≤ k. Return “yes”
+in this case.
+
+10
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+a
+
+a
+
+c
+
+c
+
+a
+
+a
+
+c
+
+Step 6.1
+Separate Components
+
+a
+
+a b1
+
+c
+
+b2
+
+b3
+
+c
+
+b3
+
+c
+
+b
+
+c
+b
+
+Step 6.2
+One Pendant Node
+
+a b1
+
+b2
+
+b3
+
+c
+
+a b1
+
+b2
+
+a b1
+
+b2
+
+b3
+
+c
+
+Step 6.3
+Multiple Pendant Nodes
+
+Fig. 3.1. The cases in Step 6 of the MAF algorithm. Only Ḟ2 is shown. Each box represents a
+recursive call.
+
+3. (Prune maximal agreeing subtrees) If there is a node r ∈ Rt that is a root in Ḟ2 ,
+remove r from Rt and add it to Rd , thereby moving the corresponding subtree of
+Ḟ2 to F ; cut the edge er in Ṫ1 and suppress r’s parent in Ṫ1 ; return to Step 2. This
+does not alter F2 and, thus, neither e(T1 , T2 , F2 ). If no such root r exists, proceed
+to Step 4.
+4. Choose a sibling pair (a, c) in Ṫ1 such that a, c ∈ Rt .
+5. (Grow agreeing subtrees) If (a, c) is a sibling pair of Ḟ2 , remove a and c from Rt ;
+label their parent in both forests with (a, c) and add it to Rt ; return to Step 2. If
+(a, c) is not a sibling pair of Ḟ2 , proceed to Step 6.
+6. (Cut edges) Distinguish three cases (see Figure 3.1):
+6.1. If a F2 c, call Maf(F1 , F2 ÷ {ea }, k − 1) and Maf(F1 , F2 ÷ {ec }, k − 1)
+recursively.
+6.2. If a ∼F2 c and the path from a to c in Ḟ2 has only one pendant node b, call
+Maf(F1 , F2 ÷ {eb }, k − 1) recursively.
+6.3. If a ∼F2 c and the path from a to c in Ḟ2 has q ≥ 2 pendant nodes b1 , b2 , . . . , bq ,
+call Maf(F1 , F2 ÷ {eb1 , eb2 , . . . , ebq }, k − q), Maf(F1 , F2 ÷ {ea }, k − 1), and
+Maf(F1 , F2 ÷ {ec }, k − 1) recursively.
+Return “yes” if one of the recursive calls does; otherwise return “no”.
+To prove that the algorithm achieves the running time stated in Theorem 3.1,
+we show that each invocation
+takes linear time (Lemma 3.3) and that the algorithm
+√ k 
+makes O 1 + 2
+recursive calls (Lemma 3.4).
+Lemma 3.3. Each invocation Maf(F1 , F2 , k), excluding recursive calls it makes,
+takes linear time.
+Proof. We represent each forest as a collection of nodes, each of which points to its
+parent, left child, and right child. In addition, every labelled node (i.e., each node in
+Rt or Rd ) stores a pointer to its counterpart in the other forest. For Ṫ1 , we maintain
+a list of sibling pairs of labelled nodes. Every labelled node of Ṫ1 stores a pointer to
+the pair it belongs to, if any. For Ḟ2 , we maintain a list Rd0 ⊆ Rt of nodes that are
+roots of Ḟ2 . This list is used to move these roots from Rt to Rd in Step 3.
+It is easily verified that, using this representation of F1 and F2 , each execution
+of Steps 1–5 takes constant time and that Step 6, excluding recursive calls it spawns,
+takes linear time. Steps 1 and 6 are executed only once per invocation. Steps 2–5 form
+a loop, and each iteration, except the first one, is the result of finding a root of Ḟ2 in
+Step 3 or merging a sibling pair in Step 5. In the former case, Step 3 cuts an edge
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+11
+
+in F1 , which can happen only O(n) times because F1 has O(n) edges. In the latter
+case, the number of nodes in Rt decreases by one, which cannot happen more than n
+times because the algorithm starts with the n leaves of T1 in Rt and the number of
+nodes in Rt never increases. Thus, Steps 2–5 are executed O(n) times, and the cost of
+the entire invocation is linear.
+
+√ k 
+Lemma 3.4. An invocation Maf(F1 , F2 , k) spawns O 1 + 2
+recursive calls.
+Proof. Let I(k) be the number of recursive calls spawned by an invocation with
+parameter k. By inspecting the different cases of Step 6, we obtain
+
+if Step 6 is not executed
+
+1
+
+1 + 2I(k − 1)
+Case 6.1
+I(k) =
+1 + I(k − 1)
+Case 6.2
+
+
+
+1 + 2I(k − 1) + I(k − q) Case 6.3
+≤ 1 + 2I(k − 1) + I(k − 2)
+because Case 6.3 dominates the other two cases and q ≥ 2 in this case. Simple
+√ k
+substitution shows that this recurrence solves to I(k) = O 1 + 2
+.
+It remains to prove the correctness of the algorithm, which we do by induction
+on k. An invocation Maf(F1 , F2 , k) with k < 0 correctly returns “no” in Step 1, so
+assume k ≥ 0. In this case, the invocation produces its answer in Step 2 or 6. If it
+produces its answer (“yes”) in Step 2, this is correct because F2 is an MAF of T1
+and T2 . If it produces its answer in Step 6, it suffices to prove that e(T1 , T2 , F2 ) ≤ k
+if and only if e(T1 , T2 , F2 ÷ Ei ) ≤ k − |Ei |, for at least one of the recursive calls
+Maf(F1 , F2 ÷ Ei , k − |Ei |) the invocation makes in Step 6. This in turn follows if
+e(T1 , T2 , F2 ÷Ei ) ≥ e(T1 , T2 , F2 )−|Ei |, for all recursive calls Maf(F1 , F2 ÷Ei , k −|Ei |),
+which is trivial, and e(T1 , T2 , F2 ÷ Ei ) = e(T1 , T2 , F2 ) − |Ei |, for at least one recursive
+call Maf(F1 , F2 ÷ Ei , k − |Ei |). Lemmas 3.6, 3.7, and 3.8 below prove the latter for
+each case of Step 6. For Cases 6.1 and 6.3, we prove also that ẽ(T1 , T2 , F2 ÷ Ei ) =
+ẽ(T1 , T2 , F2 ) − |Ei |, for at least one recursive call Maf(F1 , F2 ÷ Ei , k − |Ei |). This will
+be used in the correctness proof of the MAAF algorithm in §4.
+In Step 6, (a, c) is a sibling pair of Ṫ1 but not of F2 —otherwise Step 5 would
+have replaced a and c with their parent in Rt —and neither F2a nor F2c is a component
+of F2 —otherwise Step 3 would have removed a or c from Rt . Note that a and c belong
+to Ḟ2 because Ṫ1 and Ḟ2 have the same label set. Let b be a’s sibling in F2 . If a and c
+belong to the same component of F2 , we assume w.l.o.g. that a’s distance from the
+root of this component is no less than c’s. Since a and c are not siblings in F2 , this
+implies that c ∈
+/ F2b . If a F2 c, we also have c ∈
+/ F2b because a ∼F2 b.
+Our first lemma shows that we can always cut one of ea , eb , and ec to make
+progress towards an MAF or MAAF of T1 and T2 in Step 6. In [33], we used this as a
+basis for a simple O 3k n -time MAF algorithm. Here, we need this lemma as a basis
+for the proofs of Lemmas 3.6, 3.7, 3.8, and 4.1.
+Lemma 3.5. If (a, c) is a sibling pair of F1 and (i) a F2 c and neither F2a nor
+c
+F2 is a component of F2 or (ii) a ∼F2 c but a and c are not siblings in F2 , then there
+exists an edge set E of size e(T1 , T2 , F2 ) (resp. ẽ(T1 , T2 , F2 )) and such that F2 ÷ E is
+an AF (resp. AAF) of T1 and T2 and E ∩ {ea , eb , ec } =
+6 ∅.
+Proof. Consider an edge set E of size e(T1 , T2 , F2 ) and such that F2 ÷ E is an AF
+of F1 and F2 , and assume E contains the maximum number of edges from {ea , eb , ec }
+among all edge sets satisfying these conditions. Assume for the sake of contradiction
+that E ∩ {ea , eb , ec } = ∅.
+
+12
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+If a0 F2 −E a, for all leaves a0 ∈ F2a , then we choose an arbitrary such leaf a0 ∈ F2a
+and the first edge f on the path from a to a0 . Lemma 2.1 now implies that F2 − E
+and F2 − (E \ {f } ∪ {ea }) yield the same forest, which contradicts our choice of E.
+The same argument leads to a contradiction if b0 F2 −E b, for all leaves b0 ∈ F2b , or
+c0 F2 −E c, for all leaves c0 ∈ F2c . Thus, there exist leaves a0 ∈ F2a , b0 ∈ F2b , and
+c0 ∈ F2c such that a0 ∼F2 −E a, b0 ∼F2 −E b, and c0 ∼F2 −E c.
+Since (a, c) is a sibling pair of Ṫ1 , a0 c0 |b0 is a triple of F1 , while c ∈
+/ F2b implies
+0 0 0
+0
+0
+that either a b |c is a triple of F2 or a F2 c . In either case, the triple a0 c0 |b0
+is incompatible with F2 and, by Observation 1 and because a0 ∼F2 −E b0 , we have
+a0 F2 −E c0 and, hence, a00 F2 −E c0 , for every leaf a00 ∈ F2a . Now, if there existed
+a leaf x ∈
+/ F2c such that c0 ∼F2 −E x, then the components of F2 ÷ E containing a0
+0
+and c would overlap in F1 : they would both include epa because b0 , x ∈
+/ F1pa . By
+Lemma 2.3, this would contradict that F2 ÷ E is an AF of F1 and F2 . Thus, no such
+leaf x exists. On the other hand, since F2c is not a component of F2 , there exists a leaf
+x∈
+/ F2c such that c0 ∼F2 x. Since x F2 −E c0 , at least one edge on the path from c0
+to x belongs to E. Let f be the first such edge. Since c ∼F2 −E c0 , f does not belong
+to F2c . Hence, edges ec and f satisfy the conditions of Lemma 2.1, and F2 − E and
+F2 − (E \ {f } ∪ {ec }) yield the same forest, contradicting the choice of E.
+The second claim of the lemma follows using the same arguments after choosing
+E of size ẽ(T1 , T2 , F2 ) and such that F ÷ E is an AAF of T1 and T2 .
+The last three lemmas of this section now establish the correctness of each case in
+Step 6 of the algorithm and conclude the proof of Theorem 3.1.
+Lemma 3.6 (Case 6.1—Separate Components). If (a, c) is a sibling pair of F1 ,
+a F2 c, and neither F2a nor F2c is a component of F2 , then there exists an edge set E
+of size e(T1 , T2 , F2 ) (resp. ẽ(T1 , T2 , F2 )) and such that F2 ÷ E is an AF (resp. AAF)
+of T1 and T2 and E ∩ {ea , ec } =
+6 ∅.
+Proof. Consider an edge set E of size e(T1 , T2 , F2 ) and such that F2 ÷ E is an AF
+of F1 and F2 , and assume E contains the maximum number of edges from {ea , ec }
+among all edge sets satisfying these conditions. Assume for the sake of contradiction
+that E ∩ {ea , ec } = ∅.
+By the arguments in the proof of Lemma 3.5, there exist leaves a0 ∈ F2a and
+0
+c ∈ F2c such that a0 ∼F2 −E a and c0 ∼F2 −E c. Since (a, c) is a sibling pair of F1 but
+a F2 c and, hence, a0 F2 −E c0 , we must have a0 F2 −E 0 x, for every lea x ∈
+/ F2a , or
+0
+c
+c F2 −E x, for every leaf x ∈
+/ F2 . W.l.o.g. assume the latter. As shown in the proof
+of Lemma 3.5, this implies that F2 − E and F2 − (E \ {f } ∪ {ec }) yield the same forest,
+where f is the first edge on the path from c0 to a leaf x ∈
+/ F2c and such that c0 ∼F2 x.
+This contradicts the choice of E.
+The second claim of the lemma follows using the same arguments after choosing
+E of size ẽ(T1 , T2 , F2 ) and such that F ÷ E is an AAF of T1 and T2 .
+Lemma 3.7 (Case 6.2—One Pendant Node—MAF). If (a, c) is a sibling pair
+of F1 , a ∼F2 c, and the path from a to c in F2 has only one pendant node b, then there
+exists an edge set E of size e(T1 , T2 , F2 ) and such that F2 ÷ E is an AF of T1 and T2
+and eb ∈ E.
+Proof. Again, consider an edge set E of size e(T1 , T2 , F2 ) and such that F2 ÷ E
+is an AF of F1 and F2 , and assume E contains the maximum number of edges
+from {ea , eb , ec } among all edge sets satisfying these conditions. By Lemma 3.5,
+E ∩ {ea , eb , ec } =
+6 ∅. If eb ∈ E, there is nothing to prove, so assume eb ∈
+/ E. Let
+v = pa = pb , and u = pv = pc .
+If F2 ÷ (E \ {ea , ec , ev } ∪ {eb }) is an AF of F1 and F2 , we are done because
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+13
+
+E ∩ {ea , ec } 6= ∅ and, hence, |E \ {ea , ec , ev } ∪ {eb }| ≤ |E| = e(T1 , T2 , F2 ). So
+assume F2 ÷ (E \ {ea , ec , ev } ∪ {eb }) is not an AF of F1 and F2 . We prove that
+F2 ÷ (E \ {ea , ec , ev } ∪ {eb , eu }) is an AF of F1 and F2 and that |E ∩ {ea , ec , ev }| ≥ 2
+in this case. The latter implies that |E \ {ea , ec , ev } ∪ {eb , eu }| ≤ |E|, that is, F2 ÷
+(E \ {ea , ec , ev } ∪ {eb , eu }) is an MAF of F1 and F2 .
+If F2 ÷ (E \ {ea , ec , ev } ∪ {eb }) is not an AF of F1 and F2 , then either two of its
+components overlap in F1 or it contains a triple incompatible with F1 . First consider
+the case of overlapping components. Observe that F2 ÷(E ∪{eb }) is an AF of F1 and F2
+because it is a refinement of F2 ÷E. The only component of F2 ÷(E \{ea , ec , ev }∪{eb })
+that is not a component of F2 ÷ (E ∪ {eb }) is the one containing a and c. Call this
+component C. Thus, if two components of F2 ÷ (E \ {ea , ec , ev } ∪ {eb }) overlap in F1 ,
+one of them must be C. Call the other component C 0 . For any two leaves x and y
+in C such that x, y ∈
+/ F1pa , the path P between x and y also exists in F2 ÷ (E ∪ {eb })
+and, thus, cannot overlap C 0 . Thus, w.l.o.g. x ∈ F1pa . Now, if the edge e shared by
+P and C 0 belonged to F1pa , P and C 0 would also overlap in F2 because F1pa is the
+same as the subtree of F2 ÷ {eb } with root u. This, however, is impossible because
+F2 ÷ (E \ {ea , ec , ev } ∪ {eb }) is a forest of F2 . Thus, the edge e shared by P and
+C 0 cannot belong to F1pa , and we have y ∈
+/ F1pa . This implies that the path from
+0
+0
+a
+c
+x to y, for any leaf x ∈ F2 ∪ F2 , includes e. Therefore, since F2 ÷ (E ∪ {eb }) is
+an AF of F1 and F2 , we have x0 F2 −(E∪{eb }) y, for every leaf x0 ∈ F2a ∪ F2c . Since
+x ∼F2 ÷(E\{ea ,ec ,ev }∪{eb }) y, the path from u to y in F2 contains no edge in E. Thus,
+since x0 F2 −(E∪{eb }) y, for all leaves x0 ∈ F2a ∪ F2c , the choice of E and Lemma 2.1
+imply that E must include ec and at least one of ea or ev , that is, |E ∩ {ea , ec , ev }| ≥ 2.
+In F2 − (E \ {ea , ec , ev } ∪ {eb , eu }), C is split into two components C1 = C ∩ F2u
+and C2 = C \ F2u . All other components are the same as in F2 − (E \ {ea , ec , ev } ∪ {eb }).
+Since x, y ∈ F1pa , for all leaves x, y ∈ C1 , and x, y ∈
+/ F1pa , for all leaves x, y ∈ C2 , the
+same argument as in the previous paragraph shows that neither C1 nor C2 overlaps a
+component C 0 ∈
+/ {C1 , C2 }. C1 and C2 do not overlap either because C1 ⊆ F1pa and
+pa
+C2 ∩ F1 = ∅. Thus, no two components of F2 − (E \ {ea , ec , ev } ∪ {eb , eu }) overlap
+in F1 .
+Now assume F2 ÷ (E \ {ea , ec , ev } ∪ {eb }) contains a triple incompatible with F1 .
+Then, once again, this triple has to be part of C and must involve a leaf in F2a ∪ F2c and
+a leaf not in F2a ∪ F2c because any other triple is either a triple of F2 ÷ (E ∪ {eb }) or a
+triple of F1pa ; in either case, it is a triple of F1 . F2 ÷ (E \ {ea , ec , ev } ∪ {eb , eu }) cannot
+contain a triple with one leaf in F2a ∪ F2c and one leaf not in F2a ∪ F2c because the path
+between any two such leaves includes eu . Thus, F2 ÷(E \{ea , ec , ev }∪{eb , eu }) contains
+no triples incompatible with F1 . Since we have just shown that no two components of
+F2 ÷ (E \ {ea , ec , ev } ∪ {eb , eu }) overlap in F1 , F2 ÷ (E \ {ea , ec , ev } ∪ {eb , eu }) is an
+AF of F1 and F2 .
+It remains to prove that |E ∩ {ea , ec , ev }| ≥ 2 if F2 ÷ (E \ {ea , ec , ev } ∪ {eb })
+contains a triple xy|z incompatible with F1 . Since this triple needs to involve a leaf
+in F2a ∪ F2c and one not in F2a ∪ F2c , we have (i) x, y ∈ F2a ∪ F2c and z ∈
+/ F2a ∪ F2c ,
+a
+c
+a
+c
+a
+c
+a
+c
+(ii) x ∈ F2 ∪ F2 and y, z ∈
+/ F2 ∪ F2 or (iii) x, y ∈
+/ F2 ∪ F2 and z ∈ F2 ∪ F2 . The first
+case cannot arise because x, y ∈ F1pa and z ∈
+/ F1pa in this case, that is, xy|z is also a
+triple of F1 .
+For the second case, assume for the sake of contradiction that |E ∩ {ea , ec , ev }| = 1,
+and assume w.l.o.g. that x ∈ F2a . Since every triple x0 y|z with x0 ∈ F2a would also
+be incompatible with F1 , F2 ÷ (E \ {eb }) cannot contain such a triple. Hence, the
+choice of E and Lemma 2.1 imply that E ∩ {ea , ev } =
+6 ∅ and, therefore, ec ∈
+/ E. As
+
+14
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+in the proof of Lemma 3.5, this implies that there exists a leaf c0 ∈ F2c such that
+c0 ∼F2 −E c ∼F2 −E u, by the choice of E and Lemma 2.1. Since xy|z is a triple of
+F2 ÷ (E \ {ea , ec , ev } ∪ {eb }), we have y ∼F2 −E u ∼F2 −E z. Hence, c0 y|z is a triple
+of F2 ÷ E and this triple is incompatible with F1 because xy|z is, x, c0 ∈ F1pa , and
+y, z ∈
+/ F1pa . This is a contradiction, that is, |E ∩ {ea , ec , ev }| ≥ 2.
+In the last case, if we assume w.l.o.g. that z ∈ F2a , an analogous argument as for
+the second case shows that, if |E ∩ {ea , ec , ev }| = 1, then F2 ÷ E contains a triple xy|c0
+with c0 ∈ F2c and which is incompatible with F1 , which is again a contradiction.
+Lemma 3.8 (Case 6.3—Multiple Pendant Nodes). If (a, c) is a sibling pair of F1 ,
+a ∼F2 c, and the path from a to c in F2 has q ≥ 2 pendant nodes b1 , b2 , . . . , bq ,
+then there exists an edge set E of size e(T1 , T2 , F2 ) (resp. ẽ(T1 , T2 , F2 )) and such
+that F2 ÷ E is an AF (resp. AAF) of T1 and T2 and either E ∩ {ea , ec } =
+6 ∅ or
+{eb1 , eb2 , . . . , ebq } ⊆ E.
+Proof. We prove the lemma by induction on q. For q = 1, the claim holds by
+Lemma 3.5, so assume q > 1 and the claim holds for q − 1. Assume further that b1 is
+the sibling of a. By Lemma 3.5, there exists a set E 00 of size e(T1 , T2 , F2 ) and such that
+F2 ÷ E 00 is an AF of F1 and F2 and E 00 ∩ {ea , eb1 , ec } =
+6 ∅. If E 00 ∩ {ea , ec } =
+6 ∅, we are
+00
+0
+done. Otherwise eb1 ∈ E and e(T1 , T2 , F2 ) = e(T1 , T2 , F2 ) − 1, where F20 := F2 ÷ {eb1 }.
+In F20 , the path from a to c has q − 1 pendant nodes, namely b2 , b3 , . . . , bq . Thus, by
+the induction hypothesis, there exists an edge set E 0 of size e(T1 , T2 , F20 ) and such that
+F20 ÷ E 0 is an AF of F1 and F20 and E 0 ∩ {ea , ec } =
+6 ∅ or {eb2 , eb3 , . . . , ebq } ⊆ E 0 . The
+0
+0
+set E := E ∪ {eb1 } has size |E | + 1 = e(T1 , T2 , F2 ), F2 ÷ E = F20 ÷ E 0 is an AF of F1
+and F2 , and either E ∩ {ea , ec } =
+6 ∅ or {eb1 , eb2 , . . . , ebq } ⊆ E.
+The second claim of the lemma follows using the same arguments, since Lemma 3.5
+holds for both AF and AAF.
+4. Computing the Hybridization Number. In this section, we present our
+algorithm for computing the hybridization number of two X-trees. As in §3, we
+focus on deciding whether hyb(T1 , T2 ) ≤ k, as hyb(T1 , T2 ) can be computed by trying
+increasing values of k and this does not increase the running time by more than a
+constant factor. Also as in §3, it will be obvious from the description of our algorithm
+that it produces a corresponding AAF when it answers “yes”.
+Every AAF of T1 and T2 can be computed by first computing an AF F of T1 and
+T2 and then cutting additional edges in F as necessary to break cycles in F ’s cycle
+graph GF . This suggests the following strategy to decide whether hyb(T1 , T2 ) ≤ k:
+We modify the MAF algorithm from §3 called with parameter k. Note that this
+algorithm may find AFs that are not maximum when k > dSPR (T1 , T2 ), so we do not
+restrict our search to refinements of MAFs. For every invocation Maf(F1 , F2 , k 00 ) of
+the algorithm that would return “yes” in Step 2, F2 is an AF of T1 and T2 obtained
+by cutting k 0 := k − k 00 edges. F2 may not be an AAF of T1 and T2 , but it may
+be possible to break all cycles in GF2 by cutting at most k 00 additional edges, in
+which case hyb(T1 , T2 ) ≤ k 0 + k 00 = k. Thus, instead of unconditionally returning
+“yes” in Step 2, we invoke a second algorithm Refine(F2 , k), which decides whether
+F2 can be refined to an AAF of T1 and T2 with at most k + 1 components, and
+return its answer. We use Maaf(F1 , F2 , k 00 ) to denote an invocation of this modified
+MAF algorithm. We refer to the part of the algorithm consisting of these invocations
+Maaf(F1 , F2 , k 00 ) as the branching phase of the algorithm and to the part that consists
+of the invocations Refine(F2 , k) as the refinement phase. We also refer to a single
+invocation Refine(F2 , k) as a refinement step. Note that this is not a linear process—
+our algorithm performs a refinement step for each agreement forest it finds and thus
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+15
+
+cycles between the branching phase and refinement phase.
+Now let us call an invocation Maaf(F1 , F2 , k 00 ) viable if there exists an MAAF F of
+T1 and T2 that is a forest of F2 . Below we show how to ensure that there exists a viable
+invocation Maaf(F1 , F2 , k 00 ) such that F2 is an (not necessarily maximum) AF of T1
+and T2 if hyb(T1 , T2 ) ≤ k. The invocation Refine(F2 , k) made by Maaf(F1 , F2 , k 00 )
+returns “yes”, so the whole algorithm returns “yes” in this case. If on the other hand
+hyb(T1 , T2 ) > k, the algorithm either fails to find an AF of T1 and T2 with at most
+k + 1 components or none of the AFs it finds can be refined to an AAF with at most
+k + 1 components. Thus, it returns “no” in this case. In either case, the algorithm
+produces the correct answer.
+So assume hyb(T1 , T2 ) ≤ k. We prove that every viable invocation Maaf(F1 , F2 ,
+k 00 ) such that F2 is not an AF of T1 and T2 has a viable child invocation. This
+immediately implies that there exists a viable invocation Maaf(F1 , F2 , k 00 ) such that
+F2 is an AF of T1 and T2 because the top-level invocation Maaf(T1 , T2 , k) is trivially
+viable and the number of invocations the algorithm makes is finite. If F2 is not an
+AF of T1 and T2 in a viable invocation Maaf(F1 , F2 , k 00 ), this invocation applies one
+of Cases 6.1–6.3. If it applies Case 6.1 or 6.3, Lemmas 3.6 and 3.8 show that one of
+its child invocations is viable. In Case 6.2, on the other hand, the child invocation
+Maaf(F1 , F2 ÷ {eb }, k 00 − 1) is not guaranteed to be viable. The next lemma shows
+that either Maaf(F1 , F2 ÷ {eb }, k 00 − 1) or Maaf(F1 , F2 ÷ {ec }, k 00 − 1) is a viable
+invocation in this case. Thus, we modify the algorithm to make two invocations
+Maaf(F1 , F2 ÷ {eb }, k 00 − 1) and Maaf(F1 , F2 ÷ {ec }, k 00 − 1) in Case 6.2. Even with
+two recursive calls made in Case 6.2, the recurrence bounding the number of recursive
+calls made by the algorithm in the proof of Lemma
+ 3.4 remains dominated by Case 6.3.
+Thus, the algorithm continues to make O 2.42k recursive calls.
+Lemma 4.1 (Case 6.2—One Pendant Node—MAAF). If (a, c) is a sibling pair
+of F1 , a ∼F2 c, and the path from a to c in F2 has only one pendant node b, then there
+exists an edge set E of size ẽ(T1 , T2 , F2 ) and such that F2 ÷ E is an AAF of T1 and
+T2 and E ∩ {eb , ec } =
+6 ∅.
+Proof. Let E 0 be an edge set of size ẽ(T1 , T2 , F2 ) and such that F2 ÷ E 0 is an AAF
+of T1 and T2 . Assume further that there is no such set containing more edges from
+{ea , eb , ec } than E 0 and that b is a’s sibling in F2 . By Lemma 3.5, E 0 ∩ {ea , eb , ec } =
+6 ∅.
+If E 0 ∩ {eb , ec } 6= ∅, we are done. So assume E 0 ∩ {eb , ec } = ∅ and, hence, ea ∈ E 0 .
+As in the proof of Lemma 3.7, let v = pa = pb and u = pc = pv . If {ea , ev } ⊆ E 0 ,
+Lemma 2.1 implies that we can replace ev with eb in E 0 without changing F2 ÷E 0 . This
+contradicts the choice of E 0 , so ev ∈
+/ E 0 . As in the proof of Lemma 3.5, the choice of E 0
+and Lemma 2.1 imply that there exist leaves b0 ∈ F2b and c0 ∈ F2c such that b0 ∼F2 −E 0 b
+and c0 ∼F2 −E 0 c because E 0 ∩ {eb , ec } = ∅. Now let E := E 0 \ {ea } ∪ {eb }. We have
+|E| = |E 0 | = ẽ(T1 , T2 , F2 ) and eb ∈ E. Moreover, since E 0 ∩ {ea , ec , ev } = {ea }, the
+proof of Lemma 3.7 shows that F2 ÷ E is an AF of T1 and T2 . Next we show that
+F2 ÷ E is acyclic.
+Since F2 ÷ E and F2 ÷ E 0 are agreement forests of T1 and T2 , the mapping φ1 (·)
+maps each node of these two forests to a corresponding node in T1 . However, a node
+x ∈ F2 that belongs to both F2 ÷ E and F2 ÷ E 0 may map to different nodes in T1
+if it has different sets of labelled descendant leaves in F2 ÷ E and F2 ÷ E 0 . For the
+remainder of this proof, we use φ1 (x) to denote the node in T1 a node x ∈ F2 maps
+to based on its labelled descendant leaves in F2 − E, and φ01 (x) to denote the node it
+maps to based on its labelled descendant leaves in F2 − E 0 .
+Now assume for the sake of contradiction that F2 ÷ E is not acyclic, and let O be a
+
+16
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+cycle of GF2 ÷E . We assume O is as short as possible, which implies in particular that
+O contains every component of F2 ÷ E at most once and that for any three consecutive
+components Ci , Ci+1 , and Ci+2 in O either Ci is an ancestor of Ci+1 in T1 and Ci+1
+is an ancestor of Ci+2 in T2 or vice versa. Since F2 ÷ E 0 is acyclic, the root r of at
+least one component in O either is not a root in F2 ÷ E 0 or satisfies φ1 (r) 6= φ01 (r).
+The only root in F2 ÷ E that does not exist in F2 ÷ E 0 is a result of cutting edge eb
+and is a descendant z of b in F2 . Let Cz be the component of F2 ÷ E with root z. The
+only root in F2 ÷ E 0 that has a different set of labelled descendant leaves in F2 ÷ E is
+the root u0 of the component Cu that contains u, and φ1 (u0 ) 6= φ01 (u0 ) only if u0 = u.
+For any other component root x, we have φ1 (x) = φ01 (x). Thus, any cycle O in GF2 ÷E
+contains at least one of Cu and Cz . Next we prove that no such cycle exists in GF2 ÷E ,
+by using the following five observations.
+(i) Since u ∼F2 ÷E 0 z and z is the only root of F2 ÷ E that does not exist in
+F2 ÷ E 0 , there is no root x ∈
+/ {u, z} of F2 ÷ E on the path from u to z in T2 .
+φ0 (u)
+(ii) Since u ∼F2 ÷E 0 z and z ∈ F2u , we have φ01 (z) ∈ T1 1 . Any component Cx
+with root x such that x ∈
+/ {u, z} satisfies φ01 (x) = φ1 (x). If φ01 (x) belonged to the path
+0
+0
+from φ1 (u) to φ1 (z), then Cx would overlap the component of F2 ÷ E 0 containing u
+in T1 . Since F2 ÷ E 0 is a forest of T1 , no such component Cx can exist.
+φ0 (u)
+(iii) Since u ∼F2 ÷E 0 c0 , we have c0 ∈ T1 1 and, by the same arguments as in (ii),
+there is no root x ∈
+/ {u, z} such that φ01 (x) = φ1 (x) belongs to the path from c0 to
+0
+φ1 (u) in T1 .
+(iv) Since all labelled descendants of u in F2 ÷ E belong to F2a ∪ F2c , with at
+least one descendant in each of F2a and F2c , we have φ1 (u) = pa = pc . In particular,
+φ (u)
+c0 ∈ T1 1 . Since u has c0 and at least one labelled leaf in F2b as descendants in
+F2 ÷ E 0 , φ01 (u) is a proper ancestor of φ1 (u).
+(v) φ01 (z) = φ1 (z) is neither an ancestor nor a descendant of φ1 (u). The latter
+follows because z has a labelled descendant leaf in F2 ÷ E that belongs to F2b , while
+all labelled descendant leaves of φ1 (u) belong to F2a ∪ F2c . To see the former, observe
+that this would imply that φ01 (z) is not a leaf and, hence, that there are two labelled
+descendant leaves b1 and b2 of z in F2 ÷ E 0 such that b1 , b2 ∈ F2b and the path from b1
+to b2 in T1 includes φ01 (z). Since u ∼F2 ÷E 0 c0 and u ∼F2 ÷E 0 z, this would imply that
+F2 ÷ E 0 contains the triple b1 b2 |c0 , while these leaves would form the triple b1 c0 |b2 or
+b2 c0 |b1 in T1 . This is a contradiction because F2 ÷ E 0 is a forest of T1 .
+We now consider the different possible shapes of O. We use Cx1 and Cx2 to denote
+Cu ’s predecessor and successor in O, respectively, and Cy1 and Cy2 to denote Cz ’s
+predecessor and successor in O, respectively. First observe that y2 6= u and, hence,
+x1 6= z. Indeed, z ∈ F2u , which implies that y2 = u only if φ1 (z) is an ancestor of φ1 (u).
+By (v), this is impossible.
+If y1 = u (and y2 6= u), then φ1 (z) = φ01 (z) is an ancestor of φ1 (y2 ) = φ01 (y2 )
+because, by (v), φ1 (u) is not an ancestor of φ1 (z) and the edges in O alternate between
+T1 and T2 . By (ii), this implies that φ01 (u) is an ancestor of φ01 (y2 ) in T1 . Also, for
+the predecessor Cx1 of Cu in O, φ01 (x1 ) = φ1 (x1 ) is an ancestor of φ1 (u) and, hence,
+by (iii) and (iv), an ancestor of φ01 (u). This implies that we would obtain a cycle in
+GF2 ÷E 0 by removing Cz from O, which contradicts that F2 ÷ E 0 is acyclic. This shows
+that y1 6= u.
+It remains to consider the case when Cu and Cz are not adjacent in O. In this
+case, all edges of O except those incident to Cu or Cz exist also in GF2 ÷E 0 because
+φ01 (x) = φ1 (x), for every root x ∈
+/ {u, z}. Next we show that, if Cu ∈ O, then the edges
+(Cx1 , Cu ) and (Cu , Cx2 ) also exist in GF2 ÷E 0 , and if Cz ∈ O, then the edges (Cy1 , Cu )
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+17
+
+and (Cu , Cy2 ) exist in GF2 ÷E 0 . Thus, by replacing Cz with Cu in O (if Cz ∈ O), we
+obtain a cycle in GF2 ÷E 0 , a contradiction because F2 ÷ E 0 is acyclic.
+If Cu ∈ O, then either φ1 (x1 ) = φ01 (x1 ) is an ancestor of φ1 (u) and x2 is a
+descendant of u, or x1 is an ancestor of u and φ1 (x2 ) = φ01 (x2 ) is a descendant of φ1 (u).
+In the former case, (iii) and (iv) imply that φ01 (x1 ) is an ancestor of φ01 (u). In the
+latter case, (iv) implies that φ01 (x2 ) is also a descendant of φ01 (u). In both cases, the
+edges (Cx1 , Cu ) and (Cu , Cx2 ) exist in GF2 ÷E 0 .
+If Cz ∈ O, then either φ1 (y1 ) = φ01 (y1 ) is an ancestor of φ1 (z) = φ01 (z) and y2 is
+a descendant of z, or y1 is an ancestor of z and φ1 (y2 ) = φ01 (y2 ) is a descendant of
+φ1 (z) = φ01 (z). In the former case, (ii) implies that φ01 (y1 ) is an ancestor of φ01 (u) and
+y2 is a descendant of u. In the latter case, (i) and (ii) imply that y1 is an ancestor of u
+and φ01 (y2 ) is a descendant of φ01 (u). In both cases, the edges (Cy1 , Cu ) and (Cu , Cy2 )
+exist in GF2 ÷E 0 .
+We have shown how to construct a corresponding cycle in GF2 ÷E 0 for every cycle
+O ∈ GF2 ÷E . Since F2 ÷ E 0 is acyclic, this shows that F2 ÷ E is acyclic.
+We have thus shown that the branching phase of our algorithm will find at least
+one (not necessarily maximal) AF F that can be refined to an MAAF.
+In the remainder of this section, we develop an efficient implementation of
+Refine(F, k). To do so, we need several new ideas. Each of the following sections discusses one of them. The tools introduced in §4.1–§4.3 suffice to obtain a
+fairly simple implementation
+of Refine(F, k) that leads to an MAAF algorithm with
+
+running time O 9.68k n . §4.4 and §4.5 then introduce
+two refinements that improve
+
+the algorithm’s running time first to O 4.84k n and then to O 3.18k n .
+In §4.1, we introduce an expanded cycle graph G∗F . In G∗F , every node of GF is
+replaced with the component of F it represents. This allows us to identify exactly
+which edges in a component C need to be cut if we want to break a cycle in GF
+by removing C from this cycle. Moreover, if F has k 0 + 1 components, G∗F contains
+only 2k 0 of the edges of GF . This ensures that G∗F has size O(n), which is the key to
+keeping the MAAF algorithm’s dependence on n linear.
+In §4.2, we identify components of F that are essential for the cycles in G∗F in the
+sense that at least one essential component of each cycle O in G∗F has to be eliminated
+to break O (as opposed to replacing it with a shorter cycle). For every essential
+component C in such a cycle O, we identify one node in C, called an exit node, and
+show that there exists a component C in O such that cutting all edges on the path
+from C’s exit node to C’s root reduces ẽ(T1 , T2 , F ) by the number of edges cut. We
+call the process of cutting these edges fixing the exit node.
+In §4.3, we show how to mark a subset of at most 2k nodes in F such that, if
+F can be refined to an AAF of T1 and T2 with at most k + 1 components, then
+fixing an appropriate subset of these marked nodes produces such an AAF. We call
+these marked nodes potential exit nodes because they include the exit nodes of all
+essential components of all cycles in G∗F . We obtain a first simple implementation
+of Refine(F, k) by testing for each subset of potential exit nodes whether fixing it
+produces an AAF with at most k + 1 components. Since this test can be carried out
+in linear time for each subset and there are 22k = 4k subsets to test, the running
+time of this implementation of Refine(F, k) is O 4k n . Since we make at most one
+invocation Refine(F2 , k) per invocation Maaf(F1 , F2 , k 00 ) of the MAAF algorithm
+and the MAAF algorithm makes O 2.42k invocations
+Maaf(F1 , F2 ,k 00 ), the resulting
+k
+k
+MAAF algorithm has running time O 2.42 n + 4 n = O 9.68k n .
+The bound of 2k on the number of potential exit nodes is obtained quite naturally:
+
+18
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+We can obtain F from both T1 and T2 by cutting the edges connecting the roots of
+the components of F to their parents in these trees. There are at most k component
+roots of F that are not roots in T2 . Each such component has two corresponding
+parent edges, one in T1 and one in T2 . The potential exit nodes are essentially the
+top endpoints of these at most 2k parent edges, and the top endpoints of the two
+parent edges of each component root form a pair of potential exit nodes. In §4.4, we
+augment the search for agreement forests to annotate the component roots of each
+found agreement forest F with information about how F was obtained from T2 . Using
+this information, we mark one potential exit node in each pair of potential exit nodes
+and show that it suffices to test for each subset of marked potential exit nodes whether
+fixing it produces an AAF with at most k + 1 components. Since at most
+ k potential
+k
+n
+exit nodes get marked, this reduces the cost of Refine(F,
+k)
+to
+O
+2
+and, hence,
+
+the running time of the MAAF algorithm to O 4.84k n .
+In §4.5, we tighten the analysis of our algorithm. So far, we allowed both phases of
+the algorithm to cut k edges. However, k is the total number of edges we are allowed
+to cut. Thus, if the number k 0 of edges we cut to obtain an AF is large, there are
+only k 00 := k − k 0 edges left to cut in the refinement step, allowing us to restrict our
+attention to small subsets of marked potential exit nodes and thereby reducing the
+cost of the refinement step substantially. If, on the other hand, k 0 is small, then there
+are only few marked potential exit nodes and even trying all possible subsets of these
+nodes is not too costly. By analyzing this trade-off between the number of edges cut
+in each phase of the algorithm, we obtain the claimed running time of O 3.18k n .
+4.1. An Expanded Cycle Graph. The expanded cycle graph G∗F of an agreement forest F of two rooted phylogenies T1 and T2 is a supergraph G∗F ⊃ F with
+the same vertex set as F ; see Figure 4.1(c). Let E1 and E2 be minimal subsets of
+edges of T1 and T2 such that F = T1 ÷ E1 = T2 ÷ E2 . In addition to the edges of F ,
+G∗F contains one hybrid edge per edge in E1 ∪ E2 . To define these edges, we define
+mappings from nodes of F to nodes of T1 and T2 and vice versa. As in the definition
+of the original cycle graph GF in §2, we map each node x in F to nodes φ1 (x) in T1
+and φ2 (x) in T2 such that φi (x) is the lowest common ancestor of all labelled leaves
+in Ti that are descendants of x in F . For the reverse direction, we define a function
+−1
+φ−1
+i (·) mapping nodes in Ti to nodes in F ; φi (x) is defined if and only if x is labelled
+or belongs to the path between two labelled nodes a and b in Ti such that a ∼F b. In
+this case, φ−1
+i (x) is the node in F that is the lowest common ancestor of all labelled
+leaves y in Tix such that the path between x and y does not contain any edges in Ei .
+These mappings are well defined in the sense that φ−1
+i (φi (x)) = x, for all x ∈ F and
+i ∈ {1, 2}.
+The hybrid edges in G∗F are now defined as follows. There are two such edges
+per root node y of F , except ρ, one induced by T1 and one induced by T2 . Let zi
+−1
+be the lowest ancestor of φi (y) in Ti such that φ−1
+i (zi ) is defined. Then φ1 (z1 ), y
+
+is a T1 -hybrid edge and φ−1
+2 (z2 ), y is a T2 -hybrid edge. See Figure 4.1(c) for an
+−1
+illustration of these edges. Note that neither φ−1
+1 (z1 ) nor φ2 (z2 ) is a root of F . Our
+first lemma shows that the forest F is an AAF of T1 and T2 if and only if G∗F contains
+no cycles, that is, we can use G∗F in place of GF to test whether F is acyclic.
+Lemma 4.2. G∗F contains a cycle if and only if GF does.
+Proof. First observe that G∗F can be obtained from GF by choosing a subset of
+the edges of GF and then replacing each vertex of GF with a component of F . Since
+the components of F do not contain cycles, this shows that G∗F is acyclic if GF is.
+Conversely, for two nodes u and v of F , G∗F contains a path from u to v if φ1 (u)
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+ρ
+
+1
+
+19
+
+ρ
+
+4
+2 3 5
+
+8 9
+
+1
+
+4 5 8
+2 3
+
+9
+
+6 7
+
+6 7
+
+T1
+
+T2
+(a)
+
+ρ
+
+1
+
+ρ
+
+1
+
+2 3
+
+2 3
+
+4 5
+
+8 9
+4 5
+
+8 9
+
+6 7
+6 7
+(b)
+
+(c)
+
+Fig. 4.1. (a) Two trees T1 and T2 . (b) An agreement forest F of T1 and T2 obtained by cutting
+the dotted edges in T1 and T2 , and its cycle graph GF . The component of F represented by each
+node of GF is drawn inside the node. (c) The expanded cycle graph G∗F . Dotted edges are T1 -hybrid
+edges, dashed ones are T2 -hybrid edges.
+
+is an ancestor of φ1 (v) or φ2 (u) is an ancestor of φ2 (v). Along with the fact that tree
+edges are directed away from the root of their component, this implies that every edge
+in GF can be replaced by a directed path in G∗F , so that G∗F contains a cycle if GF
+does.
+In the remainder of this subsection, we show that G∗F can be constructed in linear
+time from T1 , T2 , and F , a fact we use in our algorithms in §4.3, §4.4, and §4.5.
+Lemma 4.3. The expanded cycle graph G∗F of an agreement forest F of two rooted
+phylogenies T1 and T2 can be computed in linear time.
+Proof. Our construction of G∗F starts with F and then adds the hybrid edges.
+To add the hybrid edges induced by T1 , we perform a postorder traversal of T1 that
+computes the mappings φ1 (·) and φ−1
+1 (·), and the hybrid edges induced by T1 . A similar
+postorder traversal of T2 then computes φ2 (·), φ−1
+2 (·), and the hybrid edges induced
+by T2 .
+We can assume each labelled node of T1 or T2 stores a pointer to its counterpart
+−1
+in F and vice versa. Thus, for each leaf x, φ1 (x), φ2 (x), φ−1
+1 (x), and φ2 (x) are given.
+In addition, we associate a list Lx with each leaf x, where Lx := {x} if x is a root
+of F , and Lx = ∅ otherwise. In general, after processing a node x, Lx stores the set of
+roots of F that map to descendants of x and have proper ancestors of x as the tails of
+their T1 -hybrid edges. (It is not hard to see that this is the same ancestor of x, for
+
+20
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+every root in Lx .)
+After setting up this information for the leaves of T1 , the postorder traversal
+computes the same information for the nonleaf nodes of T1 and uses it to compute the
+T1 -hybrid edges in G∗F . For a nonleaf node x with children l and r, the mappings φ−1
+1 (l)
+and φ−1
+(r)
+and
+the
+root
+lists
+L
+and
+L
+of
+l
+and
+r
+are
+computed
+before
+processing
+x.
+l
+r
+1
+Hence, we can use them to compute the mapping φ−1
+(x)
+and
+the
+root
+list
+L
+.
+We
+x
+1
+distinguish four cases.
+−1
+If neither φ−1
+1 (l) nor φ1 (r) is undefined or a root of F , then they must have a
+common parent p in F (because l and r are siblings in T1 and F is a forest of T1 ).
+In this case, we set φ−1
+1 (x) = p and φ1 (p) = x. If p is a root other than ρ, we set
+Lx = {p}; otherwise Lx = ∅.
+−1
+−1
+If both φ−1
+(x) is undefined
+1 (l) and φ1 (r) are undefined or a root of F , then φ
+(as x can belong to a path between two labelled nodes a and b such that a ∼F b only
+if this is true for at least one of its children) and we set Lx = Ll ∪ Lr .
+−1
+−1
+If only φ−1
+1 (l) is undefined
+ or ∗a root of F , we set φ1 (x) := φ1 (r) and add
+−1
+a T1 -hybrid edge φ1 (x), y to GF , for every root y in Ll . Then we set Lx = ∅
+(x cannot be the image φ1 (x0 ) of a root x0 of F and Lr = ∅ in this case).
+The final case where only φ−1
+1 (r) is undefined or a root of F is symmetric to the
+previous case.
+It is easy to see that this procedure correctly constructs G∗F because it directly
+follows the definition of G∗F . The running time of the algorithm is also easily seen to
+−1
+be linear. Indeed, computing the mappings φ−1
+1 (x) and possibly φ1 (p) from φ1 (l)
+−1
+and φ1 (r) takes constant time per visited node x, linear time in total. In the case
+when Lx is computed as the union of Ll and Lr , Ll and Lr can be concatenated in
+constant time. In the case when we add a hybrid edge to G∗F , for every node in Ll
+or Lr , this takes constant time per node, and we then pass an empty list Lx to x’s
+parent. The latter implies that every root added to a list Lx leads to the addition of
+exactly one hybrid edge to G∗F . Since every node adds at most one root to Lx that is
+not already present in Ll or Lr , this shows that the addition of hybrid edges to G∗F
+also takes linear time in total for all nodes of T1 . The running time of the traversal of
+T2 is bounded by O(n) using the same arguments. Hence, the entire algorithm takes
+linear time.
+One thing to note about the algorithm for constructing G∗F is that it does not
+require knowledge of the edge sets E1 and E2 , even though we used these sets to
+define G∗F . This implies in particular that, even though there may be different edge
+sets E1 and E2 such that T1 ÷ E1 = T2 ÷ E2 = F , all of them lead to the same cycle
+graph—G∗F is completely determined by F alone.
+4.2. Essential Components and Exit Nodes. In this subsection, we define
+the essential components of a cycle in G∗F and their exit nodes. Our goal is to prove
+that, if F can be refined to an AAF of T1 and T2 with at most k + 1 components, this
+is possible exclusively by cutting the edges on the paths from exit nodes to the roots
+of their components in F .
+Let H1 be the set of T1 -hybrid edges in G∗F , and H2 the set of T2 -hybrid edges
+in G∗F , and assume G∗F contains a cycle O. Let h0 , h1 , . . . , hm−1 be the hybrid edges
+in O, and consider the components C0 , C1 , . . . , Cm−1 of F connected by these edges.
+More precisely, using index arithmetic modulo m, we assume the tail and head of
+edge hi belong to components Ci and Ci+1 , respectively. The cycle O enters each
+component Ci at its root and leaves it at the tail of the edge hi . We say a component
+Ci is essential for O if hi−1 ∈ H1 and hi ∈ H2 or vice versa. We say a component C
+
+21
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+ρ
+
+ρ
+
+C1
+
+C3
+
+C4
+
+C2
+
+C4
+
+C2
+
+ρ
+
+C3
+
+T1
+
+C1
+
+C3
+
+T2
+
+C4
+
+C3
+
+C1
+
+C1
+F
+
+(a)
+
+C2
+
+C4
+
+C2
+
+(b)
+
+C4
+
+C2
+
+C3
+
+C2
+
+C1
+
+C3
+
+C1
+
+G∗F
+(c)
+
+(d)
+
+Fig. 4.2. (a) Two trees T1 and T2 . (b) An agreement forest F of T1 and T2 . (c) G∗F (with
+ρ’s component removed for clarity) contains a cycle of length 4. White nodes indicate exit nodes.
+(d) Fixing the exit node of component C4 (cutting the bold edges) removes the cycle because none of
+the resulting subcomponents of C4 is an ancestor of C1 in T2 .
+
+of F is essential if it is essential for at least one cycle in G∗F . A node x of a component
+C of F is an exit node of C if C is an essential component Ci for some cycle O in
+G∗F and x is the tail of edge hi in this cycle. Figure 4.2(c) illustrates these concepts.
+Our first result in this subsection shows that there exists an exit node of an essential
+component such that cutting its parent edge in F reduces ẽ(T1 , T2 , F ) by one, that is,
+by cutting this edge, we make progress towards an MAAF of T1 and T2 .
+Lemma 4.4. Let O be a cycle in G∗F , let C0 , C1 , . . . , Cm−1 be its essential components, and let vi be the exit node of component Ci in O, for all 0 ≤ i ≤ m − 1. Then
+ẽ(T1 , T2 , F ÷ {evi }) = ẽ(T1 , T2 , F ) − 1, for some 0 ≤ i < m.
+Proof. Let E be an arbitrary edge set of size ẽ(T1 , T2 , F ) and such that F 0 := F ÷E
+is an AAF of T1 and T2 . If E ∩ {ev0 , ev1 , . . . , evm−1 } 6= ∅, the lemma holds. If
+E ∩ {ev0 , ev1 , . . . , evm−1 } = ∅, we show that there exists an edge f ∈ E such that
+F 0 = F ÷ (E \ {f } ∪ {evi }), for some 0 ≤ i < m, which again proves the lemma.
+Let ri be the root of component Ci , for all 0 ≤ i < m. To avoid excessive use of
+modulo notation in indices, we define Ti , φi (·), etc. to be the same as T2−(i mod 2) ,
+φ2−(i mod 2) (·), etc. in the remainder of this proof.
+First suppose there exist leaves ai ∈ Civi and ci ∈ Ci \ Civi such that ai ∼F 0 ci ,
+for all 0 ≤ i < m, and let li be the LCA of ai and ci in F 0 . Further, for every node
+x ∈ F 0 and for i ∈ {1, 2}, let φi (x) and φ0i (x) be the nodes in Ti x maps to based on
+its descendants in F and F 0 , respectively. Since C0 , C1 , . . . , Cm−1 are the essential
+components of O, m is even and, w.l.o.g., the hybrid edge with head ri is Ti−1 -hybrid
+and the hybrid edge with tail vi is Ti -hybrid. This implies that the lowest ancestor xi
+
+22
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+−1
+of φi (ri+1 ) such that φ−1
+i (xi ) is defined and belongs to Ci satisfies φi (xi ) = vi .
+0
+Now observe that φi (li ) is a descendant of φi (ri ) and an ancestor of xi in Ti . The
+former follows because (i) the set of li ’s descendants in F 0 is a subset of li ’s descendants
+in F and, thus, φ0i (li ) is a descendant of φi (li ), and (ii) li is a descendant of ri in F
+and, hence, φi (li ) is a descendant of φi (ri ). The latter follows because φ0i (ai ) = φi (ai )
+is a descendant of xi , while φ0i (ci ) = φi (ci ) is not. Since xi is an ancestor of φi (ri+1 ),
+for all i, this implies that φ0i (li ) is an ancestor of φ0i (li+1 ), for all i, which shows that
+the components of F 0 containing these nodes form a cycle in GF 0 , contradicting that
+F 0 is acyclic.
+Thus, there exists a component Ci such that a F 0 c, for all labelled leaves a ∈ Civi
+and c ∈ Ci \ Civi . This in turn implies that either a F 0 vi , for all labelled leaves
+a ∈ Civi , or c F 0 vi , for all labelled leaves c ∈ Ci \ Civi . W.l.o.g., assume the former.
+We choose an arbitrary labelled leaf a0 ∈ Civi and let f be the first edge in E on the
+path from vi to a0 . Since a F 0 vi , for all a ∈ Civi , this edge f and the edge e = evi
+satisfy the conditions of Lemma 2.1 and, hence, F ÷ E = F ÷ (E \ {f } ∪ {evi }) is an
+AAF of T1 and T2 .
+The following corollary of Lemma 4.4 shows that we can in fact make progress
+towards an AAF by cutting all edges on the path from an appropriate exit node to
+the root of its component. We call this fixing the exit node. Removing a cycle by
+fixing an exit node is illustrated in Figure 4.2(d).
+Corollary 4.5. Let O be a cycle in G∗F , let C0 , C1 , . . . , Cm−1 be its essential
+components, let vi be the exit node of component Ci in O, let Fi be the forest obtained
+from F by fixing vi , and let `i be the length of the path in Ci from vi to the root of Ci ,
+for all 0 ≤ i ≤ m − 1. Then ẽ(T1 , T2 , Fi ) = ẽ(T1 , T2 , F ) − `i , for some 0 ≤ i ≤ m − 1.
+Proof. The proof is by induction on ẽ(T1 , T2 , F ). By Lemma 4.4, there exists
+some exit node vi such that ẽ(T1 , T2 , F 0 ) = ẽ(T1 , T2 , F ) − 1, where F 0 := F ÷ evi .
+Cutting evi splits Ci into two components Ai and Bi containing the leaves in Civi and
+in Ci \ Civi , respectively.
+If ẽ(T1 , T2 , F ) = 1, then ẽ(T1 , T2 , F 0 ) = 0. This implies that the path from vi to ri
+in Ci cannot contain any edges apart from evi because otherwise C0 , C1 , . . . , Ci−1 , Bi ,
+Ci+1 , . . . , Cm−1 would form a cycle in GF 0 , that is, ẽ(T1 , T2 , F 0 ) > 0. Thus, the
+corollary holds for ẽ(T1 , T2 , F ) = 1.
+If ẽ(T1 , T2 , F ) > 1, we can assume by induction that the corollary holds for F 0 . If
+`i = 1, then the path from vi to ri consists of only evi , and the corollary holds for F .
+0
+0
+0
+Otherwise C00 , C10 , . . . , Ci−1
+, Ci0 , Ci+1
+, . . . , Cm−1
+:= C0 , C1 , . . . , Ci−1 , Bi , Ci+1 , . . . ,
+Cm−1 is a cycle O0 in GF 0 . Note that, for j 6= i, the exit node vj0 of Cj0 in O0
+is vj ; the exit node vi0 of Ci0 is vi ’s sibling in Ci . By the inductive hypothesis, there
+exists some Cj0 , 0 ≤ j < m, such that ẽ(T1 , T2 , Fj0 ) = ẽ(T1 , T2 , F 0 ) − `0j , where Fj0 is
+obtained from F 0 by fixing vj0 and `0j is the length of the path from vj0 to the root of Cj0 .
+In particular, `0j = `j , for j 6= i; and `0i = `i − 1. If j 6= i, we have Fj0 = Fj ÷ {evi } and
+ẽ(T1 , T2 , Fj ÷ {evi }) = ẽ(T1 , T2 , Fj0 ) = ẽ(T1 , T2 , F 0 ) − `0j = ẽ(T1 , T2 , F ) − `j − 1. Hence,
+ẽ(T1 , T2 , Fj ) ≤ ẽ(T1 , T2 , F )−`j . Since Fj is obtained from F by cutting `j edges, we also
+have ẽ(T1 , T2 , Fj ) ≥ ẽ(T1 , T2 , F )−`j . Thus, the corollary holds in this case. If j = i, we
+have Fj0 = Fj and ẽ(T1 , T2 , Fj ) = ẽ(T1 , T2 , Fj0 ) = ẽ(T1 , T2 , F 0 ) − `0j = ẽ(T1 , T2 , F ) − `j .
+Thus, the corollary holds in this case as well.
+
+4.3. Potential Exit Nodes and a Simple Refinement Algorithm. In this
+subsection, we introduce the concept of potential exit nodes and show that a first
+simple refinement algorithm can be obtained by testing for each subset of potential exit
+nodes whether fixing these nodes produces an AAF with at most k + 1 components.
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+23
+
+Given an agreement forest F of T1 and T2 , we mark all those nodes in F that are
+the tails of hybrid edges in G∗F . Since this includes all exit nodes of F , we call these
+nodes potential exit nodes. If F has k 0 components, there are 2(k 0 − 1) potential exit
+nodes. If F is a forest produced by the branching phase of our algorithm, it has at
+most k + 1 components and, thus, at most 2k potential exit nodes. The main result in
+this subsection is Lemma 4.6, which shows that the set of potential exit nodes of the
+forest obtained by fixing a potential exit node in F is a subset of F ’s potential exit
+nodes. We use this lemma to prove that, if F can be refined to an AAF with at most
+k + 1 components, then fixing an appropriate subset of potential exit nodes produces
+such a forest.
+Lemma 4.6. Let F be an agreement forest of two trees T1 and T2 , let V be the set
+of potential exit nodes of F , and let v be an arbitrary node in V . Let F 0 be the forest
+obtained from F by fixing v, and let V 0 be the set of its potential exit nodes. Then
+V0 ⊂V.
+Proof. Since fixing v removes v’s parent edge, v is a root of F 0 , which implies that
+v∈
+/ V 0 because potential exit nodes are not component roots. Thus, V 0 6= V , and it
+suffices to prove that V 0 ⊆ V . So let u ∈ V 0 , and let (u, w) be a hybrid edge in G∗F 0
+with tail u. Assume w.l.o.g. that (u, w) is a T1 -hybrid edge, let φ1 (·) and φ−1
+1 (·) be
+defined as before with respect to F , and let φ01 (·) and φ0−1
+(·)
+be
+the
+same
+mappings
+1
+defined with respect to F 0 . By the definition of a hybrid edge, w is the root of a
+0
+component of F 0 and u = φ0−1
+1 (x), for the lowest proper ancestor x of φ1 (w) such that
+0−1
+φ1 (x) is defined.
+Now let E1 ⊂ E10 be edge sets such that F = T1 ÷ E1 and F 0 = T1 ÷ E10 , and let E
+be the set of edges cut in F to fix v, that is, F 0 = F ÷ E. We prove that a ∼T1 −E1 x
+if and only if a ∼T1 −E10 x, for every labelled leaf a ∈ T1x . This implies in particular
+−1
+x
+that φ0−1
+1 (y) = φ1 (y), for all nodes y ∈ T1 such that x ∼T1 −E1 y.
+Clearly, if a ∼T1 −E10 x, then a ∼T1 −E1 x because E1 ⊂ E10 . So assume a ∼T1 −E1 x
+but a T1 −E10 x, for some labelled leaf a ∈ T1x . Since φ0−1
+1 (x) is defined, there exist
+labelled nodes b and c such that b ∼F 0 c and x is on the path from b to c in T1 − E10 .
+This implies that b ∼T1 −E10 x ∼T1 −E10 c and, hence, b ∼T1 −E1 x ∼T1 −E1 c. Together
+with a ∼T1 −E1 x, this implies that a, b, and c belong to the same connected component
+of T1 − E1 and, hence, to the same connected component of F , while a belongs to a
+different connected component of F 0 than b and c. Now observe that, since x is an
+ancestor of a and is on the path from b to c, the lowest common ancestor of b and c in
+T1 is an ancestor of a. Since F is a forest of T1 , this implies that the lowest common
+ancestor l of b and c in F also is an ancestor of a. Since b ∼F 0 l ∼F 0 c and a F 0 c,
+the path from a to l must contain at least one edge in E. By the choice of E, this
+implies that one of the child edges of l also belongs to E and, hence, that b F −E c, a
+contradiction because F 0 = F ÷ E and b ∼F 0 c.
+To finish the proof, let y be the first node after x on the path from x to φ01 (w)
+0−1 0
+0−1 0
+and such that φ−1
+1 (y) is defined. Since φ1 (φ1 (w)) = w, φ1 (φ1 (w)) and, hence,
+−1 0
+φ1 (φ1 (w)) is defined, that is, such a node y exists. If x T1 −E1 y, then φ−1
+1 (y) is a root
+−1
+−1
+0−1
+∗
+of F and (φ−1
+(x),
+φ
+(y))
+is
+a
+hybrid
+edge
+in
+G
+.
+Since
+φ
+(x)
+=
+φ
+1
+1
+1
+1 (x) = u, this
+F
+−1
+proves that u is also a potential exit node of F . If x ∼T1 −E1 y, then φ0−1
+1 (y) = φ1 (y),
+0−1
+that is, φ1 (y) is defined. By the choice of x, this implies that y = φ01 (w). Since
+φ01 (w)
+0
+φ0−1
+such that a ∼T1 −E10 φ01 (w) and,
+1 (φ1 (w)) is defined, there exists a leaf a ∈ T1
+0
+hence, a ∼F 0 w and a ∼T1 −E1 φ1 (w). Together with φ01 (w) ∼T1 −E1 x, the latter
+implies that a ∼T1 −E1 x, while (u, w) being a hybrid edge implies that u F 0 w and,
+hence, a F 0 u and a T1 −E10 x. This is a contradiction, that is, the case x ∼T1 −E1 y
+
+24
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+cannot occur.
+By Corollary 4.5, if F can be refined to an AAF F 0 with at most k + 1 components, we can do so by fixing an appropriate exit node in F0 = F , then fixing an
+appropriate exit node in the resulting forest F1 , and so on until we obtain F 0 . Let
+F = F0 , F1 , . . . , Fk+1 = F 0 be the sequence of forests produced in this fashion. For
+0 ≤ i ≤ k, the exit nodes of Fi are included in the set of Fi ’s potential exit nodes and,
+by Lemma 4.6, these potential exit nodes are included in the set of F ’s potential exit
+node. Thus, F 0 can be obtained from F by choosing an appropriate subset of F ’s
+potential exit nodes and fixing them. Now it suffices to observe that fixing a subset of
+exit nodes one node at a time produces the same forest as simultaneous cutting all
+edges in the union of the paths from these exit nodes to the roots of their components
+in F .
+This leads to the following simple refinement algorithm: We mark the potential
+exit nodes in F , which is easily done in linear time as part of constructing G∗F . Then
+we consider every subset of potential exit nodes. For each such subset, we can in linear
+time identify the edges on the paths from these potential exit nodes to the roots of
+their components, cut these edges and suppress nodes with only one child, construct
+the expanded cycle graph G∗F 0 of the resulting forest F 0 , and test wether F 0 has at
+most k + 1 components and G∗F 0 is acyclic. We return “yes” as soon as we find a
+subset of potential exit nodes for which this test suceeds. If it fails for all subsets of
+potential exit nodes, we return “no”. If F cannot be refined to an AAF with at most
+k + 1 components, this test fails for every subset of potential exit nodes. Otherwise,
+as we have argued above, it will succeed for at least one subset of potential exit nodes.
+Thus, this implementation of Refine(F, k) is correct.
+0
+If F has k 0 ≤ k + 1 components, there are at most 22(k −1) ≤ 22k = 4k subsets of
+potentialexit nodes to test by Refine(F, k). Thus, the running time of Refine(F, k)
+is O 4k n . As we argued at the beginning of this section, using this implementation
+of Refine(F, k) for the refinement
+phase
+
+ of our MAAF algorithm results in a running
+time of O 2.42k (n + 4k n) = O 9.68k n , and we obtain the following result.
+Theorem
+4.7. For two rooted trees T1 and T2 and a parameter k, it takes
+
+O 9.68k n time to decide whether ẽ(T1 , T2 , T2 ) ≤ k.
+4.4. Halving the Number of Potential Exit Nodes. In this subsection, we
+show how to mark half of the at most 2k potential exit nodes defined in §4.3 and show
+that it suffices to test for every subset of marked potential exit nodes whether fixing it
+produces an AAF of T1 and T2 with at most k + 1 components. Since this reduces the
+number of subsets to be tested from 4k to 2k , the running time of the refinement step
+is reduced to O 2k n , and the running time of the entire MAAF algorithm is reduced
+to O 4.84k n .
+In general, the result of marking only a subset of potential exit nodes is that we
+may obtain an AF F of T1 and T2 that can be refined to an AAF of T1 and T2 with at
+most k + 1 components but cannot be refined to such an AAF by fixing any subset of
+the potential exit nodes marked in F . Intuitively, the reason why this is not a problem
+is that, whenever we reach such an AF F where a potential exit node u should be fixed
+but is not marked, there exists a branch in the branching phase’s search for AFs that
+cuts a subset of the edges cut to produce F and then cuts eu . Thus, if it is necessary
+to fix u in F to obtain an AAF F 0 of T1 and T2 with at most k + 1 components, there
+exists an alternate route to obtain the same AAF F 0 by first producing a different
+AF F 00 and then refining it. While this is the intuition, it is in fact possible that our
+algorithm is not able to produce F 0 from F 00 either. What we do prove is that, if
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+25
+
+ẽ(T1 , T2 , T2 ) ≤ k, then there exists a “canonical” AF FC produced by the branching
+phase of our algorithm and which can be refined to an AAF FC0 of T1 and T2 with at
+most k + 1 components by fixing a subset of the marked potential exit nodes in FC .
+We accomplish the marking of potential exit nodes as follows. The branching
+phase assigns a tag “T1 ” or “T2 ” to each component root other than ρ of each AF F
+it produces. After constructing G∗F , the refinement step marks a potential exit node u
+if there exists a Ti -hybrid edge (u, w) in G∗F such that w’s tag is “Ti ”. Finally, the
+refinement step checks whether an AAF of T1 and T2 with at most k + 1 components
+can be obtained from F by fixing a subset of the marked potential exit nodes.
+To tag component roots during the branching phase of the algorithm, we augment
+the three cases of Step 6 to tag the bottom endpoints of the edges they cut in F2 .
+When a tagged node x loses a child l by cutting its parent edge el , x is contracted into
+its other child r; in this case, r inherits x’s tag. This ensures that at any time exactly
+the roots in the current forest F2 are tagged. The following is the pseudocode of the
+MAAF algorithm, which shows the tags assigned to the component roots produced in
+Step 6. Note that Case 6.2 has an additional branch that cuts both ea and ec . This
+is necessary to ensure we find an AAF of T1 and T2 with at most k + 1 components
+in spite of considering only subsets of marked potential exit nodes in the refinement
+phase (if such an AAF exists). In the description of the algorithm, we use k to denote
+the parameter passed to the current invocation (as in the MAF algorithm), and k0 to
+denote the parameter of the top-level invocation Maaf(T1 , T2 , k0 ). Thus, k0 + 1 is
+the number of connected components we allow the final AAF to have.
+1. (Failure) If k < 0, there is no subset E of at most k edges of F2 such that F2 − E
+yields an AF of T1 and T2 : ẽ(T1 , T2 , F2 ) ≥ 0 > k. Return “no” in this case.
+2. (Refinement) If |Rt | ≤ 2, then F2 = Ḟ2 ∪ F is an AF of T1 and T2 . Invoke
+an algorithm Refine(F2 , k0 ) that decides whether F2 can be refined to an AAF
+of T1 and T2 with at most k0 + 1 components. Return the answer returned by
+Refine(F2 , k0 ).
+3. (Prune maximal agreeing subtrees) If there is a node r ∈ Rt that is a root in Ḟ2 ,
+remove r from Rt and add it to Rd , thereby moving the corresponding subtree of
+Ḟ2 to F ; cut the edge er in Ṫ1 and suppress r’s parent from Ṫ1 ; return to Step 2.
+This does not alter F2 and, thus, neither ẽ(T1 , T2 , F2 ). If no such root r exists,
+proceed to Step 4.
+4. Choose a sibling pair (a, c) in Ṫ1 such that a, c ∈ Rt .
+5. (Grow agreeing subtrees) If (a, c) is a sibling pair of Ḟ2 , remove a and c from Rt ;
+label their parent in both trees with (a, c) and add it to Rt ; return to Step 2. If
+(a, c) is not a sibling pair of Ḟ2 , proceed to Step 6.
+6. (Cut edges) Distinguish three cases:
+6.1. If a F2 c, make two recursive calls:
+(i) Maaf(F1 , F2 ÷ {ea }, k − 1) with a tagged with “T2 ” in F2 ÷ {ea }, and
+(ii) Maaf(F1 , F2 ÷ {ec }, k − 1) with c tagged with “T2 ” in F2 ÷ {ec }.
+6.2. If a ∼F2 c and the path from a to c in Ḟ2 has one pendant node b, swap the
+names of a and c if necessary to ensure that b is a’s sibling. Then make three
+recursive calls (see Figure 4.3):
+(i) Maaf(F1 , F2 ÷ {eb }, k − 1) with b tagged with “T1 ” in F2 ÷ {eb },
+(ii) Maaf(F1 , F2 ÷ {ec }, k − 1) with c tagged with “T2 ” in F2 ÷ {ec }, and
+(iii) Maaf(F1 , F2 ÷ {ea , ec }, k − 2) with c tagged with “T1 ” and a tagged with
+“T2 ” in F2 ÷ {ea , ec }.
+6.3. If a ∼F2 c and the path from a to c in Ḟ2 has q ≥ 2 pendant nodes b1 , b2 , . . . , bq ,
+
+26
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+a
+
+c
+b
+
+c
+
+a
+
+b
+
+a
+
+b
+
+c
+
+a
+
+c
+b
+
+Fig. 4.3. Case 6.2 of Step 6 of the rooted MAAF algorithm. (Cases 6.1 and 6.3 are as in the
+rooted MAF algorithm and are illustrated in Figure 3.1). Only Ḟ2 is shown. Each box represents a
+recursive call.
+
+make three recursive calls:
+(i) Maaf(F1 , F2 ÷ {eb1 , eb2 , . . . , ebq }, k − q) with each node bi , 1 ≤ i ≤ q,
+tagged with “T1 ” in F2 ÷ {eb1 , eb2 , . . . , ebq },
+(ii) Maaf(F1 , F2 ÷ {ea }, k − 1) with a tagged with “T2 ” in F2 ÷ {ea }, and
+(iii) Maaf(F1 , F2 ÷ {ec }, k − 1) with c tagged with “T2 ” in F2 ÷ {ec }.
+Return “yes” if one of the recursive calls does; otherwise return “no”.
+To give some intuition behind the choice of tags in Step 6, and as a basis for
+the correctness proof of the algorithm, we consider a slightly modified algorithm that
+produces the same set of forests: When cutting an edge ex , x ∈ {a, c}, in Step 6,
+x becomes the root of a component of F2 that agrees with a subtree of F1 . Hence,
+the first thing Step 3 of the next recursive call does is to cut the parent edge of x
+in F1 . In the modified algorithm, we cut the parent edges of x in both F1 and F2 in
+Step 6 instead of postponing the cutting of x’s parent edge in F1 to Step 3 of the next
+recursive call.
+Now consider a labelled node x of F2 , and let y1 and y2 be x’s siblings in F1
+and F2 , respectively. If a case of Step 6 cuts the edge ex , x becomes a root and, in the
+absence of further changes that eliminate x, y1 or y2 from the forest, x is the head of a
+T1 -hybrid edge (y1 , x) and of a T2 -hybrid edge (y2 , x), making y1 and y2 potential exit
+nodes that may need to be fixed to obtain a certain AAF of T1 and T2 . The first step
+in fixing a potential exit node is to cut its parent edge, and an alternate sequence of
+edge cuts that produce the same AAF starts by cutting this parent edge instead of ex .
+Thus, if apart from cutting ex , the current case includes a branch that cuts the parent
+edge of y1 or y2 , we do not have to worry about fixing this exit node in the branch
+that cuts ex —there exits another branch we explore that has the potential of leading
+to the same AAF. To illustrate this idea, consider Case 6.1. Here, when we cut ea ,
+c becomes the tail of the T1 -hybrid edge (c, a) because a and c are siblings in F1 . Since
+the other branch of this case cuts ec , we do not have to worry about fixing c in the
+branch that cuts ea . On the other hand, neither of the two cases considers cutting the
+parent edge of a’s sibling b in F2 , which is the tail of the T2 -hybrid edge with head a.
+Thus, we need to give the refinement step the opportunity to fix b. We do this by
+tagging a with “T2 ”, which causes the refinement step to mark b. The same reasoning
+justifies the tagging of c with “T2 ” in the other branch of this case and the tagging of
+a and c with “T2 ” in Case 6.3. The tagging of every node bi with “T1 ” in Case 6.3
+is equally easy to justify: Cutting an edge ebi makes bi a root in F2 . Thus, either bi
+is itself a root of the final AF we obtain or it is contracted into such a root z after
+cutting additional edges; this root z inherits bi ’s tag. At the time we cut edge ebi , we
+do not know which descendant of bi will become this root z, nor whether any branch
+of our algorithm considers cutting the parent edge of the tail of z’s T1 -hybrid edge.
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+27
+
+On the other hand, the tail of z’s T2 -hybrid edge is either a or c, and we cut their
+parent edges in the other two branches of Case 6.3. Unfortunately, the tagging in
+Case 6.2 does not follow the same intuition and is in fact difficult to justify intuitively.
+The proof of Theorem 4.9 below shows that the chosen tagging rules lead to a correct
+algorithm.
+We assume from here on that hyb(T1 , T2 ) ≤ k0 because otherwise Refine(F, k0 )
+returns “no” for any AF F the branching phase may find, that is, the algorithm gives
+the correct answer when hyb(T1 , T2 ) > k0 . Among the AFs of T1 and T2 produced
+by the branching phase, there may be several that can be refined to an AAF of T1
+and T2 with at most k + 1 components. We choose a canonical AF FC from among
+these AFs. The proof of Theorem 4.9 below shows that the potential exit nodes in FC
+that need to be fixed to obtain such an AAF are marked. Since FC is produced by a
+sequence of recursive calls of procedure Maaf(·, ·, ·), we can define FC by specifying
+the path to take from the top-level invocation Maaf(T1 , T2 , k0 ) to the invocation
+Maaf(F1 , F2 , k) with F2 = FC . We use F1i and F2i to denote the inputs to the ith
+invocation Maaf F1i , F2i , ki along this path. We also compute an arbitrary numbering
+of the nodes of T1 and denote the number of x ∈ T1 by ν(x). This number is used as
+a tie breaker when choosing the next invocation along the path of invocations that
+produce FC . The first invocation is of course Maaf(T1 , T2 , k0 ), that is, F10 = T1 and
+F20 = T2 . So assume we have constructed the path up to the ith invocation with
+inputs F1i and F2i . The (i + 1)st invocation is made in Step 6 of the ith invocation.
+We say an invocation Maaf(F1 , F2 , k) is a leaf invocation if F2 is an AF of T1 and T2 .
+Recall the definition of a viable invocation from the beginning of this section and
+recall that Maaf(T1 , T2 , k0 ) is viable and that every viable invocation that is not a
+leaf invocation has a viable child invocation. If there
+ is only one viable invocation
+made in Step 6 of the ith invocation Maaf F1i , F2i , ki , then we choose this invocation
+
+as the (i + 1)st invocation Maaf F1i+1 , F2i+1 , ki+1 . Otherwise we apply the following
+
+rules to choose Maaf F1i+1 , F2i+1 , ki+1
+ from among the viable invocations made in
+Step 6 of invocation Maaf F1i , F2i , ki . We distinguish the three cases of Step 6.
+
+Case 6.1. In this case, Maaf F1i ÷ {ea }, F2i ÷ {ea }, ki − 1 and Maaf F1i ÷ {ec },
+F2i ÷ {ec }, ki − 1 are both viable invocations. For x ∈ {a, c}, let Fx be
+ the agreement
+forest found by tracing a path from Maaf F1i ÷ {ex }, F2i ÷ {ex }, ki − 1 to a viable leaf
+invocation using recursive application of these rules, and let Ex be an edge set such
+that Fx = T1 ÷ Ex . Let y be the sibling of x in F1i (i.e., y = c if x = a and vice versa).
+Now let φ1 (y) once again be the LCA in T1 of all labelled leaves that are descendants of
+y in F2i , and let φx (y) be the LCA in Fx of all labelled leaves l that are descendants of
+φ1 (y) in T1 and such that the path from l to φ1 (y) in T1 does not contain an edge in Ex .
+In other words, φx (y) is the node of Fx that y is merged into by suppressing nodes
+during the sequence of recursive calls that produces Fx from F2i . Finally, if φx (y) is the
+root of a component of Fx , let λ1 (y) := φ1 (y); otherwise let λ1 (y) be the LCA in T1
+of all labelled leaves that are descendants of the parent of φx (y) in Fx . In other words,
+if φx (y) is not a root in Fx , then λ1 (y) is the node in T1 where φx (y) and its sibling
+in Fx are joined by an application of Step 5 in some recursive call on the path to Fx .
+Now let d1 (y) > 0 be the distance from the root ρ of T1 to λ1 (y) if λ1 (y) 6= φ1 (y), and
+d1 (y) = 0 otherwise. If d1 (a) > d1 (c) or d1 (a) = d1 (c) and ν(a) < ν(c), we choose
+the invocation Maaf F1i ÷ {ea }, F2i ÷ {ea }, ki − 1 as the (i + 1)st invocation, that is,
+FC = Fa . If d1 (a) < d1 (c) or d1 (a)= d1 (c) and ν(a) > ν(c), we choose the invocation
+Maaf F1i ÷ {ec }, F2i ÷ {ec }, ki − 1 as the (i + 1)st invocation, that is, FC = Fc . This
+is illustrated in Figure 4.4.
+
+28
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+λ1 (c)
+
+λ1 (a)
+
+φ1 (d)
+
+λ1 (a)
+
+φ1 (b)
+
+φ1 (a)
+
+φ1 (c)
+(a)
+
+φ1 (b)
+
+φ1 (a)
+
+φ1 (c) = λ1 (c)
+(b)
+
+Fig. 4.4. Two applications of Case 6.1 where we choose the invocation Maaf F1i ÷{ea }, F2i ÷{ea },
+
+ki − 1 on the path to FC . Both figures show the relevant portion of T1 . Dotted edges have been
+removed to obtain F1i , making a and c siblings in F1i . The bold portion of T1 yields F1i . Node
+b is a’s sibling in Fc . In Figure (a), d is c’s sibling in Fa , and the highest node λ1 (c) on the
+path from φ1 (c) to φ1 (d) is an ancestor of the highest node λ1 (a) on the path from φ1 (a) to φ1 (b).
+Hence, d1 (a) > d1 (c). In Figure (b), φa (c) is assumed to be a root of Fa . Hence φ1 (c) = λ1 (c) and
+d1 (a) > 0 = d1 (c).
+
+
+Case 6.2. In this case, if Maaf F1i ÷ {ea , ec }, F2i ÷ {ea , ec }, ki − 2 is viable,
+we choose it as the (i + 1)st invocation. If the invocation Maaf F1i ÷ {ea , ec },
+F2i ÷ {ea , ec }, ki − 2 is not viable, then the invocations Maaf F1i , F2i ÷ {eb }, ki − 1
+and Maaf F1i ÷ {ec }, F2i ÷ {ec }, ki − 1 are both viable. In this case, we choose the
+latter as the (i + 1)st invocation.
+Case 6.3. Since there is more than one viable invocation
+in this case, at least one
+
+of the invocations Maaf F1i ÷ {ea }, F2i ÷ {ea }, ki − 1 and Maaf F1i ÷ {ec }, F2i ÷ {ec },
+ki − 1 is viable. If exactly one of them is viable, we choose it to be the (i + 1)st
+invocation. If both are viable, we define λ1 (a) and λ1 (c) as in Case 6.1. If λ1 (a) 6= λ1 (c),
+we choose the (i + 1)st invocation as in Case 6.1. If λ1 (a) = λ1 (c), we define λ2 (x)
+and d2 (x), for x ∈ {a, c}, analogously to λ1 (x) and d1 (x) but using φ2 (·) and T2 in
+place of φ1 (·) and T1 . Now we choose the (i + 1)st invocation as in Case 6.1 but using
+d2 (·) instead of d1 (·).
+Lemma 4.8. If hyb(T1 , T2 ) ≤ k0 , then FC can be refined to an AAF of T1 and T2
+with at most k0 + 1 components by fixing a subset of the marked potential exit nodes
+in FC .
+Proof. Let E be an edge set such that F 0 := FC ÷ E is an AAF of T1 and T2 with
+at most k0 + 1 components. By Corollary 4.5, we can assume E is the union of paths
+from a subset of potential exit nodes to the roots of their respective components in FC .
+These potential exit nodes may or may not be marked. Now let M be the set of nodes
+m ∈ FC such that every edge on the path from m to the root of its component in FC
+is in E and m or its sibling in FC is marked. We say an edge is marked if it belongs to
+the path from a node m ∈ M to the root of its component, that is, if it is removed by
+fixing this node m. Next we prove that all edges in E are marked. Since fixing a node
+or its sibling in FC results in the same forest and every node in m is itself marked or
+has a marked sibling, this implies that there exists a subset of marked potential exit
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+29
+
+nodes such that fixing them produces F 0 , that is, the refinement step applied to FC
+finds F 0 .
+Assume for the sake of contradiction that there is an unmarked edge in E. Since
+all ancestor edges of a marked edge are themselves marked, this implies that there
+exists a potential exit node u ∈ G∗FC whose parent edge eu belongs to E but is not
+marked, which in turn implies that neither u nor its sibling u0 in FC is marked. The
+sequence of invocations that produce FC from T1 and T2 gives rise to a sequence of
+edges the algorithm cuts to produce FC . For a step that cuts more than one edge, we
+cut these edges one by one. For Step 3 and branch (i) of Case 6.3, this ordering is
+chosen arbitrarily. For every branch of Step 6 that cuts an edge ex with x ∈ {a, c}, we
+choose the ordering so that the parent edge of x in F1 is cut immediately after cutting
+ex in F2 . Finally, in branch (iii) of Case 6.2, we cut ec after ea . In the remainder of this
+proof, we use F1i and F2i to refer to the forests obtained from T1 and T2 after cutting
+the first i edges. (This is a slight change of notation from the definition of FC , where
+we used F1i and F2i to denote the forests passed as arguments to the ith invocation.)
+Since FC is a refinement of F1i and F2i , every node x ∈ FC maps to the lowest node y
+in Fji such that the labelled descendant leaves of x in FC are descendants of y in Fji .
+This is analogous to the mappings φ1 (·) and φ2 (·) from FC to T1 and T2 . To avoid
+excessive notation, we refer to the nodes in F1i and F2i a node x ∈ FC maps to simply
+as x.
+With this notation, the common parent pu of u and u0 in FC is the lowest common
+ancestor of both nodes in any forest Fji . Since u is a potential exit node of FC , there
+is at least one hybrid edge in G∗FC induced by cutting a pendant edge of the path
+from u to pu in some forest Fji . There may also be a hybrid edge induced by cutting a
+pendant edge of the path from u0 to pu in some forest Fji . Either of these two types of
+edges are pendant to the path from u to u0 in Fji . Let i be the highest index such that
+the ith edge we cut is pendant to the path from u to u0 in F1i−1 or F2i−1 , and let ey be
+this edge. Let j ∈ {1, 2} so that we cut ey in Fji−1 . Since u and u0 are siblings in FC ,
+the choice of index i implies that u and u0 are siblings in F1i and F2i . In particular, y is
+the only pendant edge of the path from u to u0 in Fji−1 and either u or u0 is y’s sibling
+in Fji−1 . We use x to refer to this sibling, and x0 to refer to x’s sibling in FC (that is,
+x0 = u0 if x = u and vice versa). We make two observations about x, x0 , and y:
+(i) Since fixing a node in FC or its sibling produces the same forest, F 0 can
+be obtained from FC by fixing a subset ofnodes that includes
+x or x0 . In particular,
+
+i
+i
+i
+ẽ T1 , T2 , Fj ÷ {ex } = ẽ T1 , T2 , Fj ÷ {ex0 } = ẽ T1 , T2 , Fj − 1, for j ∈ {1, 2}.
+(ii) Since edge eu is not marked, neither u nor u0 is marked, that is, x is not
+marked in FC and, hence, y is not tagged with “Tj ” in FC .
+Now we examine each of the steps that can cut ey and prove that these observations
+lead to a contradiction. Thus, E cannot contain an unmarked edge, and the lemma
+follows.
+First assume ey belongs to F1i−1 . Then ey is cut by an application of Step 3 or
+ey is the parent edge in F1i−1 of a node y ∈ {a, c} whose parent edge in F2i−2 is the
+(i − 1)st edge we cut. First assume the former. Then y is a root in F2i−1 , which implies
+0
+that there exists an i0 < i such that the i0 th edge we cut is an edge ez in F2i −1 such
+0
+that z is an ancestor of y in F2i −1 and z is a node b or bi in this application of Step 6.
+We choose the maximal such i0 . This implies that no edge on the path from y to z
+00
+is cut by any subsequent step. Indeed, if we cut such an edge in a forest F2i −1 , for
+i0 < i00 < i, it would have to be an edge ez0 with z 0 ∈ {a, c}, by the choice of i0 . If
+
+30
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+z 0 = y, then ey would be cut in Step 6; if z 0 6= y, then ey would belong to a subtree
+00
+of F1i −1 whose root is the member of a sibling pair, and ey would never be cut. In
+either case, we obtain a contradiction. Now observe that any case of Step 6 that cuts
+an edge eb or ebi tags b or bi with “T1 ”, that is, z is tagged with “T1 ” immediately
+after cutting ez . Since we have just argued that no edges are cut on the path from z
+to y and y is a root in F2i−1 , our rules for maintaining tags when suppressing nodes
+imply that y inherits z’s “T1 ” tag, a contradiction.
+Now suppose ey belongs to F1i−1 and is cut in Step 6, that is, y ∈ {a, c}. Since
+Step 6 cuts an edge in F1 immediately after cutting the corresponding edge in F2 ,
+the (i − 1)st edge we cut is y’s parent edge in F2i−2 . If ey is cut by an application of Case 6.1, assume w.l.o.g.
+that y = c and, hence, x = a. Since the in
+vocation Maaf F1i−2 , F2i−2 , k that cuts ey is viable and ẽ T1 , T2 , F2i−2 ÷ {ex } =
+
+
+ẽ T1 , T2 , F2i−2 − 1, the invocation Maaf F1i−2 ÷ {ex }, F2i−2 ÷ {ex }, k − 1 is also
+viable. Since we apply Case 6.1, x and x0 are siblings in FC , and FC is a refinement
+of F2i−2 , we have x0 ∼F i−2 x F i−2 y. Since Fx is also a refinement of F2i−2 , this
+2
+2
+implies that x0 Fx y. In particular, x0 and y are not siblings in Fx . Since ey is
+the only pendant edge of the path from x to x0 in F1i−2 , this implies that either
+y is a root in Fx or its parent in Fx is a proper ancestor in F1i−2 of the common
+parent of x and x0 in Fy = FC . In both cases, d1 (y) < d1 (x),
+ contradicting that we
+chose the invocation Maaf F1i−2 ÷ {ey }, F2i−2 ÷ {ey }, k − 1 instead of the invocation
+
+Maaf F1i−2 ÷ {ex }, F2i−2 ÷ {ex }, k − 1 on the path to FC .
+If ey is cut by an application of Case 6.2, y is tagged with “T1 ” unless y = a
+and we apply the third branch of this case, or y = c and we apply the second branch
+of this case. If y = a and we apply the third branch, then x = c and the (i + 2)nd
+edge we cut is edge ec in F1i+1 , which contradicts that x = c has a sibling in FC .
+If y = c and we apply the second branch of this case, then x = a. However, since
+ẽ(T1 , T2 , FC ÷ {ex }) = ẽ(T1 , T2 , FC ) − 1 and we cut edge ey to obtain FC from F2i−2 ,
+we have in fact ẽ T1 , T2 , F2i−2 ÷ {ea , ec } = ẽ T1 , T2 , F2i−2 − 2, that is, the invocation
+
+Maaf F1i−2 ÷ {ea , ec }, F2i−2 ÷ {ea , ec }, k − 2 is viable. This contradicts that we chose
+
+the invocation Maaf F1i−2 ÷ {ec }, F2i−2 ÷ {ec }, k − 1 as the next invocation on the
+path to FC .
+Finally, suppose ey is cut by an application of Case 6.3. If x0 and y are not siblings
+in Fx , then the same argument as for Case 6.1 leads to a contradiction to the choice
+of FC . So assume that x0 and y are siblings in Fx , that is, that d1 (x) = d1 (y). Since
+ey is the last pendant edge of the path from x to x0 in either of the two forests F1
+and F2 , x and x0 are siblings in F2i−1 . This implies that either x and x0 are siblings
+also in F2i−2 or ey is the only pendant edge of the path from x to x0 in F2i−2 . In
+the first case, we have d2 (y) < d2 (x),
+ contradicting that we chose the invocation
+Maaf F1i−2 ÷ {ey }, F2i−2 ÷ {ey }, k − 1 on the path to FC , even though the invocation
+
+Maaf F1i−2 ÷ {ex }, F2i−2 ÷ ex , k − 1 is viable. In the second case, cutting ey in F2i−2
+tags y with “T2 ”. Since y is the sibling of x or x0 in F2i−2 , this implies that x or x0 is
+marked in FC , again a contradiction.
+Finally, assume ey belongs to F2i−1 . Then ey is cut by an application of Case 6.2
+or Case 6.3 because Case 6.1 tags the bottom endpoint of each edge it cuts with “T2 ”,
+contradicting that y is not tagged with “T2 ”.
+In Case 6.2, ey is either eb or ec because, when edge ea is cut, a is tagged
+with “T2 ”. First suppose ey = eb . Since ey is the last pendant edge of the path
+from x to x0 we cut in either of the two forests F1 and F2 , we have x = a and
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+31
+
+
+x0 = c. However, since the current invocation Maaf F1i−1 , F2i−1 , k is viable and
+
+
+
+ẽ T1 , T2 , F2i−1 ÷ {ec } = ẽ T1 , T2 , F2i−1 ÷ {ex0 } = ẽ T1 , T2 , F2i−1 − 1, the invocation
+
+Maaf F1i−1 ÷ {ec }, F2i−1 ÷ {ec }, k − 1 is also viable, which contradicts that we chose
+
+the invocation Maaf F1i−1 , F2i−1 ÷ {eb }, k − 1 as the next invocation on the path
+to FC .
+If ey = ec , it must be an application of branch (iii) of Case 6.2 that cuts ey because
+branch (ii) tags c with “T2 ”. In this case, x = b because we cut ea before ec . Then,
+however, b is a’s sibling in F2i−3 and the tail of a’s T2 -hybrid edge. Since a is tagged
+with “T2 ” in this case, this implies that x = b is marked in FC , a contradiction.
+In Case 6.3 we tag a or c with “T2 ”. So ey must be ebh , for some pendant
+edge ebh of the path from a to c in F2i−q . Along with the fact that ey is the last
+0
+pendant edge of the path from x to x0 we
+ cut, this implies that x = c or x = c.
+i−q
+i−q
+Since the invocation Maaf F1 , F2 , k that cuts edges b1 , b2 , . . . , bq is viable and
+
+
+
+ẽ T1 , T2 , F2i−q ÷ {ex } = ẽ T1 , T2 , F2i−q ÷ {ex0 } = ẽ T1 , T2 , F2i−q − 1, the invocation
+
+Maaf F1i−q ÷ {ec }, F2i−q ÷ {ec }, k − 1 is also viable, contradicting that we chose the
+
+invocation Maaf F1i−q , F2i−q ÷ {eb1 , eb2 , . . . , ebq }, k − q as the next invocation on the
+path to FC .
+By Lemma 4.8, the algorithm returns “yes” if hyb(T1 , T2 ) ≤ k0 , and it cannot
+return “yes” if hyb(T1 , T2 ) > k0 . Thus, our MAAF algorithm is correct. Case 6.2 makes
+an additional recursive call compared to the algorithm from §4.3, but the number of
+recursive calls in this case is still given by the recurrence I(k) = 2I(k − 1) + I(k − 2),
+which is also the worst case of Case 6.3 in the MAF algorithm (see Lemma 3.4). Thus,
+the number
+ of recursive calls made during the branching phase of the algorithm remains
+O 2.42k0 . Since at most k0 of the potential exit nodes of an AF F found during the
+branching
+ phase are marked (one per root of F other than ρ), Refine(F, k0 ) takes
+O 2k0 n time to test whether fixing any subset of these marked potential exit nodes
+yields an AAF of T1 and T2 with at most
+k0 + 1 components.
+Thus, the total running
+
+time of the algorithm is O 2.42k n + 2k n = O 4.84k n , and we obtain the following
+theorem.
+Theorem
+4.9. For two rooted X-trees T1 and T2 and a parameter k0 , it takes
+
+O 4.84k0 n time to decide whether ẽ(T1 , T2 , T2 ) ≤ k0 .
+4.5. Improved Refinement and Analysis. The algorithm we have developed
+so far finds a set of agreement forests with marked potential exit nodes such that
+at least one of these AFs F can be refined to an MAAF F 0 by fixing a subset of
+the marked exit nodes in F . The algorithm then fixes every subset of these marked
+potential exit nodes for each agreement forest it finds. If k 0 is the number of edges we
+0
+cut to obtain F , there are k 0 marked potential exit nodes and 2k subsets of marked
+0
+potential exit nodes to check. When k 0 is small, the resulting time bound of O 2k n
+for the refinement step is substantially better than the bound of O 2k n obtained
+using the naive upper bound of k 0 ≤ k we used so far. For large values of k 0 , we observe
+that F has k 0 + 1 components because we always cut edges in a fully contracted forest
+(i.e., a forest without degree-2 vertices other than its component roots). When fixing
+a set of k 00 potential exit nodes in the refinement step, we cut at least k 00 edges, and
+this increases the number of connected components by at least k 00 , again because we
+cut edges along paths in fully contracted forests. Thus, if k 0 + k 00 > k, we cannot
+possibly obtain an AAF with at most k + 1 components: the refinement step applied
+to F needs to consider only subsets of at most k 00 := k − k 0 potential exit nodes. Since
+there are k 0 marked potential exit nodes to choose from, this reduces the running time
+
+32
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+k00
+k0
+j=0 j
+
+k0
+
+  
+n . For large values
+
+of k 0 , k 00 is small and the sum is significantly less than O 2 n = O 2k n . Thus, we
+obtain a substantial improvement of the running time of the refinement step also in
+this case, without affecting its correctness. In summary, the only change to the MAAF
+algorithm from §4.4 we make in this section is to inspect all subsets of at most k 00
+marked potential exit nodes in the refinement step, where k 00 := min(k 0 , k − k 0 ).
+of the refinement step applied to such a forest F to O
+
+P
+
+To analyze the running time of our algorithm using this improved refinement step,
+we split each refinement step into several refinement steps. A refinement step that tries
+all subsets of between 0 and k 00 marked potential exit nodes is replaced with k 00 + 1
+refinement steps: for 0 ≤ j ≤ k 00 , the jth such refinement step tries
+of
+ all
+ subsets
+
+k0
+exactly j marked potential exit nodes. Its running time is therefore O j n , and the
+total cost of all refinement steps remains unchanged. Now we partition the refinement
+steps invoked for the different AFs found during the branching phase into k + 1 groups.
+For 0 ≤ h ≤ k, the hth group contains a refinement step applied to an agreement
+forest F if the number k 0 of edges cut to obtain F and the size j of the subsets of
+marked potential exit nodes the refinement step tries satisfy k 0 + j = h. We prove
+that
+
+the total running time of all refinement steps in the hth groupis O 3.18h n . Hence,
+
+Pk
+h
+k
+the total running time of all refinement steps is O
+h=0 3.18 n = O 3.18 n , which
+
+dominates the O 2.42k n time bound of the branching
+phase, that is, the running
+
+k
+time of the entire MAAF algorithm is O 3.18 n .
+Now consider the tree of recursive calls made in the branching phase. Since a given
+invocation Maaf(F1 , F2 , k 00 ) spawns further recursive calls only if F2 is not an AF of
+T1 and T2 , and we invoke the refinement step on F2 only if F2 is an AF of T1 and T2 ,
+refinement steps are invoked only from the leaves of this recursion tree. Moreover,
+since every refinement step in the hth group satisfies k 0 + j = h and, hence, k 0 ≤ h,
+refinement steps in the hth group can be invoked only for agreement forests that can
+be produced by cutting at most h edges in T2 . Thus, to bound the running time of
+the refinement steps in the hth group, we can restrict our attention to the subtree of
+the recursion tree containing all recursive calls Maaf(F1 , F2 , k 00 ) such that F2 can be
+obtained from T2 by cutting at most h edges, that is, k 00 ≥ d := k − h. Since we want
+to obtain an upper bound on the cost of the refinement steps in the hth group, we can
+assume that the shape of this subtree and the set of refinement steps invoked from its
+leaves are such that the total cost of the refinement steps is maximized. We construct
+such a worst-case recursion tree for the refinement steps in the hth group in two steps.
+First we construct a recursion tree without refinement steps and such that, for each
+d ≤ k 00 ≤ k, the number of invocations with parameter k 00 in this tree is maximized.
+As in the proof of Lemma 3.4, this is the case if each recursive call with parameter
+k 00 ≥ d + 2 makes three recursive calls, two with parameter k 00 − 1 and one with
+parameter k 00 − 2, and each recursive call with parameter k 00 = d + 1 makes two
+recursive calls with parameter k 00 − 1. As in the proof 
+of Lemma 3.4, this
+implies that
+√ k00 −d 
+00
+every recursive call with parameter k has a tree of Θ 1 + 2
+recursive calls
+
+
+√ k−d 
+√ h 
+below it, and the size of the entire tree is O 1 + 2
+= O 1+ 2
+. The
+second step is to choose a subset of recursive calls in this tree for which we invoke
+the refinement step instead of spawning further recursive calls, thereby turning them
+into leaves. In effect,
+for each such node with parameter k 00 , we replace its
+subtree
+ 
+√ k00 −d 
+0
+of Θ 1 + 2
+recursive calls with a single refinement step of cost O kj n ,
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+33
+
+where k 0 := k − k 00 = h + d − k 00 and j := h − k 0 = k 00 − d. By charging the cost of
+this refinement step equally to
+thenodes in the removed
+subtree,
+nodein this
+ 0 each √
+√ k00 −d 
+j
+k0
+k
+subtree is charged a cost of Θ j n/ 1 + 2
+= Θ j n/ 1 + 2 . The
+total running time of all refinement steps in the hth group is the sum of the
+of
+ charges
+√ h 
+all nodes removed from the recursion tree. Since we can remove at most O 1 + 2
+nodes from the tree, the cost of all refinement steps in the hth group is therefore
+ 0
+
+
+k
+
+  
+√ k 0 k 0
+√ h
+j n
+n ,
+(4.1)
+O 1 + 2
+√ j  = O 1 + 2
+j
+1+ 2
+√ j
+/ 1+ 2 is maximized subject to the constraints
+
+0 ≤ j ≤ k 0 and k 0 + j = h. It remains to bound this expression by O 3.18h n . First
+ 0
+√ k 0  0 
+0
+assume that k 0 ≤ 2h/3. Then we can bound kj by 2k , and 1 + 2 · kj by
+√ k 0
+
+2 + 2 2 ≤ 4.842h/3 ≤ 2.87h , that is, (4.1) is bounded
+by O 2.87h n . For k 0 = h,
+
+we have j = 0 and, hence, (4.1) is bounded by O 2.42h n in this case. To bound (4.1)
+for 2h/3 < k 0 < h, we make use of the following observation.
+ 
+ y 
+x−y !
+x
+x
+x
+Observation 2.
+=O
+.
+y
+y
+x−y
+Observation 2 allows us to bound (4.1) by
+where k 0 and j are chosen so that
+
+O
+
+√ k 0
+1+ 2
+
+
+
+k0
+j
+
+j 
+
+ 0
+k
+j
+
+k0 −j !
+k0
+n =
+k0 − j
+
+
+1−α 
+2α−1 !h
+
+√ α
+α
+α
+n ,
+O 1 + 2
+1−α
+2α − 1
+
+where α := k 0 /h and, hence, k 0 = αh and j = (1 − α)h. It remains to determine the
+value of α such that 2/3 < α < 1 and the function
+b(α) = 1 +
+
+√ α
+2
+
+
+
+α
+1−α
+
+1−α 
+
+α
+2α − 1
+
+2α−1
+
+is maximized. Taking √
+the derivative and setting to zero, we obtain that b(α) is
+√
+7+6 2
+1
+√ , which gives b(α) ≤ 3.18. This finishes the proof that
+maximized for α = 2 + 10+2
+2
+
+the total cost of the refinement steps in the hth group is O 3.18h n , which, as we
+
+argued already, implies that the running time of the entire algorithm is O 3.18k n .
+Thus, we have the following theorem.
+Theorem
+4.10. For two rooted X-trees T1 and T2 and a parameter k, it takes
+
+O 3.18k n time to decide whether ẽ(T1 , T1 , T2 ) ≤ k.
+As with the MAF algorithms, we can use known kernelization rules [9] to transform
+the trees T1 and T2 into two trees T10 and T20 of size O(e(T1 , T2 , T2 )). However, unlike
+the kernelization rules used for SPR distance, these kernelization rules produce trees
+that do not have the same hybridization number as T1 and T2 . One of these rules,
+the Chain Reduction, replaces a chain of leaves a1 , a2 , . . . with a pair of leaves a, b.
+Bordewich and Semple [9] showed that in an MAAF of the resulting two trees, either
+
+34
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+a and b are both isolated or neither is. A corresponding MAAF of T1 and T2 can
+be obtained by cutting the parent edges of a1 , a2 , . . . in the first case or replacing a
+and b with the sequence of leaves a1 , a2 , . . . in the second case. The difference in size
+between these two MAAFs is captured by assigning the number of leaves removed by
+the reduction as a weight to the pair (a, b). The weight of an AAF of the two reduced
+trees T10 and T20 then is the number of components of the AAF plus the weights of all
+such pairs (a, b) such that a and b are isolated in the AAF. This weight equals the
+size of the corresponding AAF of T1 and T2 .
+It is not difficult to incorporate these weights into our MAAF algorithm. Whenever
+the refinement algorithm would return “yes”, we first add the sum of the weights
+of isolated pairs to the number of components in the found AAF. If, and only if,
+this total is less than or equal to k0 , we return “yes”. Any AF F of T10 and T20 with
+weight w(F ) = ẽ(T1 , T2 , T2 ) has at most w(F ) components and thus will be examined
+by this strategy. Similarly, the depth of the recursion is bounded by the number of
+components, and thus by k0 . Thus, we obtain the following corollary.
+Corollary
+ 4.11. For two rooted X-trees T1 and T2 and a parameter k, it takes
+O 3.18k k + n3 time to decide whether ẽ(T1 , T2 , T2 ) ≤ k.
+5. Conclusions. The algorithms presented in this paper are the theoretically
+fastest algorithms for computing SPR distances and hybridization numbers of rooted
+phylogenies. The most important open problem is extending our approach to computing
+maximum agreement forests and maximum acyclic agreement forests for multifurcating
+trees and for more than two trees. Evolutionary biologists often construct phylogenetic
+trees using methods that assign a measure of statistical support to each edge of the
+tree. Contracting edges with poor statistical support eliminates bipartitions that may
+be artifacts of the manner in which the tree was constructed but the resulting trees are
+multifurcating trees. If we can extend our methods to support multifurcating trees, the
+comparisons of binary phylogenies our new algorithms make possible can be applied
+also to multifurcating trees. The kernelization results of Linz and Semple [21] for
+maximum acyclic agreement forests apply to such trees. Extending our bounded search
+tree approach to computing agreement forests of multifurcating trees is currently the
+focus of ongoing efforts on our part.
+A first step towards comparing multiple phylogenies over a set of species could be
+to identify groups of species whose pattern of relatedness is the same in all trees, which
+is exactly what a maximum agreement forest of all the trees in the given set would
+represent. The 8-approximation algorithm by Chataigner [11] for computing an MAF
+of two or more unrooted phylogenies and the FPT algorithm by Chen and Wang [12]
+for computing all MAAFs of a set of rooted phylogenies are important steps in this
+direction. We believe that some of the ideas in this paper may lead to improvements
+of the latter result.
+While the theoretical results presented in this paper are interesting in their own
+right, as they shed further light on the complexity of computing agreement forests,
+experimental results indicate that our algorithms also perform very well in practice.
+In [31], we evaluated the practical performance of our algorithms for rooted SPR
+distance and demonstrated that they are an order of magnitude faster than the currently
+best exact alternatives [4, 34] based on reductions to integer linear programming and
+satisfiability testing, respectively. The implementation and its source code are publicly
+available [29]. The largest distances reported using implementations of previous
+methods are a hybridization number of 19 on 46 taxa [35] and an SPR distance of
+19 on 46 taxa [34]. In contrast, our method took less than 5 hours to compute SPR
+
+FIXED-PARAMETER ALGORITHMS FOR MAXIMUM AGREEMENT FORESTS
+
+35
+
+distances of up to 46 on trees with 144 taxa and 99 on synthetic 1000-leaf trees and
+required less than one second on average to compute SPR distances of up to 19 on 144
+taxa. This represents a major step forward towards tools that can infer reticulation
+scenarios for the thousands of genomes that have been fully sequenced to date.
+REFERENCES
+[1] Benjamin L. Allen and Mike Steel, Subtree transfer operations and their induced metrics on
+evolutionary trees, Annals of Combinatorics, 5 (2001), pp. 1–15.
+[2] Mihaela Baroni, Stefan Grünewald, Vincent Moulton, and Charles Semple, Bounding the number of hybridisation events for a consistent evolutionary history, Journal of
+Mathematical Biology, 51 (2005), pp. 171–182.
+[3] Robert G. Beiko and Nicholas Hamilton, Phylogenetic identification of lateral genetic
+transfer events, BMC Evolutionary Biology, 6 (2006), p. 15.
+[4] Maria Luisa Bonet and Katherine St. John, Efficiently calculating evolutionary tree measures
+using SAT, in Proceedings of the 12th International Conference on Theory and Applications
+of Satisfiability Testing, vol. 5584 of Lecture Notes in Computer Science, Springer-Verlag,
+2009, pp. 4–17.
+[5]
+, On the complexity of uSPR distance, IEEE/ACM Transactions on Computational
+Biolology and Bioinformatics, 7 (2010), pp. 572–576.
+[6] Maria Luisa Bonet, Katherine St. John, Ruchi Mahindru, and Nina Amenta, Approximating subtree distances between phylogenies, Journal of Computational Biology, 13 (2006),
+pp. 1419–1434.
+[7] Magnus Bordewich, Catherine McCartin, and Charles Semple, A 3-approximation
+algorithm for the subtree distance between phylogenies, Journal of Discrete Algorithms, 6
+(2008), pp. 458–471.
+[8] Magnus Bordewich and Charles Semple, On the computational complexity of the rooted
+subtree prune and regraft distance, Annals of Combinatorics, 8 (2005), pp. 409–423.
+[9]
+, Computing the hybridization number of two phylogenetic trees is fixed-parameter tractable,
+IEEE/ACM Transactions on Computational Biology and Bioinformatics, 4 (2007), pp. 458–
+466.
+, Computing the minimum number of hybridization events for a consistent evolutionary
+[10]
+history, Discrete Applied Mathematics, 155 (2007), pp. 914–928.
+[11] Frédéric Chataigner, Approximating the maximum agreement forest on k trees, Information
+Processing Letters, 93 (2005), pp. 239–244.
+[12] Zhi-Zhong Chen and Lusheng Wang, Algorithms for reticulate networks of multiple phylogenetic trees, IEEE/ACM Transactions on Computational Biology and Bioinformatics, 9
+(2012), pp. 372–384.
+[13] William H. E. Day, Optimal algorithms for comparing trees with labeled leaves, Journal of
+Classification, 2 (1985), pp. 7–28.
+[14] Michael Hallett and Catherine McCartin, A faster FPT algorithm for the maximum
+agreement forest problem, Theory of Computing Systems, 41 (2007), pp. 539–550.
+[15] M. T. Hallett and J. Lagergren, Efficient algorithms for lateral gene transfer problems, in
+Proceedings of the 5th Annual International Conference on Computational Biology, ACM
+New York, NY, USA, 2001, pp. 149–156.
+[16] Jotun Hein, Tao Jiang, Lusheng Wang, and Kaizhong Zhang, On the complexity of
+comparing evolutionary trees, Discrete Applied Mathematics, 71 (1996), pp. 153–169.
+[17] Glenn Hickey, Frank Dehne, Andrew Rau-Chaplin, and Christian Blouin, The computational complexity of the unrooted subtree prune and regraft distance, Technical Report
+CS-2006-06, Faculty of Computer Science, Dalhousie University, 2006.
+[18]
+, SPR distance computation for unrooted trees, Evolutionary Bioinformatics, 4 (2008),
+pp. 17–27.
+[19] David M. Hillis, Craig Moritz, and Barbara K. Mable, eds., Molecular Systematics,
+Sinauer Associates, 1996.
+[20] Steven Kelk, Leo van Iersel, Nela Lekic, Simone Linz, Celine Scornavacca, and
+Leen Stougie, Cycle killer . . . qu’est-ce que c’est? On the comparative approximability
+of hybridization number and directed feedback vertex set, ArXiv preprint arXiv:1112.5359,
+(2011).
+[21] Simone Linz and Charles Semple, Hybridization in nonbinary trees, IEEE/ACM Transactions
+on Computational Biology and Bioinformatics, 6 (2009), pp. 30–45.
+
+36
+
+C. WHIDDEN, R. G. BEIKO, AND N. ZEH
+
+[22] Dave MacLeod, Robert L. Charlebois, Ford Doolittle, and Eric Bapteste, Deduction
+of probable events of lateral gene transfer through comparison of phylogenetic trees by
+recursive consolidation and rearrangement, BMC Evolutionary Biology, 5 (2005), p. 27.
+[23] Wayne P. Maddison, Gene trees in species trees, Systematic Biology, 46 (1997), pp. 523–536.
+[24] Luay Nakhleh, Derek A. Ruths, and Li-San Wang, RIATA-HGT: A fast and accurate
+heuristic for reconstructing horizontal gene transfer, in Proceedings of the 11th International
+Conference on Computing and Combinatorics, vol. 3595 of Lecture Notes in Computer
+Science, Springer-Verlag, 2005, pp. 84–93.
+[25] Luay Nakhleh, Tandy Warnow, C. Randal Lindner, and Katherine St. John, Reconstructing reticulate evolution in species—theory and practice, Journal of Computational
+Biology, 12 (2005), pp. 796–811.
+[26] D. F. Robinson and L. R. Foulds, Comparison of phylogenetic trees, Mathematical Biosciences,
+53 (1981), pp. 131–147.
+[27] Estela Maris Rodrigues, Marie-France Sagot, and Yoshiko Wakabayashi, The maximum
+agreement forest problem: Approximation algorithms and computational experiments,
+Theoretical Computer Science, 374 (2007), pp. 91–110.
+[28] Vania Rosas-Magallanes, Patrick Deschavanne, Lluis Quintana-Murci, Roland Brosch,
+Brigitte Gicquel, and Olivier Neyrolles, Horizontal transfer of a virulence operon to
+the ancestor of mycobacterium tuberculosis, Molecular Biology and Evolution, 23 (June
+2006), pp. 1129–1135.
+[29] Chris Whidden, rSPR FPT Software, http://www.cs.dal.ca/∼whidden.
+[30] Christopher Whidden, A unifying view on approximation and fpt of agreement forests,
+master’s thesis, Dalhousie University, Halifax, NS, October 2009.
+[31] Chris Whidden, Robert G. Beiko, and Norbert Zeh, Fast FPT algorithms for computing
+rooted agreement forests: Theory and experiments, in Proceedings of the 9th International
+Symposium on Experimental Algorithms, vol. 6049 of Lecture Notes in Computer Science,
+Springer-Verlag, 2010, pp. 141–153.
+[32]
+, Fixed-parameter and approximation algorithms for maximum agreement forests, ArXiv
+preprint arXiv:1108.2664, (2011).
+[33] Chris Whidden and Norbert Zeh, A unifying view on approximation and FPT of agreement
+forests, in Proceedings of the 9th International Workshop, vol. 5724 of Lecture Notes in
+Bioinformatics, Springer-Verlag, 2009, pp. 390–401.
+[34] Yufeng Wu, A practical method for exact computation of subtree prune and regraft distance,
+Bioinformatics, 25 (2009), pp. 190–196.
+[35] Yufeng Wu and Jiayin Wang, Fast computation of the exact hybridization number of two
+phylogenetic trees, Bioinformatics Research and Applications, (2010), pp. 203–214.
+
+

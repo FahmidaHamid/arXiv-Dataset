@@ -1,0 +1,1053 @@
+Ideomotor feedback control in a recurrent neural network
+Mathieu Galtier∗
+January 20, 2015
+
+arXiv:1402.3563v4 [nlin.AO] 18 Jan 2015
+
+Abstract
+The architecture of a neural network controlling an unknown environment is presented. It is
+based on a randomly connected recurrent neural network from which both perception and action
+are simultaneously read and fed back. There are two concurrent learning rules implementing a sort
+of ideomotor control: (i) perception is learned along the principle that the network should predict
+reliably its incoming stimuli; (ii) action is learned along the principle that the prediction of the
+network should match a target time series. The coherent behavior of the neural network in its
+environment is a consequence of the interaction between the two principles. Numerical simulations
+show a promising performance of the approach, which can be turned into a local, and better
+”biologically plausible”, algorithm.
+
+1
+
+Introduction
+
+Animal life is characterized by the emergence of robust control mechanisms used in a large variety of
+environments. Beyond evolution which selects the life forms which make the most of their environment,
+it seems that some animals have the ability to quickly learn to interact constructively with new
+environments. Most probably, it means that the nervous systems of such animals can perform a
+sort of blind control of their environments: control is achieved without previous knowledge of the
+environment. It would surely be of great help to uncover such a mechanism, not only from a biological
+viewpoint, but also to replicate it for engineering tasks.
+Control theory has been a vivid field of research for decades which has provided many useful
+applications. However, although linear systems are well understood [Kwakernaak and Sivan, 1972,
+Fortmann and Hitz, 1977], non-linear systems still require a significant effort to be dealt with [Slotine et al., 1991,
+Skogestad and Postlethwaite, 2007]. In particular, the control system is often assumed to have some
+explicit knowledge about the system to be controlled. A recent axis of research focuses on design of
+control schemes when there is a lot a uncertainties about the system to be controled [Åström, 2012].
+When nothing is known about the system to be controlled, the most widespread method is to use
+a Proportional-Integral-Derivative controller [Åström and Hägglund, 2006], although some sophisticated methods have been proposed, see [Zhong-Sheng, 2006] for a review. Indeed, computing the best
+inverse model [Jordan, 1996] from an unknown environment is a very difficult task which has received
+no universal answer so far.
+Neural networks are bio-inspired mathematical object which have good learning capacities [Bishop, 1995].
+A large number of control algorithms have used their adaptability to model some aspect of the
+environment and / or to design adaptive controllers. The challenge is to be able to internally
+predict the outcomes of a potential movement so that the best motor commands can be chosen
+[Kawato et al., 1987, Ge et al., 2008, Yang et al., 2008]. Typically, neural networks are used for two
+purposes: identification of the environment and the actual control which can be computed once a good
+estimate of the environment has been designed [Narendra and Parthasarathy, 1990, Ge et al., 2010].
+A main drawback of feedforward neural networks is their inability to take time dependencies into
+account. Although the usual work-around is to use tapped delay lines, a more natural approach would
+be to use recurrent neural networks (RNN) which are more suited to dynamical systems approximation.
+∗
+
+Minds, Jacobs University Bremen / NeuroMathComp, Inria Sophia / UNIC, CNRS, mathieu.galtier@gmx.com
+
+1
+
+Based on the two steps of identification and control, various RNN have been proposed as controllers
+e.g. [Chow and Fang, 1998, Wang and Hill, 2006, Prokhorov, 2007]. However, RNN learning is notoriously known to be slow and to be subject to problematic bifurcations [Doya, 1993, Pearlmutter, 1995].
+To circumvent this problem recent algorithms [Pan and Wang, 2012, Waegeman et al., 2012] have
+been based on a reservoir computing architecture and more precisely Echo State Networks (ESN).
+They are recurrent networks where only the read-out form a random reservoir of neurons is learned
+[Jaeger, 2001]. In these networks, the slow convergence and the bifurcation issues due to the tuning
+of the weights are bypassed. However, efficient optimization procedures for the hyper parameters and
+the overall mathematical understanding of ESNs are still lacking. Nonetheless, ESN have proved to
+be very good at handling time dependencies and at predicting time series [Jaeger and Haas, 2004].
+Therefore, they provide a solid basis upon which this paper will design a novel control architecture.
+Most neural networks for control used so far have been based on two networks: one for the
+estimation of the state of the environment (which can be called perception), and another for the
+design of the control (which can be called action). In this paper, I will introduce a somewhat different
+architecture, since it will only be made of a single recurrent neural network from which two read-outs
+are drawn and fed back. This is actually a fundamental feature of the approach, which resonates with
+the field of psychology called ideomotor theory [Greenwald, 1970, Shin et al., 2010]. This theory argues
+that perception and action are tightly linked and even represented in a single ”domain”. More precisely
+a fundamental concept is that actions do not aim at changing the world directly, they rather aim at
+changing the perception of the world. Thus action and perception are deeply entangled and one could
+say that when the neural network ”thinks” or predicts a future for its stimuli, then the corresponding
+action follows [Friston et al., 2010]. In a way, the ’active inference’ perspective presented by Friston
+and colleagues [Friston et al., 2010] could be regarded as a modern theory compatible with ideomotor
+approach, where the underlying imperative for both action and perception is to minimise prediction
+errors (or variational free energy). Alternatively, the conceptual difference from traditional feedback
+loop algorithms can be seen in the structure of the controller in figure 1: at the level of the controller
+information flows in both directions, what is usually called the output of the controller is also fed-back
+to the central network.
+In this paper, I introduce an ideomotor recurrent neural network (IDRNN) together with a learning
+procedure in order to control an unknown environment. This paper intends to be a proof of concept
+that such a neural network can successfully learn to control fairly complicated dynamical systems.
+In section 2, I introduce the network and the notations. Section 3 will be devoted to explaining
+the computational principles underlying ideomotor learning and section 4 describes the corresponding
+algorithm. Numerical experiments for various environments and a short comparison with the ESN
+based method in [Waegeman et al., 2012] will be presented in section 5. Finally, I will discuss the
+properties of such neural networks, in particular their biological plausibility, in section 6.
+
+2
+
+Model
+
+The model details the dynamics of a recurrent neural networks interacting with an unknown environment. The way the environment interacts with the agent (through sensors and actuators) is
+also formally unknown. It is the role of the agent to understand this interaction through statistical
+observations.
+Notations and conventions: Several elements of the neural network and the environment are
+time-dependent multidimensional functions which will be written with lower-case bold letters, e.g. v.
+The value of these functions at time t will be written as an index to the function’s notation, e.g. vt .
+Most of these functions will be described by recurrence equations which are assumed to start from
+t = 0 (for negative time the functions return zero). The matrices are written in upper case bold, e.g.
+W.
+We now detail the different parts of the neural network and the environment:
+• Environment:
+The environment possibly has a complicated non-linear and/or stochastic dynamics which we
+know nothing about. From the controller perspective, only some measures of the environment
+2
+
+Reservoir
+
+neural network
+agent
+
+Motor
+area
+
+Perceptive
+area
+
+stimuli
+
+actions
+
+?
+
+unknown
+environment
+
+Figure 1: General structure of the proposed controller interacting with its environment. Not all the
+connections are represented for clarity. Learning only modifies the connections in red (from reservoir
+to perceptive and motor area).
+state are known. They are sometimes called observations but we refer to them as stimuli not
+to confuse them with the states of the reservoir which could also be called observations in the
+framework of online least mean square problems.
+The np neurons of the perceptive area receive information from the environment through the
+input vector ut ∈ Rnp at time t ∈ R+ (where np is the dimension of the perceptive area).
+• Network activity:
+We assume the controller is made of a neural network, which is decomposed in three parts: a
+perceptive area, a reservoir and a motor area see, figure 1. The variables describing the activity
+of these subsets of the neural network are respectively vtp ∈ Rnp called perception, vtr ∈ Rnr called
+reservoir states and vta ∈ Rna called action, where np , nr , na ∈ N∗ are the number of neurons in
+the respective area. Note that the letters p, r, a will always stand for perceptive area, reservoir
+and motor area respectively.
+We also define the variable gathering the entire network activity:
+0
+v = vp vr va ∈ Rnp +nr +na .
+The full connectivity matrix of the network is
+
+
+0
+Wpr
+0
+W = Wrp Wrr Wra 
+0
+War
+0
+where the second superscript (e.g. b in Wab ) is the origin of the connection and the first
+superscript (e.g. a in Wab ) is the destination, consistently with usual matrix notations. Note
+that the structure of W means that there are no connections between and within the perceptive
+and motor areas.
+We also define Wr = (Wrp Wrr Wra ) ∈ Rnr ×(np +nr +na ) corresponding to all the connections to
+the reservoir.
+A main idea in Echo State Networks [Jaeger, 2001] from which this work is inspired, it that the
+connections within and to the reservoir are randomly drawn. This means that the components of
+Wrr , Wrp and Wra are i.i.d. constants along N (0, σ 2 ), N (0, κ2 ) and N (0, γ 2 ). Albeit surprising,
+this choice leads to relevant prediction results and cheap algorithms.
+For simplicity, perception and action are considered to be linearly related to the reservoir activity.
+The reservoir follows a leaky integrator neural network equation [Jaeger et al., 2007], where a
+3
+
+time constant τ controls the speed of the dynamics. Note that the contributions from perceptive
+and motor areas to the reservoir dynamics are linear (which will be important in the following).
+The perceptive area is stimulated by a weighted mean between the stimuli and the current
+prediction of the network. With the notations introduced before, this reads
+ r 
+
+s(vt−1 )
+
+ r
+
+p
+r
+r
+
+
+
+vt−1
+ vt = (1 − lτ )vt−1 + τ W .
+a
+vt−1
+(1)
+
+p
+pr
+r
+
+ vt = (1 − α)W .vt + αut
+
+ a
+vt = War .vtr
+where s is an element-wise sigmoidal function, l ∈ R+ is a decay constant and α ∈ [0, 1] balances
+the contribution two terms: the stimuli u and the term Wpr .vtr which we call prediction. Note
+that if prediction and stimuli are identical then the perception vp becomes the same as the
+stimuli.
+• Target trajectory:
+The role of the neural network is to control the environment so that it follows a target trajectory
+which we write zt ∈ Rq , where q ≤ np . The target corresponds to (at least) one neuron in the
+perceptive area: if learning is successful, the stimuli to this subset of the perceptive neurons will
+be driven along the target trajectory. In the present formalism, the neural network can only
+control its stimuli (as opposed to an unobserved environment state).
+• Learning corresponds to tuning the connections in the network. We assume that not all the
+connections are learnable: only the connections in red in figure 1 are learnable. In other words,
+and in a reservoir computing spirit, the connections to and within the reservoir Wr are fixed.
+We call perceptive learning the tuning of the connectivity Wpr and motor learning the tuning
+of the connectivity War .
+
+3
+
+Principle of Ideomotor learning
+
+In this paper, ideomotor learning is defined by the combination of two principles: (i) perceptive
+learning aims at minimizing the distance between internal predictions Wpr .vr and stimuli u, and, (ii)
+motor learning aims at minimizing the distance between internal predictions Wpr .vr and target z.
+A control task is said to be successful when stimuli and target are equal. This can be a difficult
+task to achieve, in particular when the environment is unknown. The idea behind ideomotor learning
+is that having a good predictor of the stimuli may help designing an intelligent control. A controller
+which would be able to faithfully reproduce the stimuli, without needing to “see” them, would also
+know how to perturb the environment to reach a desired target. This idea is very similar to the good
+regulator hypothesis (every controller of its environment must possess a model of that environment)
+that underpins early work in self-organisation and cybernetics [Conant and Ashby, 1970]). Therefore,
+one needs to learn a model of the world (principle (i) above) and, at the same time, make sure this
+model is going in the desired direction (principle (ii) above). More formally, ideomotor learning can be
+seen as adding a third variable, the prediction, in the distance between stimuli and target and using
+the triangular inequality to break the minimization of this distance into two sub-tasks.
+The fact that motor learning makes no reference to the stimuli u has important functional consequences. Indeed, the actions exclusively aims at modifying the reservoir dynamics so that the
+perception matches the target. The impact on the actions on the world and the stimuli u is simply
+a byproduct of the method. In fact, the actions only want to control the internal model of the world
+that perceptive learning tries to build.
+Mathematically, it is possible to formalise the two principles of ideomotor learning as the minimi-
+
+4
+
+sation of prediction errors by perception and action respectively:
+(i) perceptive learning
+
+minimize
+pr
+W
+
+(ii) motor learning
+
+minimize
+ar
+W
+
+t
+X
+
+kus − Wpr .vsr k2
+
+s=0
+t
+X
+
+(2)
+kzs −
+
+Wpp .vsr k2
+
+s=0
+
+where (u, vr ) is a solution of system (1) defined for given Wpr and War . The matrix Wpp ∈ Rq×nr is
+the restriction of the perceptive matrix Wpr to the dimensions which are to be controlled along the
+trajectory zt , (i.e. to create Wpp some rows of Wpr have been removed). If learning is perfect, i.e.
+both sums in (2) are 0 for all t such that (vt , ut ) is on a limit cycle, then it is clear that the task is
+reached: ut = zt . We restrict our analysis to the case where such a limit cycle exists (which typically
+excludes non-controllable, non-observable environments).
+Note that equation (2) effectively computes a path integral or time average of squared prediction
+error or free energy. As such, equation (2) expresses a ’principle of least action’; where action is the
+time average of energy.
+Designing an online algorithm reaching this limit cycle reveals a fundamental problem: at time step
+t the network has to figure out new matrices Wpr and War based on the potential impact they would
+have had in the past. But it cannot really know what this impact would have been since it would need
+to re-experience the past with these new matrices. This is impossible since the network has to update
+the matrices exclusively based on the available quantities. Another way to see this is to observe that
+the values of ut and vtr depend on Wpr and War , and, therefore, learning is not a simple least square
+problem, where observations vtr and target ut are independent weight vector. However, simple greedy
+algorithms can, in certain cases, converge to a perfect solution. A greedy algorithm roughly ignores
+the dependencies of ut and vtr on Wpr and War , and corresponds to using a traditional least square
+approach for learning. This is the approach we take in the rest of the paper. This is formally similar
+to the mean field approximation that is used in variational formulations of active inference; in other
+words, minimizing prediction errors under the assumption of conditional independence between the
+unknown states (and parameters).
+
+4
+
+Greedy RLS algorithm
+
+In this paper, a greedy Recursive Least Square (RLS) approach to solve the least square problems
+is considered. It corresponds to dynamically updating the connections based on a RLS algorithm
+performing the online minimization of the following problem:
+Pt
+p
+t−s
+pr r 2
+pr 2
+minimize
+H
+=
+t
+s=0 λp kus − W .vs k + µp kW k
+pr
+W
+
+(3)
+minimize
+ar
+W
+
+Hta
+
+=
+
+p
+t−s
+ra †
+s=0 λa k(Wp .W ) .(zs
+
+Pt
+
+−
+
+Wpp .vsr )k2
+
++ µa
+
+kWar k2
+
+where λp , λa ∈ [0, 1] are forgetting factors and u and vr are the solution of system (1) with time
+dependent connection matrices Wtpr and Wtar . If λ is close to 0, then the sum simply involves very
+recent observations. The additional terms involving the squared norm of Wpr and War correspond to
+the usual Tikhonov regularization and the numbers µp , µa > 0 control the amount of regularization.
+The notation (Wpp .Wra )† is the pseudoinverse of Wpp .Wra .
+The slight modification of the motor criterion in (3) due to the inversion of Wpp .Wra simply
+corresponds to taking a different norm for the minimization. It is necessary to turn motor learning
+into a classical weighted least square problem. Indeed, one can unravel the dynamics of the reservoir
+for one time step to let the connection explicitly appear in the criterion. This corresponds to injecting
+the first row of (1) into zt − Wpp .vtr which leads to
+r
+zt − Wpp .vtr = τ (yt − Wpp .Wra .War .vt−1
+)
+
+5
+
+(4)
+
+zt −Wp .(1−lτ )vr
+
+p
+t−1
+r )−Wp .Wrp .vp . As a consequence, z −Wp .vr appears
+where yt =
+−Wpp .Wrr .s(vt−1
+t
+p
+p
+t
+t−1
+τ
+ar
+as a linear function of W which will make it possible to use classical algorithms for minimization.
+Note that the particular dynamics of the reservoir in (1) was chosen such that such a linear problem
+would appear. It also explains why we cannot unravel the dynamics for more time steps: the reformulation into a least square problem would be impossible. From this formulation, it becomes clear that
+pre-multiplying the factor zt − Wpp .vtr by (Wpp .Wra )† for the motor learning with the RLS algorithm
+in equation (3) is useful. Indeed, motor learning becomes the minimization of
+
+Hta
+
+=
+
+t
+X
+
+p
+ra †
+ar r
+2
+ar 2
+λt−s
+a k(Wp .W ) .ys − W .vs−1 k + µa kW k
+
+(5)
+
+s=0
+
+which takes the form of a classic weighted least square problem which can directly be solved by a RLS
+algorithm. Note that matrix Wpp .Wra has the size of the number of controlled dimensions (spatial
+dimension of the target) times the number of dimension for action, which is likely to be small enough
+to enable a computationally cheap inversion at each time step.
+The greedy RLS algorithm consists in implementing (3) with a RLS algorithm which quickly forgets
+the past. Indeed, to circumvent the dependency of u and Wpr .vr on War the choice of the forgetting
+factors λp , λa is crucial. When the network starts from an uninformed state (e.g. the null state), it is
+important for them to have small values, typically 0.99. A rule of thumb [Haykin, 2005] to tune them
+1
+is that the memory of the algorithm roughly corresponds to 1−λ
+time steps.
+The regularized RLS algo is recalled in this paragraph. It is an algorithm which recursively
+solves the following generic problem
+minimize
+Wt
+
+Ht =
+
+t
+X
+
+λt−s kxs − Wt .ys k2 + µkWk2
+
+(6)
+
+s=0
+
+It can be solved by iterating the following regularized RLS step [Haykin, 2005, Gunnarsson, 1996] as
+new targets x and new observation y arrive. This algorithm has already been successfully used for
+Echo State Networks [Jaeger and Haas, 2004, Sussillo and Abbott, 2009, Laje and Buonomano, 2013].
+In this paper, we use a version of the algorithm with non-fading regularization [Gunnarsson, 1996],
+which provides good stability properties even when the forgetting factor λ is small. The algorithm
+corresponding to one step of the considered RLS algorithm is given in algorithm 1. In this algorithm,
+Algorithm 1 Regularized RLS step
+1: procedure rls step(P, W, x, y, µ, λ)
+2:
+P ← P − µP2
+
+P.y.y0 .P
+3:
+P ← λ1 P − λ+y
+0 .P.y
+W ← W + (x − W.y).(P.y)0
+5:
+return P, W
+6: end procedure
+4:
+
+P ∈ Rn×n is the inverse correlation matrix of the observations, which correspond to the reservoir
+activity in this paper.
+Pseudo-code Therefore, the algorithm summarizing the update of the greedy RLS neural network
+is described in algorithm 2.
+
+5
+
+Numerical experiments
+
+In this section, I show on different examples that the proposed architecture can effectively control
+an unknown environment along a desired trajectory. It is important to realize that the following
+numerical simulations correspond to a neural network which learns to control the environment: at
+6
+
+Algorithm 2 IDRNN
+1: # Initialization:
+2: vp , vr , va , War ← 0
+r ← N (0, ∗)
+3: Wpr , Wij
+p
+a
+4: P , P ← ηId
+5: # Main loop:
+6: while u ← new stimuli and z ← new target do
+7:
+# Motor learning:
+8:
+y ← (Wpp .Wra )† . (z − (1 − lτ )Wpp .vr − τ Wpp .Wrr .s(vr ) − τ Wpp .Wrp .vp )
+9:
+Pa , War ← RLS STEP(Pa , War , y, vr , µa , λa )
+10:
+# Reservoir update:
+0
+11:
+vr ← (1 − lτ )vr + τ Wr . vp s(vr ) va
+12:
+# Perceptive learning:
+13:
+Pp , Wpr ← RLS STEP(Pp , Wpr , u, vr , µp , λp )
+14:
+# Perception and action update:
+15:
+vp ← (1 − α)Wpr .vr + αu
+16:
+va ← War .vr is the action which controls the environment.
+17: end while
+time t = 0 the neural network has no clue about what system it is dealing with. Thus the results
+are not to be compared to a classical control setup where the controller was previously tuned to the
+specific environment.
+
+5.1
+
+Learning to control random neural networks
+
+As toy models of the environment, I first choose randomly connected neural networks from which a
+linear read-out is to be controlled along a sinus function. It has been argued that this class of systems
+is very rich since it can approximate any dynamical system [Sontag, 1997]. I do not claim that the
+IDRNN can control any such random neural network since they can become very complicated, but it
+performs well on reasonably complicated instances of such networks. I will consider neural networks
+made of 5 neurons from which a one-dimensional linear readout is computed. The equation governing
+these driven random neural networks is:
+
+xt+1 = (1 − ¯lτ̄ )xt + τ W̄. tanh(xt ) + b.vta
+ut = c0 .xt
+where matrix W̄ ∈ R5×5 and the vectors b, c ∈ R5 have components which are drawn i.i.d. N (0, σ̄ 2 ),
+N (0, κ̄2 ) and N (0, γ̄ 2 ) respectively.
+With different choices of parameters, one can get very different resulting dynamics as shown in
+figures 2(a), 3(a), 4(a). Even with identical parameters the different realizations of the connections
+can lead to qualitatively different dynamics. I chose three cases corresponding to converging (figure
+2), oscillatory (figure 3) and diverging (figure 4) situations.
+For all the simulations, I chose the same parameters for the IDRNN: na = np = 1, nr = 100,
+σ = 1.5, κ = γ = 0.1, l = 1, τ = 0.1, α = 0.5, η = 1, s(x) = tanh(x + 0.01), λp = 0.99, λa = 0.9,
+µp = 10−6 , µa = 10−3 . The motivation for the choice of σ > 1 and s(0) 6= 0 is to have a reservoir
+with spontaneous activity and no equilibrium point at vr = 0 when no stimulation comes in. The
+parameters of the environment are reported in the figures.
+In each situation, the very same neural network has managed to control qualitatively different
+environments it knew nothing about along the same trajectory zt = sin(2πt/100). The L1 error
+between stimuli and target over the last 100 time steps (corresponding to a period of the target) is
+respectively 0.0006, 0.0046 and 0.0017 for converging, oscillatory and diverging situations, meaning
+that the control is successful.
+In each case, the first few hundred time steps display an extremely variable behavior. The network
+has difficulties choosing relevant actions since its perception is not fully developed yet. Although
+7
+
+(a) Freely run environment.
+
+(b) Controled environment.
+
+Figure 2: Learning to control a converging random neural network. In grey are represented the 5
+components of the environment states xt . In blue is the read-out from the environment ut which
+corresponds to the stimuli or inputs to the IDRRN. In red are the actions vta of the IDRNN on the
+environment. Environment parameters: σ̄ = κ̄ = γ̄ = 1, ¯l = 1, τ̄ = 0.1.
+
+(a) Freely run environment.
+
+(b) Controlled environment.
+
+Figure 3: Learning to control an oscillatory random neural network. See figure 2 for the color code.
+Environment parameters: σ̄ = κ̄ = γ̄ = 1, ¯l = 1, τ̄ = 0.15.
+
+(a) Freely run environment.
+
+(b) Controled environment.
+
+Figure 4: Learning to control a diverging random neural network. See figure 2 for the color code.
+Environment parameters: σ̄ = κ̄ = γ̄ = 1, ¯l = 0, τ̄ = 0.1.
+8
+
+the variations look completely unstructured the network still manages to calm down and converges
+to the desired trajectory. Unfortunately, this is not always the case: the search period can bring the
+environment to an undesired location in the state space leading to a failure of the control. For instance,
+controlling a quickly diverging environment (not shown) can fail when the environment diverges faster
+than the network can learn. The two important parameters to control the behavior of the network
+in the beginning are the initial values of Wpr and Pp , Pa . If the value of W0pr is to small then the
+pseudo-inversion of Wpp .Wra in the algorithm can lead to extremely large control values in the very
+beginning of the simulation. Similarly, choosing large initial values for Pp or Pa induces a large
+variability at the beginning of the simulation [Haykin, 2005] which can lead to poor results.
+Observe in figure 4(b) that the hidden variables in the environment x are not displayed. Indeed,
+although the network is controlling properly the environment read-out u it does not necessarily prevent
+these hidden variables from diverging. This leads to a numerical overflow in the simulation after a
+certain time and an increased variability due to numerical round-offs. To prevent this one would need
+to ask the IDRNN to control also the states x.
+
+5.2
+
+Learning to control delayed systems
+
+Actually, the IDRNN in its current form fails at controlling delayed systems or even some instantaneous
+systems which for which the impact of an action may take some time steps to reveal itself. This is not
+a surprise since the network only tries to control what it happening from one time step to the other.
+A simple extension of the algorithm 2 makes the IDRNN able of controlling such delayed systems.
+The idea is to learn to predict the future of the stimuli at t + δ time steps with δ > 1. This
+corresponds to adding a third readout matrix Wfr to the network in figure 1. The predicted value
+Wfr .vtr should be a approximation of ut+δ and is not fed back to the network. In practice, learning
+such a future prediction matrix can be done by applying an RLS algorithm to approximate ut based on
+r . This implies to store the history of the reservoir during δ time steps. Once this
+the observation vt−δ
+prediction is set-up it suffices to replace Wpp by Wfr in algorithm 2. This leads to a delayed version of
+the IDRNN detailed in algorithm 3 which does have a time window similar to [Waegeman et al., 2012].
+Algorithm 3 Delayed IDRNN
+1: # Initialization:
+2: vp , vr , va , Wpr , War ← 0
+r ← N (0, ∗)
+3: Wfr , Wij
+p
+a
+4: P , P , Pf ← ηId
+5: # Main loop:
+6: while u ← new stimuli and z ← new target do
+7:
+# Motor learning:
+
+8:
+y ← (Wfr .Wra )† . z − (1 − lτ )Wfr .vr − τ Wfr .Wrr .s(vr ) − τ Wfr .Wrp .vp
+9:
+Pa , War ← RLS STEP(Pa , War , y, vr , µa , λa )
+10:
+# Reservoir update:
+0
+11:
+vr ← (1 − lτ )vr + τ Wr . vp s(vr ) va
+r
+r ]
+12:
+vlist
+← [vr , vlist
+13:
+# Perceptive learning:
+14:
+Pp , Wpr ← RLS STEP(Pp , Wpr , u, vr , µp , λp )
+r (δ), µ , λ )
+15:
+Pf , Wfr ← RLS STEP(Pf , Wfr , u, vlist
+f f
+16:
+# Perception, future and action update:
+17:
+vp ← (1 − α)Wpr .vr + αu
+18:
+vf ← Wfr .vf is a proxy of the future inputs.
+19:
+va ← War .vr is the action which controls the environment.
+20: end while
+With this new algorithm, it is possible to control systems for which the instantaneous IDRNN
+failed. Here I consider two examples of such systems: first a linear oscillatory system with a single
+control variable and, second, a random neural network with delayed action.
+9
+
+In a first time, we consider the following environment to control
+
+  
+
+  
+ 
+ut+1
+ut
+−0.05
+−1
+ut
+1
+a
+=
++ 0.1
+.
++ 0.1vt
+xt+1
+xt
+1
+−0.05
+xt
+0.5
+This corresponds to a linear oscillatory system as shown in figure 5(a) somewhat similar to the first
+system studied in [Waegeman et al., 2012]. The negative terms on the diagonal compensate for the
+tendency of the Euler algorithm to diverge when simulating linear systems and can be disregarded
+for the interpretation. Actually, the difficulty to control the system comes from the control vector
+(1 0.5) which is positive for both components. To understand intuitively the problem it is useful to
+see that one dimension is excitatory while the second is inhibitory. When the control variable only
+makes it possible to positively stimulate both dimensions, it is not clear what will be the situation in a
+few time steps: although the excitatory dimension is directly stimulated by the inputs, the inhibitory
+dimension will suppress this excitation (even more since it is stimulated by the excitatory dimension).
+In the end, one needs to see a bit more in the future to understand the impact of the action. This is
+precisely why adding the time window δ to the prediction makes the task much more simple. Indeed,
+the IDRNN can effectively control the system as shown in figure 5(b). The parameters used are the
+same as previously with the addition of δ = 20, λf = 0.995 and η = 10−4 .
+
+(a) Freely run environment.
+
+(b) Controled environment.
+
+Figure 5: Learning to control a linear oscillatory system with a single positive control variable. See
+figure 2 for the color code.
+The second environment is governed by a random neural network as previously but with a delayed
+command:
+
+a
+xt+1 = (1 − ¯lτ̄ )xt + τ W̄. tanh(xt ) + b.vt−50
+ut = c0 .xt
+The parameters of the IDRNN are identical to before except that δ = 55, λa and η = 104 which
+explains the great variability at the beginning of the simulation.
+The control performed by the IDRNN is displayed in figure 6. Although the control takes more time
+(4000 time steps instead of 1500), it finally manages to bring the system along the desired trajectory.
+
+5.3
+
+Short comparison with the double reservoir architecture
+
+Although an extensive comparison between the IDRNN and the double reservoir architecture (DRA)
+[Waegeman et al., 2012] is beyond the scope of this paper, I show here that they perform similarly on
+the task of controlling a heating tank.
+The system to control, a heating tank, is the same as the second example in [Waegeman et al., 2012]
+and the interested reader should refer to this paper for the implementation details (I took the same
+parameters). Briefly, the system is a non-linear state-delayed system where the delay depends on
+the action. It corresponds to controlling a heating tank whose input is a stream of cold water.
+The water is heated in the tank and is then channeled through a tube to a destination where the
+10
+
+(a) Freely run environment.
+
+(b) Controled environment.
+
+Figure 6: Learning to control of a random neural network with a delayed control variable. See figure
+2 for the color code. Environment parameters: σ̄ = κ̄ = γ̄ = 1, ¯l = 1, τ̄ = 0.1.
+output temperature is measured. When the water throughput (corresponding to the action va ) is
+increased the output temperature decreases, but it takes less time to get out of the tube. It is
+shown in [Waegeman et al., 2012], that the DRA outperforms another algorithm, called NEPSAC
+[Gálvez-Carrillo et al., 2009], on this task.
+In this paper, there are two differences from the heating tank used in [Waegeman et al., 2012]:
+first, the stimuli to the network are scaled to meet the networks dynamics. I take as input T −30
+where
+5
+T is the output of the heating tank simulation. Second, the target trajectory is different, see figure
+7(a). It is much faster so that the results of the control algorithm do not look as good as in the original
+paper presenting the DRA. I have not tried to tune the parameters to get the best results, since I
+only intended to show that both algorithm would perform similarly on this task with naive parameter
+tuning.
+Actually, the IDRNN failed to control the system when it is randomly initialized. Interestingly
+the DRA could control the system although I did not use any babbling initialization as discussed
+in [Waegeman et al., 2012]. To get good results with the IDRNN I had to properly initialize the
+network. Indeed, a useful property of the IDRNN is its ability to be initialized along any prexisting
+control scheme. The initialization procedure consists in recording both perceptions and actions (more
+commonly named inputs and outputs) of another control scheme (here I took the DRA) during a
+long time (here I took 3000 time steps). Then a simple ESN procedure can be used to reproduce the
+recorded trajectories by learning the appropriate feedback connections Wpr and War . After learning,
+when the very same environment is presented again to the neural network, it will reproduce both
+predictions and actions of the learned control scheme. However, if the learning time was to small
+or the environment variable enough, then there may be some discrepancies between recorded and
+reproduced trajectories, which is the case in this application: at the end of initialization the system
+had a behavior which was very different from the DRA, see figure 7(b). Nonetheless it was sufficient
+for the coupled system to be in an attractor basin and the control did work.
+I simulated the IDRNN and the DRA control for 50000 time steps and obtained a performance
+displayed in figure 8. It appears that the DRA converges faster to a good control behavior, see 9(b)
+but its performance slowly deteriorates with time. On the contrary, the IDRNN converged more slowly
+but its performance improves with time. Eventually, the system behavior (see 9(a)) is similar to the
+best case for the DRA, although a bit worse. The parameters used are the same as in the previous
+section with the addition of δ = 20, λp = λa = λf = 0.9999, µp = µf = µa = 10−6 . The reason why I
+take the forgetting parameters λp = λa = λf to be so large is because an initializing method is used
+and I want the network not to forget immediately the initialization. I also reset the matrix Pa to
+0.002Id at the end of the initialization to slow learning down to stay close to initialization at first.
+The parameters for the DRA are identical to that of the IDRNN.
+To summarize, the two methods seem to roughly give similar results at their optimum. However,
+11
+
+(a) Target trajectory z.
+
+(b) Initialization of IDRNN.
+
+Figure 7: (left) target trajectory used for the heating tank experiment. (right) Result of the initialization of the IDRNN. The actual implementation of algorithm 3 started right after. In blue are the
+inputs ut and in pink are the future inputs ut+δ . In grey are the actions vta . In green is the target
+for the initialization phase (different from zt ). Note that it is a target for the action and not the
+perception. In red is the perception vp and in cyan in the prediction of the future vf .
+
+Figure 8: Control performance of IDRNN (red) and DRA (blue). The L1 distance between the target
+t 7→ zt and t 7→ ut+δ over a siding window of size 900 is used for this performance index. The two
+dots correspond to figure 9.
+
+12
+
+(a) IDRNN control.
+
+(b) DRA control.
+
+Figure 9: Results of the control of the heating tank for the IDRNN (left) and DRA (right). The
+IDRNN control corresponds to the red dot in figure 8 and the DRA control corresponds to the blue
+dot in figure 8. In blue are the inputs ut and in pink are the future inputs ut+δ . In grey are the
+actions vta . In green is the target zt . In red is the perception vp and in cyan in the prediction of the
+future vf .
+they seem to differ in the evolution of the performance with time.
+
+6
+
+Discussion
+
+Beyond the proof of concept supported by the previous numerical experiments, IDRNN has some
+notable properties which are discussed in this section.
+
+6.1
+
+Reproducing other control schemes
+
+An important characteristic of IDRNN (and also DRA) is its universality, in the sense that it can embed
+any existing control schemes. Indeed, as detailed in the previous section, it is possible to initialize these
+networks, using traditional ESN algorithms. The procedure is, first, to record the inputs (perception)
+and (output) of a preexisting control scheme for a given environment; and, second, to use traditional
+ESN algorithms on the IDRNN architecture in order to reproduce these trajectories when exposed to
+a similar environment.
+Sontag has proven that, in theory, recurrent neural networks could reproduce any dynamical
+systems [Sontag, 1997]. Thus, there exists an IDRNN, possibly with a very large number of neurons,
+which can emulate a given control scheme arbitrarily accurately. Naturally in applications, the number
+of neurons is limited and the reproduction is not necessarily accurate, even more if the recorded
+trajectories were not long enough (see previous section). Nonetheless, this method can be used as a
+precious initialization procedure in order to design incremental control schemes.
+
+6.2
+
+Extension to reinforcment learning
+
+Although the present version of IDRNN is explicitly designed for a supervised learning framework, it
+possible to extend the approach to a reinforcment learning framework. The first step is to include a
+reward in the present model (which the neural network will try to maximize). This can be easily done
+by adding a stimulus neuron exclusively excited when a reward in presented. Thus, implementing a
+reinforcment learning approach would simply correspond to maximizing the activity of this reward
+neuron instead of minimizing the distance between such a neuron and a target trajectory. In the
+mathematical formalism, this can be immediately implemented by replacing the target zt by 0 in (2)
+and asking the motor learning to maximize (rather than minimize) its criterion . Thus, motor learning
+aims at increasing the current and future rewards.
+
+13
+
+Besides, the network can also handle a variety of hybrid approaches corresponding for instance to
+a mix of supervised / reinforcment learning. More precisely, an interesting situation is to design an
+agent with a lot of stimuli (including a reward) all of which perceptive learning aims at predicting,
+while motor learning exclusively aims at increasing the reward. This would correspond to a common
+reinforcment learning situation where there is no target, while making sure the network can behave
+coherently and in context with its environment.
+The IDRNN approach has, in principle, no problem handling rare or intermittent rewards. Indeed,
+it still produces behavior when the rewards are very sparse. The IDRNN network activity is always
+running and not directly influenced by the presence of a reward. Only learning is directly boosted
+when a reward is presented. In my opinion, this provides a notable advantage of IDRNN over DRA
+which can not be extended to reinforcment learning so easily because the activity of the network
+is directly influenced by the target/reward. Thus with rare rewards, i.e. sparse target, the DRA
+approach would not work.
+The proper handling of distal rewards [Jordan and Rumelhart, 1992] by the IDRNN is still an open
+question, but the machinery introduced here for prediction of the future in several time steps seems
+to be an appropriate way to treat this difficult problem. Nonetheless, this stands as a perspective to
+be investigated.
+
+6.3
+
+Biological plausibility
+
+Of course, I do not claim the full biological plausibility for the IDRNN approach because such simple
+networks can never represent the incredible complexity found in neuroscience. However, I would argue
+that this approach is biologically more plausible than the DRA. Indeed, the latter approach uses
+two reservoirs with exactly the same recurrent and output weights. This clearly breaks the locality
+requirement of biologically plausible algorithms [Gerstner and Kistler, 2002]: to modify the connection
+between neurons i and j, learning rules should only include information available at neurons i and j.
+On the other hand, the IDRNN approach is based on a single reservoir and there is no sharing of the
+weights. Thus, contrary to DRA, it is not biologically implausible by construction.
+Although this paper is based on RLS implementation of the ideomotor principles (for efficiency
+reason), it is also possible to design of LMS implementation which is more biologically plausible.
+Indeed, RLS is not local since is involves computing the inverse of the global correlation matrix. LMS
+corresponds to a simple stochastic gradient descent of the ideomotor principles in (2). It leads to
+slower convergence times, but more robustness, than the RLS algorithm [Haykin, 2005], but both
+aim at solving the same problem. The ideomotor LMS algorithm can be derived from the modified
+ideomotor principles (3) under the same greedy assumption that u and vr do not depend on Wpr and
+War . It comes as the gradient descent of H p and H a . Assuming that we consider the reinforcment
+learning case detailed above, where z = 0 and motor learning is a maximization, it can be written as
+pr
+Wt+1
+= Wtpr + p (ut − Wtpr .vtr ).vtr 0
+ar
+r 0
+Wt+1
+= Wtar + a Wpp .vtr .vt−1
+
+(7)
+
+where p and a have been re-parametrized to absorb constants.
+In this form, perceptive learning is local. Indeed, the modification of the connection {Wpr }ij only
+depends on the stimulus {u}i , the prediction {Wtpr .vr }i and the reservoir state {vr }j which are locally
+available quantities between reservoir and perceptive area.
+Motor learning can also be said to be plausible, if we slightly nuance the locality requirement
+by the experimental fact that a few modulatory synapses can bring some additional information to
+distant connections as shown in figure 10. Indeed, the modification of the connection {War }ij depends
+on the reservoir state vr j , but also on the Wpp .vr which is not available between reservoir and motor
+area. Thus there is a need for a modulatory synapse, involved mainly in learning, from the perceptive
+area to the motor connections to biologically implement this algorithm.
+Interestingly, LMS and RLS can be shown to be equivalent if the reservoir has a temporal correlation matrix proportional to the identity [Farhang-Boroujeny, 1998]. This regime has been often
+observed in biology, where in vivo cortical tissues are said to be in an asynchronous irregular state
+
+14
+
+other
+neurons
+
+modulatory
+synapse
+
+reward
+neuron
+
+actions
+
+stimuli
+
+Figure 10: Diagram showing the necessary wiring of the network if learning has to be local, in the
+illustrative case of a single reward neuron and a single motor neuron. The perceptive area is made
+of a reward neuron and other perceptive neurons, all of which receive stimuli from the environment
+(possibly some other part of the brain). The reward neuron has to send a modulatory synapse to the
+motor connections. The information from the motor neuron is only used for learning and does not
+modify directly the dynamics of the motor neuron.
+[Ecker et al., 2010, Renart et al., 2010]. This would support the fact that such a biological LMS implementation of the ideomotor principle can be efficient, although showing this rigorously stands as a
+perspective.
+Besides, one might ask how the current scheme differs from active inference that uses explicit
+forward or generative models of predicted stimuli. They key difference is the simplicity of the current
+scheme - that just involves optimising connection weights from the reservoir to action and perception
+states. Heuristically, this can be regarded as equipping an agent with a vast repertoire of generative
+models and then optimising the weights to select the model with the greatest evidence (least free
+energy or prediction error). The connection between the current scheme and active inference may be
+important from the point of view of biological implementation: there is now a literature on biological
+schemes for minimising prediction error using hierarchical predictive coding and Bayesian filtering
+schemes. Of particular interest here is the role of reflexes in mediating action. The current scheme
+can be regarded as selecting a forward model of sensations. In active inference, these forward models
+also predict kinaesthetic or proprioceptive sensations. This means that the prediction errors minimised
+by action can be resolved very simply - through peripheral reflex arcs [Adams et al., 2013].
+On the whole, this theory driven approach may contribute to the debate about the computational
+role of several parts of the brain. A rigorous link with the brain clearly stands as a long term
+perspective. Yet, I think it is interesting to note the ingredients this architecture needs in order to
+design what could considered as a simplistic embodied agent. The first ingredient is the combination
+of a central recurrent network and two types of read-out, as can be observed in the spinal chord
+[Butler and Hodos, 2005] with the dorsal root for perception and the ventral root for action. The
+second ingredient is the modulation of motor connections by reward neurons which seems to be handled
+in the brain by a variety of neurotransmitters [Seamans and Durstewitz, 2008]. I believe that the study
+of basic vertebrate nervous system may, in the long term, benefit from such constructive approaches.
+
+7
+
+Conclusion
+
+This paper defines a recurrent neural network which blindly learns to control an unknown environment.
+Based on a randomly connected reservoir it learns on the fly two read-outs which correspond to
+perception and action. These read-outs are learned according to two principles: perceptive learning
+corresponds to maintaining good predictions of the incoming stimuli; motor learning tries to change
+the dynamics of the reservoir so that the stimuli predictions match a target trajectory. Actually,
+the control of the environment is just a byproduct of the behavior of the neural network which only
+
+15
+
+cares about its own predictions. This algorithm is closely related to the ideomotor theory and active
+inference, providing an efficient computational implementation of these concepts. An implementation
+of the proposed method to robotics may highlight the similarities with more classical approaches in
+this field [Tani, 1996].
+Several numerical simulations have established a proof of concept for this neural network. It
+manages to control fairly complicated dynamical systems and properly handles non-linearities and
+delays. The robustness of the approach with respect to most parameters is supported by the fact that
+a single set of parameters (with little tuning) was used to control all environments in this paper.
+Several challenges can be foreseen for the future development of such algorithm. First, a extensive
+benchmarking of IDRNN, DRA and competitors on real world environments is needed. Second, the
+development of a mathematical theory explaining the power of such random networks would be useful.
+Third, extending the ideomotor approach presented here to a fully connected neural network (e.g. with
+connections from perceptive to motor area) can be done straightforwardly, and may prove more efficient
+in certain cases. Finally, building architectures with building blocks such as the network presented
+here could prove interesting, not only for designing even more intelligent agents, but also to shed light
+on possible information hierarchies which might be implemented by the brain.
+Aknowledgments: I thank Herbert Jaeger, Michael Thon, Jochen Steil, Felix Reinhart and Benjamin Schrauwen for helpful discussions. I was funded by the European project AMARSI.
+
+References
+[Adams et al., 2013] Adams, R. A., Shipp, S., and Friston, K. J. (2013). Predictions not commands:
+active inference in the motor system. Brain Structure and Function, 218(3):611–643.
+[Åström, 2012] Åström, K. J. (2012). Introduction to stochastic control theory. Courier Dover Publications.
+[Åström and Hägglund, 2006] Åström, K. J. and Hägglund, T. (2006). Advanced PID control. ISAThe Instrumentation, Systems, and Automation Society; Research Triangle Park, NC 27709.
+[Bishop, 1995] Bishop, C. M. (1995). Neural networks for pattern recognition. Oxford university press.
+[Butler and Hodos, 2005] Butler, A. B. and Hodos, W. (2005). Comparative vertebrate neuroanatomy:
+evolution and adaptation. John Wiley & Sons.
+[Chow and Fang, 1998] Chow, T. W. and Fang, Y. (1998). A recurrent neural-network-based realtime learning control strategy applying to nonlinear systems with unknown dynamics. Industrial
+Electronics, IEEE Transactions on, 45(1):151–161.
+[Conant and Ashby, 1970] Conant, R. C. and Ashby, W. (1970). Every good regulator of a system
+must be a model of that system†. International journal of systems science, 1(2):89–97.
+[Doya, 1993] Doya, K. (1993). Bifurcations of recurrent neural networks in gradient descent learning.
+IEEE Transactions on neural networks, 1:75–80.
+[Ecker et al., 2010] Ecker, A. S., Berens, P., Keliris, G. A., Bethge, M., Logothetis, N. K., and Tolias,
+A. S. (2010). Decorrelated neuronal firing in cortical microcircuits. Science, 327(5965):584–587.
+[Farhang-Boroujeny, 1998] Farhang-Boroujeny, B. (1998). Adaptive filters: theory and applications.
+John Wiley & Sons, Inc.
+[Fortmann and Hitz, 1977] Fortmann, T. E. and Hitz, K. L. (1977). An introduction to linear control
+systems. Crc Press.
+[Friston et al., 2010] Friston, K. J., Daunizeau, J., Kilner, J., and Kiebel, S. J. (2010). Action and
+behavior: a free-energy formulation. Biological cybernetics, 102(3):227–260.
+16
+
+[Gálvez-Carrillo et al., 2009] Gálvez-Carrillo, M., De Keyser, R., and Ionescu, C. (2009). Nonlinear
+predictive control with dead-time compensator: Application to a solar power plant. Solar energy,
+83(5):743–752.
+[Ge et al., 2010] Ge, S., Hang, C. C., Lee, T. H., and Zhang, T. (2010). Stable adaptive neural network
+control. Springer Publishing Company, Incorporated.
+[Ge et al., 2008] Ge, S. S., Yang, C., and Lee, T. H. (2008). Adaptive predictive control using neural
+network for a class of pure-feedback systems in discrete time. Neural Networks, IEEE Transactions
+on, 19(9):1599–1614.
+[Gerstner and Kistler, 2002] Gerstner, W. and Kistler, W. M. (2002). Mathematical formulations of
+hebbian learning. Biological cybernetics, 87(5-6):404–415.
+[Greenwald, 1970] Greenwald, A. G. (1970). Sensory feedback mechanisms in performance control:
+with special reference to the ideo-motor mechanism. Psychological review, 77(2):73.
+[Gunnarsson, 1996] Gunnarsson, S. (1996). Combining tracking and regularization in recursive least
+squares identification. In IEEE CONFERENCE ON DECISION AND CONTROL, volume 3, pages
+2551–2552. Citeseer.
+[Haykin, 2005] Haykin, S. S. (2005). Adaptive Filter Theory, 4/e. Pearson Education India.
+[Jaeger, 2001] Jaeger, H. (2001). The “echo state” approach to analysing and training recurrent
+neural networks-with an erratum note. Bonn, Germany: German National Research Center for
+Information Technology GMD Technical Report, 148:34.
+[Jaeger and Haas, 2004] Jaeger, H. and Haas, H. (2004). Harnessing nonlinearity: Predicting chaotic
+systems and saving energy in wireless communication. Science, 304(5667):78–80.
+[Jaeger et al., 2007] Jaeger, H., Lukosevicius, M., Popovici, D., and Siewert, U. (2007). Optimization
+and applications of echo state networks with leaky-integrator neurons. Neural Networks, 20(3):335–
+352.
+[Jordan, 1996] Jordan, M. I. (1996). Computational aspects of motor control and motor learning.
+Handbook of perception and action: motor skills, 2:71–118.
+[Jordan and Rumelhart, 1992] Jordan, M. I. and Rumelhart, D. E. (1992). Forward models: Supervised learning with a distal teacher. Cognitive science, 16(3):307–354.
+[Kawato et al., 1987] Kawato, M., Furukawa, K., and Suzuki, R. (1987). A hierarchical neural-network
+model for control and learning of voluntary movement. Biological cybernetics, 57(3):169–185.
+[Kwakernaak and Sivan, 1972] Kwakernaak, H. and Sivan, R. (1972). Linear optimal control systems,
+volume 1. Wiley-Interscience New York.
+[Laje and Buonomano, 2013] Laje, R. and Buonomano, D. V. (2013). Robust timing and motor
+patterns by taming chaos in recurrent neural networks. Nature neuroscience, 16(7):925–933.
+[Narendra and Parthasarathy, 1990] Narendra, K. S. and Parthasarathy, K. (1990). Identification
+and control of dynamical systems using neural networks. Neural Networks, IEEE Transactions on,
+1(1):4–27.
+[Pan and Wang, 2012] Pan, Y. and Wang, J. (2012). Model predictive control of unknown nonlinear
+dynamical systems based on recurrent neural networks. Industrial Electronics, IEEE Transactions
+on, 59(8):3089–3101.
+[Pearlmutter, 1995] Pearlmutter, B. A. (1995). Gradient calculations for dynamic recurrent neural
+networks: A survey. Neural Networks, IEEE Transactions on, 6(5):1212–1228.
+
+17
+
+[Prokhorov, 2007] Prokhorov, D. V. (2007). Training recurrent neurocontrollers for real-time applications. Neural Networks, IEEE Transactions on, 18(4):1003–1015.
+[Renart et al., 2010] Renart, A., de la Rocha, J., Bartho, P., Hollender, L., Parga, N., Reyes, A., and
+Harris, K. D. (2010). The asynchronous state in cortical circuits. science, 327(5965):587–590.
+[Seamans and Durstewitz, 2008] Seamans, J. and Durstewitz, D. (2008).
+Scholarpedia, 3(4):2711.
+
+Dopamine modulation.
+
+[Shin et al., 2010] Shin, Y. K., Proctor, R. W., and Capaldi, E. (2010). A review of contemporary
+ideomotor theory. Psychological bulletin, 136(6):943.
+[Skogestad and Postlethwaite, 2007] Skogestad, S. and Postlethwaite, I. (2007). Multivariable feedback
+control: analysis and design, volume 2. Wiley New York.
+[Slotine et al., 1991] Slotine, J.-J. E., Li, W., et al. (1991). Applied nonlinear control, volume 199.
+Prentice-Hall Englewood Cliffs, NJ.
+[Sontag, 1997] Sontag, E. (1997). Recurrent neural networks: Some systems-theoretic aspects. Dealing
+with complexity: A neural network approach, pages 1–12.
+[Sussillo and Abbott, 2009] Sussillo, D. and Abbott, L. F. (2009). Generating coherent patterns of
+activity from chaotic neural networks. Neuron, 63(4):544–557.
+[Tani, 1996] Tani, J. (1996). Model-based learning for mobile robot navigation from the dynamical
+systems perspective. Systems, Man, and Cybernetics, Part B: Cybernetics, IEEE Transactions on,
+26(3):421–436.
+[Waegeman et al., 2012] Waegeman, T., Wyffels, F., and Schrauwen, B. (2012). Feedback control by
+online learning an inverse model. Neural Networks and Learning Systems, IEEE Transactions on,
+23(10):1637–1648.
+[Wang and Hill, 2006] Wang, C. and Hill, D. J. (2006). Learning from neural control. Neural Networks,
+IEEE Transactions on, 17(1):130–146.
+[Yang et al., 2008] Yang, C., Ge, S. S., Xiang, C., Chai, T., and Lee, T. H. (2008). Output feedback
+nn control for two classes of discrete-time systems with unknown control directions in a unified
+approach. Neural Networks, IEEE Transactions on, 19(11):1873–1886.
+[Zhong-Sheng, 2006] Zhong-Sheng, H. (2006). On model-free adaptive control: the state of the art
+and perspective. Control Theory & Applications, 4:018.
+
+18
+
+

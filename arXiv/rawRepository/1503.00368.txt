@@ -1,0 +1,786 @@
+Phylogenetic incongruence through the lens of Monadic
+Second Order logic
+Steven Kelk, Leo van Iersel and Celine Scornavacca
+1
+
+arXiv:1503.00368v1 [cs.DS] 1 Mar 2015
+
+2
+
+Department of Knowledge Engineering (DKE), Maastricht University, P.O. Box 616, 6200 MD
+Maastricht, The Netherlands, steven.kelk@maastrichtuniversity.nl
+Delft Institute of Applied Mathematics, Delft University of Technology, P.O. Box 5, 2600 AA Delft,
+The Netherlands, l.j.j.v.iersel@gmail.com
+3
+Institut des Sciences de l’Evolution (Université de Montpellier, CNRS, IRD, EPHE), Place E.
+Bataillon - CC 064 - 34095 Montpellier Cedex 5, France, celine.scornavacca@univ-montp2.fr
+
+Abstract. Within the field of phylogenetics there is growing interest in measures for summarising the dissimilarity, or incongruence, of two or more phylogenetic trees. Many of
+these measures are NP-hard to compute and this has stimulated a considerable volume of
+research into fixed parameter tractable algorithms. In this article we use Monadic Second
+Order logic (MSOL) to give alternative, compact proofs of fixed parameter tractability for
+several well-known incongruency measures. In doing so we wish to demonstrate the considerable potential of MSOL - machinery still largely unknown outside the algorithmic graph
+theory community - within phylogenetics. A crucial component of this work is the observation that many of these measures, when bounded, imply the existence of an agreement forest
+of bounded size, which in turn implies that an auxiliary graph structure, the display graph,
+has bounded treewidth. It is this bound on treewidth that makes the machinery of MSOL
+available for proving fixed parameter tractability. We give a variety of different MSOL formulations. Some are based on explicitly encoding agreement forests, while some only use
+them implicitly to generate the treewidth bound. Our formulations introduce a number of
+“phylogenetics MSOL primitives’’ which will hopefully be of use to other researchers.
+
+1
+
+Introduction
+
+The central goal of phylogenetics is to accurately infer the evolutionary history of a set of species
+(or taxa) X from incomplete information. Classically, phylogenetic reconstruction has access to
+information about each element in X, such as DNA data, and seeks to infer a phylogenetic tree
+- a tree whose leaves are bijectively labeled by X - that best fits this data. There is a vast literature available on this topic and many different algorithms exist for constructing phylogenetic
+trees [16,26]. In practice, it is not uncommon for phylogenetic analysis to generate multiple phylogenetic trees as output. This can occur for various reasons, ranging from software engineering
+choices (many tree-building packages are designed to generate multiple optimal and near-optimal
+solutions) to more structural explanations (reticulate evolutionary signals that are comprised of
+multiple distinct tree signals). Given two (or more) distinct phylogenetic trees, it is natural to
+compare them to determine whether the difference is significant. This explains the interest of
+the phylogenetics community for measures that can quantify the dissimilarity, or incongruence, of
+phylogenetic trees [20]. Some of these measures (such as Tree Bisection and Reconnection
+distance [1]) are studied to better understand how local-search heuristics, based on rearrangement
+operations, navigate the space of phylogenetic trees (e.g., [9]). Others, such as Hybridization
+Number [8], are studied because they assist with the inference of phylogenetic networks, which
+generalise phylogenetic trees to directed acyclic graphs [20,21].
+Unfortunately, many of these measures are NP-hard and APX-hard to compute. On the positive side, however, the phylogenetics community has been quite successful in proving that these
+measures are fixed parameter tractable (FPT) in their natural parameterizations. Informally this
+means that a measure that evaluates to k can be computed in time f (k) · poly(n) where f is some
+function that only depends on k and n is the size of the instance (often taken to be |X|). Such
+
+running times have the potential to be much faster than running times of the form O(nf (k) ) when
+the measure in question is comparatively small. See e.g. [15] for more background on FPT. A
+number of state-of-the-art phylogenetics software packages are based on FPT algorithms, such as
+the software used in [28]. Most FPT results in the phylogenetics literature are based on classical
+proof techniques such as polynomial-time kernelization and bounded-search.
+Parallel to all of this, algorithmic graph theorists have made great steps forward in identifying
+sufficient, structural conditions under which NP-hard problems on graphs become (fixed parameter) tractable. At the heart of this research lies the width parameter, the most famous example
+being treewidth. Informally treewidth is a measure that quantifies the dissimilarity of a graph
+from being a tree. The notion of treewidth, which is most famously associated with the celebrated
+Graph Minors project of Robertson and Seymour [24], has had a profound impact upon algorithm
+design. A great many NP-hard problems turn out to become tractable on graphs of bounded
+treewidth, using broadly similar proof techniques i.e. dynamic programming on tree decompositions [4]. This contributed to the rise of meta-theorems, the archetypal example being Courcelle’s
+Theorem [14,2]. This states, when combined with the result from [5], that any graph property
+that can be abstractly formulated as a length ℓ sentence of Monadic Second Order logic (MSOL),
+can be tested in time f (t, ℓ) · O(n) on graphs of treewidth t, where n is the number of vertices
+in the graph. When t and ℓ are both bounded by a function of a single parameter p, this yields
+a running time of the form f (p) · O(n) i.e. linear-time fixed parameter tractability in parameter
+p. This is an extremely powerful technique in the sense that it completely abstracts away from
+ad-hoc algorithm design and permits highly compact, “declarative” proofs that a problem is FPT.
+Courcelle’s Theorem (and its variants) are more than two decades old, but their potential is rarely
+exploited by the phylogenetics community. One exception is the literature on unrooted compatibility, which asks whether a set of unrooted phylogenetic trees are compatible. The FPT proof by
+Bryant and Lagergren [10] proves that the display graph (the graph obtained by identifying all
+taxa with the same label) has bounded treewidth (in the number of input trees), and then gives
+an MSOL formulation which tests compatibility. A follow-up result by the present authors applies
+a similar approach [25].
+In this article we show that this technique has much broader potential within phylogenetics. To
+clarify the exposition we focus on binary trees (both rooted and unrooted) on the same set of taxa
+X. We begin by proving that if two trees have an agreement forest of size k – essentially a partition
+of the trees into k isomorphic subtrees – the treewidth of the display graph is bounded by a function
+of k. This simple observation is significant because of the prominent role of agreement forests
+within the phylogenetics literature. We use this insight to re-analyse three well-known NP-hard
+phylogenetics problems that were previously shown to be FPT using more conventional analysis.
+In particular, we give MSOL formulations for (1) Unrooted Maximum Agreement Forest
+(uMAF), which is equivalent to the problem of computing Tree Bisection and Reconnection
+distance (TBR) on unrooted trees, (2) rooted Maximum Agreement Forest (rMAF), which
+is equivalent to the problem of computing Rooted Subtree Prune and Regraft distance
+(rSPR) on rooted trees, and (3) Hybridization Number (HN) on rooted trees. The formulations
+for uMAF and rMAF are based on explicitly modelling agreement forests using quartets and edge
+cuts. The formulation for HN uses agreement forests implicitly to obtain the treewidth bound
+but, due to the difficulties in encoding acyclic agreement forests, then bypasses the agreement
+forest abstraction. Instead, it encodes an equivalent, “elimination ordering” formulation of HN
+which considers sequences of pruned common subtrees. Finally we consider the (4) Maximum
+Parsimony Distance on Binary Characters problem. This asks for a binary character f on
+X that maximizes the absolute difference between the parsimony score of f on the two trees. It
+is NP-hard but not known to be FPT (in the parsimony distance). Here we give an optimization
+MSOL formulation which shows that the problem is FPT in parameter uMAF. Although this does
+not settle whether the natural parameterization of the problem is FPT, it does demonstrate a
+number of interesting principles. Firstly, it demonstrates the power of “simulating” the execution
+of polynomial-time algorithms (in this case, Fitch’s algorithm [18]) within MSOL. Secondly, any
+subsequent proof that TBR distance is at most a bounded distance above d2MP distance and/or
+
+that d2MP distance induces bounded treewidth display graphs, will automatically prove that d2MP
+distance is FPT in its natural parameterization.
+Summarizing, our formulations show the potential for MSOL to generate compact, logical FPT
+proofs for phylogenetics problems. The machinery of MSOL does not yield practical algorithms
+but it is an excellent classification tool. Once the existence of FPT algorithms has been confirmed
+via MSOL one can then switch efforts to finding a good FPT algorithm by more direct analysis,
+possibly (but not exclusively) through direct analysis of tree decompositions. Our formulations
+also introduce a number of phylogenetics “primitives” concerning quartets, clusters, subtrees and
+compatibility that we hope will be of use to other phylogenetics researchers.
+
+2
+
+Preliminaries
+
+In this section, we define the main objects that will be manipulated in this paper.
+An unrooted phylogenetic tree T (unrooted tree for short) is a tree in which no vertex has
+degree 2 and in which the leaves are bijectively labeled by a label set L(T ). The leaf labels are
+often called taxa and the symbol X is frequently used as shorthand for L(T ). Internal vertices are
+not labeled. A rooted phylogenetic tree (rooted tree for short) is defined similarly, except that it
+has exactly one vertex, called the root of the tree, that is permitted to have degree 2, and edges
+are directed away from the root. An unrooted tree is binary if every internal vertex has degree 3,
+and a rooted tree is binary if each internal vertex has indegree 1 and outdegree 2, and the root
+has outdegree 2 and indegree 0.
+Given an unrooted tree T and a subset Y ⊆ L(T ), we use T (Y ) to denote the minimal subtree
+of T connecting Y . Moreover, we denote by T |Y the tree obtained from T (Y ) when suppressing
+vertices of degree 2. We say that T |Y is the subtree of T induced by Y . In graph theory terms,
+T |Y is a label-preserving topological minor of T . Induced subtrees are defined in the same way for
+rooted trees, except that the root of T |Y becomes the vertex in the minimal connecting subgraph
+that is closest to the root of T , and we suppress all degree 2 vertices except the new root. We
+write T − Y to denote T |L(T )−Y . For any node u of a rooted tree T , Tu is the subtree of T rooted
+at u.
+u
+
+e
+
+w
+w
+
+v
+
+y
+
+a
+
+b
+
+y
+u
+
+u
+
+v
+
+v
+d
+
+w
+
+y
+
+(a)
+
+c
+
+(b)
+
+(c)
+
+Fig. 1. (a) Two unrooted binary phylogenetic trees on {u, v, w, y}. A maximum agreement forest (uMAF)
+for these two trees contains 2 components, and can be obtained by cutting the single red edge in both trees
+and then suppressing the resulting degree 2 vertices. (b) The display graph for the two trees from (a),
+obtained by identifying leaves with the same label. (c) How addition of a special label ρ can be used to root
+a tree: edges are assumed to be directed away from ρ.
+
+Given a label set X, a bipartition (or split ) A|B on X is a partition of X into two non-empty
+sets. Each edge {u, v} of a tree T induces a split L(Tu )|L(Tv ), where Tu and Tv are the two trees
+obtained from T when {u, v} is deleted. Given a rooted tree T with label set X, a subset X ′ of X
+is called a clade (or cluster ) of T , if T contains a node v such that L(Tv ) = X ′ .
+Given an unrooted binary tree T and a set of four distinct labels {u, v, w, y} in L(T ), T |{u,v,w,y}
+will be exactly one of the three possible unrooted binary trees on {u, v, w, y}. These are called
+
+quartets and are denoted respectively by uv|wy, uw|vy and wv|uy, depending on the bipartition
+induced by its central edge. In Figure 1(a) we see uv|wy and uw|vy. Given a rooted binary tree
+T and a set of three labels {u, v, w} in L(T ), T |{u,v,w} will be exactly one of the three possible
+rooted binary trees on {u, v, w}. These are called triplets and are denoted respectively by uv|w,
+uw|v and wv|u, where ij|k means that the leaf labelled k is incident to the root.
+Let T = {T1 , T2 , . . . , Tk } be a collection of unrooted trees, not necessarily on the same set
+of taxa. The display graph of T is obtained from the disjoint graph union of all trees in T by
+identifying vertices with the same label; see Figure 1(b).
+Given an undirected graph G = (V, E), a bag is simply a subset of V . A tree decomposition
+of G consists of a tree TG = (V (TG ), E(TG )) where V (TG ) is a collection of bags such that the
+following holds: (1) every vertex of V is in at least one bag; (2) for each edge {u, v} ∈ E, there
+exists some bag that contains both u and v; (3) for each vertex u ∈ V , the bags that contain u
+induce a connected subtree of TG . The width of a tree decomposition is equal to the cardinality of
+its largest bag, minus 1. The treewidth of a graph G is equal to the minimum width, ranging over
+all possible tree decompositions of G. A tree with at least one edge has treewidth 1. For a fixed
+value of k one can determine in linear time whether a graph has treewidth at most k [5].
+
+3
+
+Main results
+
+Unless stated otherwise, we assume that T1 = (V1 , E1 ) and T2 = (V2 , E2 ) are both unrooted
+binary trees on X. Their display graph is denoted by D = (V, E) and RD denotes the vertex-edge
+incidence relation in D. We use adj to denote the vertex-vertex adjacency relation in D. Note that
+|V | = 3|X| − 4 and |E| = 4|X| − 6.
+
+3.1
+
+TBR / MAF on unrooted trees
+
+We will start by giving the definitions of a TBR move and of the TBR distance between two
+unrooted binary trees.
+Definition 1 (TBR move). Given an unrooted binary tree T , a tree bisection and reconnection
+(TBR) move on T consists of removing an edge of T , say {u, v}, and then reconnecting the subtrees
+Tu and Tv as follows: subdividing an edge of Tu with a new vertex p; subdividing an edge of Tv
+with a new vertex q; connecting p to q; and finally suppressing any vertices of degree 2.
+TBR distance is then defined naturally as follows:
+Problem: dT BR (T1 , T2 )
+Input: Two unrooted binary trees T1 , T2 on the same set of taxa X.
+Output: The minimum number of TBR moves required to transform T1 into T2 .
+We will now give the definition of an uMAF for two unrooted binary trees T1 , T2 on X. Any
+collection of trees whose label sets partition X is said to be a forest on X. Furthermore, we say
+that a set F = {F1 , . . . , Fk } of unrooted binary phylogenetic trees – with |F | referred to as the
+size of F – is a forest for T if F can be obtained from T by deleting a (k − 1)-sized subset E of
+E(T ), suppressing any unlabeled leaves, and then finally suppressing any vertices with degree 2.
+To ease reading, we write F = T − E if F can be obtained in this way.
+Definition 2 (uMAF). A set F of unrooted trees is an agreement forest for T1 and T2 (denoted
+uAF ) if F is a forest of both T1 and T2 . An unrooted maximum agreement forest (uMAF), is an
+uAF of minimum size.
+
+So, the uMAF problem is defined as follows:
+Problem: uM AF (T1 , T2 )
+Input: Two unrooted binary trees T1 , T2 on the same set of taxa X.
+Output: An uMAF for T1 and T2 .
+The two problems defined above are closely related, and known to be NP-hard [1].
+Theorem 1 ([1]). Given two unrooted binary trees T1 , T2 on the same set of taxa X, we have
+that dT BR (T1 , T2 ) = |uM AF (T1 , T2 )| − 1.
+Fortunately, they have been proved to be FPT in their natural parameters [1], and fast algorithms have been recently proposed [27,13]. In this section, we will give a more compact proof of
+their fixed parameter tractability.
+Theorem 2. Let T1 , T2 be two unrooted binary trees on the same set of taxa X such that a uAF
+of size k for these two trees exists. Then, the treewidth of their display graph D is at most k + 1.
+Proof. From [19], we know that the display graph of two identical trees has treewidth 2 (or 1 in the
+case that both trees consist of a single vertex). Thus, if we have an uAF F = {F1 , . . . , Fk } of size k,
+this means that the display graph D0 of F (which we define as the display graph constructed from
+two disjoint copies of F ) has k connected components, and treewidth at most 2. This is because
+the treewidth of a disconnected graph is equal to the largest treewidth ranging over its connected
+components. Now, we can construct a tree decomposition of D from the tree decomposition of F
+as follows: suppose F can be obtained by removing from T1 , respectively T2 , a subset of edges
+K1 , respectively K2 , and suppressing vertices with degree 2 and unlabeled leaves. First, note that
+we can reintroduce the suppressed vertices (and their corresponding edges) in F , obtaining a new
+forest F ′ , without changing the treewidth. Indeed, given an edge {u, v} in F that corresponded to
+a path (u, x1 , · · · , xj , v) before the suppression of the vertices with degree 2, we know that there
+exists a bag B in the tree decomposition of D0 such that u and v are in B. Then we can add a set
+of bags {B1 , · · · , Bj } such that B1 = {u, x1 , v}, B2 = {x1 , x2 , v}, · · · , Bj = {xj−1 , xj , v}, and add
+edges {B, B1 }, {B1 , B2 }, · · · , {Bj−1 , Bj } to the tree decomposition. For the suppressed unlabeled
+leaves, say u, this is even easier: we add a bag {u, v} as child of any of the bags containing v, where
+v is the vertex from which the suppressed leaf was hanging. It is easy to see that this is a tree
+decomposition of the display graph of F ′ with treewidth 2. Now, we can easily reintroduce the k−1
+edges in K1 to the display graph, again without changing the treewidth, by, for each edge {u, v}
+in K1 , adding a bag {u, v} between two existing bags, one containing u and the other containing
+v. Note that the obtained decomposition is still a tree, since we are connecting two components
+of F ′ . Now, when adding back the edges of K2 , this is not true anymore. In this case, there exists
+at least a path in the tree decomposition, connecting a bag containing u to a bag containing v.
+Then, taking the shortest of these paths and adding u to its bags not containing u, we increase
+the treewidth by at most 1. If we do this for all edges in K2 , we obtain a tree decomposition for
+the display graph of T1 and T2 with treewidth at most 2 + (k − 1) = k + 1. Note that this bound is
+tight, as the following example shows: an uMAF of two quartets with different topologies, uv|wx
+and ux|vw say, contains 2 components, and the display graph of these two quartets has treewidth
+3 (see also [19]). ⊓
+⊔
+In the following, we will demonstrate that |uM AF (T1 , T2 )| =: k can be computed in time
+O(f (k)·|X|) for some computable function f that depends only on k. We do this via the machinery
+of MSOL. The high-level idea is that we formulate a logical query to answer the question “Is
+k ≤ k ′ ?” for increasing values of k ′ until the answer is yes, and then stop: at this point k ′ = k.
+We use the stronger variant of MSOL that allows quantification over both edges and vertices. In
+particular, we will use the extended MSOL framework of Arnborg et al [2]. Following [10,25] we
+note that the sets V1 , E1 , V2 , E2 , X (and later, ρ) are all available to the MSOL query i.e. within
+the query we can distinguish which vertices/edges of D belong to T1 , which belong to T2 , and
+which are taxa.
+
+More formally, we construct an MSOL formula Φ(K1 , K2 ) and a relational structure G such
+that G |= Φ(K1 , K2 ) if and only if K1 is a set of k ′ − 1 edges of E1 , and K2 is a set of k ′ − 1 edges
+of E2 , such that, after deleting them, the resulting components form an uAF F for both T1 and
+T2 , i.e. F1 = T1 − K1 = F2 = T2 − K2 . To model this, we need to have that: (1) the two forests
+F1 and F2 induce an identical partition of X and (2) the components of the two induced forests
+must have the same topology. To enforce (1) we observe that (in, say, T1 ) two taxa x1 and x2
+are in the same component of the forest resulting from deletion of K1 if and only if they can still
+reach each other inside T1 after deletion of those edges. In turn, this occurs if and only if there is
+a path from x1 to x2 entirely contained inside T1 which avoids all the edges in K1 . To enforce (2)
+we demand that a quartet is in the first forest (i.e. the quartet is contained inside one of the trees
+in the forest) if and only the quartet is in the second forest. This uses the fact that two unrooted
+binary trees on the same set of taxa are topologically identical if and only if they induce identical
+sets of quartets [12].
+Before defining Φ(K1 , K2 ), we need to introduce several intermediate predicates. These build
+on a number of basic predicates which we mainly list for the benefit of readers not familiar with
+MSOL. They are used to:
+– test that Z is equal to the union of two sets P and Q:
+P ∪ Q = Z := ∀z(z ∈ Z ⇒ z ∈ P ∨ z ∈ Q) ∧ ∀z(z ∈ P ⇒ z ∈ Z) ∧ ∀z(z ∈ Q ⇒ z ∈ Z)
+– test that P ∩ Q = ∅:
+N oIntersect(P, Q) := ∀u ∈ P (u 6∈ Q)
+– test that P ∩ Q = {v}:
+Intersect(P, Q, v) := (v ∈ P ) ∧ (v ∈ Q) ∧ ∀u ∈ P (u ∈ Q ⇒ (u = v))
+– test if the sets P and Q are a bipartition of Z:
+Bipartition(Z, P, Q) := (P ∪ Q = Z) ∧ N oIntersect(P, Q)
+– test if the elements in {x1 V
+, x2 , x3 , x4 } are pairwise different:
+allDif f (x1 , x2 , x3 , x4 ) := i6=j∈{1,2,3,4} xi 6= xj
+– check if the nodes p and q are adjacent in D:
+adj(p, q) := ∃e ∈ E(RD (e, p) ∧ RD (e, q))
+The predicate P AC(Z, x1 , x2 , Ki ) (“path avoids cuts?’ ’) asks: is there a path from x1 to x2
+entirely contained inside vertices Z that avoids all the edges Ki ? We model this by observing that
+this does not hold if you can partition Z into two pieces P and Q, with x1 ∈ P and x2 ∈ Q, such
+that the only edges that cross the induced cut (if any) are in Ki :
+P AC(Z, x1 , x2 , Ki ) := (x1 = x2 ) ∨ ¬∃P, Q(Bipartition(Z, P, Q) ∧ x1 ∈ P ∧ x2 ∈ Q ∧
+(∀p, q(p ∈ P ∧ q ∈ Q ⇒ ¬adj(p, q) ∨ (∃g ∈ Ki (RD (g, p)
+∧RD (g, q))))))
+We model that a quartet is in the forest (of, say, T1 ) by stipulating that there is an embedding
+(i.e. subdivision) of the quartet, completely contained inside T1 , which avoids all the edges in
+K1 . To model the embedding, we model the five edges of the quartet as five subsets of vertices
+A, B, C, D, P , representing the subdivisions of the five edges, with P being the central edge and
+u and v being its endpoints. We demand that (with the exception of u and v) these subsets are
+disjoint. This is all combined in the following QAC 1 predicate (“quartet avoids cuts in T1 ?”),
+which returns true if and only if T1 contains an embedding of xa xb |xc xd that is disjoint from the
+
+edge cuts K1 .
+QAC 1 (xa , xb , xc , xd , K1 ) := ∃u, v ∈ V1 ((u 6= v) ∧ ∃A, B, C, D, P ⊆ V1 (xa , u ∈ A ∧ xb , u ∈ B ∧ xc ,
+v ∈ C ∧ xd , v ∈ D ∧ u ∈ P ∧ v ∈ P ∧ Intersect(A, B, u) ∧
+Intersect(A, P, u) ∧ Intersect(B, P, u) ∧ Intersect(C, D, v) ∧
+Intersect(C, P, v) ∧ Intersect(D, P, v) ∧ N oIntersect(A, C) ∧
+N oIntersect(B, C) ∧ N oIntersect(A, D) ∧ N oIntersect(B, D) ∧
+P AC(A, u, xa , K1 ) ∧ P AC(B, u, xb , K1 ) ∧ P AC(C, v, xc , K1 ) ∧
+P AC(D, v, xd , K1 ) ∧ P AC(P, u, v, K1 )))
+We can define QAC 2 (xa , xb , xc , xd , K2 ) in a similar way. Note that, for every four taxa, we need
+to consider all three possible quartet topologies. Then we define Φ(K1 , K2 ) as follows:
+^
+^
+Ki ⊆ Ei ) ∧ ∀x1 , x2 ∈ X(P AC(V1 , x1 , x2 , K1 ) ⇔
+|Ki | = k ′ − 1) ∧ (
+(
+i∈{1,2}
+
+i∈{1,2}
+
+P AC(V2 , x1 , x2 , K2 )) ∧ ∀x1 , x2 , x3 , x4 ∈ X(allDif f (x1, x2 , x3 , x4 ) ⇒
+((QAC 1 (x1 , x2 , x3 , x4 , K1 ) ⇔ QAC 2 (x1 , x2 , x3 , x4 , K2 )) ∧
+(QAC 1 (x1 , x3 , x2 , x4 , K1 ⇔ QAC 2 (x1 , x3 , x2 , x4 , K2 )) ∧
+(QAC 1 (x1 , x4 , x2 , x3 , K1 ) ⇔ QAC 2 (x1 , x4 , x2 , x3 , K2 )))).
+
+(The cardinality operator is permitted because the extended MSOL framework of [2] allows the
+incorporation of an evaluation relation which can test, amongst other things, the cardinalities of
+free set variables).
+Theorem 3. Computation of TBR / uMAF on two unrooted binary trees on the same set of taxa
+X is linear time FPT. That is, the optimum k can be computed in time O(f (k) · |X|) for some
+computable function that only depends on k.
+Proof. We have presented a logical query to answer the question “Is k ≤ k ′ ?” for increasing values
+of k ′ . For each value of k ′ the MSOL query, which examines the display graph D, has fixed length.
+Combining this with the fact that the treewidth of D is bounded by a function of k (by Theorem
+2), and that the size of D is a linear function of |X|, we have the desired result. (Note that the
+actual edge cuts - which can be used to construct a uMAF - can also be obtained in the same time
+bound by leveraging Theorem 4 of [10].)
+⊓
+⊔
+3.2
+
+rSPR / MAF on rooted trees
+
+In this section, we will give a compact proof that the computation of rSPR distance is FPT in its
+natural parameter. Before that, we need to introduce some definitions.
+Definition 3 (rSPR move). Given a rooted binary tree T , a subtree prune and regraft (rSPR)
+move on T consists of removing an edge of T , say (u, v), yielding two trees Tu and Tv , and then
+reconnecting them as follows: subdividing some edge of Tu with a new vertex p; adding an edge
+directed from p to v, and then suppressing any vertices with indegree and outdegree both equal to
+1.
+rSPR distance is defined analogously to TBR distance, and a MAF for two rooted binary trees
+T1 , T2 is defined similarly to a uMAF, but in a rooted framework. We refer to [6] for precise
+definitions. The main difference is that a forest consists of rooted binary trees and this has to be
+taken into account when comparing the topology of the components. In the rooted context MAFs
+are mainly studied because of their close relationship to rSPR distance. To accurately model rSPR
+distance it is necessary to slightly modify each input tree Ti as follows: we add a vertex with special
+
+label ρ at the end of a pendant edge adjoined to the original root of Ti , see Figure 1(c). We then
+consider ρ to be part of the label set of the tree. Note that the addition of ρ means that we can
+equivalently view each Ti as an unrooted binary tree, with ρ acting as a placeholder for the root
+location, and this is how the trees will be modelled in the display graph.
+The close relationship between MAF (assuming ρ has been added as described) and rSPR
+distance is summarized by the following well-known result.
+Theorem 4 ([6]). Given two rooted binary trees T1 , T2 on the same set of taxa X, we have that
+drSP R (T1 , T2 ) = |M AF (T1 , T2 )| − 1.
+Note that these problems have been proved NP-hard and FPT in their natural parameter [6].
+The MSOL formulation is similar to the TBR formulation, but with the following changes.
+When checking that the components induced by the edge cuts partition the taxa in the same way
+in both T1 and T2 (i.e. by considering pairs of taxa that still have a path between them), we need
+to range over X ∪ {ρ} instead of just X. More significantly, we need predicates for triplets instead
+of quartets, because we are working in the rooted environment and two rooted binary trees are
+topologically equivalent if and only if they contain the same set of triplets [11]. Fortunately we can
+use the fact that triplet xy|z is in Ti (x, y, z ∈ X) if and only if quartet xy|ρz is in the unrooted
+interpretation of Ti .
+However we cannot simply use ρ as the fourth parameter xd to QAC i because this will evaluate
+to false if the path from ρ to the rest of the quartet embedding has been cut. This is not what we
+need: ρ is in this context only there to indicate direction, so its particular arm of the quartet embedding can be cut without consequence. We can remedy this by introducing predicates Quarteti
+and T ripleti which check whether the corresponding quartet/triplet was in the original tree (i.e.
+before the edge cuts). We can then leverage the fact that, if three distinct taxa x, y, z are in the
+same component of the forest, the unique triplet topology they induce within the component will
+be the same topology as they induced in the original tree.
+We first need the following predicate, which is a specialization of the earlier P AC predicate.
+It tests whether there is a path from x1 to x2 that is entirely contained inside vertex set Z:
+path(Z, x1 , x2 ) := (x1 = x2 ) ∨ ¬∃P, Q(Bipartition(Z, P, Q) ∧ x1 ∈ P ∧ x2 ∈ Q
+∧(∀p, q(p ∈ P ∧ q ∈ Q ⇒ ¬adj(p, q))))
+For each tree Ti , the following predicate checks whether the quartet xa xb |xc xd is contained in
+Ti :
+Quarteti (xa , xb , xc , xd ) := ∃u, v ∈ Vi ((u 6= v) ∧ ∃A, B, C, D, P ⊆ Vi (xa , u ∈ A ∧
+xb , u ∈ B ∧ xc , v ∈ C ∧ xd , v ∈ D ∧ u ∈ P ∧ v ∈ P ∧ Intersect(A, B, u) ∧
+Intersect(A, P, u) ∧ Intersect(B, P, u) ∧ Intersect(C, D, v) ∧
+Intersect(C, P, v) ∧ Intersect(D, P, v) ∧ N oIntersect(A, C) ∧
+N oIntersect(B, C) ∧ N oIntersect(A, D) ∧ N oIntersect(B, D) ∧
+path(A, u, xa ) ∧ path(B, u, xb ) ∧ path(C, v, xc ) ∧ path(D, v, xd ) ∧
+path(P, u, v)))
+For each rooted tree Ti , the following predicate checks whether the triplet xa xb |xc is contained
+in Ti (simply by checking whether xa xb |xc ρ is contained in it):
+T ripleti (xa , xb , xc ) := Quarteti (xa , xb , xc , ρ)
+
+Now, we are ready to define T AC i (“triplet avoids cuts in Ti ?”), which models whether a triplet
+is in the forest of Ti induced by the edge cuts:
+
+T AC i (xa , xb , xc , K1 ) := T ripleti (xa , xb , xc ) ∧ ∃u, v ∈ Vi ((u 6= v) ∧ ∃A, B, C, D, P ⊆ Vi (xa , u ∈ A ∧
+xb , u ∈ B ∧ xc , v ∈ C ∧ ρ, v ∈ D ∧ u ∈ P ∧ v ∈ P ∧ Intersect(A, B, u) ∧
+Intersect(A, P, u) ∧ Intersect(B, P, u) ∧ Intersect(C, D, v) ∧
+Intersect(C, P, v) ∧ Intersect(D, P, v) ∧ N oIntersect(A, C) ∧
+N oIntersect(B, C) ∧ N oIntersect(A, D) ∧ N oIntersect(B, D)
+∧P AC(A, u, xa , K1 ) ∧ P AC(B, u, xb , K1 ) ∧ P AC(C, v, xc , K1 ) ∧
+path(D, v, ρ, K1 ) ∧ P AC(P, u, v, K1 )))
+Note how we use path rather than P AC to model the path from v to ρ i.e. because it does not
+matter for the triplet whether this path is cut. The final MSOL formulation is then very similar
+to that given in Section 3.1:
+(
+
+^
+
+i∈{1,2}
+
+|Ki | = k ′ − 1) ∧ (
+
+^
+
+Ki ⊆ Ei ) ∧ ∀x1 , x2 ∈ X ∪ {ρ}(P AC(V1 , x1 , x2 , K1 ) ⇔
+
+i∈{1,2}
+
+P AC(V2 , x1 , x2 , K2 )) ∧ ∀x1 , x2 , x3 ∈ X(allDif f (x1, x2 , x3 ) ⇒
+((T AC 1 (x1 , x2 , x3 , K1 ) ⇔ T AC 2 (x1 , x2 , x3 , K2 )) ∧
+(T AC 1 (x1 , x3 , x2 , K1 ) ⇔ T AC 2 (x1 , x3 , x2 , K2 )) ∧
+(T AC 1 (x2 , x3 , x1 , K1 ) ⇔ T AC 2 (x2 , x3 , x1 , K2 )))).
+
+Theorem 5. Computation of rSPR / MAF on two rooted binary trees on the same set of taxa
+X is linear time FPT. That is, the optimum k can be computed in time O(f (k) · |X|), for some
+computable function that only depends on k.
+Proof. An agreement forest of the two rooted trees T1 and T2 induces an agreement forest (consisting of unrooted binary trees) of the same size of the unrooted interpretations of these trees,
+simply by ignoring the orientation of edges. Hence the treewidth bound described in Theorem 2 is
+still applicable, and the theorem follows. (Again, if required one can obtain the actual edge cuts,
+which can be used to build a MAF, in the same time bound by leveraging Theorem 4 of [10]). ⊓
+⊔
+3.3
+
+Hybridization Number
+
+In this section, we deal again with rooted trees, and thus we add a vertex labeled ρ to both trees
+to indicate the root location, as done for rSPR; see Figure 1(c). A rooted phylogenetic network
+(rooted network for short) N = (V (N ), E(N )) on a set of taxa X is any rooted acyclic digraph in
+which no vertex has degree 2 (except possibly the root) and whose leaves are bijectively labeled
+by elements of X. The hybridization number of N , denoted by h(N ), is defined as
+X
+(δ − (v) − 1) = |E(N )| − |V (N )| + 1
+h(N ) =
+v∈V (N ):δ − (v)>0
+
+where δ − (v) denotes the indegree of v.
+Given a rooted network N on X and a rooted binary tree T on X ′ , with X ′ ⊆ X, we say
+that T is displayed by N if T can be obtained from N by deleting a subset of its edges and any
+resulting degree 0 vertices, and then suppressing vertices with δ − (v) = δ + (v) = 1.
+We are now ready to define the hybridization number problem:
+Problem: HN (T1 , T2 )
+Input: Two rooted binary trees T1 , T2 on the same set of taxa X.
+
+Output: A rooted network N displaying T1 and T2 such that h(N ) is minimum over all rooted
+networks with this property.
+The hybridization number for T1 and T2 , denoted by h(T1 , T2 ), is defined as the hybridization
+number of this minimum network. As done for TBR and rSPR, we can give a characterization
+of the hybridization number in terms of agreement forests. To do so, we need to define acyclic
+agreement forests.
+Let F = {F1 , F2 , . . . , Fk } be an agreement forest for two rooted binary trees T1 and T2 on the
+same set of taxa X, and let AG(T1 , T2 , F ) be the directed graph whose vertex set is F and for
+which (Fi , Fj ) is an arc iff i 6= j, and either
+(1) the root of T1 (L(Fi )) is an ancestor of the root of T1 (L(Fj )) in T1 , or
+(2) the root of T2 (L(Fi )) is an ancestor of the root of T2 (L(Fj )) in T2 .
+We call F an acyclic agreement forest (AAF) for T1 and T2 if AG(T1 , T2 , F ) does not contain any
+directed cycle. A maximum acyclic agreement forest (MAAF), is an AAF of minimum size.
+The acyclicity condition is used to model the fact that species cannot inherit genetic material
+from their own offspring. The two problems defined above are closely related, as the following
+well-known result shows.
+Theorem 6 ([3]). Given two rooted binary trees T1 , T2 on the same set of taxa X, we have that
+h(T1 , T2 ) = |M AAF (T1 , T2 )| − 1.
+The above equivalence formed the basis for results proving that both problems are NP-hard [8]
+and fixed parameter tractable [7].
+Here we show an alternative proof that computation of hybridization number on two rooted
+binary trees with the same set of taxa X is FPT, again using MSOL. We will do this by demonstrating that |M AAF (T1 , T2 )| =: k can be computed in time O(f (k) · |X|) for some computable
+function f that depends only on k. Again, we will formulate a logical query on the display graph
+to answer the question “Is k ≤ k ′ ?” for increasing values of k ′ , until k ′ = k is reached and the
+answer to the query is “yes”. Unlike the formulations given earlier for TBR and rSPR, the query
+has no free variables, and the length of each query will grow as a function of k ′ . However, given
+that k ′ ≤ k, the length will remain bounded by a function of k. Note that, if a MAAF of size k
+exists for T1 and T2 , then an AF of size k exists too, and as argued for rSPR, if two rooted trees
+have an agreement forest of size k then so do the underlying, unrooted trees. So the treewidth
+bound of Theorem 2 is still valid, where k = |M AAF (T1 , T2 )|, and this implies that an overall
+running time of the form O(f (k) · |X|) can be achieved.
+The major challenge when modelling MAAF is to encode the acyclicity constraints. It is not
+clear whether the formulations from the previous sections, in which agreement forests are modelled
+directly as sets of edge-cuts, can be (elegantly) extended to include acyclicity constraints. For
+this reason we choose to discard the agreement forest abstraction, using it only to generate the
+treewidth upper bound. For the actual modelling we use an alternative “elimination-ordering”
+characterization of MAAF/HN, first presented in [23], which we briefly summarize here.
+Given a rooted binary tree T on X, we say a subtree T ′ of T is pendant if there exists a vertex
+u of T such that T ′ = Tu . In this case it is then natural to associate T ′ with the subset of X
+labeling its leaves, i.e. L(T ′ ). We say that T ′ is a common pendant subtree of T1 and T2 if it is
+a pendant subtree of both T1 and T2 . We call (S1 , S2 , . . . , Sp ) (p ≥ 0) a common pendant subtree
+sequence of T1 and T2 of length p if for every 1 ≤ i ≤ p, Si is a common pendant subtree of
+T1 − ∪j<i L(Sj ) and T2 − ∪j<i L(Sj ). We say that such a sequence is additionally a tree sequence
+if the two trees T1 − ∪j≤p L(Sj ) and T2 − ∪j≤p L(Sj ) are identical. Informally, a tree sequence of
+length p describes a sequence of p common pendant subtrees that can be successively pruned from
+the original trees to reach a common core tree. If T1 and T2 are already identical then we use the
+empty tree sequence ∅, and take p = 0, to represent this.
+The results in [23] establish that h(T1 , T2 ) is equal to the smallest p such that a tree sequence of
+length p exists. This is the characterization of optimality that we will use i.e. each logical query will
+
+pose the question, “Does a tree sequence of length k ′ exist?”. There is no need to model acyclicity
+in this formulation. However, we do need to model the concept common pendant subtree and the
+impact of earlier pruning steps on the original trees.
+Before writing down the MSOL formulation we need some new auxiliary predicates. The first
+predicate checks whether there is a path from x1 to x2 within Z that survives the deletion of
+vertex u. This is similar to the P AC predicate defined earlier.
+pathSurvivesV ertexCut(Z, x1 , x2 , u) := (u 6= x1 ) ∧ (u 6= x2 )∧
+((x1 = x2 ) ∨ ¬∃P, Q(Bipartition(Z, P, Q) ∧
+x1 ∈ P ∧ x2 ∈ Q ∧ (∀p, q(p ∈ P ∧ q ∈ Q ⇒
+¬adj(p, q) ∨ p = u ∨ q = u))))
+
+For a vertex u 6= ρ in a tree Ti and a taxon x ∈ X, observe that x is in the clade rooted at u
+(i.e. in the label set of the pendant subtree rooted at u) if and only if (x = u) or deleting u from
+Ti destroys all paths from ρ to x (inside Ti ). Hence:
+InCladeU nderi (u, x) := (u = x) ∨ ¬pathSurvivesV ertexCut(Vi , ρ, x, u)
+This leads naturally to a predicate for testing whether C ⊆ X is a clade of Ti :
+Cladei (C) := ∃u ∈ Vi (∀x(x ∈ C ⇔ InCladeU nderi (u, x)))
+As we shall see, it is useful to extend this predicate with an optional list Z1 , Z2 , . . . which represent
+subsets of X describing common pendant subtrees that have already been pruned from the tree.
+The statement Cladei (C, Z1 , Z2 , . . . ...) evaluates to true if and only if C is a clade of Ti after
+the taxa in Z1 , Z2 , . . . ... have been pruned away. (To avoid ambiguity the predicate automatically
+returns false if C intersects with any of the Zi .) Note that the list of Zi is shown in square brackets
+to emphasize that it is a “macro”: there will be a different predicate for each possible list length
+t. The list of Zi will never be longer than h(T1 , T2 ), and length of the generated predicate will be
+bounded by a function of the list length, so the length of the overall logical query remains bounded
+by a function of h(T1 , T2 ).
+Cladei (C, [Z1 , . . . ..., Zt ]) := N oIntersect(C, Z1 ) ∧ ... ∧ N oIntersect(C, Zt ) ∧ ∃u ∈ Vi
+(∀x(x ∈ C ⇒ InCladeU nderi (u, x)) ∧
+∀x(InCladeU nderi (u, x) ⇒ (x ∈ C) ∨ (x ∈ Z1 ) ∨ ... ∨ (x ∈ Zt )))
+We are now ready to define the CPS (i.e. “common pendant subtree”) predicate. We do this by
+observing that C ⊆ X corresponds to a common pendant subtree of T1 and T2 if and only if C is
+a clade of both trees (this ensures that C is pendant in both trees) and the set of triplets induced
+by C is identical in both trees (this ensures that the pendant subtree has the same topology in
+both trees).
+CP S(T1 , T2 , C) := Clade1 (C) ∧ Clade2 (C) ∧ ∀x∀y∀z(x, y, z ∈ C ∧
+allDif f (x, y, z) ⇒ (T riplet1 (x, y, z) ⇔ T riplet2(x, y, z)))
+We extend this now with a list of Zi representing the taxa we have already pruned. This new
+version of the predicate evaluates to true if and only if C corresponds to a common pendant
+subtree in the two trees after all the Zi have been pruned away. (Here we make implicit use of the
+fact that the Clade predicate immediately returns false whenever C intersects with the Zi .)
+CP S(T1 , T2 , C, [Z1 , . . . , Zt ]) := Clade1 (C, Z1 , . . . , Zt ) ∧ Clade2 (C, Z1 , . . . , Zt ) ∧ ∀x∀y∀z
+(x, y, z ∈ C ∧ allDif f (x, y, z) ⇒ (T riplet1 (x, y, z) ⇔
+T riplet2 (x, y, z)))
+
+We are now ready to directly pose the question: is there a tree sequence of length k ′ ? We can
+assume k ′ ≥ 1 because k ′ = 0 is trivial to check in polynomial time. To make the formulation
+slightly more compact we actually construct a list of length k ′ + 1, where Ck′ +1 represents the
+taxa that still remain after the common pendant subtrees have been pruned away: we can then
+test that the sequence is a tree sequence (i.e. that a common core tree remains) by testing that
+CP S(T1 , T2 , Ck′ +1 , C1 , . . . , Ck′ ) is true. Note that the HybNum predicate is again a macro, whose
+expansion depends on k ′ .
+HybN um[k ′](T1 , T2 ) := ∃C1 , . . . , Ck′ , Ck′ +1 (P artition(X, C1 , . . . , Ck′ +1 ) ∧
+CP S(T1 , T2 , C1 , ∅) ∧
+CP S(T1 , T2 , C2 , C1 ) ∧
+CP S(T1 , T2 , C3 , C1 , C2 ) ∧
+...
+CP S(T1 , T2 , Ck′ +1 , C1 , . . . , Ck′ )).
+The Partition predicate has the expected meaning and definition:
+P artition(X, C1 , . . . , Ck ) := (∧i6=j N oIntersect(Ci , Cj ))∧∀u(u ∈ X ⇔ (u ∈ C1 ∨u ∈ C2 ∨. . .∨u ∈
+Ck ))
+Concluding, we have the following result:
+Theorem 7. Computation of hybridization number / MAAF on two rooted binary trees on the
+same set of taxa X is linear time FPT. That is, the optimum k can be computed in time O(f (k) ·
+|X|), for some computable function that only depends on k.
+3.4
+
+Parsimony distance on binary characters
+
+Let T be an unrooted binary tree on a set of taxa X. A binary character f is simply a function
+f : X → {red, blue}. An extension of f to T is a mapping g : V (T ) → {red, blue} such that,
+for all x ∈ X, g(x) = f (x). For a given character f , an optimal extension is any extension g of
+f such that the number of bichromatic edges is minimized. The number of bichromatic edges in
+an optimal extension is called the parsimony score of f with respect to T , and denoted lf (T ).
+The well-known algorithm by Fitch can be used to compute lf (T ) (and an optimal extension) in
+polynomial time [18]. We shall describe Fitch’s algorithm in due course. The parsimony distance
+problem on binary characters, denoted d2MP , is defined as follows [17].
+Problem: d2MP (T1 , T2 )
+Input: Two unrooted binary trees T1 , T2 on the same set of taxa X
+Output: Construct a binary character f on X such that the value |lf (T1 ) − lf (T2 )| is maximized.
+We use d2MP to denote the optimum value of |lf (T1 ) − lf (T2 )|. The problem was recently shown
+to be NP-hard and APX-hard [22]. It is not known whether the problem is FPT in d2MP . The
+following result, however, is already known.
+Lemma 1 ([17]). Let T1 , T2 be two unrooted binary trees on the same set of taxa X. Then
+d2MP (T1 , T2 ) ≤ dT BR (T1 , T2 ).
+Given two trees T1 , T2 as input to d2MP , it is not known whether the display graph D of T1
+and T2 has treewidth bounded by a function of d2MP . However, from Lemma 1 and earlier results
+in this article (Theorems 1 and 2) it is clear that D has treewidth bounded by a function of
+dT BR (T1 , T2 ). An MSOL formulation modelling d2MP , whose length is bounded by a function of
+d2MP , will therefore give a running time of the form f (dT BR (T1 , T2 )) · O(|X|) for some computable
+function f that only depends on dT BR (T1 , T2 ). We now give such a formulation. We will remain
+
+within the framework of [2], this time using the (“linear extremum”) optimization variant of
+MSOL. This allows us to maximize or minimize an affine function of (the cardinalities of) the free
+set variables in the query.
+The MSOL formulation we give here, which is based on an ILP formulation from [22], maximizes
+lf (T1 ) − lf (T2 ). (To compute d2MP we need to use the MSOL machinery twice, once for lf (T1 ) −
+lf (T2 ) and once for lf (T2 ) − lf (T1 ), taking the maximum of the two results. The second call only
+differs in its objective function so we omit details).
+The basic idea is to range over all possible binary characters, simultaneously embedding two
+static formulations4 of Fitch’s algorithm to “compute” lf (T1 ) − lf (T2 ).
+Fitch’s algorithm proceeds as follows. If T is not rooted, we root it arbitrarily (by subdividing
+an arbitrary edge). The algorithm then works in two phases, a bottom-up phase which computes
+lf (T ), and then a top-down phase which actually computes a corrresponding extension. In the
+bottom-up phase, we start by assigning each taxon x the singleton set of colours S(x) := {f (x)}.
+For an internal node u with children v1 , v2 we set S(u) := S(v1 ) ∩ S(v2 ) (if S(v1 ) ∩ S(v2 ) 6= ∅,
+in which case we say u is an intersection node) and S(u) := S(v1 ) ∪ S(v2 ) (if S(v1 ) ∩ S(v2 ) = ∅,
+in which case we say that u is a union node). The value lf (T ) is equal to the number of internal
+nodes that are union nodes. (We omit a description of the constructive top-down phase as it is
+not relevant for this article).
+To translate this into an MSOL formulation, we begin by arbitrarily rooting T1 and T2 and
+using ρ as the placeholder for the root, in the usual fashion. The central idea is to partition the
+vertices of each tree Ti into four possible subsets Ri , B i , RBIi and RBUi corresponding to the set
+of colours that Fitch allocates to each node, and distinguishing union events from intersection
+events: red, blue, {red, blue} (intersection node) and {red, blue} (union node). We therefore ask
+the MSOL formulation to instantiate the free set variables Ri , B i , RBIi and RBUi (i ∈ {1, 2}) such
+that the expression |RBU1 | − |RBU2 | is maximized. (If desired, this can then be made constructive
+via Theorem 4 of [10].) The only significant work is simulating the bottom-up execution of Fitch’s
+algorithm. In particular, encoding expressions which describe the state of a parent node u in terms
+of its two children v1 , v2 .
+We introduce the auxiliary predicate childi (u, v) which says that v is a child of u in Ti . We
+can model this as follows: v is a child of u in Ti if and only if there is an edge e in Ti such that v
+and u are both endpoints of e and there does not exist a path from ρ to v that survives the edge
+cut e. (Here we have specialized the PAC predicate from earlier so that it only takes a single edge,
+rather than a set of edges, as its fourth argument.)
+childi (u, v) := (u 6= v) ∧ ∃e ∈ Ei (RD (e, u) ∧ RD (e, v) ∧ ¬P AC(Vi , ρ, v, e))
+For each tree Ti we add the following constraints, which encode (in this order):
+– The four subsets R, B, RBI and RBU partition the vertices of the tree;
+– A vertex in X can only be in R or B;
+– An internal node is in R if and only if (one child is in R and the other child is not in B);
+– An internal node is in B if and only if (one child is in B and the other child is not in R);
+– An internal node is in RBI if and only if (neither child is in R or B);
+– An internal node is in RBU if and only if (one child is in R and one child is in B).
+
+4
+
+Interestingly, the earlier phylogenetics MSOL articles [10,25] also used static formulations: in that case
+the classical polynomial-time algorithm of Aho.
+
+
+ 
+
+i
+i
+i
+i
+i
+i
+P artition(Vi , R , B , RBI , RBU ) ∧ ∀x ∈ X(x 6∈ RBI ∧ x 6∈ RBU ) ∧
+
+∀u ∈ Vi (u 6∈ X ⇒ (u ∈ Ri ⇔ ∃c1 , c2 ∈ Vi ((c1 6= c2 ) ∧ childi (u, c1 ) ∧ childi (u, c2 ) ∧
+
+i
+i
+c1 ∈ R ∧ c2 6∈ B ))) ∧
+
+∀u ∈ Vi (u 6∈ X ⇒ (u ∈ B i ⇔ ∃c1 , c2 ∈ Vi ((c1 6= c2 ) ∧ childi (u, c1 ) ∧ childi (u, c2 ) ∧
+
+i
+i
+c1 ∈ B ∧ c2 6∈ R ))) ∧
+
+∀u ∈ Vi (u 6∈ X ⇒ (u ∈ RBIi ⇔ ∃c1 , c2 ∈ Vi ((c1 6= c2 ) ∧ childi (u, c1 ) ∧ childi (u, c2 ) ∧
+
+i
+i
+i
+i
+c1 6∈ R ∧ c1 6∈ B ∧ c2 6∈ R ∧ c2 6∈ B ))) ∧
+
+∀u ∈ Vi (u 6∈ X ⇒ (u ∈ RBUi ⇔ ∃c1 , c2 ∈ Vi ((c1 6= c2 ) ∧ childi (u, c1 ) ∧ childi (u, c2 ) ∧
+
+i
+i
+c1 ∈ R ∧ c2 ∈ B ))) .
+Finally, we ensure that both trees select the same character as follows:
+∀x ∈ X((x ∈ R1 ⇔ x ∈ R2 ) ∧ (x ∈ B 1 ⇔ x ∈ B 2 ))
+This concludes the formulation. Then we have the following result:
+Theorem 8. d2MP (T1 , T2 ) is linear time fixed parameter tractable in parameter dT BR (T1 , T2 ).
+
+4
+
+Conclusion
+
+We have demonstrated how agreement forests, which are intensively studied objects in the phylogenetics literature, naturally lead to bounded treewidth in an auxiliary graph structure known
+as the display graph. This opens the door to compact, “declarative” proofs of fixed parameter
+tractability for a range of phylogenetics problems by formulating them in Monadic Second Order
+Logic (MSOL). Our formulations have introduced a number of logical predicates and design principles that will hopefully be of use to other phylogenetics researchers seeking to utilize this powerful
+machinery elsewhere in phylogenetics. Indeed, a natural follow-up question is to ask: what are the
+essential characteristics of phylogenetics problems that are amenable to this technique?
+
+5
+
+Acknowledgements
+
+We thank Mathias Weller for helpful conversations.
+
+References
+1. B.L. Allen and M. Steel. Subtree transfer operations and their induced metrics on evolutionary trees.
+Annals of Combinatorics, 5:1–15, 2001.
+2. S. Arnborg, J. Lagergren, and D. Seese. Easy problems for tree-decomposable graphs. Journal of
+Algorithms, 12:308 – 340, 1991.
+3. M. Baroni, S. Grünewald, V. Moulton, and C. Semple. Bounding the number of hybridisation events
+for a consistent evolutionary history. Mathematical Biology, 51:171–182, 2005.
+
+4. H. L. Bodlaender. A tourist guide through treewidth. Acta cybernetica, 11(1-2):1, 1994.
+5. H. L. Bodlaender. A linear-time algorithm for finding tree-decompositions of small treewidth. SIAM
+Journal of Computing, 25:1305–1317, 1996.
+6. M. Bordewich and C. Semple. On the computational complexity of the rooted subtree prune and
+regraft distance. Annals of Combinatorics, 8:409–423, 2004.
+7. M. Bordewich and C. Semple. Computing the hybridization number of two phylogenetic trees is
+fixed-parameter tractable. IEEE/ACM Transactions on Computational Biology and Bioinformatics,
+4:458–466, 2007.
+8. M. Bordewich and C. Semple. Computing the minimum number of hybridization events for a consistent
+evolutionary history. Discrete Applied Mathematics, 155:914–928, April 2007.
+9. D. Bryant. The splits in the neighborhood of a tree. Annals of Combinatorics, 8(1):1–11, 2004.
+10. D. Bryant and J. Lagergren. Compatibility of unrooted phylogenetic trees is FPT. Theoretical Computer Science, 351:296 – 302, 2006.
+11. D. Bryant and M. Steel. Extension operations on sets of leaf-labeled trees. Advances in Applied
+Mathematics, 16(4):425–453, 1995.
+12. O. P. Buneman. The recovery of trees from measures of dissimilarity. Mathematics in the archaeological
+and historical sciences, 1971.
+13. J. Chen, J-H. Fan, and S-H. Sze. Parameterized and approximation algorithms for maximum agreement forest in multifurcating trees. Theoretical Computer Science, 562:496–512, 2015.
+14. B. Courcelle. The monadic second-order logic of graphs. I. Recognizable sets of finite graphs. Information and Computation, 85:12–75, 1990.
+15. R. G. Downey and M. R. Fellows. Fundamentals of parameterized complexity, volume 4. Springer,
+2013.
+16. J. Felsenstein. Inferring Phylogenies. Sinauer Associates, Incorporated, 2004.
+17. M. Fischer and S. Kelk. On the maximum parsimony distance between phylogenetic trees. Annals of
+Combinatorics, 2014. preliminary version arXiv preprint arXiv:1402.1553.
+18. W. Fitch. Toward defining the course of evolution: minimum change for a specific tree topology.
+Systematic Biology, 20(4):406–416, 1971.
+19. A. Grigoriev, S. Kelk, and N. Lekić. On low treewidth graphs and supertrees. In Algorithms for
+Computational Biology, pages 71–82. Springer, 2014.
+20. D. H. Huson, R Rupp, and C Scornavacca. Phylogenetic networks: Concepts, Algorithms and Applications. Cambridge University Press, 2010.
+21. D. H. Huson and C. Scornavacca. A survey of combinatorial methods for phylogenetic networks.
+Genome biology and evolution, 3(1):23–35, January 2011.
+22. S. Kelk and M. Fischer. On the complexity of computing mp distance between binary phylogenetic
+trees. arXiv preprint arXiv:1412.4076, 2014.
+23. S. Kelk, C. Scornavacca, and L. Van Iersel. On the elusiveness of clusters. IEEE/ACM Transactions
+on Computational Biology and Bioinformatics, 9(2):517–534, 2012.
+24. N. Robertson and P. D. Seymour. Graph minors. II. Algorithmic aspects of tree-width. Journal of
+algorithms, 7(3):309–322, 1986.
+25. C. Scornavacca, L. van Iersel, S. Kelk, and D. Bryant. The agreement problem for unrooted phylogenetic trees is FPT. Journal of Graph Algorithms and Application, 18:385–392, 2014.
+26. C. Semple and M. Steel. Phylogenetics. Oxford University Press, 2003.
+27. C. Whidden, R. G. Beiko, and N. Zeh. Fixed-parameter algorithms for maximum agreement forests.
+SIAM Journal on Computing, 42(4):1431–1466, 2013.
+28. C. Whidden, N. Zeh, and R. G. Beiko. Supertrees based on the subtree prune-and-regraft distance.
+63(4):566–581, 2014.
+
+

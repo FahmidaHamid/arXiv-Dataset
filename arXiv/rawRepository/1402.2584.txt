@@ -1,0 +1,2675 @@
+arXiv:1402.2584v3 [q-bio.NC] 11 Nov 2014
+
+Stochastic Representations of Ion Channel Kinetics and
+Exact Stochastic Simulation of Neuronal Dynamics
+David F. Anderson1 , Bard Ermentrout2 , and Peter J. Thomas3
+1
+University of Wisconsin, Department of Mathematics
+2
+University of Pittsburgh, Department of Mathematics
+3
+Case Western Reserve University, Department of Mathematics,
+Applied Mathematics, and Statistics
+November 13, 2014
+
+Abstract
+In this paper we provide two representations for stochastic ion channel kinetics,
+and compare the performance of exact simulation with a commonly used numerical
+approximation strategy. The first representation we present is a random time change
+representation, popularized by Thomas Kurtz, with the second being analogous to a
+“Gillespie” representation. Exact stochastic algorithms are provided for the different
+representations, which are preferable to either (a) fixed time step or (b) piecewise
+constant propensity algorithms, which still appear in the literature. As examples,
+we provide versions of the exact algorithms for the Morris-Lecar conductance based
+model, and detail the error induced, both in a weak and a strong sense, by the use
+of approximate algorithms on this model. We include ready-to-use implementations
+of the random time change algorithm in both XPP and Matlab. Finally, through
+the consideration of parametric sensitivity analysis, we show how the representations
+presented here are useful in the development of further computational methods. The
+general representations and simulation strategies provided here are known in other
+parts of the sciences, but less so in the present setting.
+
+1
+
+Introduction
+
+Fluctuations in membrane potential arise in part due to stochastic switching in voltagegated ion channel populations [21, 41, 64]. We consider a stochastic modeling, i.e.
+master equation, framework [8, 19, 22, 42, 65] for neural dynamics, with noise arising
+through the molecular fluctuations of ion channel states. We consider model nerve
+cells that may be represented by a single isopotential volume surrounded by a membrane with capacitance C > 0. Mathematically, these are hybrid stochastic models
+
+1
+
+which include components, for example the voltage, that are continuous and piecewise
+differentiable and components, for example the number of open potassium channels,
+that make discrete transitions or jumps. These components are coupled because the
+parameters of the ODE for the voltage depend upon the number of open channels, and
+the propensity for the opening and closing of the channels depends explicitly upon the
+time-varying voltage.
+These hybrid stochastic models are typically described in the neuroscience literature
+by providing an ODE governing the absolutely continuous portion of the system, which
+is valid between jumps of the discrete components, and a chemical master equation
+providing the dynamics of the probability distribution of the jump portion, which
+itself depends upon the solution to the ODE. These models are piecewise-deterministic
+Markov processes (PDMP) and one can therefore also characterize them by providing
+(i) the ODE for the absolutely continuous portion of the system and (ii) both a rate
+function that determines when the next jump of the process occurs and a transition
+measure determining which type of jump occurs at that time [20]. Recent works making
+use of the PDMP formalism has led to limit theorems [47, 48], dimension reduction
+schemes [62], and extensions of the models to the spatial domain [15, 51].
+In this paper, we take a different perspective. We will introduce here two pathwise
+stochastic representations for these models that are similar to Itô SDEs or Langevin
+models. The difference between the models presented here and Langevin models is that
+here the noise arises via stochastic counting processes as opposed to Brownian motions.
+These representations give a different type of insight into the models than master
+equation representations do, and, in particular, they imply different exact simulation
+strategies. These strategies are well known in some parts of the sciences, but less well
+known in the current context [8].1
+From a computational standpoint the change in perspective from the master equation to pathwise representations is useful for a number of reasons. First, the different representations naturally imply different exact simulation strategies. Second, and
+perhaps more importantly, the different representations themselves can be utilized to
+develop new, highly efficient, computational methods such as finite difference methods
+for the approximation of parametric sensitivities, and multi-level Monte Carlo methods for the approximation of expectations [3, 5, 6]. Third, the representations can
+be utilized for the rigorous analysis of different computational strategies and for the
+algorithmic reduction of models with multiple scales [4, 7, 10, 36].
+We note that the types of representations and simulation strategies highlighted
+here are known in other branches of the sciences, especially operations research and
+queueing theory [30, 34], and stochastically modeled biochemical processes [2, 8]. See
+also [50] for a treatment of such stochastic hybrid systems and some corresponding
+approximation algorithms. However, the representations are not as well known in the
+context of computational neuroscience and as a result approximate methods for the
+simulation of sample paths including (a) fixed time step methods, or (b) piecewise
+constant propensity algorithms, are still utilized in the literature in situations where
+1
+
+For an early statement of an exact algorithm for the hybrid case in a neuroscience context see ([18],
+Equations 2-3). Strassberg and DeFelice further investigated circumstances under which it is possible for
+random microscopic events (single ion channel state transitions) to generate random macroscopic events
+(action potentials) [61] using an exact simulation algorithm. Bressloff, Keener, and Newby used an exact
+algorithm in a recent study of channel noise dependent action potential generation in the Morris-Lecar model
+[37, 46]. For a detailed introduction to stochastic ion channel models, see [33, 59].
+
+2
+
+there is no need to make such approximations. Thus, the main contributions of this
+paper are: (i) the formulation of the two pathwise representations for the specific
+models under consideration, (ii) a presentation of the corresponding exact simulation
+strategies for the different representations, and (iii) a comparison of the error induced
+by utilizing an approximate simulation strategy on the Morris-Lecar model. Moreover,
+we show how to utilize the different representations in the development of methods for
+parametric sensitivity analysis.
+The outline of the paper is as follows. In Section, 2 we heuristically develop two
+distinct representations and provide the corresponding numerical methods. In Section
+3, we present the random time change representation as introduced in Section 2 for a
+particular conductance based model, the planar Morris-Lecar model, with a single ion
+channel treated stochastically. Here, we illustrate the corresponding numerical strategy
+on this example and provide in the appendix both XPP and Matlab code for its implementation. In Section 4, we present an example of a conductance based model with
+more than one stochastic gating variable, namely the Morris-Lecar model with both
+ion channel types (calcium channels and potassium channels) treated stochastically.
+To illustrate both the strong and weak divergence between the exact and approximate
+algorithms, in Section 5 we compare trajectories and histograms generated by the exact algorithms and the piecewise constant approximate algorithm. In Section 6, we
+show how to utilize the different representations presented here in the development of
+methods for parametric sensitivity analysis, which is a powerful tool for determining
+parameters to which a system output is most responsive. In Section 7, we provide
+conclusions and discuss avenues for future research.
+
+2
+
+Two stochastic representations
+
+The purpose of this section is to heuristically present two pathwise representations for
+the relevant models. In Section 2.1 we present the random time change representation. In Section 2.2 we present a “Gillespie” representation, which is analogous to the
+PDMP formalism discussed in the introduction. In each subsection, we provide the
+corresponding numerical simulation strategy. See [8] for a development of the representations in the biochemical setting and see [24, 39, 40] for a rigorous mathematical
+development.
+
+2.1
+
+Random time change representations
+
+We begin with an example. Consider a model of a system that can be in one of two
+states, A or B, which represent a “closed” and an “open” ion channel, respectively.
+We model the dynamics of the system by assuming that the dwell times in states A
+and B are determined by independent exponential random variables with parameters
+α > 0 and β > 0, respectively. A graphical representation for this model is
+α
+
+A  B.
+
+(1)
+
+β
+
+The usual formulation of the stochastic version of this model proceeds by assuming
+that the probability that a closed channel opens in the next increment of time ∆s is
+α∆s+o(∆s), whereas the probability that an open channel closes is β∆s+o(∆s). This
+
+3
+
+type of stochastic model is often described mathematically by providing the “chemical
+master equation,” which for (1) is simply
+d
+px (A, t) = −αpx0 (A, t) + βpx0 (B, t)
+dt 0
+d
+px (B, t) = −βpx0 (B, t) + αpx0 (A, t),
+dt 0
+where px0 (x, t) is the probability of being in state x ∈ {A, B} at time t given an
+initial condition of state x0 . Note that the chemical master equation is a linear ODE
+governing the dynamical behavior of the probability distribution of the model, and does
+not provide a stochastic representation for a particular realization of the process.
+In order to construct such a pathwise representation, let R1 (t) be the number
+of times the transition A → B has taken place by time t and, similarly, let R2 (t)
+be the number of times the transition B → A has taken place by time t. We let
+X1 (t) ∈ {0, 1} be one if the channel is closed at time t, and zero otherwise, and let
+X2 (t) = 1 − X1 (t) take the value one if and only if the channel is open at time t. Then,
+denoting X(t) = (X1 (t), X2 (t))T , we have
+
+
+
+
+1
+−1
+.
++ R2 (t)
+X(t) = X(0) + R1 (t)
+−1
+1
+We now consider how to represent the counting processes R1 , R2 in a useful fashion,
+and we do so with unit-rate Poisson processes as our mathematical building blocks.
+We recall that a unit-rate Poisson process can be constructed in the following manner
+[8]. Let {ei }∞
+i=1 be independent exponential random variables with a parameter of one.
+Then, let τ1 = e1 , τ2 = τ1 + e2 , · · · , τn = τn−1 + en , etc. The associated unit-rate
+Poisson process, Y (s), is simply the counting process determined by the number of
+points {τi }∞
+i=1 , that come before s ≥ 0. For example, if we let “x” denote the points
+τn in the image below
+x x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+s
+then Y (s) = 6.
+Let λ : [0, ∞) → R≥0 . If instead of moving at constant rate, s, along the horizontal
+axis,
+ instead at rate λ(s), then the number of points observed by time s is
+R swe move
+Y 0 λ(r)dr . Further, from basic properties of exponential random variables, whenever λ(s) > 0 the probability of seeing a jump within the next small increment of time
+∆s is
+ Z s+∆s
+
+Z s
+
+
+P Y
+λ(r)dr − Y
+λ(r)dr ≥ 1 ≈ λ(s)∆s.
+0
+
+0
+
+Thus, the propensity for seeing another jump is precisely λ(s).
+Returning to the discussion directly following (1), and noting that X1 (s)+X2 (s) = 1
+for all time, we note that the propensities of reactions 1 and 2 are
+λ1 (X(s)) = αX1 (s),
+
+λ2 (X(s)) = βX2 (s).
+
+Combining all of the above implies that we can represent R1 and R2 via
+Z t
+
+Z t
+
+R1 (t) = Y1
+αX1 (s) ds , R2 (t) = Y2
+βX2 (s) ds ,
+0
+
+0
+
+4
+
+and so a pathwise representation for the stochastic model (1) is
+Z t
+
+
+Z t
+
+
+1
+−1
+βX2 (s) ds
+,
+αX1 (s) ds
++ Y2
+X(t) = X0 + Y1
+−1
+1
+0
+0
+
+(2)
+
+where Y1 and Y2 are independent, unit-rate Poisson processes.
+Suppose now that X1 (0) + X2 (0) = N ≥ 1. For example, perhaps we are now
+modeling the number of open and closed ion channels out of a total of N , as opposed
+to simply considering a single such channel. Suppose further that the propensity, or
+rate, at which ion channels are opening can be modeled as
+λ1 (t, X(t)) = α(t)X1 (t)
+and the rate at which they are closing has propensity
+λ2 (t, X(t)) = β(t)X2 (t),
+where α(t), β(t) are non-negative functions of time, perhaps being voltage dependent.
+That is, suppose that for each i ∈ {1, 2}, the conditional probability of seeing the counting process Ri increase in the interval [t, t + h) is λi (t, X(t))h + o(h). The expression
+analogous to (2) is now
+
+
+Z t
+
+Z t
+
+−1
+1
++ Y2
+. (3)
+X(t) = X0 + Y1
+α(s)X1 (s) ds
+β(s)X2 (s) ds
+1
+−1
+0
+0
+Having motivated the time dependent representation with the simple model above,
+we turn to the more general context. We now assume a jump model consisting of d
+chemical constituents (or ion channel states) undergoing transitions determined via
+M > 0 different reaction channels. For example, in the toy model above, the chemical
+constituents were {A, B}, and so d = 2, and the reactions were A → B and B → A,
+giving M = 2. We suppose that Xi (t) determines the value of the ith constituent at
+time t, so that X(t) ∈ Zd , and that the propensity function of the kth reaction is
+λk (t, X(t)). We further suppose that if the kth reaction channel takes place at time t,
+then the system is updated according to addition of the reaction vector ζk ∈ Zd ,
+X(t) = X(t−) + ζk .
+The associated pathwise stochastic representation for this model is
+
+X Z t
+X(t) = X0 +
+Yk
+λk (s, X(s)) ds ζk ,
+
+(4)
+
+0
+
+k
+
+where the Yk are independent unit-rate Poisson processes. The chemical master equation for this general model is
+M
+
+M
+
+k=1
+
+k=1
+
+X
+X
+d
+PX0 (x, t) =
+PX0 (x − ζk , t)λk (t, x − ζk ) − PX0 (x, t)
+λk (t, x),
+dt
+where PX0 (x, t) is the probability of being in state x ∈ Zd≥0 at time t ≥ 0 given an
+initial condition of X0 .
+
+5
+
+When the variable X ∈ Zd represents the randomly fluctuating state of an ion
+channel in a single compartment conductance based neuronal model, we include the
+membrane potential V ∈ R as an additional dynamical variable. In contrast with
+neuronal models incorporating Gaussian noise processes, here we consider the voltage
+to evolve deterministically, conditional on the states of one or more ion channels. For
+illustration, suppose we have a single ion channel type with state variable X. Then, we
+supplement the pathwise representation (4) with the solution of a differential equation
+obtained from Kirchoff’s current conservation law:
+!
+d
+X
+dV
+C
+= Iapp (t) − IV (V (t)) −
+gio Xi (t) (V (t) − VX )
+(5)
+dt
+i=1
+
+Here, gio is the conductance of an individual channel when it is the ith state, for 1 ≤ i ≤
+d. The sum gives the total conductance associated with the channel represented by the
+vector X; the reversal potential for this channel is the constant VX . The term IV (V )
+captures any deterministic voltage-dependent currents due to other channels besides
+channel type X, and Iapp represents a time-varying, deterministic applied current. In
+this case the propensity function will explicitly be a function of the voltage and we
+may replace λk (s, X(s)) in (4) with λk (V (s), X(s)). If multiple ion channel types are
+included in the model then, provided there are a finite number of types each with
+a finite number of individual channels, the vector X ∈ Zd represents the aggregated
+channel state. For specific examples of handling a single or multiple ion channel types,
+see Sections 3 and 4, respectively.
+
+2.1.1
+
+Simulation of the representation (4)-(5)
+
+The construction of the representation (4) provided above implies a simulation strategy in which each point of the Poisson processes Yk , denoted τn above, is generated
+sequentially and as needed. The time until the next reaction that occurs past time T
+is simply
+
+
+Z
+T +∆k
+
+∆ = min ∆k :
+k
+
+λk (s, X(s)) ds = τTk
+
+where τTk is the first point associated with Yk coming after
+
+Z
+τTk ≡ inf r >
+
+,
+
+0
+
+T
+
+Z
+λk (s, X(s)) ds : Yk (r) − Yk
+
+0
+
+RT
+0
+
+λk (s, X(s)) ds:
+
+T
+
+
+λk (s, X(s)) ds
+
+
+=1 .
+
+0
+
+The reaction that took place is indicated by the index at which the minimum is
+achieved. See [2] for more discussion on this topic, including the algorithm provided
+below in which Tk will denote the value of the integrated intensity function
+Rt
+0 λk (s, X(s)) ds and τk will denote the first point associated with Yk located after Tk .
+All random numbers generated in the algorithm below are assumed to be independent.
+Algorithm 1 (For the simulation of the representation (4)-(5)).
+1. Initialize: set the initial number of molecules of each species, X. Set the initial
+voltage value V . Set t = 0. For each k, set τk = 0 and Tk = 0.
+
+6
+
+2. Generate M independent, uniform(0,1) random numbers {rk }M
+k=1 . For each k ∈
+{1, . . . , M } set τk = ln(1/rk ).
+3. Numerically integrate (5) forward in time until one of the following equalities
+hold:
+Z t+∆
+λk (V (s), X(s)) ds = τk − Tk .
+(6)
+t
+
+4. Let µ be the index of the reaction channel where the equality (6) holds.
+5. For each k, set
+Z
+
+t+∆
+
+λk (V (s), X(s)) ds,
+
+Tk = Tk +
+t
+
+where ∆ is determined in Step 3.
+6. Set t = t + ∆ and
+X ← X + ζµ .
+7. Let r be uniform(0,1) and set τµ = τµ + ln(1/r).
+8. Return to step 3 or quit.
+Note that with a probability of one, the index determined in step 4 of the above
+algorithm is unique at each step. Note also that the aboveR algorithm relies on us being
+t
+able to calculate a hitting time for each of the Tk (t) = 0 λk (s, X(s)) ds exactly. Of
+course, in general this is not possible. However, making use of any reliable integration
+software will almost always be sufficient. If the equations for the voltage and/or the
+intensity functions can be analytically solved for, as can happen in the Morris-Lecar
+model detailed below, then such numerical integration is unnecessary and efficiencies
+can be gained.
+
+2.2
+
+Gillespie representation
+
+There are multiple alternative representations for the general stochastic process constructed in the previous section, with a “Gillespie” representation probably being the
+most useful in the current context. Following [8], we let Y be a unit rate Poisson process and let {ξi , i = 0, 1, 2 . . . } be independent, uniform (0, 1) random variables that
+are independent of Y . Set
+λ0 (V (s), X(s)) ≡
+
+M
+X
+
+λk (V (s), X(s)),
+
+k=1
+
+q0 = 0 and for k ∈ {1, . . . , M }
+qk (s) = λ0 (V (s), X(s))−1
+
+k
+X
+`=1
+
+7
+
+λ` (V (s), X(s)),
+
+where X and V satisfy
+Z t
+
+R0 (t) = Y
+λ0 (V (s), X(s)) ds
+
+(7)
+
+0
+
+X(t) = X(0) +
+
+M
+X
+
+t
+
+Z
+ζk
+
+k=1
+
+0
+
+
+	
+1 ξR0 (s−) ∈ [qk−1 (s−), qk (s−)) dR0 (s)
+
+dV
+= Iapp (t) − IV (V (t)) −
+C
+dt
+
+d
+X
+
+(8)
+
+!
+gio Xi (t)
+
+(V (t) − VX ).
+
+(9)
+
+i=1
+
+Then the stochastic process (X, V ) defined via (7)-(9) is a Markov process that is
+equivalent to (4)-(5), see [8]. An intuitive way to understand the above is by noting
+that R0 (t) simply determines the holding time in each state, whereas (8) simulates the
+embedded discrete time Markov chain (sometimes referred to as the skeletal chain)
+in the usual manner. Thus, this is the representation for the “Gillespie algorithm”
+[28] with time dependent propensity functions [2]. Note also that this representation
+is analogous to the PDMP formalism discussed in the introduction with λ0 playing
+the role of the rate function that determines when the next jump takes place, and (8)
+implementing the transitions.
+
+2.2.1
+
+Simulation of the representation (7)-(9)
+
+Simulation of (7)-(9) is the analog of using Gillespie’s algorithm in the time-homogeneous
+case. All random numbers generated in the algorithm below are assumed to be independent.
+Algorithm 2 (For the simulation of the representation (7)-(9)). .
+1. Initialize: set the initial number of molecules of each species, X. Set the initial
+voltage value V . Set t = 0.
+2. Let r be uniform(0,1) and numerically integrate (9) forward in time until
+Z
+
+t+∆
+
+λ0 (V (s), X(s)) ds = ln(1/r).
+t
+
+3. Let ξ be uniform(0,1) and find k ∈ {1, . . . , M } for which
+ξ ∈ [qk−1 ((t + ∆)−), qk ((t + ∆)−)).
+4. Set t = t + ∆ and
+X ← X + ζk .
+
+5. Return to step 2 or quit.
+Note again that the above algorithm relies on us being able to calculate a hitting
+time. If the relevant equations can be analytically solved for, then such numerical
+integration is unnecessary and efficiencies can be gained.
+
+8
+
+3
+
+Morris-Lecar
+
+As a concrete illustration of the exact stochastic simulation algorithms, we will consider
+the well known Morris-Lecar system [52], developed as a model for oscillations observed
+in barnacle muscle fibers [45]. The deterministic equations, which correspond to an
+appropriate scaling limit of the system, constitute a planar model for the evolution
+of the membrane potential v(t) and the fraction of potassium gates, n ∈ [0, 1], that
+are in the open or conducting state. In addition to a hyperpolarizing current carried
+by the potassium gates, there is a depolarizing calcium current gated by a rapidly
+equilibrating variable m ∈ [0, 1]. While a fully stochastic treatment of the MorrisLecar system would include fluctuations in this calcium conductance, for simplicity
+in this section we will treat m as a fast, deterministic variable in the same manner
+as in the standard fast/slow decomposition, which we will refer to here as the planar
+Morris-Lecar model [23]. See Section 4 for a treatment of the Morris-Lecar system with
+both the potassium and calcium gates represented as discrete stochastic processes.
+The deterministic or mean field equations for the planar Morris-Lecar model are:
+dv
+dt
+dn
+dt
+
+= f (v, n) =
+
+1
+(Iapp − gCa m∞ (v)(v − vCa ) − gL (v − vL ) − gK n(v − vK ))(10)
+C
+
+= g(v, n) = α(v)(1 − n) − β(v)n = (n∞ (v) − n)/τ (v)
+
+(11)
+
+The kinetics of the potassium channel may be specified either by the instantaneous time
+constant and asymptotic target, τ and n∞ , or equivalently by the per capita transition
+rates α and β. The terms m∞ , α, β, n∞ and τ satisfy
+
+
+
+1
+v − va
+m∞ =
+1 + tanh
+(12)
+2
+vb
+φ cosh(ξ/2)
+α(v) =
+(13)
+1 + e2ξ
+φ cosh(ξ/2)
+β(v) =
+(14)
+1 + e−2ξ
+n∞ (v) = α(v)/(α(v) + β(v)) = (1 + tanh ξ) /2
+(15)
+τ (v) = 1/(α(v) + β(v)) = 1/ (φ cosh(ξ/2))
+
+(16)
+
+where for convenience we define ξ = (v − vc )/vd . For definiteness, we adopt values of
+the parameters
+vK
+
+= −84, vL = −60, vCa = 120
+
+Iapp = 100, gK = 8, gL = 2, C = 20
+
+(17)
+(18)
+
+va = −1.2, vb = 18
+
+(19)
+
+vc = 2, vd = 30, φ = 0.04, gCa = 4.4
+
+(20)
+
+for which the deterministic system has a stable limit cycle. For smaller values of the
+applied current (e.g. Iapp = 75) the system has a stable fixed point, that loses stability
+through a subcritical Hopf bifurcation as Iapp increases ([23], §3).
+In order to incorporate the effects of random ion channel gating, we will introduce
+a finite number of potassium channels, Ntot , and treat the number of channels in the
+open state as a discrete random process, 0 ≤ N (t) ≤ Ntot . In this simple model, each
+
+9
+
+potassium channel switches between two states – closed or open – independently of
+the others, with voltage-dependent per capita transition rates α and β, respectively.
+o N , where g o = g /N
+The entire population conductance ranges from 0 to gK
+tot
+tot
+K
+K
+is the single channel conductance, and gK is the maximal whole cell conductance.
+For purposes of illustration and simulation we will typically use Ntot = 40 individual
+channels.2
+Our random variables will therefore be the voltage, V ∈ (−∞, +∞), and the number
+of open potassium channels, N ∈ {0, 1, 2, · · · , Ntot }. The number Ntot ∈ N is taken
+to be a fixed parameter. We follow the usual capital/lowercase convention in the
+stochastic processes literature: N (t) and V (t) are the random processes and n and v
+are values they might take. In the random time change representation of Section 2.1,
+the opening and closing of the potassium channels are driven by two independent, unit
+rate Poisson processes, Yopen (t) and Yclose (t).
+The evolution of V and N is closely linked. Conditioned on N having a specific
+value, say N = n, the evolution of V obeys a deterministic differential equation,
+
+dV 
+= f (V, n).
+(21)
+dt 
+N =n
+
+Although its conditional evolution is deterministic, V is nevertheless a random variable.
+Meanwhile, N evolves as a jump process, i.e. N (t) is piecewise-constant, with transitions N → N ± 1 occurring with intensities that depend on the voltage V . Conditioned
+on V = v, the transition rates for N are
+N → N + 1 with per capita rate α(v)
+
+(22)
+
+(i.e. with net rate α(v) · (Ntot − N )),
+N → N − 1 with per capita rate β(v)
+
+(23)
+
+(i.e. with net rate β(v) · N ).
+Graphically, we may visualize the state space for N in the following manner:
+α·Ntot
+
+α·(Ntot −1)
+
+β
+
+2β
+
+0  1
+
+
+
+α·(Ntot −k+1)
+
+2 · · · (k − 1)
+
+
+
+α·(Ntot −k)
+
+k
+
+kβ
+
+
+
+α
+
+(k + 1) · · · (Ntot − 1)  Ntot ,
+Ntot ·β
+
+(k+1)β
+
+with the nodes of the above graph being the possible states for the process N , and the
+transition intensities located above and below the transition arrows.
+Adopting the random time change representation of Section 2.1 we write our stochastic Morris-Lecar system as follows (cf. equations (10-11)):
+dV
+= f (V (t), N (t)) =
+(24)
+dt
+1
+o
+= (Iapp − gCa m∞ (V (t))(V (t) − VCa )−gL (V − VL ) − gK
+N (t)(V (t) − VK ))
+C
+(25)
+Z t
+
+Z t
+
+N (t) = N (0) − Yclose
+β(V (s))N (s) ds + Yopen
+α(V (s))(Ntot − N (s)) ds .
+0
+2
+
+0
+2
+
+Morris and Lecar used a value of gK = 8mmho/cm for the specific potassium conductance, corresponding to 80 picoSiemens (pS) per square micron [45]. The single channel conductance is determined by the
+structure of the potassium channel, and varies somewhat from species to species. However, conductances
+around 20 pS are typical [57], which would give a density estimate of roughly 40 channels for a 10 square
+micron patch of cell membrane.
+
+10
+
+Appendices A.1.1 and A.1.2 provide sample implementations of Algorithm 1 for the
+planar Morris-Lecar equations in XPP and Matlab, respectively. Figure 1 illustrates the
+results of the Matlab implementation.
+
+Voltage V(t)
+Figure 1: Trajectory generated by Algorithm 1 (the random time change algorithm, (4)-(5))
+for the planar Morris-Lecar model. We set Ntot = 40 potassium channels and used a driving
+current Iapp = 100, which is above the Hopf bifurcation threshold for the parameters given.
+Top Panel: Number of open potassium channels (N ), as a function of time. Second Panel:
+Voltage (V ), as a function of time. Bottom Panel: Trajectory plotted in the (V, N ) plane.
+Voltage varies along a continuum while open channel number remains discrete. Red curve:
+v-nullcline of the underlying deterministic system, obtained by setting the RHS of equation
+(10) equal to zero. Green curve: n-nullcline, obtained by setting the RHS of equation (11)
+equal to zero.
+
+4
+
+Models with more than one channel type
+
+We present here an example of a conductance based model with more than one stochastic gating variable. Specifically, we consider the original Morris-Lecar model, which has
+a three dimensional phase space, and we take both the calcium and potassium channels
+
+11
+
+to be discrete. We include code in Appendices A.2.1 and A.2.2, for XPP and Matlab,
+respectively, for the implementation of Algorithm 1 for this model.
+
+4.1 Random Time Change Representation for the MorrisLecar Model with Two Stochastic Channel Types
+In Morris and Lecar’s original treatment of voltage oscillations in barnacle muscle
+fiber [45] the calcium gating variable m is included as a dynamical variable. The full
+(deterministic) equations have the form:
+dv
+dt
+dn
+dt
+dm
+dt
+
+= F (v, n, m) =
+
+1
+(Iapp − gL (v − vL ) − gCa m(v − vCa ) − gK n(v − vK ))
+C
+
+(26)
+
+= G(v, n, m) = αn (v)(1 − n) − βn (v)n = (n∞ (v) − n)/τn (v)
+
+(27)
+
+= H(v, n, m) = αm (v)(1 − m) − βm (v)m = (m∞ (v) − m)/τm (v)
+
+(28)
+
+Here, rather than setting m to its asymptotic value m∞ = αm /(αm + βm ), we allow the
+number of calcium gates to evolve according to (28). The planar form (Equations 1011) is obtained by observing that m approaches equilibrium significantly more quickly
+than n and v. Using standard arguments from singular perturbation theory [52, 53],
+one may approximate certain aspects of the full system (26)-(28) by setting m to
+m∞ (v), and replacing F (v, n, m) and G(v, n, m) with f (v, n) = F (v, n, m∞ (v)) and
+g(v, n) = G(v, n, m∞ (v)), respectively. This reduction to the slow dynamics leads to
+the planar model (10)-(11).
+To specify the full 3D equations, we introduce ξm = (v − va )/vb in addition to
+ξn = (v − vc )/vd already introduced for the 2D model. The variable ξx represents
+where the voltage falls along the activation curve for channel type x, relative to its
+half-activation point (va for calcium and vc for potassium) and its slope (reciprocals of
+vb for calcium and vd for potassium). The per capita opening rates αm , αn and closing
+rates βm , βn for each channel type are given by
+αm (v) =
+αn (v) =
+
+φm cosh(ξm /2)
+φm cosh(ξm /2)
+, βm (v) =
+1 + e2ξm
+1 + e−2ξm
+φn cosh(ξn /2)
+φn cosh(ξn /2)
+, βn (v) =
+1 + e2ξn
+1 + e−2ξn
+
+(29)
+(30)
+
+with parameters va = −1.2, vb = 18, vc = 2, vd = 30, φm = 0.4, φn = 0.04. The
+asymptotic open probabilities for calcium and potassium are given, respectively, by
+the terms m∞ , n∞ , and the time constants by τm and τn . These terms satisfy the
+relations
+m∞ (v) = αm (v)/(αm (v) + βm (v)) = (1 + tanh ξm ) /2
+
+(31)
+
+n∞ (v) = αn (v)/(αn (v) + βn (v)) = (1 + tanh ξn ) /2
+
+(32)
+
+τm (v) = 1/ (φ cosh(ξm /2))
+
+(33)
+
+τn (v) = 1/ (φ cosh(ξn /2)) .
+
+(34)
+
+Assuming a finite population of Mtot calcium gates and Ntot potassium gates, we
+have a stochastic hybrid system with one continuous variable, V (t), and two discrete
+
+12
+
+40
+25
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+20
+N
+
+M
+
+0
+0
+30
+20
+10
+0
+0
+50
+
+V
+
+N
+
+30
+
+20
+
+15
+10
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+5
+0
+
+0
+
+−50
+
+−50
+0
+
+200
+
+400
+
+Time
+
+600
+
+800
+
+0
+
+1000
+
+50
+V
+
+0
+
+20
+
+40
+
+M
+
+Figure 2: Trajectory generated by Algorithm 1 (the random time change algorithm, (4)-(5))
+for the full three-dimensional Morris-Lecar model (equations (26)-(28)). We set Ntot = 40
+potassium channels and Mtot = 40 calcium channels, and used a driving current Iapp = 100,
+a value above the Hopf bifurcation threshold of the mean field equations for the parameters
+given. Top Left Panel: Number of open calcium channels (M ), as a function of time.
+Second Left Panel: Number of open potassium channels (N ), as a function of time.
+Third Left Panel: Voltage (V ), as a function of time. Right Panel: Trajectory plotted
+in the (V, M, N ) phase space. Voltage varies along a continuum while the joint channel state
+remains discrete. Note that the number of open calcium channels makes frequent excursions
+between M = 0 and M = 40, which demonstrates that neither a Langevin approximation
+nor an approximate algorithm such as τ -leaping (Euler’s method) would provide a good
+approximation to the dynamics of the system.
+variables, M (t) and N (t). The voltage evolves as according to the sum of the applied,
+leak, calcium, and potassium currents:
+dV
+dt
+
+= F (V (t), N (t), M (t))
+(35)
+
+
+1
+M (t)
+N (t)
+(V (t) − vCa ) − gK
+(V (t) − vK ) ,
+=
+Iapp − gL (V (t) − vL ) − gCa
+C
+Mtot
+Ntot
+
+while the number of open M and N remain constant except for unit increments and
+decrements. The discrete channel states M (t) and N (t) evolve according to
+Z t
+
+Z t
+
+M (t) = M (0) − Yclose
+βm (V (s))M (s) ds + Yopen
+αm (V (s))(Mtot − M (s)) ds
+0
+
+Z
+N (t) = N (0) − Yclose
+
+t
+
+0
+
+
+
+Z
+
+βn (V (s))N (s) ds + Yopen
+0
+
+t
+
+(36)
+
+αn (V (s))(Ntot − N (s)) ds .
+
+0
+
+(37)
+Figure 2 shows the results of the Matlab implementation for the 3D Morris-Lecar
+system, with both the potassium and calcium channel treated discretely, using Algo-
+
+13
+
+rithm 1 (the random time change algorithm, (4)-(5)). Here Mtot = Ntot = 40 channels,
+and the applied current Iapp = 100 puts the deterministic system at a stable limit cycle
+close to a Hopf bifurcation.
+
+5 Comparison of the Exact Algorithm with a
+Piecewise Constant Propensity Approximation.
+Exact versions of the stochastic simulation algorithm for hybrid ion channel models
+have been known since at least the 1980s [18]. Nevertheless, the implementation one
+finds most often used in the literature is an approximate method in which the per
+capita reaction propensities are held fixed between channel events. That is, in step 3
+of Algorithm 1 the integral
+Z
+
+t+∆k
+
+λk (V (s), X(s)) ds
+t
+
+is replaced with
+∆k λk (V (t), X(t))
+leaving the remainder of the algorithm unchanged. Put another way, one generates
+the sequence of channel state jumps using the propensity immediately following the
+most recent jump, rather than taking into account the time dependence of the reaction propensities due to the continuously changing voltage. This piecewise constant
+propensity approximation is analogous, in a sense, to the forward Euler method for the
+numerical solution of ordinary differential equations.
+Figure 3 shows a direct comparison of pathwise numerical solutions obtained by
+the exact method provided in Algorithm 1 and the approximate piecewise constant
+method detailed above. In general, the solution of a stochastic differential equation
+with a given initial condition is a map from the sample space Ω to a space of trajectories. In the present context, the underlying sample space consists of one independent
+unit rate Poisson process per reaction channel. For the planar Morris-Lecar model
+a point in Ω amounts to fixing two Poisson processes, Yopen and Yclosed , to drive the
+transitions of the potassium channel. For the full 3D Morris-Lecar model we have four
+processes, Y1 ≡ YCa,open , Y2 ≡ YCa,closed , Y3 ≡ YK,open and Y4 ≡ YK,closed . In this case
+the exact algorithm provides a numerical solution of the map from {Yk }4k=1 ∈ Ω and
+initial conditions (M0 , N0 , V0 ) to the trajectory (M (t), N (t), V (t)). The approximate
+piecewise constant algorithm gives a map from the same domain to a different trajectory, (M̃ (t), Ñ (t), Ṽ (t)). To make a pathwise comparison for the full Morris-Lecar
+model, therefore, we fix both the initial conditions and the four Poisson processes, and
+compare the resulting trajectories.
+Several features are evident in Figure 3. Both algorithms produce a sequence of
+noise-dependent voltage spikes, with similar firing rates. The trajectories (M, N, V )
+and (M̃ , Ñ , Ṽ ) initially remain close together, and the timing of the first spike (taken,
+e.g., as an upcrossing of V from negative to positive voltage) is similar for both algorithms. Over time, however, discrepancies between the trajectories accumulate. The
+timing of the second and third spikes is noticeably different, and before ten spikes have
+accumulated the spike trains have become effectively uncorrelated.
+
+14
+
+M
+
+0
+0
+30
+20
+10
+0
+0
+50
+
+V
+
+20
+
+N
+
+40
+
+500
+
+1000
+
+1500
+
+2000
+
+500
+
+1000
+
+1500
+
+2000
+
+500
+
+1000
+Time
+
+1500
+
+2000
+
+0
+−50
+0
+
+Figure 3: Comparison of the exact algorithm with the piecewise constant propensity approximation. Blue solid lines denote the solution (M (t), N (t), V (t)) obtained using the
+Algorithm 1. Red dashed lines denote the solution (M̃ (t), Ñ (t), Ṽ (t)) obtained using the
+piecewise constant approximation. Both algorithms were begun with identical initial conditions (M0 , N0 , V0 ), and driven by the same four Poisson process streams Y1 , · · · , Y4 . Note
+the gradual divergence of the trajectories as differences between the exact and the forward
+approximate algorithms accumulate, demonstrating “strong” (or pathwise) divergence of the
+two methods. The exact and approximate trajectories diverge as time increases, even though
+they are driven by identical noise sources.
+Even though trajectories generated by the exact and approximate algorithms diverge when driven by identical Poisson processes, the two processes could still generate
+sample paths with similar time-dependent or stationary distributions. That is, even
+though the two algorithms show strong divergence, they could still be close in a weak
+sense.
+Given Mtot calcium and Ntot potassium channels, the density for the hybrid Markov
+process may be written
+ρm,n (v, t) =
+
+1
+Pr {M (t) = m, N (t) = n, V ∈ [v, v + dv)} ,
+dv
+
+15
+
+(38)
+
+and obeys a master equation
+∂ (F (v, n, m)ρm,n (v, t))
+∂ρm,n (v, t)
+=−
+(39)
+∂t
+∂v
+− (αm (v)(Mtot − m) + βm (v)m + αn (v)(Ntot − n) + βn (v)n) ρm,n (v, t)
++ (Mtot − m + 1)αm (v)ρm−1,n (v, t) + (m + 1)βm (v)ρm+1,n (v, t)
++ (Ntot − n + 1)αn (v)ρm,n−1 (v, t) + (n + 1)βn (v)ρm,n+1 (v, t),
+with
+initial condition ρm,n (v, 0) ≥ 0 given by any (integrable) density such that
+R
+P
+m,n ρm,n (v, 0) dv ≡ 1, and boundary conditions ρ → 0 as |v| → ∞ and ρ ≡ 0 for
+v∈R
+either m, n < 0 or m > Mtot or n > Ntot .
+In contrast, the approximate algorithm with piecewise constant propensities does
+not generate a Markov process, since the transition probabilities depend on the past
+rather than the present values of the voltage component. Consequently they do not
+satisfy a master equation. Nevertheless it is plausible that they may have a unique
+stationary distribution.
+Figure 4 shows pseudocolor plots of the histograms viewed in the (v, n) plane,
+i.e. with entries summed over m, for Algorithm 1 (“Exact”) and the approximate piecewise constant (“PC”) algorithm, with Mtot = Ntot = k channels for k = 1, 2, 5, 10, 20
+and 40. The two algorithms were run with independent random number streams in
+the limit cycle regime (with Iapp = 100) for tmax ≈ 200, 000 time units, sampled every
+10 time units, which generated ≥ 17, 000 data points per histogram. For k < 5 the
+difference in the histograms is obvious at a glance. For k ≥ 10 the histograms appear
+increasingly similar.
+Figure 5 shows bar plots of the histograms with 2,000,000 sample points projected
+on the voltage axis, i.e. with entries summed over m and n, for the same data as in
+Figure 4, with Mtot = Ntot = k channels ranging from k = 1 to k = 100. Again, for
+k ≤ 5, the two algorithms generate histograms that are clearly distinct. For k ≥ 20
+they appear similar, while k = 10 appears to be a borderline case.
+To quantify the similarity of the histograms we calculated the empirical L1 difference
+between the histograms in two ways: first for the full (v, n, m) histograms, and then
+for the histograms collapsed to the voltage axis. Let ρm,n (v) and ρ̃m,n (v) denote the
+stationary distributions for the exact and the approximate algorithms, respectively
+(assuming these exist). To compare the two distributions we approximate the L1
+distance between them, i.e.
+!
+Z vmax M
+tot N
+tot
+X
+X
+d(ρ, ρ̃) =
+|ρm,n (v) − ρ̃m,n (v)| dv
+vmin
+
+m=0 n=0
+
+where vmin and vmax are chosen so that for all m, n we have F (vmin , n, m) > 0 and
+F (vmax , n, m) < 0. It is easy to see that such values of vmin and vmax must exist,
+since F (v, n, m) is a linear and monotonically decreasing function of v for any fixed
+pair (n, m), cf. equation (26). Therefore, for any exact simulation algorithm, once the
+voltage component of a trajectory falls in the interval vmin ≤ v ≤ vmax , it remains
+in this interval for all time. We approximate the voltage integral by summing over
+100 evenly spaced bins along the voltage axis. Figure 6, top panel, shows empirical
+estimates of d(ρ, ρ̃) for values of Mtot = Ntot ranging from 1 to 40. The bottom panel
+shows the histogram for voltage considered alone.
+
+16
+
+V,N histogram for Ntot=Mtot=2
+
+0
+
+N:Approx
+
+N:Exact
+
+1
+
+1
+0
+
+−50
+
+0
+V:Exact
+
+50
+
+1
+0
+
+2
+
+N:Approx
+
+N:Exact
+
+V,N histogram for Ntot=Mtot=1
+
+−50
+
+0
+V:Approx
+
+−50
+
+0
+V:Exact
+
+50
+
+−50
+
+0
+V:Approx
+
+50
+
+2
+1
+0
+
+50
+
+10
+
+4
+2
+0
+
+−50
+
+0
+V:Exact
+
+5
+0
+−60
+
+50
+
+4
+2
+0
+
+−50
+
+0
+V:Approx
+
+V,N histogram for Ntot=Mtot=20
+
+0
+20
+V:Exact
+
+40
+
+60
+
+−40
+
+−20
+
+0
+20
+V:Approx
+
+40
+
+60
+
+V,N histogram for Ntot=Mtot=40
+40
+N:Exact
+
+N:Exact
+
+−20
+
+5
+0
+−60
+
+50
+
+20
+10
+0
+−60
+
+−40
+
+−20
+
+0
+20
+V:Exact
+
+40
+
+−50
+
+0
+V:Exact
+
+50
+
+−50
+
+0
+V:Approx
+
+50
+
+40
+N:Approx
+
+10
+0
+−60
+
+20
+0
+
+60
+
+20
+N:Approx
+
+−40
+
+10
+N:Approx
+
+N:Approx
+
+V,N histogram for Ntot=Mtot=10
+N:Exact
+
+N:Exact
+
+V,N histogram for Ntot=Mtot=5
+
+−40
+
+−20
+
+0
+20
+V:Approx
+
+40
+
+60
+
+20
+0
+
+Figure 4: Normalized histograms of voltage and N for exact and approximate piecewise
+constant algorithms. The V -axis was partitioned into 100 equal width bins for each pair
+of histograms. The N -axis takes on Ntot + 1 discrete values. Color scale indicates relative
+frequency with which a bin was occupied (dark = infrequent, lighter=more frequent).
+17
+
+V histogram for Ntot=Mtot=2
+
+V histogram for Ntot=Mtot=1
+
+0.2
+Exact
+
+Exact
+
+0.2
+
+0.1
+
+0
+
+−50
+
+0
+
+0
+
+50
+
+Approx
+
+Approx
+
+0.5
+
+−50
+
+0
+Voltage (mV)
+
+V histogram for Ntot=Mtot=5
+
+Exact
+
+Exact
+
+−50
+
+0
+
+Approx
+
+Approx
+
+−50
+
+0
+Voltage (mV)
+
+−50
+
+0
+
+50
+
+−50
+
+0
+Voltage (mV)
+
+50
+
+0.02
+
+0
+
+50
+
+V histogram for Ntot=Mtot=40
+
+0.03
+
+0.03
+
+0.02
+
+0.02
+
+Exact
+
+Exact
+
+50
+
+0.04
+
+V histogram for Ntot=Mtot=20
+
+0.01
+−50
+
+0
+
+0.01
+0
+
+50
+
+−50
+
+0
+
+50
+
+−50
+
+0
+Voltage (mV)
+
+50
+
+0.03
+Approx
+
+0.04
+Approx
+
+0
+Voltage (mV)
+
+0.02
+
+0
+
+50
+
+0.05
+
+0.02
+
+0
+
+−50
+
+V histogram for Ntot=Mtot=10
+
+0.1
+
+0
+
+50
+
+0.04
+
+0.05
+
+0
+
+0
+
+0.5
+
+0
+
+50
+
+0.1
+
+0
+
+−50
+
+1
+
+1
+
+0
+
+0.1
+
+−50
+
+0
+Voltage (mV)
+
+0.02
+0.01
+0
+
+50
+
+Figure 5: Histograms of voltage for exact and approximate piecewise constant algorithms.
+The V -axis was partitioned into 100 equal width bins for each pair of histograms.
+18
+
+L1(H1−H2)
+
+2
+
+1
+
+0 0
+10
+
+1
+
+10
+
+2
+
+10
+
+L1(VH1−VH2)
+
+2
+
+1
+
+0 0
+10
+
+1
+
+10
+Number of Channels (Mtot=Ntot)
+
+2
+
+10
+
+Figure 6: L1 differences between empirical histograms generated by exact and approximate algorithms. Hj (v, n, m) is the number of samples for which V ∈ [v, v + ∆v), N = n
+and M = m, where ∆v is a discretization of the voltage axis into 100 equal width bins;
+j = 1 represents an empirical histogram obtained by an exact algorithm (Algorithm 1),
+and j = 2 represents an empirical histogram obtained by a piecewise-constant propensity
+approximation. Note the normalized L1 difference of two histograms can range from 0 to
+2. Based on 2,000,000
+samples for each algorithm. Top: Difference for the full histograms,
+P
+L1 (H1 − H2 ) ≡ v,n,m |H1 (v, n, m) − H2 (v, n, m)|/#samples. Here v refers to binned voltage values. The total number of bins is 100 MtotP
+Ntot . Bottom: Difference for the corresponding voltage
+histograms, L1 (V H1 − V H2 ) ≡ v |V H1 (v) − V H2 (v)| /#samples, where
+P
+V Hj (v) = n,m Hj (v, n, m). The total number of bins is 100.
+
+19
+
+6 Coupling, variance reduction, and parametric
+sensitivities
+It is relatively straightforward to derive the exact simulation strategies from the different representations provided here. Less obvious, and perhaps even more useful, is the
+fact that the random time change formalism also lends itself to the development of new
+computational methods that potentially allow for significantly greater computational
+speed, with no loss in accuracy. They do so by providing ways to couple two processes
+in order to reduce the variance, and thereby increase the speed, of different natural
+estimators.
+For an example of a common computational problem where such a benefit can be
+had, consider the computation of parametric sensitivities, which is a powerful tool in
+determining parameters to which a system output is most responsive. Specifically,
+suppose that the intensity/propensity functions are dependent on some vector of parameters θ. For instance, θ may represent a subset of the system’s mass action kinetics
+constants, the cell capacitance, or the underlying number of channels of each type.
+We may wish to know how sensitively a quantity such as the average firing rate or
+interspike interval variance depends on the parameters θ. We then consider a family
+of models V θ , X θ , parameterized by θ, with stochastic equations
+
+
+d θ
+V (t) = f θ, V θ (t), X θ (t)
+dt
+ 
+(40)
+X Z t 
+θ
+θ
+θ
+θ
+θ
+λk V (s), X (s) ds ζk ,
+X (t) = X0 +
+Yk
+k
+
+0
+
+where f is some function, and all other notation is as before. Some quantities arising
+in neural models depend on the entire sample path,
+ such as the mean firing rate and
+θ
+θ
+the interspike interval variance. Let g θ, V , X by a path functional capturing the
+quantity of interest. In order to efficiently and accurately evaluate the relative shift in
+the expectation of g due to a perturbation of the parameter vector, we would estimate
+h 
+
+
+i
+0
+0
+s̃ = −1 E g θ0 , V θ , X θ − g θ, V θ , X θ
+N
+
+i
+1 X h  0 θ0 θ0 
+θ
+≈
+(41)
+g θ , V[i] , X[i] − g θ, V[i]θ , X[i]
+N
+i=1
+
+
+θ
+where  = ||θ − θ0 || and where V[i]θ , X[i]
+represents the ith path generated with
+a parameter choice of θ, and N is the number of sample paths computed for the
+estimation. That is, we would use a finite difference and Monte Carlo sampling to
+approximate thechange in
+ the expectation.
+
+
+0
+0
+θ
+θ
+θ
+If the paths V[i] , X[i] and V[i]θ , X[i]
+are generated independently, then the vari-
+
+ance of the estimator (41) for s̃ is O(N −1 −2 ), and the standard deviation of the
+estimator is O(N −1/2 −1 ). This implies that in order to reduce the confidence interval
+of the estimator to a target level of ρ > 0, we require
+N −1/2 −1 . ρ =⇒ N & −2 ρ−2 ,
+which can be prohibitive.  Reducing
+of the estimator can be achieved
+ the variance
+
+
+0
+0
+θ
+θ
+θ
+θ
+by coupling the processes V[i] , X[i] and V[i] , X[i] , so that they are correlated, by
+
+20
+
+constructing them on the same probability space. The representations we present here
+lead rather directly to schemes for reducing the variance of the estimator. We discuss
+different possibilities.
+1. The common random number (CRN) method. The CRN method simulates
+both processes according to the Gillespie representation (7)-(9) with the same
+Poisson process Y and the same stream of uniform random variables {ξi }. In
+terms of implementation, one simply reuses the same two streams of uniform
+random variables in Algorithm 2 for both processes.
+2. The common reaction path method (CRP). The CRP method simulates
+both processes according to the random time change representation with the same
+Poisson processes Yk . In terms of implementation, one simply makes one stream of
+uniform random variables for each reaction channel, and then uses these streams
+for the simulation of both processes. See [49], where this method was introduced
+in the context of biochemical models.
+3. The coupled finite difference method (CFD). The CFD method utilizes a
+“split coupling” introduced in [3]. Specifically, it splits the counting process for
+each of the reaction channels into three pieces: one counting process that is shared
+0
+by X θ and X θ (and has propensity equal to the minimum of their respective
+intensities for that reaction channel), one that only accounts for the jumps of X θ ,
+0
+and one that only accounts for the jumps of X θ . Letting a ∧ b = min{a, b}, the
+precise coupling is
+Z t
+
+X
+θ0
+θ0
+0
+X (t) = X0 +
+Yk,1
+mk (θ, θ , s) ds ζk
+0
+
+k
+
++
+
+X
+
+Z
+Yk,2
+
+θ
+
+X (t) = X (t) +
+
+X
+
+Z
+Yk,1
+
+X
+k
+
+
+
+0
+
+− mk (θ, θ , s) ds ζk
+
+Z
+Yk,3
+
+t
+
+(42)
+
+
+mk (θ, θ , s) ds ζk
+0
+
+0
+
+k
+
++
+
+0
+0
+0
+λθk (V θ (s), X θ (s))
+
+0
+
+k
+θ
+
+t
+
+t
+
+
+λθk (V θ (s), X θ (s)) − mk (θ, θ0 , s) ds ζk ,
+
+0
+
+where
+
+0
+
+0
+
+0
+
+mk (θ, θ0 , s) ≡ λθk (V θ (s), X θ (s)) ∧ λθk (V θ (s), X θ (s)),
+and where {Yk,1 , Yk,2 , Yk,3 } are independent unit-rate Poisson processes. Implementation is then carried out by Algorithm 1 in the obvious manner.
+While the different representations provided in this paper imply different exact
+simulation strategies (i.e. Algorithms 1 and 2), those strategies still produce statistically
+equivalent paths. This is not the case for the methods for parametric sensitivities
+provided above.
+To be precise,
+of
+
+ each of the methods constructs a coupled
+ pair
+
+0
+0
+0
+0
+θ
+θ
+θ
+θ
+θ
+θ
+θ
+θ
+processes (V , X ), (V , X ) , and the marginal processes V , X and V , X
+are all
+no matter
+the method used. However, the covariance
+ statistically equivalent
+
+0
+0
+θ
+θ
+θ
+θ
+Cov (V (t), X (t)), (V (t), X (t)) can be drastically different. This is important,
+since it is variance reduction we are after, and for any component Xj ,
+0
+
+0
+
+0
+
+Var(Xjθ (t) − Xjθ (t)) = Var(Xjθ (t)) + Var(Xjθ (t)) − 2Cov(Xjθ (t), Xjθ ).
+
+21
+
+Thus, minimizing variance is equivalent to maximizing covariance. Typically, the CRN
+method does the worst job of maximizing the covariance, even though it is the most
+widely used method [60]. The CFD method with the split coupling procedure typically
+does the best job of maximizing the covariance, though examples exist in which the
+CRP method is the most efficient [3, 7, 60].
+
+7
+
+Discussion
+
+We have provided two general representations for stochastic ion channel kinetics, one
+based on the random time change formalism, and one extending Gillespie’s algorithm
+to the case of ion channels driven by time-varying membrane potential. These representations are known in other branches of science, but less so in the neuroscience
+community. We believe that the random time change representation (Algorithm 1,
+(4)-(5)) will be particularly useful to the computational neuroscience community as
+it allows for generalizations of computational methods developed in the context of
+biochemistry, in which the propensities depend upon the state of the jump process
+only. For example, variance reduction strategies for the efficient computation of first
+and second order sensitivities [3, 9, 49], as discussed in Section 6, and for the efficient
+computation of expectations using multi-level Monte Carlo [5, 27] now become feasible.
+The random time change approach avoids several approximations that are commonly found in the literature. In simulation algorithms based on a fixed time step
+chemical Langevin approach, it is necessary to assume that the increments in channel state are approximately Gaussian distributed over an appropriate time interval
+[26, 31, 32, 44, 63]. However, in exact simulations with small membrane patches corresponding to Mtot = 40 calcium channels, the exact algorithm routinely visits the
+states M (t) = 0 and M (t) = 40, for which the Gaussian increment approximation is
+invalid regardless of time step size. The main alternative algorithm typically found in
+the literature is the piecewise constant propensity or approximate forward algorithm
+[25, 38, 56]. However, this algorithm ignores changes to membrane potential during
+the intervals between channel state changes. As the sensitivity of ion channel opening
+and closing to voltage is fundamental to the neurophysiology of cellular excitability,
+these algorithms are not appropriate unless the time between openings and closing is
+especially small. The exact algorithm [18, 37, 46] is straightforward to implement and
+avoids these approximations and pitfalls.
+Our study restricts attention to the suprathreshold regime of the Morris-Lecar
+model, in which the applied current (here, Iapp = 100) puts the deterministic system
+well above the Hopf bifurcation marking the onset of oscillations. In this regime, spiking is not the result of noise-facilitated release, as it is in the subthreshold or excitable
+regime. Bressloff, Keener and Newby used eigenfunction expansion methods, path integrals, and the theory of large deviations to study spike initiation as a noise facilitated
+escape problem in the excitable regime, as well as to incorporate synaptic currents
+into a stochastic network model; they use versions of the exact algorithm presented
+in this paper [14, 46]. Interestingly, these authors find that the usual separation-oftime scales picture breaks down. That is, the firing rate obtained by 1D Kramers rate
+theory when the slow recovery variable (fraction of open potassium gates) is taken to
+be fixed does not match that obtained by direct simulation with the exact algorithm.
+Moreover, by considering a maximum likelihood approach to the 2D escape problem,
+
+22
+
+the authors show that, counterintuitively, spontaneous closure of potassium channels
+contributes more significantly to noise induced escape than spontaneous opening of
+sodium channels, as might naively have been expected.
+The algorithms presented here are broadly applicable beyond the effects of channel
+noise on the regularity of action potential firing in a single compartment neuron model.
+Exact simulation of hybrid stochastic models have been used, for instance, to study
+spontaneous dendritic NMDA spikes [13], intracellular growth of the T7 bacteriophage
+[1], and hybrid stochastic network models taking into account piecewise deterministic
+synaptic currents [12]. This latter work represents a significant extension of the neural
+master equation approach to stochastic population models [11, 16].
+For any simulation algorithm, it is reasonable to ask about the growth of complexity of the algorithm as the underlying stochastic model is enriched. For example, the
+natural jump Markov interpretation of Hodgkin and Huxley’s model for the sodium
+channel comprises eight distinct states with twenty different state-to-state transitions,
+each driven by an independent Poisson process in the random time change representation. Recent investigations of sodium channel kinetics have led neurophysiologists to
+formulate models with as many as 26 distinct states connected by 72 transitions [43].
+While the random time change representation extends naturally to such scenarios, it
+may also be fruitful to combine it with complexity reduction methods such as the
+stochastic shielding algorithm introduced by Schmandt and Galán [54], and analyzed
+by Schmidt and Thomas [55]. For example, of the twenty independent Poisson processes driving a discrete Markov model of the Hodgkin-Huxley sodium channel, only
+four of the processes directly affect the conductance of the channel; fluctuations associated with the remaining sixteen Poisson processes may be ignored with negligible loss
+of accuracy in the first and second moments of the channel occupancy. Similarly, for
+the 26 state sodium channel model proposed in [43], all but 12 of the 72 Poisson processes representing state-to-state transitions can be replaced by their expected values.
+Analysis of algorithms combining stochastic shielding and the random time change
+framework are a promising direction for future research.
+Acknowledgments.
+Anderson was supported by NSF grant DMS-1318832 and Army Research Office
+grant W911NF-14-1-0401. Ermentrout was supported by NSF grant DMS-1219754.
+Thomas was supported by NSF grants EF-1038677, DMS-1010434, and DMS-1413770,
+by a grant from the Simons Foundation (#259837), and by the Council for the International Exchange of Scholars (CIES). We gratefully acknowledge the Mathematical
+Biosciences Institute (MBI, supported by NSF grant DMS 0931642) at The Ohio State
+University for hosting a workshop at which this research was initiated. The authors
+thank David Friel and Casey Bennett for helpful discussions and testing of the algorithms.
+
+23
+
+A Sample Implementations of Random Time
+Change Algorithm (Algorithm 1)
+A.1
+A.1.1
+
+Morris Lecar with Stochastic Potassium Channel
+XPP: ml-rtc-konly.ode
+
+# ML with stochastic potassium channels
+# uses the exact random time change algorithm
+# membrane potential
+v’=(I-gca*minf*(V-Vca)-gk*wtot*(V-VK)-gl*(V-Vl))/c
+# unit exponentials
+t[3..4]’=0
+# number of potassium(w) /calcium (m) channels open
+w’=0
+# int_0^t beta(V(s)) ds
+# for the 4 reactions
+awp’=aw
+bwp’=bw
+# initialize unit exponentials
+t[3..4](0)=-log(ran(1))
+# look for crossings, reset integrals, increment channels, choose next time
+global 1 awp-t3 {t3=-log(ran(1));awp=0;w=w+1}
+global 1 bwp-t4 {t4=-log(ran(1));bwp=0;w=w-1}
+# parameters
+par Nw=100
+init v=-50
+# fraction of open channels
+wtot=w/Nw
+# ML channel kinetic definitions
+minf=.5*(1+tanh((v-va)/vb))
+winf=.5*(1+tanh((v-vc)/vd))
+tauw=1/cosh((v-vc)/(2*vd))
+alw=winf/tauw
+blw=1/tauw-alw
+# independent, so rates are just multiples of number in each state
+aw=alw*(Nw-w)*phi
+bw=blw*w*phi
+param vk=-84,vl=-60,vca=120
+param i=75,gk=8,gl=2,c=20,phim=.4
+param va=-1.2,vb=18
+param vc=2,vd=30,phi=.04,gca=4.4
+# set up some numerics and plotting stuff
+@ dt=.01,nout=100,total=4000,bound=1000
+@ maxstor=5000,meth=euler
+@ xhi=4000,ylo=-65,yhi=50
+done
+
+24
+
+A.1.2
+
+Matlab: ml rtc exact konly.m
+
+function [V,N,t,Ntot]=ml_rtc_exact_konly(tmax,Ntot)
+%function [V,N,t,Ntot]=ml_rtc_exact_konly(tmax,Ntot);
+%
+% Exact solution of Morris Lecar with stochastic potassium channel.
+% Using the random time change algorithm. We track two reactions:
+%
+% Rxn 1: closed -> open (per capita rate alpha)
+% Rxn 2: open -> closed (per capita rate beta)
+%
+% Default Ntot=40, tmax=4000.
+%
+% Author: PJT July 2013, Case Western Reserve University.
+% Applied current "Iapp" set on line 47 below.
+%% Use global variables
+%
+and random trigger
+global Npotassium_tot
+global Npotassium
+global tau1 T1
+global tau2 T2
+
+to represent the channel state
+for Poisson process
+% total number of potassium channels
+% number of open potassium channels
+% time to next opening event (internal to reaction 1)
+% time to next closing event (internal to reaction 2)
+
+%% Set defaults for input arguments
+if nargin < 2, Ntot=40; end
+Npotassium_tot=Ntot;
+if nargin < 1, tmax=4e3; end
+%% Parameters
+% Standard Morris-Lecar parameters giving a globally attracting limit cycle
+% (if applied current Iapp=100) or a stable fixed point (if Iapp=75).
+va = -1.2;
+vb=18;
+vc = 2;
+vd = 30;
+phi = 0.04;
+%% Functions for Morris-Lecar
+global Iapp; Iapp=@(t)100; % applied current.
+global minf; minf=@(v)0.5*(1+tanh((v-va)/vb)); % m-gate activation
+global xi; xi=@(v)(v-vc)/vd; % scaled argument for n-gate input
+global ninf; ninf=@(v)0.5*(1+tanh(xi(v))); % n-gate activation function
+global tau_n; tau_n=@(v)1./(phi*cosh(xi(v)/2)); % n-gate activation t-const
+global alpha; alpha=@(v)(ninf(v)./tau_n(v)); % per capita opening rate
+global beta; beta=@(v)((1-ninf(v))./tau_n(v)); % per capita closing rate
+%% ODE options including reset
+options=odeset(’Events’,@nextevent);
+%% Initialize
+
+25
+
+t0=0;
+t=t0; % global "external" time
+tau1=-log(rand); % time of next event on reaction stream 1 ("internal time")
+tau2=-log(rand); % time of next event on reaction stream 2 ("internal time")
+T1=0; % integrated intensity function for reaction 1
+T2=0; % integrated intensity function for reaction 2
+V0=-50; % start at an arbitrary middle voltage
+V=V0;
+N0=ceil(Ntot/2); % start with half of channels open
+Npotassium=N0;
+N=N0; % use N to record the time course
+%% Loop over events
+while t(end)<tmax
+%% Integrate ODE for voltage, until the next event is triggered
+% State vector U for integration contains the following components
+%
+[voltage;
+%
+integral of (# closed)*alpha(v(t));
+%
+integral of (# open)*beta(v(t));
+%
+# open].
+U0=[V0;0;0;N0];
+tspan=[t(end),tmax];
+[tout,Uout,~,~,event_idx]=ode23(@dudtfunc,tspan,U0,options);
+Vout=Uout(:,1); % voltage at time of next event
+Nout=Uout(:,4); % number of channels open at end of next event
+t=[t,tout’];
+V=[V,Vout’];
+N=[N,Nout’];
+%% Identify which reaction occurred, adjust state, and
+% continue, and set trigger for next event.
+mu=event_idx; % next reaction index
+if mu==1 % next reaction is a channel opening
+N0=N0+1;
+% increment channel state
+tau1=tau1-log(rand); % increment in tau1 is exp’l with mean 1
+elseif mu==2 % next reaction is another channel closing
+N0=N0-1;
+% decrement channel state
+tau2=tau2-log(rand); % increment in tau2 likewise
+end
+Npotassium=N0;
+if N0>Npotassium_tot, error(’N>Ntot’), end
+if N0<0, error(’N<0’), end
+T1=T1+Uout(end,2);
+T2=T2+Uout(end,3);
+V0=V(end);
+end % while t(end)<tmax
+%% Plot output
+figure
+subplot(4,1,1),plot(t,N),xlabel(’time’),ylabel(’N’)
+
+26
+
+subplot(4,1,2:3),plot(V,N,’.-’),xlabel(’V’),ylabel(’N’)
+subplot(4,1,4),plot(t,V),xlabel(’time’),ylabel(’V’)
+shg
+end % End of function ml_rtc_exact_konly
+%% Define the RHS for Morris-Lecar
+% state vector for integration is as follows:
+% u(1) = voltage
+% u(2) = integral of activation hazard function
+% u(3) = integral of inactivation hazard function
+% u(4) = N (number of open potassium channels)
+function dudt=dudtfunc(t,u)
+global Iapp % Applied Current
+global minf % asymptotic target for (deterministic) calcium channel
+global Npotassium Npotassium_tot % num. open, total num. of channels
+global alpha beta % per capita transition rates
+%% Parameters
+vK = -84; vL = -60; vCa = 120;
+gK =8; gL =2; C=20; gCa = 4.4;
+%% calculate the RHS;
+v=u(1); % extract the voltage from the input vector
+dudt=[(Iapp(t)-gCa*minf(v)*(v-vCa)-gL*(v-vL)-...
+gK*(Npotassium/Npotassium_tot)*(v-vK))/C; % voltage
+alpha(v)*(Npotassium_tot-Npotassium); % channel opening internal time
+beta(v)*Npotassium;% channel closing internal time
+0]; % N is constant between events
+end
+%% Define behavior at threshold crossing
+function [value,isterminal,direction] = nextevent(~,u)
+global tau1 T1 % timing trigger for reaction 1 (opening)
+global tau2 T2 % timing trigger for reaction 2 (closing)
+value=[u(2)-(tau1-T1);u(3)-(tau2-T2)];
+isterminal=[1;1]; % stop and restart integration at crossing
+direction=[1;1]; % increasing value of the quantity at the trigger
+end
+
+27
+
+A.2 Morris Lecar with Stochastic Potassium and Calcium
+Channels
+A.2.1
+
+XPP: ml-rtc-exact.ode
+
+# ML with both potassium and calcium channels stochastic
+# uses the exact random time change algorithm.
+# membrane potential
+v’=(I-gca*mtot*(V-Vca)-gk*wtot*(V-VK)-gl*(V-Vl))/c
+# unit exponentials
+t[1..4]’=0
+# number of potassium(w) /calcium (m) channels open
+w’=0
+m’=0
+# int_0^t beta(V(s)) ds
+# for the 4 reactions
+amp’=am
+bmp’=bm
+awp’=aw
+bwp’=bw
+# initialize unit exponentials
+t[1..4](0)=-log(ran(1))
+# look
+global
+global
+global
+global
+
+for crossings, reset integrals, increment channels, choose next time
+1 amp-t1 {t1=-log(ran(1));amp=0;m=m+1}
+1 bmp-t2 {t2=-log(ran(1));bmp=0;m=m-1}
+1 awp-t3 {t3=-log(ran(1));awp=0;w=w+1}
+1 bwp-t4 {t4=-log(ran(1));bwp=0;w=w-1}
+
+# parameters
+par Nm=100,Nw=100
+init v=-50
+param vk=-84,vl=-60,vca=120
+param i=75,gk=8,gl=2,c=20,phim=.4
+param va=-1.2,vb=18
+param vc=2,vd=30,phi=.04,gca=4.4
+# fraction of open channels
+wtot=w/Nw
+mtot=m/Nm
+# ML channel kinetic definitions
+minf=.5*(1+tanh((v-va)/vb))
+
+28
+
+winf=.5*(1+tanh((v-vc)/vd))
+tauw=1/cosh((v-vc)/(2*vd))
+taum=1/cosh((v-va)/(2*vb))
+alm=minf/taum
+blm=1/taum-alm
+alw=winf/tauw
+blw=1/tauw-alw
+# independent, so rates are just multiples of number in each state
+am=alm*(Nm-m)*phim
+bm=blm*m*phim
+aw=alw*(Nw-w)*phi
+bw=blw*w*phi
+# set up some numerics and plotting stuff
+@ dt=.01,nout=100,total=4000,bound=1000
+@ maxstor=5000,meth=euler
+@ xhi=4000,ylo=-65,yhi=50
+done
+
+29
+
+A.2.2
+
+Matlab: mlexactboth.m
+
+function [V,M,N,t,Mtot,Ntot]=mlexactboth(tmax,Mtot,Ntot)
+%function [V,M,Mtot,N,Ntot]=mlexactboth(tmax,Mtot,Ntot);
+%
+% Exact solution of Morris Lecar with discrete stochastic potassium channel
+% (0<=N<=Ntot) and discrete stochastic calcium channel (0<=M<=Mtot).
+% Using the random time change representation, we track four reactions:
+%
+% Rxn 1: calcium (m-gate) closed -> open (per capita rate alpha_m)
+% Rxn 2: calcium (m-gate) open -> closed (per capita rate beta_m)
+% Rxn 3: potassium (n-gate) closed -> open (per capita rate alpha_n)
+% Rxn 4: potassium (n-gate) open -> closed (per capita rate beta_n)
+%
+% Default Mtot=40, Ntot=40, tmax=4000.
+%
+% Applied current "Iapp" set internally.
+%
+% PJT June 2013, CWRU. Following Bard Ermentrout’s "ml-rtc-exact.ode".
+%% Use global variables to represent the channel state
+% and random trigger for Poisson process
+% Calcium
+global Mcalcium_tot % total number of calcium channels
+global Mcalcium % number of calcium channels in conducting state
+global tau1 T1 % dummy variables for time to next Ca-opening event
+global tau2 T2 % dummy variables for time to next Ca-closing event
+% Potassium
+global Npotassium_tot % total number of potassium channels
+global Npotassium % number of potassium channels in conducting state
+global tau3 T3 % dummy variables for time to next K-opening event
+global tau4 T4 % dummy variables for time to next K-closing event
+%% Set defaults for input arguments
+if nargin < 3, Ntot=40; end
+Npotassium_tot=Ntot;
+if nargin < 2, Mtot=40; end
+Mcalcium_tot=Mtot;
+if nargin < 1, tmax=4e3; end
+%% Parameters
+phi_m=0.4;
+va = -1.2; vb=18;
+vc = 2; vd = 30;
+
+30
+
+phi_n = 0.04;
+%% Functions for Morris-Lecar
+global Iapp; Iapp=@(t)100; % applied current
+global
+global
+global
+global
+global
+
+xi_m; xi_m=@(v)(v-va)/vb; % scaled argument for m-gate input voltage
+minf; minf=@(v)0.5*(1+tanh(xi_m(v))); % m-gate activation function
+tau_m; tau_m=@(v)1./(phi_m*cosh(xi_m(v)/2)); % m-gate time constant
+alpha_m; alpha_m=@(v)(minf(v)./tau_m(v));
+beta_m; beta_m=@(v)((1-minf(v))./tau_m(v));
+
+global
+global
+global
+global
+global
+
+xi_n; xi_n=@(v)(v-vc)/vd; % scaled argument for n-gate input
+ninf; ninf=@(v)0.5*(1+tanh(xi_n(v))); % n-gate activation function
+tau_n; tau_n=@(v)1./(phi_n*cosh(xi_n(v)/2)); % n-gate time constant
+alpha_n; alpha_n=@(v)(ninf(v)./tau_n(v));
+beta_n; beta_n=@(v)((1-ninf(v))./tau_n(v));
+
+%% ODE options including reset
+options=odeset(’Events’,@nextevent);
+%% initialize
+t0=0;
+t=t0; % global "external" time
+tau1=-log(rand); % time of next event on reaction stream
+tau2=-log(rand); % time of next event on reaction stream
+tau3=-log(rand); % time of next event on reaction stream
+tau4=-log(rand); % time of next event on reaction stream
+T1=0; % integrated intensity function for reaction 1
+T2=0; % integrated intensity function for reaction 2
+T3=0; % integrated intensity function for reaction 3
+T4=0; % integrated intensity function for reaction 4
+V0=-50; % start at an arbitrary middle voltage
+V=V0; % initial voltage
+M0=0; % start with calcium channels all closed
+Mcalcium=M0; % initial state of calcium channel
+M=M0; % use M to record the time course
+
+1
+2
+3
+4
+
+("internal
+("internal
+("internal
+("internal
+
+N0=ceil(Ntot/2); % start with half potassium channels open
+Npotassium=N0; % initial state of potassium channel
+N=N0; % use N to record the time course
+%% Loop over events
+while t(end)<tmax
+%% integrate ODE for voltage, until the next event is triggered
+% State vector U for integration contains the following components
+% 1
+[voltage;
+
+31
+
+time")
+time")
+time")
+time")
+
+% 2
+integral of (# closed)*alpha_m(v(t));
+% 3
+integral of (# open)*beta_m(v(t));
+% 4
+integral of (# closed)*alpha_n(v(t));
+% 5
+integral of (# open)*beta_n(v(t));
+% 6
+# open calcium channels;
+% 7
+# open potassium channels].
+U0=[V0;0;0;0;0;M0;N0];
+tspan=[t(end),tmax];
+[tout,Uout,~,~,event_idx]=ode23(@dudtfunc,tspan,U0,options);
+Vout=Uout(:,1); % voltage at time of next event
+Mout=Uout(:,6); % number of calcium channels open at end of next event
+Nout=Uout(:,7); % number of potassium channels open at end of next event
+t=[t,tout’];
+V=[V,Vout’];
+M=[M,Mout’];
+N=[N,Nout’];
+%% Identify which reaction occurred, adjust state, and continue;
+% and set trigger for next event.
+mu=event_idx; % next reaction index
+if mu==1 % next reaction is a calcium channel opening
+M0=M0+1; % increment calcium channel state
+tau1=tau1-log(rand); % increment in tau1 is exponentially distributed with mean 1
+elseif mu==2 % next reaction is a calcium channel closing
+M0=M0-1; % decrement calcium channel state
+tau2=tau2-log(rand); % increment in tau2 is exponentially distributed with mean 1
+elseif mu==3 % next reaction is a potassium channel opening
+N0=N0+1;
+% increment potassium channel state
+tau3=tau3-log(rand); % increment in tau3 is exponentially distributed with mean 1
+elseif mu==4 % next reaction is a potassium channel closing
+N0=N0-1;
+% decrement potassium channel state
+tau4=tau4-log(rand); % increment in tau4 likewise
+end
+Mcalcium=M0;
+Npotassium=N0;
+if
+if
+if
+if
+
+M0>Mcalcium_tot, error(’M>Mtot’), end
+M0<0, error(’M<0’), end
+N0>Npotassium_tot, error(’N>Ntot’), end
+N0<0, error(’N<0’), end
+
+T1=T1+Uout(end,2);
+T2=T2+Uout(end,3);
+T3=T3+Uout(end,4);
+T4=T4+Uout(end,5);
+V0=V(end);
+
+32
+
+end % while t(end)<tmax
+%% Plot output
+figure
+subplot(6,1,1),plot(t,M),ylabel(’M’,’FontSize’,20),set(gca,’FontSize’,20)
+subplot(6,1,2),plot(t,N),ylabel(’N’,’FontSize’,20),set(gca,’FontSize’,20)
+subplot(6,1,6),plot(t,V),xlabel(’Time’,’FontSize’,20)
+ylabel(’V’,’FontSize’,20),set(gca,’FontSize’,20)
+subplot(6,1,4:6),plot3(V,M,N,’.-’),xlabel(’V’,’FontSize’,20)
+ylabel(’M’,’FontSize’,20),zlabel(’N’,’FontSize’,20),set(gca,’FontSize’,20)
+grid on, rotate3d, shg
+end % End of function mlexactboth
+%% Define the RHS for Morris-Lecar
+% state vector for integration is as follows:
+% u(1) = voltage
+% u(2) = integral of Ca-opening hazard function (Rxn 1)
+% u(3) = integral of Ca-closing hazard function (Rxn 2)
+% u(4) = integral of K-opening hazard function (Rxn 3)
+% u(5) = integral of K-closing hazard function (Rxn 4)
+% u(6) = M (number of open calcium channels)
+% u(7) = N (number of open potassium channels)
+function dudt=dudtfunc(t,u)
+global Iapp % applied current
+global Mcalcium Mcalcium_tot
+global Npotassium Npotassium_tot
+global alpha_m beta_m
+global alpha_n beta_n
+%% Parameters
+vK = -84; vL = -60; vCa = 120;
+gK =8; gL =2; C=20; gCa = 4.4;
+%% calculate the RHS;
+v=u(1); % extract the voltage from the input vector
+dudt=[... % voltage
+(Iapp(t)-gCa*(Mcalcium/Mcalcium_tot)*(v-vCa)-gL*(v-vL)...
+-gK*(Npotassium/Npotassium_tot)*(v-vK))/C;
+% Calcium chan. opening, internal time elapsed
+alpha_m(v)*(Mcalcium_tot-Mcalcium);
+% Calcium chan. closing, internal time elapsed
+beta_m(v)*Mcalcium;
+% Potassium chan. opening, internal time elapsed
+alpha_n(v)*(Npotassium_tot-Npotassium);
+
+33
+
+% Potassium chan. closing, internal time elapsed
+beta_n(v)*Npotassium;
+0; % M is constant between events
+0]; % N is constant between events
+end
+%% define behavior at threshold crossing
+function [value,isterminal,direction] = nextevent(~,u)
+global tau1 T1 % timing trigger for reaction 1 (calcium opening)
+global tau2 T2 % timing trigger for reaction 2 (calcium closing)
+global tau3 T3 % timing trigger for reaction 3 (potassium opening)
+global tau4 T4 % timing trigger for reaction 4 (potassium closing)
+value=[u(2)-(tau1-T1);u(3)-(tau2-T2);u(4)-(tau3-T3);u(5)-(tau4-T4)];
+isterminal=[1;1;1;1]; % stop and restart integration at crossing
+direction=[1;1;1;1]; % increasing value of the quantity at the trigger
+end
+
+34
+
+References
+[1] Aurélien Alfonsi, Eric Cancès, Gabriel Turinici, Barbara Di Ventura, and Wilhelm
+Huisinga. Adaptive simulation of hybrid stochastic and deterministic models for
+biochemical systems. In ESAIM: Proceedings, vol. 14, pp. 1-13. EDP Sciences,
+2005.
+[2] David F Anderson. A modified next reaction method for simulating chemical systems with time dependent propensities and delays. J Chem Phys, 127(21):214107,
+Dec 2007.
+[3] David F. Anderson. An efficient finite difference method for parameter sensitivities of continuous time Markov chains. SIAM Journal on Numerical Analysis,
+50(5):2237 – 2258, 2012.
+[4] David F. Anderson, Arnab Ganguly, and Thomas G. Kurtz. Error analysis of
+tau-leap simulation methods. Ann. Appl. Probab., 21(6):2226–2262, December
+2011.
+[5] David F. Anderson and Desmond J. Higham. Multi-level Monte Carlo for continuous time Markov chains, with applications in biochemical kinetics. SIAM:
+Multiscale Modeling and Simulation, 10(1):146 – 179, 2012.
+[6] David F. Anderson, Desmond J. Higham, and Yu Sun. Complexity Analysis of
+Multilevel Monte Carlo Tau-Leaping. Submitted, 2014.
+[7] David F. Anderson and Masanori Koyama. An asymptotic relationship between
+coupling methods for stochastically modeled population processes. Accepted for
+publication to IMA Journal of Numerical Analysis, 2014.
+[8] David F. Anderson and Thomas G. Kurtz. Design and Analysis of Biomolecular
+Circuits, chapter 1. Continuous Time Markov Chain Models for Chemical Reaction
+Networks. Springer, 2011.
+[9] David F. Anderson and Elizabeth Skubak Wolf. A finite difference method for
+estimating second order parameter sensitivities of discrete stochastic chemical reaction networks. J. Chem. Phys., 137(22):224112, 2012.
+[10] Karen Ball, Thomas G. Kurtz, Lea Popovic, and Greg Rempala. Asymptotic
+analysis of multiscale approximations to reaction networks. Ann. Appl. Prob.,
+16(4):1925–1961, 2006.
+[11] Paul C. Bressloff. Stochastic neural field theory and the system-size expansion.
+SIAM Journal on Applied Mathematics 70(5):1488-1521 (2009).
+[12] Paul C. Bressloff and Jay M. Newby. Metastability in a stochastic neural network
+modeled as a velocity jump Markov process. SIAM Journal on Applied Dynamical
+Systems 12(3):1394-1435 (2013).
+[13] Paul C. Bressloff and Jay M. Newby. Stochastic hybrid model of spontaneous
+dendritic NMDA spikes. Physical biology 11(1):016006 (2014).
+[14] Paul C. Bressloff and Jay M. Newby. Path integrals and large deviations in stochastic hybrid systems. Physical Review E 89(4):042701 (2014).
+[15] Evelyn Buckwar and Martin G. Riedler. An exact stochastic hybrid model of
+excitable membranes including spatio-temporal evolution. J. Math. Biol., 63:1051–
+1093, 2011.
+
+35
+
+[16] Michael A. Buice, Jack D. Cowan, and Carson C. Chow. Systematic fluctuation
+expansion for neural network activity equations. Neural Computation 22(2): 377426 (2010).
+[17] Yang Cao, Daniel T Gillespie, and Linda R Petzold. Efficient step size selection
+for the tau-leaping simulation method. J Chem Phys, 124(4):044109, Jan 2006.
+[18] J R Clay and L J DeFelice. Relationship between membrane excitability and single
+channel open-close kinetics. Biophys J, 42(2):151–7, May 1983.
+[19] D. Colquhoun and A. G. Hawkes. Single-Channel Recording, chapter The Principles of the Stochastic Interpretation of Ion-Channel Mechanisms. Plenum Press,
+New York, 1983.
+[20] M. H. A. Davis. Piecewise-Deterministic Markov Processes: A General Class of
+Non-Diffusion Stochastic Models. Journal of the Royal Statistical Society. Series
+B, 46(3):353–388, 1984.
+[21] Alan D. Dorval, Jr. and John A. White. Channel noise is essential for perithreshold oscillations in entorhinal stellate neurons. The Journal of Neuroscience,
+25(43):10025–10028, Oct. 26 2005.
+[22] Berton A. Earnshaw and James P. Keener. Invariant manifolds of binomial-like
+nonautonomous master equations. Siam J. Applied Dynamical Systems, 9(2):568–
+588, 3 June 2010.
+[23] G. Bard Ermentrout and David H. Terman.
+Neuroscience. Springer, 2010.
+
+Foundations Of Mathematical
+
+[24] Stewart N. Ethier and Thomas G. Kurtz. Markov Processes: Characterization
+and convergence. John Wiley & Sons, New York, 1986.
+[25] Karin Fisch, Tilo Schwalger, Benjamin Lindner, Andreas V M Herz, and Jan
+Benda. Channel noise from both slow adaptation currents and fast currents is
+required to explain spike-response variability in a sensory neuron. J Neurosci,
+32(48):17332–44, Nov 2012.
+[26] Ronald F. Fox and Yan-nan Lu. Emergent collective behavior in large numbers
+of globally coupled independently stochastic ion channels. Phys Rev E Stat Phys
+Plasmas Fluids Relat Interdiscip Topics, 49(4):3421–3431, Apr 1994.
+[27] Mike B. Giles. Multilevel Monte Carlo path simulation. Operations Research,
+56:607–617, 2008.
+[28] Daniel T. Gillespie. Exact stochastic simulation of coupled chemical reactions. J.
+Phys. Chem., 81:2340–2361, 1977.
+[29] Daniel T. Gillespie. Stochastic simulation of chemical kinetics. Annu. Rev. Phys.
+Chem., 58:35–55, 2007.
+[30] Peter W. Glynn. A GSMP formalism for discrete event systems. Proc. of the
+IEEE, 77(1):14–23, 1989.
+[31] Joshua H Goldwyn, Nikita S Imennov, Michael Famulare, and Eric Shea-Brown.
+Stochastic differential equation models for ion channel noise in hodgkin-huxley
+neurons. Phys Rev E Stat Nonlin Soft Matter Phys, 83(4 Pt 1):041908, Apr 2011.
+
+36
+
+[32] Joshua H Goldwyn and Eric Shea-Brown. The what and where of adding channel
+noise to the Hodgkin-Huxley equations. PLoS Comput Biol, 7(11):e1002247, Nov
+2011.
+[33] Jeffrey R. Groff, Hilary DeRemigio, and Gregory D. Smith. Markov chain models
+of ion channels and calcium release sites. In Stochastic Methods in Neuroscience
+(2009): 29-64.
+[34] Peter J. Haas. Stochastic Petri Nets: Modelling Stability, Simulation. Springer,
+New York, first edition, 2002.
+[35] A. L. Hodgkin and A. F. Huxley. A quantitative description of membrane current
+and its application to conduction and excitation in nerve. J Physiol, 117:500–544,
+1952.
+[36] Hye-Won Kang and Thomas G. Kurtz. Separation of time-scales and model reduction for stochastic reaction models. Ann. Appl. Probab., 23:529–583, 2013.
+[37] James P Keener and Jay M Newby. Perturbation analysis of spontaneous action
+potential initiation by stochastic ion channels. Phys Rev E Stat Nonlin Soft Matter
+Phys, 84(1-1):011918, Jul 2011.
+[38] T. Kispersky and J. A. White.
+Scholarpedia, 3(1):1327, 2008.
+
+Stochastic models of ion channel gating.
+
+[39] Thomas G. Kurtz. Representations of Markov Processes as Multiparameter Time
+Changes. Ann. Prob., 8(4):682–715, 1980.
+[40] Thomas G. Kurtz. Approximation of population processes, CBMS-NSF Reg. Conf.
+Series in Appl. Math.: 36, SIAM, 1981.
+[41] Carlo Laing and Gabriel J. Lord, editors. Stochastic Methods in Neuroscience.
+Oxford University Press, 2010.
+[42] Chang Lee and Hans Othmer. A multi-time-scale analysis of chemical reaction
+networks: I. deterministic systems. Journal of Mathematical Biology, 60:387–450,
+2010. 10.1007/s00285-009-0269-4.
+[43] Lorin S Milescu, Tadashi Yamanishi, Krzysztof Ptak, and Jeffrey C Smith. Kinetic
+properties and functional dynamics of sodium channels during repetitive spiking
+in a slow pacemaker neuron. J Neurosci, 30(36):12113–27, Sep 2010.
+[44] Hiroyuki Mino, Jay T Rubinstein, and John A White. Comparison of algorithms
+for the simulation of action potentials with stochastic sodium channels. Ann
+Biomed Eng, 30(4):578–87, Apr 2002.
+[45] C. Morris and H. Lecar. Voltage oscillations in the barnacle giant muscle fiber.
+Biophysical Journal, 35(1):193 – 213, 1981.
+[46] Jay M Newby, Paul C Bressloff, and James P Keener. Breakdown of fast-slow
+analysis in an excitable system with channel noise. Phys Rev Lett, 111(12):128101,
+Sep 2013.
+[47] Khashayar Pakdaman, Michèle Thieullen, and Gilles Wainrib. Fluid limit theorems for stochastic hybrid systems with application to neuron models. Adv. Appl.
+Prob., 42(3):761–794, Sept. 2010.
+
+37
+
+[48] Khashayar Pakdaman, Michèle Thieullen, and Gilles Wainrib. Asymptotic expansion and central limit theorem for multiscale piecewise-deterministic Markov
+processes. Stoch. Proc. Appl., 122:2292–2318, 2012.
+[49] Muruhan Rathinam, Patrick W. Sheppard, and Mustafa Khammash. Efficient
+computation of parameter sensitivities of discrete stochastic chemical reaction
+networks. Journal of Chemical Physics, 132:034103, 2010.
+[50] Martin Riedler and Girolama Notarangelo. Strong Error Analysis for the ΘMethod for Stochastic Hybrid Systems. arXiv preprint arXiv:1310.0392, 2013
+[51] Martin G. Riedler, Michèle Thieullen, and Gilles Wainrib. Limit theorems for
+infinite-dimensional piecewise deterministic Markov processes. Applications to
+stochastic excitable membrane models. Electron. J. Probab., 17(55),1-48 (2012).
+[52] J. Rinzel and G.B. Ermentrout. Analysis of neural excitability and oscillations. In
+C. Koch and I. Segev, editors, Methods in Neuronal Modeling. MIT Press, second
+edition, 1989.
+[53] D. Terman J. Rubin. Geometric singular pertubation analysis of neuronal dynamics. In B. Fiedler, editor, Handbook of Dynamical Systems, vol. 2: Towards
+Applications, pages 93–146. Elsevier, 2002.
+[54] Nicolaus T Schmandt and Roberto F Galán. Stochastic-shielding approximation
+of Markov chains and its application to efficiently simulate random ion-channel
+gating. Phys Rev Lett, 109(11):118101, Sep 2012.
+[55] Deena R. Schmidt and Peter J. Thomas. Measuring edge importance: a quantitative analysis of the stochastic shielding approximation for random processes on
+graphs. The Journal of Mathematical Neuroscience, 4(1):6, 2014.
+[56] Tilo Schwalger, Karin Fisch, Jan Benda, and Benjamin Lindner. How noisy adaptation of neurons shapes interspike interval histograms and correlations. PLoS
+Comput Biol, 6(12):e1001026, 2010.
+[57] R Shingai and FN Quandt. Single inward rectifier channels in horizontal cells.
+Brain Research, 369(1-2):65–74, Mar 26 1986.
+[58] E Skaugen and L Walløe. Firing behaviour in a stochastic nerve membrane model
+based upon the Hodgkin-Huxley equations. Acta Physiol Scand, 107(4):343–63,
+Dec 1979.
+[59] Gregory D. Smith and Joel Keizer. Modeling the stochastic gating of ion channels.
+In Computational Cell Biology, pp. 285-319. Springer New York, 2002.
+[60] Rishi Srivastava, David F. Anderson, and James B. Rawlings. Comparison of
+finite difference based methods to obtain sensitivities of stochastic chemical kinetic
+models. Journal of Chemical Physics, 138(7):074110, 2013.
+[61] Adam F. Strassberg and Louis J. DeFelice. Limitations of the Hodgkin-Huxley
+formalism: Effects of single channel kinetics on transmebrane voltage dynamics.
+Neural Computation, 5:843–855, 1993.
+[62] Gilles Wainrib, Michèle Thieullen, and Khashayar Pakdaman. Reduction of
+stochastic conductance-based neuron models with time-scales separation. J.
+Comput. Neurosci., 32:327–346, 2012.
+
+38
+
+[63] J.A. White, C.C. Chow, J. Ritt, C. Soto-Trevino, and N. Kopell. Synchronization
+and oscillatory dynamics in heterogeneous, mutually inhibited neurons. Journal
+of Computational Neuroscience, 5:5–16, 1998.
+[64] J.A. White, J.T. Rubinstein, and A.R. Kay. Channel noise in neurons. Trends
+Neurosci., 23:131–137, 2000.
+[65] Darren J. Wilkinson. Stochastic Modelling for Systems Biology. Chapman &
+Hall/CRC, Nov 2011.
+
+39
+
+

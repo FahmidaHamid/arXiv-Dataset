@@ -1,0 +1,1069 @@
+Fragmentation Trees Reloaded
+Kai Dührkop and Sebastian Böcker
+
+arXiv:1412.1929v3 [q-bio.QM] 28 Jan 2015
+
+Chair for Bioinformatics, Friedrich-Schiller-University, Jena, Germany,
+{kai.duehrkop,sebastian.boecker}@uni-jena.de
+
+Abstract. Metabolites, small molecules that are involved in cellular reactions, provide a direct
+functional signature of cellular state. Untargeted metabolomics experiments usually relies on tandem
+mass spectrometry to identify the thousands of compounds in a biological sample. Today, the vast
+majority of metabolites remain unknown. Fragmentation trees have become a powerful tool for
+the interpretation of tandem mass spectrometry data of small molecules. These trees are found by
+combinatorial optimization, and aim at explaining the experimental data via fragmentation cascades.
+To obtain biochemically meaningful results requires an elaborate optimization function.
+We present a new scoring for computing fragmentation trees, transforming the combinatorial
+optimization into a maximum a posteriori estimator. We demonstrate the superiority of the new scoring
+for two tasks: Both for the de novo identification of molecular formulas of unknown compounds, and for
+searching a database for structurally similar compounds, our methods performs significantly better than
+the previous scoring, as well as other methods for this task. Our method can expedite the workflow for
+untargeted metabolomics, allowing researchers to investigate unknowns using automated computational
+methods.
+
+1
+
+Introduction
+
+Metabolites, small molecules that are involved in cellular reactions, provide a direct functional
+signature of cellular state complementary to the information obtained from genes, transcripts and
+proteins. Research in the field of metabolomics can give insight for biomarkers detection, cellular
+biochemistry, and disease pathogenesis [2, 19, 29, 32]; whereas natural product research screens
+metabolites for novel drug leads [6, 13]. With advances in mass spectrometry instrumentation, it is
+now possible to detect thousands of metabolites simultaneously from a biological sample.
+Metabolomics experiments often use a targeted approach in which only a specified list of
+metabolites is measured. This setup allows profiling these metabolites with high speed, minimal
+effort and limited resources over a large number of samples. Unfortunately, the vast majority of
+metabolites remain unknown [2, 19], and this is particularly the case for non-model organisms and
+secondary metabolites. The structural diversity of metabolites is extraordinarily large; in almost all
+cases, we cannot deduce the structure of metabolites from genome sequences. To this end, untargeted
+metabolomics comprehensively compares the intensities of thousands of metabolite peaks between
+two or more samples. Here, a major challenge is to determine the identities of those peaks that
+exhibit some fold change. For this, tandem mass spectrometry data of the compounds is usually
+searched against a spectral library such as Massbank [11] or the Human Metabolome Database [30].
+Only few computational methods exist that target compounds not contained in a spectral
+library [12, 25]: In particular, certain methods try to replace spectral libraries by the more
+comprehensive molecular structure databases for searching [1, 9, 10, 31]. But these methods must
+fail for compounds not present in a structure database. Methods for predicting the molecular
+formula of an unknown compound usually require data beyond tandem mass spectra [3, 16, 20, 24].
+Fragmentation trees (FTs) were introduced to fill this gap [5], and were later shown to contain viable
+structural information about the unknown compound [22]. FT computation does not require any
+(spectral, structural, or other) databases.
+
+2
+
+Kai Dührkop and Sebastian Böcker
+
+1
+
+unknown compound,
+poten�ally not
+in database
+
+Acquire MS2 spectra at
+diﬀerent collision energies;
+OR acquire ramp MS2 spectrum
+
+2
+
+3
+
+repeat steps 4-7 for each molecular formula explaining the parent peak
+C9H20PS2
+
+parent peak
+
+C5H13N5O3S
+
+4
+
+Compute fragmenta�on
+graph
+C9H12N4OP
+
+5
+
+Weight edges using
+Bayesian sta�s�cs
+C9H12N4OP
+
+C13H9N3O
+C9H12N4OP
+
+P(T|D) = P(D|T) P(T) / P(D)
+
+C8H16O5P
+C7H10N7P
+C7H15N2O4S
+
+Find best-scoring
+fragmenta�on tree
+
+7
+
+score 27.2
+
+Recalibrate spectrum
+using FT node masses,
+repeat steps 4-6
+
+abs. mass devia�on
+
+C9H12N4OP
+
+8
+
+Sort molecular formulas
+with respect to scores
+of best-scoring FT
+rank
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+
+formula
+C7H10N7P
+C7H15N2O4S
+C5H13N5O3S
+C9H20PS2
+C9H12N4OP
+C8H16O5P
+C13H9N3O
+
+score
+30.3
+30.1
+28.4
+27.3
+27.2
+26.8
+24.6
+
+9
+
+For evalua�on only:
+Find posi�on of known,
+true molecular formula
+
+C7H10N7P
+
+30.3
+
+C5H13N5O3S
+C9H20PS2
+C9H12N4OP
+C8H16O5P
+C13H9N3O
+
+28.4
+27.3
+27.2
+26.8
+24.6
+
+* C7H15N2O4S 30.1
+
+TOP 1
+TOP 2
+TOP 5
+
+correct answer is
+in TOP 2, TOP 3, ...
+but not in TOP 1
+
+6
+
+Fig. 1. Workflow of our method for computing FT to predict the correct molecular formula of the ion peak of MS/MS
+spectra.
+
+In this paper, we report a systematic approach for choosing the fragmentation tree that best
+explains the observed data, based on Bayesian analysis and a maximum a posteriori estimation. As
+conjectured in [22] this results in a strong increase in FT quality, as we evaluate using two derived
+measures: Both for the de novo identification of molecular formulas of unknown compounds, and for
+searching a database for chemically similar compounds, the new FTs perform significantly better
+than state-of-the-art methods.
+Our method will be made available on our website1 as new version of the SIRIUS framework for
+MS and MS/MS analysis. See Fig. 1 for a schematic workflow of our method.
+
+2
+
+Fragmentation Trees
+
+First, we will formally introduce fragmentation trees, allowing us to interpret fragmentation tree
+computation as a maximum a posteriori estimation in the next section. Our data D = (M, I) is
+a measured fragmentation spectrum with peak masses M = {m1 , . . . , mL } and peak intensities
+I : M → R>0 . Masses are not measured with arbitrary precision: To decide whether some
+theoretical molecular formula may coincide with some measured peak, we use a relative mass
+accuracy parameter MA provided by the user. Fragmentation spectra are relatively sparse: For
+any interval of 1 Da in the spectrum, there is at most a few peaks present. On the other hand, we
+demand that the mass accuracy of the measurement is high, say, 20 ppm or better. To this end,
+almost all theoretical molecular formula can explain at most one peak in the measured spectrum.
+A fragmentation tree (FT) T = (V, E) consists of a set of nodes V which are molecular formulas
+over some alphabet of elements, and directed edges (arcs) connecting these nodes. All edges are
+directed away from the root of the tree, and every node can be reached from the root via a
+unique series of edges. In small compound fragmentation, many fragments result from fragmentation
+cascades, that is, series of subsequent fragmentation events; these cascades are modeled by the tree
+structure of the FT. Nodes of the FT are molecular formulas of the unfragmented ion and its
+fragments; edges correspond to losses. For any FT, each molecular formula can appear at most once
+1
+
+http://bio.informatik.uni-jena.de/software/
+
+Fragmentation Trees Reloaded
+
+3
+
+as a node of the tree. For an edge (u, v) ∈ E, u − v is the molecular formula of the corresponding
+loss; we demand that u ≥ v holds (for each component) and, hence, u − v ≥ 0. Let µ(f ) denote the
+theoretical mass of the molecular formula f (either fragment or loss). This will usually be the mass
+of the lightest naturally occurring isotope of an element, such as µ(H) = 1.007825.
+For a given FT, we can simulate a fragmentation spectrum (without intensities), simply using
+the masses of all nodes’ molecular formulas. For the inverse direction, a FT is supported by a
+fragmentation spectrum of a (usually unknown) compound if, for every node of the tree, we find a
+peak in the spectrum such that the mass difference between the molecular formula of the node and
+the peak mass is below some user-defined threshold. Not all peaks of the fragmentation spectrum
+have to be explained by the tree, as we also have to consider noise peaks in the spectrum. We
+demand that every node of the FT explains a unique peak in the spectrum: no two nodes of the tree
+may correspond to the same peak. Allowing more than one node to explain a peak, would violate
+the vast majority of observations: In theory, it is possible that two fragments of a compound have
+different structure but very similar mass, so that both fragments would explain the same peak. In
+practice, this situation is extremely rare and we can safely ignore it.
+We now formalize our above considerations. We say that a FT T = (V, E) is supported by the
+observed data D = (M, I) if each node v ∈ V is assigned a unique peak m ∈ M in the fragmentation
+spectrum that is within the chosen mass accuracy. Furthermore, no two nodes are assigned the same
+peak. We denote the natural injective mapping from the FT nodes to the peaks by m : V → M.
+All peaks in the spectrum not assigned to a node of the FT, are regarded as noise peaks. Our task
+is to find a FT that “best explains” the observed data, where goodness-of-fit is measured by some
+scoring function that matches FT and mass spectrum.
+This formulation of the problem is not easily accessible by algorithmic means; to this end,
+Böcker and Rasche [5] gave an alternative formulation which, for additive scorings, is equivalent to
+the above: For each peak in the fragmentation spectrum, we find all molecular formulas with mass
+difference sufficiently small. These molecular formulas are the nodes of a directed acyclic graph
+(DAG) called fragmentation graph. Nodes are colored so that all molecular formulas corresponding
+to the same peak have the same color. Recall that we must use at most one vertex for each color
+(peak) in our FT. Edges are inserted whenever one molecular formula is a sub-formula of another.
+Edges are appropriately weighted using some score function. It is straightforward to check that there
+is a 1-1 correspondence between colorful subtree, that use every color in the graph at most once,
+and FTs supported by the data. We search for a colorful subtree of this graph that has maximum
+weight. The underlying computational problem has been coined Maximum Colorful Subtree;
+unfortunately, this problem is computationally hard [23]. Nevertheless, there exist a number of
+algorithms (both exact and heuristic) to solve the problem in practice [5, 23]. In this paper, we
+will not cover any algorithmic details of the problem; we solve our instances using Integer Linear
+Programming (ILP) as described in [23].
+
+3
+
+Maximum a Posteriori Estimation
+
+Our maximum a posteriori estimate roughly follows the scoring introduced by Böcker and Rasche [5],
+further refined by Rasche et al. [21,22]. These scorings were motivated by stochastic considerations,
+but only in an informal way. Here, we will strictly model the problem as a maximum a posteriori
+estimation, which allows us to make sensible choices for the (hyper)parameters of the method.
+Bayesian Statistics tell us that
+P(Tj |D) =
+
+P(D|Tj ) · P(Tj )
+P(D|Tj ) · P(Tj )
+=P
+,
+P(D)
+i P(D|Ti ) P(Ti )
+
+(1)
+
+4
+
+Kai Dührkop and Sebastian Böcker
+
+where D is the data (the measured spectrum) and Tj are the models (the candidate FTs). We want
+to maximize the posterior probability P(Tj |D) which is equivalent to maximizing P(D|T ) · P(T ) over
+all possible models T . Here, P(D|T ) is the probability of the data given the model T , and P(T ) is the
+prior probability of model T , based on prior information that we have about FTs without considering
+the actual data D. We have considerable background information about the prior probability of any
+given FT: For example, smaller losses are usually more frequent than larger losses, and certain losses
+such as H2 O or CO turn up very frequently.
+We stressed repeatedly that we are interested in those FTs only that are supported by the data.
+To this end, we demand P(D|T ) = 0 and, hence, P(T |D) = 0 for any tree T that is not supported
+by the data D. In the following, we assume that each considered FT is supported by the data.
+We now introduce computations for prior probability and likelihood of the tree. Due to space
+constraints, we defer all details to the long version of this paper.
+3.1
+
+Prior Probability of the Tree
+
+We first concentrate
+on the prior P(T ). We will not demand that priors sum to one but only that
+P
+the sum i P(Ti ) P(D|Ti ) converges, what is sufficient for optimizing P(T ) · P(D|T ). But this is
+obviously true: The number of models Ti we are considering is finite, as we are only consider trees
+supported by the data. We assume that, for all trees of constant size, prior probabilities of the nodes
+and edges of T are independent so that
+Y
+Y
+P(T ) = P(size |E| of the tree) ·
+P(v) ·
+P(e).
+v∈V
+
+e∈E
+
+Here, P(v) is the prior probability to see a particular fragment in a FT, and P(e) is the prior
+probability to see a particular loss in a FT. The independence assumption is obviously violated in
+reality, but allows us to come up with simple yet meaningful priors. We can simplify this equation,
+noting that every node of the tree except the root has exactly one incoming edge. For molecular
+formulas u, v let Pedge (u, v) be the prior that fragment v and loss u − v are simultaneously seen in
+the tree, and let Proot (u) be the prior that the tree is rooted with molecular formula u. Then,
+Y
+P(T ) ∝ P(size |E| of the tree) · Proot (r) ·
+Pedge (u, v)
+(2)
+(u,v)∈E
+
+where r is the root of T .
+Prior of the Root. We use the following uninformative prior to filter out structurally impossible
+molecular formulas: For each compound, the sum of valences has to be greater than or equal to twice
+the number of atoms minus one [26]. This corresponds to a non-negative ring double bond equivalent
+(RDBE) value. In addition, we use five informative priors: First, assume that the compound is not
+a radical, then the sum of valences is even [26]. If the compound ion is protonated, then the sum of
+valences of the ion is odd. As both intrinsically charged molecules and free radicals are comparatively
+rare, we use prior 0.1 for molecular formulas with even sum of valences, and 1 for all others. Second,
+the ratio between hetero atoms and carbon atoms is usually relatively small for biomolecules [15].
+We find that this ratio becomes even more informative if we also exclude oxygen from the hetero
+atoms. We model the “hetero minus oxygen to carbon ratio” (HMOTCR) using a uniform prior for
+small ratios, and a Pareto distribution for larger ratios. Third, for the ring double bond equivalent
+(RDBE), we observed that the value RDBE/m2/3 is roughly normal distributed, where m is the
+mass of the compound. We use the density of the normal distribution as the prior. The last two
+priors penalize molecular formulas containing rare elements as well as formulas containing phosphor
+
+Fragmentation Trees Reloaded
+
+5
+
+atoms without oxygen or sulfur atoms (as 99% of the compounds in KEGG that contain phosphor
+also contain oxygen or sulfur). The root prior Proot (r) is the product of these five priors. We stress
+that informative priors never discard any molecular formulas but rather, decrease the scores of these
+formulas. The root prior becomes less important as more peaks are contained in the spectrum (and
+nodes in the tree). But for compounds that do not fragment very well the root prior may help to
+identify the correct molecular formula.
+Priors of Edges. The prior probability Pedge (u, v) of an edge e = (u, v) is estimated from different
+factors, namely prior knowledge about implausible (and radical) losses, the mass of the loss, common
+losses, as well as common fragments. We first penalize implausible losses of an edge (u, v) using a
+prior Ploss-impl (u, v) on the loss u − v. This is a small list of losses that repeatedly turned up during
+our combinatorial optimization, but that were rejected in the expert evaluation in [22]. In particular,
+we penalize losses that contain only nitrogen or only carbon; radical losses with certain exceptions;
+and few losses from a list of losses generated by expert knowledge. Since these are losses that we do
+not want to see, there appears to be no sensible way to learn such implausible losses from the data.
+Instead, we have to rely on expert knowledge and evaluation of FTs computed by the method, to
+collect this list. Also, priors for such implausible losses were chosen ad hoc as there appears to be
+no sensible way of learning such penalties from the data.
+Regarding the mass of a loss, we assume that large losses are less likely than small losses.
+Unfortunately, there is only a very small number of annotated FTs available in the literature,
+and these are usually measured on different instruments (and instrument types) using different
+experimental setup and, hence, are mostly incomparable. To this end, we chose to estimate the
+loss mass distribution using FTs determined by our method. Different from [5, 21, 22] we do not
+penalize the relative size of the mass but rather the mass itself, as this allows for a more stringent
+incorporation of common losses. Combinatorics dictates that there exists only a small number of
+losses below, say, 30 Da. Besides certain common losses, this implies that the number of small losses
+is also small, but increases rapidly until some maximum is reached. Beyond this mass, we find that
+the probability to observe a loss drops rapidly in the beginning, but stays significantly above zero
+even for large masses. To model these observations, we use a log-normal distribution as a classical
+example of a long-tailed distribution.
+Some losses turn up more often than we would expect from the loss mass distribution. In [5]
+a expert-curated list of common losses was introduced, and this list was further refined in [21, 22].
+Such hand-curated lists can be incomplete and, worse, prior probabilities have to be chosen ad hoc.
+We chose to learn common losses and their prior probabilities from our training data.
+Similar to the root, we want to penalize molecular formulas with extreme “hetero minus oxygen
+to carbon ratio” (HMOTCR) and RDBE value of a fragment. As proposed in [5] we do not penalize
+a child if we have already penalized the parent, as both HMOTCR and RDBE values are hereditary.
+We set the prior to be the minimum value of one and the ratio of the priors of child and parent.
+For a FT to be informative, it is useful that the FT includes fragments of small masses, even
+if the corresponding peaks have small intensities and, possibly as a result, larger mass deviations.
+The molecular formula identification of peaks with small masses is easier due to fewer possible
+explanations. Therefore, we add a prior that rewards fragments with small masses.
+Finally, we noticed that certain fragments turn up repeatedly in FTs. The explanation for this
+observation is simple and is known to MS experts for decades: Certain groups such as C6 H4 (benzyne)
+or C4 H7 N (pyrroline) can be cleaved off as ions, leading to characteristic peaks in the mass spectra.
+But giving priors for both common losses and common fragments, clearly violates the independence
+assumption: If we know the molecular formulas of a fragment and one of its losses, then this also
+tells us the molecular formula of the child fragment. To this end, we chose a “cautious” prior that
+
+6
+
+Kai Dührkop and Sebastian Böcker
+
+rewards only few and small common fragments which have been observed very often, whereas the
+vast majority of fragments receive a flat prior.
+Prior of the Tree Size. The FT we will compute should explain a large number of peaks; We want
+to favor large trees over small ones. The priors we have introduced so far do exactly the opposite:
+Many edges result in many probabilities we have to multiply, and small trees are favored over large
+|E|
+trees. To this end, we introduce one last prior: We assume P(size |E| of the tree) ∝ Ptree-size where
+Ptree-size := Ptree-norm · Ptree-bonus . Here, Ptree-norm is chosen to counter the effects of the other priors
+on average, whereas Ptree-bonus is −0.5 by default but can be increased by the user to favor larger
+trees.
+3.2
+
+Likelihood of the Tree
+
+Recall that each considered FT T = (V, E) is supported by the data D = (M, I). This implies the
+existence of a natural injective mapping m : V → M: Each node v ∈ V is assigned a unique peak
+m(v) in the fragmentation spectrum. All peaks in the spectrum not assigned to a node of the FT,
+are noise peaks and also contribute to the likelihood of the tree.
+To simplify our computations,
+we assume independence between the measured peaks in M =
+Q
+{m1 , . . . , mL }, so P(D|T ) = l P(ml |T ). Here and in the following, ml refers both to the l-th peak
+and to its mass. Furthermore, we may assume that for each peak, the probability of the tree to
+generate some peak depends only on the corresponding hypothetical fragment, so P(m(v)|T ) =
+P(m(v)|v) for all v ∈ V . Then,
+Y
+Y
+P(D|T ) =
+P(ml |T ) =
+P(m(v)|v) · P(unassigned peaks|T )
+l
+
+v∈V
+
+for appropriately chosen P(m(v)|v). Here, P(unassigned peaks|T ) is the probability that all
+unassigned peaks M − {m(v) : v ∈ V }, which cannot be explained by T , are noise peaks. We
+assume that different noise peaks are again independent.
+Unassigned peaks cannot be scored in the FT optimization, as only those nodes and edges are
+scored that are actually part of the tree. Note again that each node is assigned a unique peak, and
+that no two nodes are assigned the same peak. We reach
+P(D|T ) = P(all peaks are noise) ·
+
+Y
+v∈V
+
+P(m(v)|v)
+P(m(v) is noise)
+
+for appropriate P(m(v)|v). Again, for fixed data D, the probability of all peaks being noise
+simultaneously is a constant, and can be ignored in the optimization of P(T |D).
+We will now show how to compute the probability of signal peaks and noise peaks. Currently,
+there exists no general model for the intensity of signal peak in small compound MS. Here, the
+problem is even harder, as we do not know the fragment’s molecular structure but only its molecular
+formula. Similarly, there exists no sensible model for the mass of noise peaks. To this end, we will use
+only the peak mass to assess the probability of signal peaks; and only peak intensity to assess the
+probability of noise peaks. The intensity of peak m is I(m); for brevity we write I(v) := I(m(v)).
+Probability of Signal Peaks. It has been frequently observed that relative mass deviations are roughly
+normally-distributed [14,33]. We found this to be the case for our datasets, too. We assume that the
+instrument is decently calibrated, then relative mass errors are distributed according to N (0, σm ).
+We ignore that no mass errors above some threshold can be observed (truncated normal distribution)
+
+Fragmentation Trees Reloaded
+
+7
+
+as this has a negligible effect on our computations. The probability to observe a peak with mass
+m(v) for node/fragment v can be estimated as
+
+
+
+
+|m(v)−µ(v)|
+√
+P(m(v)|v) = P |N (0, σm )| ≥ |m(v)−µ(v)|
+.
+(3)
+=
+erf
+µ(v)
+σ
+2µ(v)
+m
+
+This is the two-sided probability that a mass deviation larger than the observed relative mass
+deviation of peak m(v) will occur by chance. Here, “erf” denotes the error function.
+Probability of Noise Peaks. We can estimate the probability that a certain peak is noise, by observing
+that noise with high intensity are much rarer than noise peaks with small intensity. Previous versions
+of FT calculation [5,22] implicitly assumed that noise peak intensities are exponentially distributed.
+For our data, we observe that with increasing intensity, the probability to observe a noise peak
+of this intensity drops rapidly in the beginning, but stays significantly above zero even for large
+intensities. This is an example of a long-tailed distribution, and we use the Pareto distribution as a
+classical example of a long-tailed distribution.
+Let xi be the peak intensity threshold used for peak picking. The probability density function
+of the Pareto distribution is αi xαi i /xαi +1 for mass x. αi is the shape parameter of the distribution
+and can be learned from data using a maximum likelihood estimator. The probability of observing
+a noise peak m with intensity I or higher, is P(m is noise) = αi xαi i /I αi +1 .
+3.3
+
+Posterior Probability of the Tree
+
+From the above we infer that
+P(T ) · P(T |D) ∝ Proot (r) ·
+
+Y
+e∈E
+
+(Pedge (e) · Ptree-size ) ·
+
+Y
+
+erf
+
+
+
+|m(v)−µ(v)|
+√
+σm 2µ(v)
+
+.
+
+α
+
+α i xi i
+I(v)αi +1
+
+
+
+(4)
+
+v∈V
+
+for FT T = (V, E) with root r ∈ V . This allows us to weight the edges of the fragmentation graph:
+For each edge (u, v) we set its edge weight
+
+
+α
+α i xi i
+√
+−
+log
+w(u, v) := log Pedge (u, v) + log Ptree-size + log erf |m(v)−µ(v)|
+(5)
+αi +1 .
+I(v)
+σ
+2µ(v)
+m
+
+With these edge weights, the colorful subtree of maximum weight corresponds to the FT with
+maximum posterior probability; more precisely, ordering colorful subtrees with respect to their
+weight, is equivalent to ordering the corresponding FTs by posterior probability.
+3.4
+
+Hypothesis-driven Recalibration.
+
+To improve the quality of FTs, we have implemented a hypothesis-driven recalibration [4]. We are
+given one fragmentation spectrum at a time. For each candidate molecular formula explaining the
+root, we compute a FT, and then use the theoretical masses of all nodes in the FT as references
+to recalibrate the sample spectrum. We then compute the optimal FT for the recalibrated sample
+spectrum and the candidate molecular formula, and use this score to evaluate which root molecular
+formula best explains the data. Then, the recalibration is discarded, returning to the original
+measured sample spectrum, and the next root molecular formula is processed.
+We note that our hypothesis-driven recalibration (HDR) is fundamentally different from, say,
+the recalibration proposed in [28]: Using HDR, each spectrum is recalibrated individually, using
+each peaks best theoretical explanation as anchors for the mass correction. In this way, we do not
+require a homogeneous dataset of mass spectra to start the recalibration process.
+
+8
+
+Kai Dührkop and Sebastian Böcker
+450
+
+mass deviation of annotated peaks (GNPS)
+
+intensity of noise peaks (GNPS)
+
+400
+
+300
+
+350
+250
+
+density
+
+density
+
+300
+250
+200
+150
+
+200
+150
+100
+
+100
+50
+
+50
+0
+−0.006
+
+−0.004
+
+−0.002
+
+0.000
+
+0.002
+
+mass deviation (Da)
+
+0.004
+
+0.006
+
+0
+0.00
+
+0.01
+
+0.02
+
+0.03
+
+0.04
+
+0.05
+
+0.06
+
+0.07
+
+intensity
+
+Fig. 2. Left: Normalized histogram of the mass error distribution. Right: Normalized histogram of the noise peak
+intensity distribution and fitted Pareto distribution (dashed line). GNPS dataset.
+
+4
+
+Results
+
+Datasets. The GNPS dataset was downloaded from the GNPS database in December 2014 (http:
+//gnps.ucsd.edu). We analyze a total of 2 006 non-peptide compounds with mass below 1010 Da
+where mass spectra were recorded in positive mode, and mass accuracy of the parent mass was
+below 10 ppm. For each compound, a single fragmentation spectra was recorded on an Agilent
+QTOF with electrospray ionization. The Agilent dataset is available under the name “MassHunter
+Forensics/Toxicology PCDL” (version B.04.01) from Agilent Technologies (Santa Clara, CA, USA).
+The commercial library has been cleaned by idealizing peak masses and removing noise peaks, but
+Agilent provided us with an uncorrected version of this dataset, which is used here. For this dataset,
+2 120 compounds fulfill the above criteria. Fragmentation spectra at collision energies 10, 20, and
+40 eV were recorded on an Agilent 6500 Series QTOF system with electrospray ionization. Only
+relative intensities were recorded, so preprocessing was applied to merge spectra recorded at different
+collision energies. The masses of the compounds in both dataset range from 85 Da to 980 Da with
+an average mass of 340 Da.
+Each dataset was split into two disjoint batches: The CHNOPS batch contains compounds
+that use solely elements CHNOPS (GNPS: 1 589 compounds, Agilent: 1 540 compounds), whereas
+compounds from the contains FClBrI batch contain at least one atom from FClBrI (GNPS: 417,
+Agilent: 580).
+Estimating the (Hyper)parameters. To apply our model to real data, we have to fit the
+(hyper)parameters for priors and the likelihood estimation. We optimize hyperparameters in an
+iterative procedure, using FTs from the previous round to determine parameters of the current. See
+the long version of this paper for all details.
+For both datasets, we observe that mass errors follow a normal distribution, see Fig. 2. By manual
+inspection, we estimate MA = 10 ppm. The maximum likelihood estimation for our datasets leads
+to a normal distribution with σm = 5.5. But we find that using a higher standard deviation σm = 10
+gives us better results due to the lower weight our scoring is giving to the mass deviation. In both
+datasets, we observe an exponential decay of noise peaks (i.e. peaks without an explanation for
+the parent molecular formula) with increasing intensity, see Fig. 2. We estimate xi = 0.002 and
+αi = 0.34 for GNPS and xi = 0.005, and αi = 0.5 for Agilent.
+
+Fragmentation Trees Reloaded
+
+9
+
+0.018
+
+0.018
+
+0.016
+
+0.016
+
+0.014
+
+0.014
+
+Kernel density
+
+Density
+
+Loss mass Distribution (GNPS + Agilent)
+
+0.012
+0.010
+0.008
+
+0.012
+0.010
+0.008
+
+0.006
+
+0.006
+
+0.004
+
+0.004
+
+0.002
+
+0.002
+
+0.000
+
+0
+
+50
+
+100
+
+150
+
+200
+
+mass in Da
+
+250
+
+300
+
+350
+
+400
+
+0.000
+
+0
+
+50
+
+100
+
+150
+
+200
+
+mass in Da
+
+250
+
+300
+
+350
+
+400
+
+Fig. 3. Loss mass distribution, after the final round of parameter estimation. Frequencies of the losses are weighted
+by the intensity of their peaks. The frequency of the identified common losses have been decreased to the value of
+the log-normal distribution. Left: Normalized histogram for bin width 17 Da. Right: Kernel density estimation. Black
+(dashed): Maximum likelihood estimate of the log-normal distribution.
+
+Common losses are outliers, in the sense that their frequency is far higher than we would expect
+for a loss of this mass. During our iterative procedure we find 34 common losses, 13 of them were
+already listed in [5,21,22], further 16 losses could be assigned to known structures. See Fig. 3 for the
+agreement between the observed distribution of loss masses (corrected for common losses) and the
+fitted log-normal distribution. We estimate µls = 4.02 and σls = 0.31 for the loss mass distribution,
+with mode eµls = 55.84 Da.
+Evaluation Results. There is practically no way to determine the ground truth of the fragmentation
+process; even the comparison with fragmentation cascades obtained using MSn data is not a
+satisfactory solution. Manual evaluation is very work-intensive and, hence, infeasible for the two
+large-scale datasets considered here. To this end, we evaluate the performance of our method in
+answering a question where the true answer is known.
+To identify the molecular formula of a compound, we rank the FTs and, hence, the molecular
+formulas according to the reached posterior probabilities. Besides mass accuracy and noise peak
+intensity, the user has to provide the alphabet of elements the unknown compound can be made
+from. For batch CHNOPS we use this alphabet of elements without further restrictions. For batch
+“contains FClBrI” we assume that we know upfront which of the elements, besides CHNOPS, may
+be contained in the compound. Such information can be obtained from the isotope pattern and the
+tandem mass spectrum using, say, machine learning (manuscript in preparation).
+See Fig. 4 for the molecular formula prediction performance of the method. As expected,
+prediction is much harder for the batch containing halogens. Also, the new scoring significantly
+increases the number of instances where we can recover the correct molecular formula. We evaluate
+our method both against the method from [21,22] as published there, using a dynamic programming
+(DP) approach for finding the best FT; plus, scores from [21, 22] together with the ILP from [23].
+As our second evaluation of FT quality, we want to search a spectral library with a query
+compound not contained in the database; the goal of this search is to find compounds that are
+structurally similar [7, 21]. In a leave-one-out evaluation, we use each compound as our query;
+for each query, we sort all remaining entries of the database with respect to our similarity score,
+then evaluate the average chemical similarity of the first k entries. Instead of forcing each query
+
+10
+
+Kai Dührkop and Sebastian Böcker
+Method comparison (GNPS + Agilent)
+
+100
+
+90
+
+80
+70
+60
+50
+40
+
+our method
+old scoring
+SIRIUS2
+
+30
+1
+
+2
+
+3
+
+4
+
+identified compounds (%)
+
+90
+
+identified compounds (%)
+
+Our Method (different datasets)
+
+100
+
+80
+70
+60
+50
+Agilent, CHNOPS
+Agilent, contains FClBrI
+GNPS, CHNOPS
+GNPS, contains FClBrI
+
+40
+30
+
+5
+
+1
+
+2
+
+3
+
+ranking
+
+4
+
+5
+
+ranking
+
+Fig. 4. Performance evaluation, percentage of instances (y-axis) where the correct molecular formula is present in the
+TOP k for k = 1, . . . , 5 (x-axis). Left: Performance evaluation for different methods on both datasets. Methods are
+“our method” (the method presented here), “old scoring” (scores from [21,22] with ILP), “SIRIUS2 ” (scores from [21,22]
+with DP). Right: Performance for the two compound batches (CHNOPS as solid line, “contains FClBrI” as dashed
+line) and the two datasets (GNPS green, Agilent blue).
+
+Leave-one-out search
+
+0.8
+0.6
+0.4
+0.2
+our method
+old scoring
+0.0
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+peakcounting
+Tanimoto MACCS
+6
+
+7
+
+average size of result list
+
+cross database search
+
+1.0
+
+8
+
+9
+
+normalized average chemical similarity
+
+normalized average chemical similarity
+
+1.0
+
+10
+
+0.8
+0.6
+0.4
+0.2
+our method
+old scoring
+0.0
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+peakcounting
+Tanimoto MACCS
+6
+
+7
+
+average size of result list
+
+8
+
+9
+
+10
+
+Fig. 5. Similarity search performance plots for chemical similarity. Methods “our method” and “old scoring” compute
+FTs using ILP and compare trees via tree alignments [21]. Method “peak counting” uses direct spectral comparison.
+Method “MACCS” uses fingerprints computed from the structure of the compound. Left: Similarity search with
+Leave-one-out strategy on both datasets. Right: Similarity search across the databases. Compounds from GNPS are
+searched in Agilent and vice-versa.
+
+compound to return the same number of entries, we just enforce that in average each query returns
+k entries. The cross database evaluation is done analogously, but using GNPS compounds as query
+and searching in the Agilent database (and vice-versa).
+We measure chemical similarity using Tanimoto coefficients and PubChem fingerprints. See Fig. 5
+for a comparison of the old and new FTs, using tree alignments from [21] to compute similarity scores.
+We also compare to direct spectral comparison via peak counting, which gave us best results of all
+methods for direct spectral comparison on these datasets, and Tanimoto scores computed by MACCS
+fingerprint. Remark that for computing MACCS fingerprints, the structure of the compound have
+to be known, while for spectral and FT alignments only the spectrum is necessary. We normalize
+score such that the optimal method reaches similarity score 1, and the random method reaches 0.
+
+Fragmentation Trees Reloaded
+
+5
+
+11
+
+Conclusion
+
+We have presented a maximum a posteriori estimator for the problem of computing fragmentation
+trees, that performs significantly better than previous approaches for the problem. Identification
+performance can be significantly improved by adding isotope pattern information [3, 8, 22] but this
+data is not available for the two datasets. The only alternative method for estimating a molecular
+formula (solely) from tandem MS data is the commercial MOLGEN-MS/MS software [17,25], which
+performs roughly on par with SIRIUS2 (DP version) [28].
+We used the new scoring in the CASMI (Critical Assessment of Small Molecule Identification)
+challenge 2013 to determine the molecular formula of 12 unknown compounds. Using the
+fragmentation tree analysis as presented here, we correctly identified 8 molecular formulas, and
+placed an additional 3 in the TOP2 [8]. In conjunction with isotope pattern analysis [3] we identified
+10 out of 12 molecular formulas, and our method SIRIUS was selected “best automated tool” of the
+molecular formula challenge [18]. Furthermore, the new scoring was used to compute fragmentation
+trees as part of a novel approach for determining molecular fingerprints from tandem MS data
+which, in turn, can be used to search molecular structure databases [27]. Here, the improved FT
+structure resulted in significantly improved prediction performance.
+Acknowledgments. We thank Frank Kuhlmann and Agilent Technologies, Inc. (Santa Clara, USA)
+for providing uncorrected peak lists of their spectral library. We thank Pieter Dorrestein, Nuno
+Bandeira (University of California) and the GNPS community for making their data accessible.
+
+References
+1. F. Allen, R. Greiner, and D. Wishart. Competitive fragmentation modeling of ESI-MS/MS spectra for putative
+metabolite identification. Metabolomics, 2014. Doi 10.1007/s11306-014-0676-4.
+2. M. Baker. Metabolomics: From small molecules to big ideas. Nat Methods, 8:117–121, 2011.
+3. S. Böcker, M. Letzel, Zs. Lipták, and A. Pervukhin. SIRIUS: Decomposing isotope patterns for metabolite
+identification. Bioinformatics, 25(2):218–224, 2009.
+4. S. Böcker and V. Mäkinen. Combinatorial approaches for mass spectra recalibration. IEEE/ACM Trans Comput
+Biology Bioinform, 5(1):91–100, 2008.
+5. S. Böcker and F. Rasche. Towards de novo identification of metabolites by analyzing tandem mass spectra.
+Bioinformatics, 24:I49–I55, 2008. Proc. of European Conference on Computational Biology (ECCB 2008).
+6. M. A. Cooper and D. Shlaes. Fix the antibiotics pipeline. Nature, 472(7341):32, 2011.
+7. W. Demuth, M. Karlovits, and K. Varmuza. Spectral similarity versus structural similarity: Mass spectrometry.
+Anal Chim Acta, 516(1-2):75–85, 2004.
+8. K. Dührkop, F. Hufsky, and S. Böcker. Molecular formula identification using isotope pattern analysis and
+calculation of fragmentation trees. Mass Spectrom, 3(special issue 2):S0037, 2014.
+9. M. Gerlich and S. Neumann. MetFusion: integration of compound identification strategies. J Mass Spectrom,
+48(3):291–298, 2013.
+10. M. Heinonen, H. Shen, N. Zamboni, and J. Rousu. Metabolite identification and molecular fingerprint prediction
+via machine learning. Bioinformatics, 28(18):2333–2341, 2012. Proc. of European Conference on Computational
+Biology (ECCB 2012).
+11. H. Horai, M. Arita, S. Kanaya, Y. Nihei, T. Ikeda, K. Suwa, Y. Ojima, K. Tanaka, S. Tanaka, K. Aoshima, Y. Oda,
+Y. Kakazu, M. Kusano, T. Tohge, F. Matsuda, Y. Sawada, M. Y. Hirai, H. Nakanishi, K. Ikeda, N. Akimoto,
+T. Maoka, H. Takahashi, T. Ara, N. Sakurai, H. Suzuki, D. Shibata, S. Neumann, T. Iida, K. Tanaka, K. Funatsu,
+F. Matsuura, T. Soga, R. Taguchi, K. Saito, and T. Nishioka. MassBank: A public repository for sharing mass
+spectral data for life sciences. J Mass Spectrom, 45(7):703–714, 2010.
+12. F. Hufsky, K. Scheubert, and S. Böcker. Computational mass spectrometry for small molecule fragmentation.
+Trends Anal Chem, 53:41–48, 2014.
+13. F. Hufsky, K. Scheubert, and S. Böcker. New kids on the block: Novel informatics methods for natural product
+discovery. Nat Prod Rep, 31(6):807–817, 2014.
+14. N. Jaitly, M. E. Monroe, V. A. Petyuk, T. R. W. Clauss, J. N. Adkins, and R. D. Smith. Robust algorithm for
+alignment of liquid chromatography-mass spectrometry analyses in an accurate mass and time tag data analysis
+pipeline. Anal Chem, 78(21):7397–7409, 2006.
+
+12
+
+Kai Dührkop and Sebastian Böcker
+
+15. T. Kind and O. Fiehn. Seven golden rules for heuristic filtering of molecular formulas obtained by accurate mass
+spectrometry. BMC Bioinformatics, 8:105, 2007.
+16. L. C. Menikarachchi, S. Cawley, D. W. Hill, L. M. Hall, L. Hall, S. Lai, J. Wilder, and D. F. Grant. MolFind:
+A software package enabling HPLC/MS-based identification of unknown chemical structures. Anal Chem,
+84(21):9388–9394, 2012.
+17. M. Meringer, S. Reinker, J. Zhang, and A. Muller. MS/MS data improves automated determination of molecular
+formulas by mass spectrometry. MATCH-Commun Math Co, 65:259–290, 2011.
+18. T. Nishioka, T. Kasama, T. Kinumi, H. Makabe, F. Matsuda, D. Miura, M. Miyashita, T. Nakamura, K. Tanaka,
+and A. Yamamoto. Winners of CASMI2013: Automated tools and challenge data. Mass Spectrom, 3(special issue
+2):S0039, 2014.
+19. G. J. Patti, O. Yanes, and G. Siuzdak. Metabolomics: The apogee of the omics trilogy. Nat Rev Mol Cell Biol,
+13(4):263–269, 2012.
+20. T. Pluskal, T. Uehara, and M. Yanagida. Highly accurate chemical formula prediction tool utilizing highresolution mass spectra, MS/MS fragmentation, heuristic rules, and isotope pattern matching. Anal Chem,
+84(10):4396–4403, 2012.
+21. F. Rasche, K. Scheubert, F. Hufsky, T. Zichner, M. Kai, A. Svatoš, and S. Böcker. Identifying the unknowns by
+aligning fragmentation trees. Anal Chem, 84(7):3417–3426, 2012.
+22. F. Rasche, A. Svatoš, R. K. Maddula, C. Böttcher, and S. Böcker. Computing fragmentation trees from tandem
+mass spectrometry data. Anal Chem, 83(4):1243–1251, 2011.
+23. I. Rauf, F. Rasche, F. Nicolas, and S. Böcker. Finding maximum colorful subtrees in practice. J Comput Biol,
+20(4):1–11, 2013.
+24. M. Rojas-Chertó, P. T. Kasper, E. L. Willighagen, R. J. Vreeken, T. Hankemeier, and T. H. Reijmers. Elemental
+composition determination based on MSn . Bioinformatics, 27:2376–2383, 2011.
+25. K. Scheubert, F. Hufsky, and S. Böcker. Computational mass spectrometry for small molecules. J Cheminform,
+5:12, 2013.
+26. J. Senior. Partitions and their representative graphs. Amer J Math, 73(3):663–689, 1951.
+27. H. Shen, K. Dührkop, S. Böcker, and J. Rousu. Metabolite identification through multiple kernel learning on
+fragmentation trees. Bioinformatics, 30(12):i157–i164, 2014. Proc. of Intelligent Systems for Molecular Biology
+(ISMB 2014).
+28. M. A. Stravs, E. L. Schymanski, H. P. Singer, and J. Hollender. Automatic recalibration and processing of
+tandem mass spectra using formula annotation. J Mass Spectrom, 48(1):89–99, 2013.
+29. M. N. Thaker, W. Wang, P. Spanogiannopoulos, N. Waglechner, A. M. King, R. Medina, and G. D. Wright.
+Identifying producers of antibacterial compounds by screening for antibiotic resistance. Nat Biotechnol,
+31(10):922–927, 2013.
+30. D. S. Wishart, C. Knox, A. C. Guo, R. Eisner, N. Young, B. Gautam, D. D. Hau, N. Psychogios, E. Dong,
+S. Bouatra, R. Mandal, I. Sinelnikov, J. Xia, L. Jia, J. A. Cruz, E. Lim, C. A. Sobsey, S. Shrivastava, P. Huang,
+P. Liu, L. Fang, J. Peng, R. Fradette, D. Cheng, D. Tzur, M. Clements, A. Lewis, A. D. Souza, A. Zuniga,
+M. Dawe, Y. Xiong, D. Clive, R. Greiner, A. Nazyrova, R. Shaykhutdinov, L. Li, H. J. Vogel, and I. Forsythe.
+HMDB: A knowledgebase for the human metabolome. Nucleic Acids Res, 37:D603–D610, 2009.
+31. S. Wolf, S. Schmidt, M. Müller-Hannemann, and S. Neumann. In silico fragmentation for computer assisted
+identification of metabolite mass spectra. BMC Bioinformatics, 11:148, 2010.
+32. O. Yanes, J. Clark, D. M. Wong, G. J. Patti, A. Sánchez-Ruiz, H. P. Benton, S. A. Trauger, C. Desponts, S. Ding,
+and G. Siuzdak. Metabolic oxidation regulates embryonic stem cell differentiation. Nat Chem Biol, 6(6):411–417,
+2010.
+33. R. Zubarev and M. Mann. On the proper use of mass accuracy in proteomics. Mol Cell Proteomics, 6(3):377–381,
+2007.
+
+

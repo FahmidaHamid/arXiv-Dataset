@@ -1,0 +1,971 @@
+Topological Entropy
+
+arXiv:1101.4636v1 [q-bio.QM] 24 Jan 2011
+
+David Koslicki
+January 25, 2011
+Abstract
+Topological entropy has been one of the most difficult to implement of all the entropytheoretic notions. This is primarily due to finite sample effects and high-dimensionality problems. In particular, topological entropy has been implemented in previous literature to conclude that entropy of exons is higher than of introns, thus implying that exons are more
+“random” than introns. We define a new approximation to topological entropy free from the
+aforementioned difficulties. We compute its expected value and apply this definition to the
+intron and exon regions of the human genome to observe that as expected, the entropy of
+introns are significantly higher than that of exons. Though we surprisingly find that introns
+are less random than expected: their entropy is lower than the computed expected value. We
+observe the perplexing phenomena that chromosome Y has atypically low and bi-modal entropy, possibly corresponding to random sequences (high entropy) and sequences that posses
+hidden structure or function (low entropy). A Mathematica implementation is available at:
+http://www.math.psu.edu/koslicki/entropy.nb
+
+1
+
+Introduction
+
+Entropy, as a measure of information content and complexity, was first introduced by Shannon
+(1948). Since then entropy has taken on many forms, namely topological, metric (due to Shannon),
+Kolmogorov-Sinai, and Rènyi entropy. These entropies were defined for the purpose of classifying
+a system via some measure of complexity or simplicity. These definitions of entropy have have
+been applied to DNA sequences with varying levels of success. Topological entropy in particular
+is infrequently used due to high-dimensionality problems and finite sample effects. These issues
+stem from the fact that the mathematical concept of topological entropy was introduced to study
+infinite length sequences. It is universally recognized that the most difficult issue in implementing
+entropy techniques is the convergence problems due to finite sample effects (Vinga and Almeida
+2004; Kirillova 2000). A few different approaches to circumvent these problems with topological
+entropy and adapt it to finite length sequences have been attempted before. For example, in
+Troyanskaya et al. (2002),linguistic complexity (the fraction of total subwords to total possible
+subwords) is utilized to circumvent finite sample problems. This though leads to the observation
+that the complexity/randomness of intron regions is lower than the complexity/randomness of exon
+regions. However, in Colosimo and de Luca (2000) it is found that the complexity of randomly
+produced sequences is higher than that of DNA sequences, a result one would expect given the
+commonly held notion that intron regions of DNA are free from selective pressure and so evolve
+more randomly than do exon regions. Also, little has been done in the way of mathematically
+analyzing other finitary implementations of entropy due to most previous implementations using
+1
+
+an entire function instead of a single value to represent entropy (thus the expected value would be
+very difficult to calculate)
+In this paper we focus on topological entropy, introducing a new definition that has all the desired
+properties of an entropy and still retains connections to information theory. This approximation,
+as opposed to previous implementations, is a single number as opposed to an entire function, thus
+greatly speeding up the calculation time and removing high-dimensionality problems while allowing
+more mathematical analysis. This definition will allow the comparison of entropies of sequences
+of differing length, a property no other implementation of topological entropy has been able to
+incorporate. We will also calculate the expected value of the topological entropy to precisely draw
+out the connections between topological entropy and information content. We will then apply this
+definition to the human genome to observe that the entropy of intron regions is in fact lower than
+that of exon regions in the human genome as one would expect. We then provide evidence indicating
+that this definition of topological entropy can be used to detect sequences that are under selective
+pressure.
+
+2
+2.1
+
+Methods
+Definitions and Preliminaries
+
+We restrict our attention to the alphabet A = {A, C, T, G}. For a finite sequence w over the alphabet
+A, we use |w| to denote the length of w. Of primary importance in the study of topological entropy
+is the complexity function of a sequence w (finite or infinite) formed over the alphabet A.
+Definition 1 (Complexity function). For a given sequence w, the complexity function pw : N → N
+is defined as
+pw (n) = |{u : |u| = n and u appears as a subword of w}|
+That is, pw (n) represents the number of different n-length subwords (overlaps allowed) that
+appear in w.
+Now the traditional definition of topological entropy of an infinite word w is the asymptotic
+exponential growth rate of the number of different subwords:
+Definition 2. For an infinite sequence w formed over the alphabet A, the topological entropy is
+defined as
+log4 pw (n)
+lim
+n→∞
+n
+Due to the limit in the above definition, it is easily observed that this definition will always lead
+to an answer of zero if applied directly to finite length sequences. This is due to the fact that the
+complexity function of infinite length sequences is non-decreasing, while of finite length sequences
+it is eventually zero. We include in figures 1 and 2 a log-linear plot of the complexity functions
+for the gene ACSL4 found on ChrX:108906440-108976621 (hg19) as well as for an infinite string
+generated by a Markov chain on four states with equal transition probabilities.
+The graph of the complexity function of the gene found in figure 1 is entirely typical of the
+graph of a complexity function for a finite sequence as can be seen by the following proposition.
+The proof can be found in the nice summary by Colosimo and de Luca (2000). Note that in the
+following m and M are numbers whose calculation is straightforward.
+
+2
+
+pwHnL
+80 000
+60 000
+40 000
+20 000
+
+10
+
+100
+
+1000
+
+104
+
+n
+105
+
+Figure 1: Log-Linear Plot of the Complexity Function of the Gene ACSL4
+
+pwHnL
+100 000
+80 000
+60 000
+40 000
+20 000
+
+1
+
+10
+
+100
+
+1000
+
+104
+
+105
+
+n
+
+Figure 2: Log-Linear Plot of the Complexity Function of a Random Infinite Sequence.
+
+Proposition 1 (Shape of Complexity Function). For a finite sequence w, there are integers m, M ,
+and N = |w|, such that the complexity function pw (n) is strictly increasing in the interval [0, m],
+non-decreasing in the interval [m, M ] and strictly decreasing in the interval [M, N ]. In fact, for n
+
+3
+
+in the interval [M, N ] we have pw (n + 1) − pw (n) = −1.
+Now for a finite sequence w we desire that an approximation of topological entropy Htop (w)
+should have the following properties:
+1. 0 ≤ Htop (w) ≤ 1
+2. Htop (w) ≈ 0 if and only if w is highly repetitive (contains few subwords)
+3. Htop (w) ≈ 1 if and only if w is highly complex (contains many subwords)
+4. For different length sequences v, w, Htop (w) and Htop (v) should be comparable
+It should be noted that item 4 on this list is of utmost importance when implementing topological
+entropy. It is very important to normalize with respect to length since otherwise when counting the
+number of subwords, longer sequences will appear artificially more complex simply due to the fact
+that since the sequence is longer, there are more chances for subwords to show up. This explains
+the “linear correlation” between sequence length and the implementations of topological entropy
+used in Karamanos et al. (2006) and Kirillova (2000). This also hints at the incomparability of the
+notions of entropy contained in Karamanos et al. (2006), Colosimo and de Luca (2000), Kirillova
+(2000), and Schmitt and Herzel (1997).
+Recall that an approximation of topological entropy should give an approximate asymptotic
+exponential growth rate of the number of subwords. With this and the above properties in mind,
+it is immediately concluded that we can disregard the values of pw (n) for n in the interval [m, N ]
+mentioned in proposition 1. In fact, as in Colosimo and de Luca (2000) the only information
+gained by considering pw (n) for n in the interval [m, N ] has to do with the specific combinatorial
+arrangement of “special factors” and has little to do with the complexity of a sequence.
+We define the approximation to topological entropy as follows
+Definition 3 (Topological Entropy). Let w be a finite sequence of length |w|, let n be the unique
+integer such that
+4n + n − 1 ≤ |w| < 4n+1 + (n + 1) − 1
+n
+
+Then for w14
+
++n−1
+
+the first 4n + n − 1 letters of w,
+Htop (w) :=
+
+log4 (pw4n +n−1 (n))
+1
+
+n
+
+The reason for concatenating w to the first 4n + n − 1 letters is due to the following two facts
+whose proofs are omitted.
+Lemma 1. A sequence w over the alphabet {A, C, T, G} of length 4n + n − 1 can contain at most
+4n subwords of length n. Conversely, if a word w is to have 4n subwords, it must have length at
+least 4n + n − 1.
+Thus if we had taken an integer m > n in the above definitions and instead utilized
+w would not be long enough to contain all different possible subwords.
+
+log4 (pw (m))
+,
+m
+
+Lemma 2. Say a sequence w has length 4n + n − 1 for some integer n, then if w contains all
+possible subwords of length n formed on the alphabet {A, C, T, G}, then Htop (w) = 1
+4
+
+Thus if a sequence of length 4n + n − 1 is “as random as possible” (i.e. contains every possible
+subword), its topological entropy is 1, just as we would expect in the infinite sequence case. Similarly,
+if w is “as nonrandom as possible”, that is, if w is simply the repetition of a single letter 4n + n − 1
+times, then Htop (w) = 0.
+Furthermore, if we had not used concatenation in definition 3, then for a sequence v such that
+|v| > |w|, the topological entropy of v would on average be artificially higher due to v being a longer
+sequence and thus has more opportunity for the appearance of subwords. Thus, by concatenating
+we have allowed sequences of different lengths to have comparable topological entropies.
+This definition of topological entropy serves as a measure of the randomness of a sequence: the
+higher the entropy, the more random the sequence. The justification for this finite implementation
+giving an approximate characterization of randomness is given in Ornstein and Weiss (2007) in
+which it is shown that functions of entropy are the only finitely observable invariants of a process.
+
+2.2
+
+Expected Value
+
+While topological entropy has been well studied for infinite sequences, very little has been done by
+way of mathematically analyzing topological entropy for finite sequences. This lack of analysis is
+most likely due to topological entropy as in the literature (Kirillova 2000; Crochemore and Renaud
+1999; Schmitt and Herzel 1997) being considered not as a single number to be associated to a DNA
+sequence, but rather the entire function log4 pnw (n) is considered for every n. This approach turns
+topological entropy (which should be just a single number associated to a DNA sequences) into a
+very high dimensional problem. In fact, as many dimensions as is the length of the DNA sequence
+under consideration. Our definition given above (definition 3) does in fact associate just a single
+number (instead of an entire function) to a sequence, and so is much more analytically tractable.
+We now utilize the results of Gheorghiciuc and Ward (2007) to compute the expected value of
+the above topological entropy. This will assist us in determining what constitutes “high” or “low”
+entropy. First, we calculate the expected value of the complexity function pw (n). As is commonly
+assumed (Lio and Goldman 1998; Hasegawa et al. 1985; Jukes and Cantor 1969), we now assume
+that DNA sequences evolve in the following way: each state in a Markov fashion independent of
+neighboring states. We do not assume a single model of molecular evolution, but rather just assume
+that there is some set of probabilities {πA , πC , πT , πG } such that the probability of appearance of
+a sequence w is given by the following: for nA the number of occurrences of the letter A in w, nC
+the number of occurrences of the letter C in w, etc., the probability of the sequence w appearing is
+given by:
+nA nC nT nG
+P(w) = πA
+πC πT πG
+This assumption regarding the probability of appearance of a DNA sequence is used only to
+procure a distribution against which we may calculate the expected number of subwords. The actual
+calculation of topological entropy as in definition 3 does not make any such assumption about the
+probability of appearance.
+Theorem 1 (Expected Value of the Complexity Function). The expected value of the complexity
+function pw (n) taken over sequences of length |w| = n + k − 1 is given by
+X
+E[pw (n)] = 4k −
+(1 − P(w))n + O(n−ǫ µn )
+(1)
+w
+
+where the summation is over all sequences w of length n, and 0 < ǫ < 1, µ < 1 (these are explicitly
+computed constants based on the πi defined above, see (Gheorghiciuc and Ward 2007)).
+5
+
+Proof. See (Gheorghiciuc and Ward 2007).
+This theorem has a particularly nice reduction when one assumes that the probability of appearance of each subletter is the same (equivalent to the the expected value being computed with
+a uniform distribution on the set of all sequences of a certain length).
+Corollary 1. Assuming that πA = πC = πT = πG = 1/4, the expected value of complexity function
+taken over sequences of length |w| = n + k − 1 is given by
+1
+E[pw (n)] = 4k − 4k (1 − ( )k )n + O(n−ǫ µk )
+q
+
+(2)
+
+While clearly there is a mononucleotide bias for different genomic regions and DNA sequences
+do not occur uniformly randomly, we do assume equal probability of appearance of each nucleotide
+as then the calculation of the expected number of subwords reduces in computational complexity
+from exponential to linear in the length of the sequence.
+It is a straightforward calculation to combine formula 2 with definition 3 and compute the
+constants ǫ and µ as set forth in Gheorghiciuc and Ward 2007. Doing so, we obtain the following
+expected value for the topological entropy.
+Theorem 2 (Expected Value of Topological Entropy). The expected value of topological entropy
+taken over sequences of length |w| = 4n + n − 1 is given by
+n
+
+E[Htop ] =
+
+log4 (4n − 4n (1 − 1/4n )4 + O(( √12 ))n )
+n
+
+(3)
+
+We now present in table 1 the calculated estimation of the expected value of Htop using the
+above formula. Keep in mind that the convergence of this calculation to the actual expected value
+is exponentially quick (the term O(( √12 ))n ) as n increases (and so also the length of the sequence).
+We thus ignore the O(( √12 ))n term in the following calculation.
+Table 1: Calculated Expected Value of Topological Entropy
+n
+
+4n + n − 1
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+
+4
+17
+66
+249
+1028
+4101
+16390
+65543
+262152
+1048585
+4194315
+16777227
+
+Calculated
+Expected
+Value of Htop
+.725606
+.841242
+.890810
+.917489
+.933868
+.944865
+.952736
+.958642
+.963237
+.966914
+.969921
+.972428
+
+6
+
+For comparison’s sake, we present in table 2 the sampled expected values for n = 1, . . . , 9
+along with sampled standard deviations (the calculation where made by explicitly computing the
+topological entropy of uniformly randomly selected sequences).
+Table 2: Sampled Expected Value and Standard Deviation of Topological Entropy
+n
+
+4n + n − 1
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+4
+17
+66
+249
+1028
+4101
+16390
+65543
+262152
+
+Sampled
+Expected
+Value of
+Htop
+.703583
+.838956
+.890576
+.917457
+.933869
+.944861
+.952733
+.958642
+.963237
+
+Sampled
+Standard
+Deviation
+
+Sample Size
+
+.184798
+.0508640
+.0176785
+.00674325
+.0027160
+.00113176
+.000486368
+.000212283
+.0000944814
+
+256
+300000
+300000
+300000
+300000
+300000
+300000
+300000
+300000
+
+Summarizing this table, the topological entropy of randomly selected sequences is tightly centered around the expected value which itself is close to one. Furthermore, the distribution of
+topological entropy is very close to a normal distribution as can be observed from the histogram
+of topological entropy for sequences of length 49 + 9 − 1 included in figure 3. The skewness and
+kurtosis are .0001996 and 2.99642 respectively.
+Figure 3: Histogram of Topological Entropy of Randomly Selected Sequences of Length 49 + 9 − 1 =
+262152
+
+1500
+
+1000
+
+500
+
+0.9630
+
+0.9632
+
+7
+
+0.9634
+
+0.9636
+
+Htop
+
+3
+
+Algorithm
+
+An implementation of this approximation to topological entropy is available at:
+http://www.math.psu.edu/koslicki/entropy.nb
+We mention a few notes regarding this estimation of topological entropy. First, if a sequence w in
+consideration has a length such that for some n, 4n + n− 1 < |w| < 4n+1 + n it will be more accurate
+to use a sliding window to compute the topological entropy. For example, if |w| = 16000, we would
+normally concatenate this sequence to the first 4101 letters. This might misrepresent the actually
+topological entropy of the sequence. Accordingly, we could instead compute the average of the
+topological entropy of the following sequences (where wnm means the subsequence of w consisting
+of the nth to mth letters of w):
+16000
+w14101 , w24102 , w34103 , . . . , w11899
+
+This is computationally intensive, so for longer sequences, one might instead choose to take nonoverlapping windows, so finding the average of the topological entropy of the sequences
+8203
+12305
+,...
+, w8204
+w14101 , w4102
+
+The above website includes serial and parallel versions of the algorithm. The fastest version utilizes
+Nvidia CUDA GPU computing, has complexity O(n) for a sequence of length n, and takes an
+average of 5.2 seconds to evaluate on a DNA sequence of length 16,777,227 when using an Intel
+i7-950 3.6 GHz CPU and an Nvidia GTX 460 GPU.
+
+3.1
+
+Comparison to Traditional Measures of Complexity
+
+Other measures of DNA sequence complexity similar to this approximation of topological entropy
+include: previous implementations of topological entropy (Kirillova, 2000), special factors (Colosimo
+and de Luca, 2000), Shannon’s metric entropy (Kirillova, 2000; Farach et al., 1995), Rènyi continuous entropy (Vinga and Almeida, 2004; Rènyi, 1961), and linguistic complexity (LC) (Troyanskaya
+et al., 2002; Gabrielian and Bolshoy, 1999).
+The implementation of topological entropy in Kirillova (2000) does not produce a single number
+representing entropy, but rather an entire sequence of values. Thus while the implementation of
+Kirillova (2000) does distinguish between artificial and actual DNA sequences, Kirillova notes that
+the implementation is hampered by high-dimensionality and finiteness problems.
+In Colosimo and de Luca (2000), it is noted that the special factors approach does not differentiate between introns and exons.
+Note also that the convergence of our approximation of topological entropy is even faster than
+that of Shannon’s metric entropy. Shannon’s metric entropy of the sequence u for the value n is
+defined as
+−1 X
+µu (w) log(µu (w))
+Hmet (u, n) =
+n w
+where the summation is over all words of length n and µu (w) is the probability (frequency) of the
+word w appearing in the given sequence u. Thus Shannon’s metric entropy requires not only the
+appearance of subwords, but for the actual frequency of appearance of the subwords to converge
+as well. As can be seen from definition 3, our notion of topological entropy does not require the
+use of the actual subword frequencies. So topological entropy will in general be more accurate than
+8
+
+Shannon’s metric entropy for shorter sequences. Accordingly, the convergence issues mentioned in
+Farach et al. (1995) (even with the clever Lempel-Ziv estimator) can be circumvented.
+Furthermore, it is not difficult to show (as in Blanchard et al. (2000), Proposition 1.2.5) what
+is known as the Variational Principle, that is, topological entropy dominates metric entropy: for
+any sequence u (finite or not) and integer n
+Hmet (u, n) ≤ Htop (u, n)
+
+(4)
+
+Thus topological entropy retains connections to the information theoretic interpretation of metric
+entropy as set forth by Shannon (1948). Since topological entropy bounds metric entropy from
+above:
+Low topological entropy of a sequence implies that it is “less chaotic” and is “more
+structured.”
+This connection to information theory is also an argument for the use of topological entropy over
+Rènyi continuous entropy of order α (see Vinga and Almeida (2004) for more details). Rènyi
+(1961) showed that for α 6= 1, one cannot define conditional and mutual information functions and
+hence Rènyi continuous entropy does not measure “information content” in the usual sense. So
+while Rènyi entropy does allow for the identification of statistically significant motifs (Vinga and
+Almeida, 2004), one cannot conclude that higher/lower Rènyi continuous entropy for α 6= 1 implies
+more/less information content or complexity in the usual sense.
+Thus LC is the only other similar measurement of sequence complexity that produces a single
+number representing the complexity of a sequence. Like our implementation of topological entropy,
+the implementation of LC contained in Troyanskaya et al. (2002) also runs in linear time. A
+comparison of our implementation of topological entropy and LC is contained in section 4.4.
+
+4
+4.1
+
+Application to Exons/Introns of the Human Genome
+Method
+
+We now apply our definition of topological entropy to the intron and exon regions of the human
+genome.
+We retrieved the February 2009 GRCh37/ hg19 human genome assembly from the UCSC
+database and utilized Galaxy (Blankenberg et al. 2010; Blankenberg et al. 2007) to extract the
+nucleotide sequences corresponding to the introns and exons of each chromosome (including ChrX
+and ChrY). Now even though as argued above topological entropy converges more quickly than
+metric entropy, one must be careful to not use this definition of topological entropy on sequences
+that are too short as this would lead to significant noise. For example, the UCSC database contains
+exons that consist of a single base and it is meaningless to attempt to measure topological entropy
+of such sequences. Hence we selected the longest 100 different intron and exon sequences from each
+chromosome.
+After ensuring that each sequence consisted only of letters from {A, C, T, G}, we then applied
+the approximation of topological entropy found in definition 3 to the resulting sequences. For
+comparison’s sake we also applied the approximation of topological entropy to the longest 50, 200,
+and 400 sequences, as well as to all the intron and exon sequences. The salient observed features
+9
+
+persist throughout. Though as expected, when shorter sequences are allowed, the results become
+noisier.
+To investigate in more detail the relationship between regions under selective pressure and the
+value of topological entropy, we also selected each 5’ and 3’ UTR on chromosome Y that consisted
+of more than 43 + 3 − 1 = 66 bp.
+
+4.2
+
+Data
+
+Figure 4 displays the error bar plot for the longest 100 exons and introns. The error bar plots for
+the longest 50, 200, and 400 sequences, as well as the plot for all the intron and exon sequences
+are, for brevity’s sake, not shown. Figure 5 displays the error bar plot for chromosome Y 5’ and 3’
+UTRs which are longer than 66bp long.
+Figure 4: Error bar plot of average topological entropy for the longest 100 introns and exons in
+each chromosome
+Htop
+0.94
+0.93
+0.92
+0.91
+0.90
+0.89
+0.88
+
+4.3
+
+Chr Y
+
+Chr X
+
+Chr 22
+
+Chr 21
+
+Chr 20
+
+Chr 19
+
+Chr 18
+
+Chr 17
+
+Chr 16
+
+Chr 15
+
+Chr 14
+
+Chr 13
+
+Chr 12
+
+Chr 11
+
+Chr 10
+
+Chr 9
+
+Chr 8
+
+Chr 7
+
+Chr 6
+
+Chr 5
+
+Chr 4
+
+Chr 3
+
+Chr 2
+
+Chr 1
+
+Introns
+
+Chromosome
+
+Exons
+0.87
+
+Analysis and Discussion
+
+We first discuss the results regarding intron and exon regions. As figure 4 demonstrates, the
+topological entropies of intron regions of the human genome are larger than the topological entropies
+of the exon regions. For example, the mean of the entropies of the introns on chromosome 21 is
+more than 11 standard deviations away from the mean of the entropy of the exons on the same
+chromosome. This result supports the commonly held notion that intron regions of DNA are
+mostly free from selective pressure and so evolve more randomly than do exon regions. We thus
+suggest that the observation of Karamanos et al. (2006), Troyanskaya et al. (2002), Mantegna
+et al. (1995), and Stanley et al. (1999) that intron entropy is smaller than exon entropy is due
+10
+
+Figure 5: Error bar plot of chromosome Y 5’ and 3’ UTRs longer than 66bp long
+
+Htop
+0.94
+0.92
+0.90
+0.88
+Region
+
+3' UTRs
+
+5' UTRs
+
+0.86
+
+to the aforementioned finite sample effects and high-dimensionality problems related to previous
+implementations of entropy.
+Interestingly, even though we observe that intron entropy is larger than exon entropy, the
+entropies of both regions are much lower than expected (here expectation is as calculated in table
+1). Indeed, of the longest 100 sequences, the average intron length is 180880 and the average exon
+length is 2059, so according to tables 1 and 2, we would expect the entropies to be .966914 and
+.933853 respectively. We find, though, that the average entropy for introns is .9323166 and for
+exons is .897451. Note that the largest intron sequence entropy (Htop = .943627 for an intron of
+length 1.1Mbp found on chromosome 16) is significantly lower than the expected value of .969921
+(at least 60 standard deviations from the expectation). This is not too surprising considering
+that the expectation as calculated in theorem 2 uses the uniform distribution. This supports the
+conclusion that while intron regions do evolve more randomly than exon regions, introns do not
+evolve uniformly randomly.
+Note the disparity between the entropies of the sex chromosomes: The entropy of chromosome
+X in both intron and exon regions is significantly higher than in chromosome Y. In fact, the mean
+of chromosome X intron entropies is 3.5 standard deviations higher than the mean of chromosome
+Y intron entropies; the mean of chromosome X exon entropies is 1 standard deviation higher
+than the mean of chromosome Y exon entropies. Thus the X chromosome has intron and exon
+entropy similar to that of the autosomes, but chromosome Y has significantly differing exon and
+intron entropy. This is a particularly puzzling result considering that chromosome Y is known
+to have a high mutation rate and a special selection regime (Wilson and Makova 2009a; Wilson
+and Makova 2009b; Graves 2006), and so one would expect the entropy of chromosome Y (both
+11
+
+intron and exon regions) to be much higher than it is. In fact, the chromosome Y introns have
+the lowest mean topological entropy of any intron region across the entire genome. This would
+suggest that the accumulation of “junk” DNA and the massive accumulation of retrotransposable
+elements mentioned in Graves (2006) have some underlying function or structure. More specifically,
+it appears that the intron regions in chromosome Y might fall into two categories: the truly “junk”
+DNA consisting of the introns with topological entropy greater than .910, and the introns that have
+hidden structure consisting of those sequences with entropy less than .910. We present in figure 4.3
+a histogram of the topological entropy on chromosome Y demonstrating the distinction between
+the two categories.
+Figure 6: Histogram of topological entropy of introns in chromosome Y
+15
+
+10
+
+5
+
+0.84
+
+0.86
+
+0.88
+
+0.90
+
+0.92
+
+Htop
+
+Remaining on chromosome Y, we now present evidence that topological entropy can be used to
+detect sequences that are under selective pressure. Note that Siepel et al. (2005) showed that both
+5’ and 3’ UTRs are among the most conserved elements in vertebrate genomes. Thus one would
+expect that the topological entropy of these regions would be very low (as this is indicative of a
+high degree of structure). As indicated in figure 5, the entropy of both the 5’ and 3’ region are low
+in comparison to the entropy of the intron and exon regions across the autosomes. In fact the mean
+of the topological entropy of the 5’ and 3’ UTRs (.871545 ± .0290619 and .879163 ± .0219371) are
+lower than the mean entropy of any intron or exon region across every chromosome. The lowest
+mean topological entropy for an autosome is .927802 ± .00539 on chromosome 19, this is more than
+nine standard deviations higher than the mean of topological entropy for either the 3’ or 5’ UTRs.
+This lends support to the assertion that topological entropy can be used to detect functional regions
+and regions under selective constraint.
+
+12
+
+Figure 7: Histogram of topological entropy for 5’ and 3’ UTRs in chromosome Y
+
+5' UTRs
+
+3' UTRs
+
+Htop
+
+150
+
+100
+
+50
+
+0.75
+
+4.4
+
+0.80
+
+0.85
+
+0.90
+
+Comparison to Linguistic Complexity
+
+As mentioned in section 3.1, LC is the only other similar measurement of sequence complexity
+that produces a single number to represent the complexity of a sequence. We applied the algorithm
+described in Troyanskaya et al. (2002) and written by Larsson (1999) to the same data set contained
+in section 4.1 of this paper. To obtain directly comparable results, we used a window size as big
+as the given sequence is long. As can be seen in figure 8, LC does distinguish between introns
+and exons to an extent, though not to the same quality of resolution as that of topological entropy
+(compare to figure 4). For example, while topological entropy consistently measures introns as
+more random than exons, LC does not. This discrepancy is most likely due to linguistic complexity
+being effectively utilized (Troyanskaya et al., 2002) as a sliding window method to detect repetitive
+motifs, not as a holistic measure of sequence information content. So we also applied LC using a
+sliding window of 2000bp, taking the average value of LC on a given sequence, and then averaging
+on a given chromosome (see figure 9). Using the sliding window, LC does give a higher value to
+introns than to exons (except on chromosome 5). While the separation between the LC of introns
+and exons becomes more pronounced, the resolution is still not nearly as clear as with topological
+entropy since a large amount of error persisted. The LC values amongst introns and exons are well
+within one standard deviation of each other across the entire genome.
+
+13
+
+Figure 8: Error bar plot of linguistic complexity on introns and exons using window as long as the
+sequence.
+LC
+1.00
+
+0.99
+
+0.98
+
+Exons
+
+Chromosome
+
+Chr Y
+
+Chr X
+
+Chr 22
+
+Chr 21
+
+Chr 19
+
+Chr 18
+
+Chr 17
+
+Chr 16
+
+Chr 15
+
+Chr 14
+
+Chr 13
+
+Chr 12
+
+Chr 11
+
+Chr 10
+
+Chr 9
+
+Chr 8
+
+Chr 7
+
+Chr 6
+
+Chr 5
+
+Chr 4
+
+Chr 3
+
+Chr 2
+
+Chr 1
+
+Chr 20
+
+Introns
+
+0.97
+
+Figure 9: Error bar plot of linguistic complexity on introns and exons using 2000bp windows.
+LC
+1.005
+
+1.000
+
+0.995
+
+0.990
+
+Exons
+
+Chromosome
+
+Chr Y
+
+Chr X
+
+Chr 22
+
+Chr 21
+
+Chr 19
+
+Chr 18
+
+Chr 17
+
+Chr 16
+
+Chr 15
+
+Chr 14
+
+Chr 13
+
+Chr 12
+
+Chr 11
+
+Chr 10
+
+Chr 9
+
+Chr 8
+
+Chr 7
+
+Chr 6
+
+Chr 5
+
+Chr 4
+
+Chr 3
+
+Chr 2
+
+Chr 1
+
+Chr 20
+
+Introns
+
+0.985
+
+0.975
+
+5
+
+Conclusion
+
+This implementation of topological entropy is free from issues that other implementations have
+encountered. Namely, this definition allows for the comparison of sequences of different length
+and does not suffer from multi-dimensionality complications. Since this definition supplies a single
+
+14
+
+value to characterize the complexity of a sequence, it is much more capable of being mathematically
+analyzed. Beyond measuring the complexity or simplicity of a sequence, we presented evidence that
+our approximation to topological entropy might detect functional regions and sequences free from or
+under selective constraint. The speed and simplicity of this implementation of topological entropy
+makes it very suitable for utilization in detecting regions of high/low complexity. For example, we
+observe the novel phenomena that the introns on chromosome Y have atypically low and bi-modal
+entropy, possibly corresponding to random sequences and sequences that posses hidden structure
+or function.
+
+Acknowledgments
+The author would like to thank Manfred Denker, Kateryna Makova, and Francesca Chiaromonte
+for their assistance and fruitful discussion regarding this paper. This work was supported by the
+National Science Foundation [grant number DMS-1008538].
+
+References
+[1] Blanchard, F., Maass, A., Nogueira, A. eds 2000. Topics in symbolic dynamics and applications.
+London Math. Soc. Lecture Note Ser. Cambridge Univ. Press, 279.
+[2] Blankenberg D, Von Kuster G, Coraor N, Ananda G, Lazarus R, Mangan M, Nekrutenko A,
+Taylor J. 2010. Galaxy: a web-based genome analysis tool for experimentalists. Current Protocols
+in Molec. Biol. 19:1–21
+[3] Blankenberg D, Taylor J, Schenk I, He J, Zhang Y, Ghent M, Veeraraghavan N, Albert I, Miller
+W, Makova K, Hardison RC, Nekrutenko A. 2007. A framework for collaborative analysis of
+ENCODE data: Making large-scale analyses biologist-friendly, Genome Research. 17:6:960–964.
+[4] Colosimo, A., de Luca, A. 2000. Special factors in biological strings. J. Theor. Biol. 204:29–46.
+[5] Crochemore, M., Vèrin, R.. 1999. Zones of low entropy in genomic sequences. Computers &
+Chemistry. 23:275–282.
+[6] Farach, M., Noordewier, M., Savari, S., Shepp, L., Wyner, A., Ziv, J. 1995. On the entropy
+of DNA: algorithms and measurements based on memory and rapid convergence. Proceedings of
+the sixth annual ACM-SIAM symposium on discrete algorithms, SIAM, Philadelphia, PA. pp.
+48–57.
+[7] Gabrielian, A., Bolshoy, A. 1999. Sequence complexity and DNA curvature. 23:263–274.
+[8] Gheorghiciuc, I., Ward, M.D. 2007. On correlation polynomials and subword complexity, Conf.
+on Analysis of Alg., DMTCS Proc AH. pp. 1–18.
+[9] Graves, J. A. M. 2006. Sex chromosome specialization and degeneration in mammals. Cell.
+124:5:901–914.
+[10] Hasegawa, M., Kishino, H., Yano, T. 1985. Dating of the human-ape splitting by a molecular
+clock of mitochondrial DNA, J. Mol. Evol., 22: 160–174.
+15
+
+[11] Jukes, T.H., Cantor, C.R. 1969. Evolution of protein molecules, In Mammalian Protein
+Metabolism (ed. H.N. Munro), Academic Press, New York, New York, pp. 21–132.
+[12] Karamanos, K, Kotsireas, I., Peratzakis, A., and Eftaxias, K. 2006. Statistical compressibility
+analysis of DNA sequences by generalized entropy-like quantities: Towards algorithmic laws for
+Biology?, Proc. of the 6th WSEAS Int. Conf. on Applied Informatics and Communications,
+18:481–491.
+[13] Kirillova, O.V. 2000. Entropy concepts and DNA investigations, Phys. Letters A, 274:247–253.
+[14] Larsson, N.J. 1999. Structures of String Matching and Data Compression, PhD. Thesis, Lund
+University, Sweden.
+[15] Lio, P., Goldman, N. 1998. Models of molecular evolution and phylogeny, Genome Res., 8:1233–
+1244.
+[16] Mantegna, R.N., Buldyrev, S.V., Goldberger, A.L., et. al. 1995. Systematic analysis of coding
+and noncoding DNA sequences using methods of statistical linguistics. Phys. Rev E, 52:3:2939–
+2950.
+[17] Ornstein, D., Weiss, B. 2007. Entropy is the only finitely observable invariant, J. Mod. Dyn.,
+1:93–107.
+[18] Rènyi, A. 1961. On measures of information and entropy, Proc. of the 4th Berkely Sympo. on
+Math. Stat. and Prob., Vol. I, Univ. California Press, Berkely, Calif. pp. 547–561.
+[19] Schmitt, A.O., Herzel, H. 1997. Estimating the entropy of DNA sequences, J. Theor. Biol.
+1888:369–377.
+[20] Schmutz, J., Martin, J. Terry, A. et. al. 2004. The DNA sequence and comparative analysis of
+human chromosome 5, Nature, 431:268–274.
+[21] Shannon, C.E. 1948. A Mathematical theory of communication, Bell Sys. Tech. J., 27:379–423.
+[22] Siepel, A., Bejerano, G., Pedersen, J.S., et. al. 2005. Evolutionarily conserved elements in
+vertebrate, insect, worm, and yeast genomes. Genome Res., 15:8:1034–1050.
+[23] Stanley, H.E., Buldyrev, S.V., Goldberger, A.L., Havlin, S., Peng, C.-K., Simons, M. 1999.
+Scaling features of noncoding DNA, Physica A, 273:1–18.
+[24] Troyanskaya, O.G., Arbell, O., Koren, Y., Landau, G.M, Bolshoy, A. 2002. Sequence complexity profiles of prokaryotic genomic sequences: A fast algorithm for calculating linguistic
+complexity, Bioinformatics, 18:5:679–688.
+[25] Vinga, S., Almeida, J.S. 2004. Rènyi continuous entropy of DNA sequences, J. Theor. Biol.
+231: 377–388.
+[26] Wilson, M. A., Makova, K. D. 2009. Genomic analyses of Sex chromosome evolution, Annu.
+Rev. Genom. Human Genet., 10:333–354.
+[27] Wilson, M. A., Makova, K. D. 2009. Evolution and survival on eutherian sex chromosomes,
+PLoS 5:7:e1000568.
+
+16
+
+

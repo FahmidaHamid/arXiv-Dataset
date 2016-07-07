@@ -1,0 +1,971 @@
+Deep learning of fMRI big data: a novel approach to
+subject-transfer decoding
+
+arXiv:1502.00093v1 [stat.ML] 31 Jan 2015
+
+Sotetsu Koyamadaa,b,∗, Yumi Shikauchia,b , Ken Nakaea , Masanori Koyamaa ,
+Shin Ishiia,b
+a
+
+Graduate School of Informatics, Kyoto University, Kyoto 606-8501, Japan
+b
+ATR Cognitive Mechanisms Laboratories, Kyoto 619-0288, Japan
+
+Abstract
+As a technology to read brain states from measurable brain activities, brain
+decoding are widely applied in industries and medical sciences. In spite
+of high demands in these applications for a universal decoder that can be
+applied to all individuals simultaneously, large variation in brain activities
+across individuals has limited the scope of many studies to the development
+of individual-specific decoders. In this study, we used deep neural network
+(DNN), a nonlinear hierarchical model, to construct a subject-transfer decoder. Our decoder is the first successful DNN-based subject-transfer decoder. When applied to a large-scale functional magnetic resonance imaging
+(fMRI) database, our DNN-based decoder achieved higher decoding accuracy
+than other baseline methods, including support vector machine (SVM). In
+order to analyze the knowledge acquired by this decoder, we applied principal sensitivity analysis (PSA) to the decoder and visualized the discriminative features that are common to all subjects in the dataset. Our PSA
+successfully visualized the subject-independent features contributing to the
+subject-transferability of the trained decoder.
+Keywords: fMRI, Brain decoding, subject-transfer decoding, deep neural
+network (DNN), principal sensitivity analysis (PSA), brain machine
+interface (BMI)
+
+∗
+
+Corresponding author
+Email address: koyamada-s@sys.i.kyoto-u.ac.jp (Sotetsu Koyamada)
+
+Preprint submitted to Neural Networks SI: NN Learning in Big Data
+
+February 3, 2015
+
+1. Introduction
+Brain decoding is an act of decoding exogenous and/or endogenous brain
+states from measurable brain activities (Haxby et al., 2001; Cox and Savoy,
+2003; Kamitani and Tong, 2005; Shibata et al., 2011; Horikawa et al., 2013).
+It has been attracting much attention in medical and industrial fields as a major next-generation technology. Possible applications include brain machine
+interface (BMI) (LaConte, 2011), neuro rehabilitation (Sitaram et al., 2012)
+and therapy of mental disorders (Sitaram et al., 2007). Brain decoding is a
+function that takes brain activities as input and brain states as output, and
+its performance is evaluated by how well it approximates the real association
+between these two entities. As such, it falls into the category of machine
+learning, and it is often studied in the particular framework of supervised
+learning (Lemm et al., 2011). As in the case of any other applications of
+machine learning, the performance of the decoder depends heavily on the
+quality and quantity of the data used for its training.
+Much difficulty remains in obtaining sufficient data from a single individual to build a reliable decoder. One can extract only so much information
+from a single subject, because there is a limit to the mental and physical
+stress that the subject can endure. One would therefore seek a decoder that
+can be trained using a big data amassed from multiple subjects, so that we
+can reduce the stress per subject while granting the decoder an ability to simultaneously decode heterogeneous dataset, i.e., a subject-transfer decoder
+(Fazli et al., 2009; Raizada and Connolly, 2012; Marquand et al., 2014). For
+an ideal subject-transfer decoder, its decoding accuracy does not deteriorate
+over the dataset obtained from the population outside the group of individuals used in its training. However, large subject-wide variation of the brain
+activities has long hindered the development of such decoders. The scope of
+the brain decoding studies up until recent years has hence been restricted
+to subject-specific (tailor-made) decoder that can only cope with the data
+from the very subject who provided the training dataset (e.g., Cox and Savoy
+(2003); Haxby et al. (2001); Nishimoto et al. (2011); Horikawa et al. (2013)).
+In this work, we will present a subject-transfer decoder in the form of
+a deep neural network (DNN) trained with big data, a decoder aimed at
+classifying the brain activities into seven cognitive task categories. For both
+training and testing, we used a large fMRI dataset in Human Connectome
+Project (HCP) gathered from over 500 subjects. The application of DNN
+to fMRI dataset is not new; Plis et al. (2014) used a fMRI-trained DNN to
+2
+
+study schizophrenia patients, and Hatakeyama et al. (2014) used still another variation of fMRI-trained DNN to classify hand motions. Our work is
+the first of its kind in using a DNN to construct a subject-transfer decoder
+from big data. Our subject-transfer decoder achieved higher decoding accuracy than any other baseline methods like support vector machine (SVM).
+This is indicative of DNN’s superior generalization ability over heterogeneous
+big data. Also, decoding accuracy improved monotonically as the number
+of training subjects increased. In the light of the fact that we are engaged
+in subject-transfer decoding, this monotonic trend suggests that our training is successfully extracting more subject-independent features from larger
+dataset. This also shows that the size of the dataset contributes to the robustness of the decoder over heterogeneous population. DNN together with
+big data thus emerges as an successful new approach to the subject-transfer
+decoding.
+In order to further assess the efficiency of our trained DNN, we applied
+principal sensitivity analysis (PSA) (Koyamada et al., 2014), a brand new
+knowledge discovery procedure, to highlight the subject independent features
+used by the decoders for its function. By illustrating these features on the
+map of brain, we were able to make some connections between these features
+and functional connectivity reported in human fMRI studies (Raichle et al.,
+2001; Raichle and Snyder, 2007; Taylor et al., 2009; Cole et al., 2013).
+This paper is structured as follows. In the method section, we will provide
+the settings under which we trained our DNN, along with the specification
+of the dataset. We will also provide the theoretical background of the PSA.
+In the result section, we will compare the performance of our DNN against
+standard classification techniques, and show how the decoding accuracy of
+the DNN improved as the size of the training dataset increased. We will also
+provide an interpretation of the PSA in terms of functional connectivity in
+the brain.
+2. Methods
+2.1. fMRI data acquisition and preprocessing
+Human Connectome Project (HCP) is a scientific project “to map macroscopic human brain circuits and their relationship to behavior in a large population of healthy adults” (Van Essen et al., 2013), and it provides one of the
+largest open databases of fMRI that are publically available today. In this
+study, we used the task-evoked fMRI data collected from 499 participants
+3
+
+in Quarter 1 through Quarter 6, which were preprocessed and registered by
+Van Essen et al. (2013); Glasser et al. (2013) (HCP S500 release). For more
+details, see the HCP release reference manual1 .
+In this section, we will provide key data specifications and preprocessing
+procedure. fMRI data of 499 healthy adults were acquired by a Siemens 3T
+Skyra, with TR = 720 ms, TE = 33.1 ms, flip angle 52◦ , FOV = 208 × 180
+mm, 72 slices, 2.0 × 2.0 mm in plane resolution. The preprocessing that had
+been applied to the fMRI data in the HCP prior to our own modification includes removal of spatial artifacts and distortions, within-subject cross-modal
+registrations, reduction of the bias field, and alignment to standard space.
+In addition to these processes, we applied voxel-wise z-score transformation
+to the data and averaged the intensity over each anatomical region of interest (aROI). The intention of the latter averaging procedure is to help the
+decoder learn features that are robust against large inter-subject variability
+of brain activities. aROIs were determined by the automated anatomical
+labeling method (Tzourio-Mazoyer et al., 2002). In the end, the dimension
+per each preprocessed fMRI scan became 116.
+The 499 participants (subjects) in the dataset we studied were asked to
+perform seven tasks related to the following categories: Emotion, Gambling,
+Language, Motor, Relational, Social and Working Memory (WM). Each subject performed each task twice with time limits that varies across different
+tasks (see Table 1). Note that the number of scans conducted in the experiment varies across different tasks. One hundred unrelated subjects completed
+all seven tasks. The WM class occupied the largest proportion (20.88%) of all
+scans for each subject. The experimental design of each task is summarized
+below. See Barch et al. (2013) for more details.
+1. Emotion: Participants were asked to match one of two simultaneously
+presented images with a target image (angry face or fearful face). This
+is a modified version of the emotion task employed in Hariri et al.
+(2002).
+2. Gambling: Participants were asked to play a simple game to get
+money. See Delgado et al. (2000) for more details.
+3. Language: After listening to a brief story, participants were asked to
+answer a two-alternative forced choice question about the topic of the
+story. See Binder et al. (2011) for more details.
+1
+
+www.humanconnectome.org/documentation/S500
+
+4
+
+4. Motor: Participants were requested to move one of five body parts
+(left or right finger, left or right toe, or tongue) as instructed by a
+visual cue (Buckner et al., 2011).
+5. Relational: Each participant was presented with two pairs of objects,
+and was subsequently asked to answer a second-order question regarding the shapes/textures of the objects.
+6. Social: Participants were presented with a movie clip, and were asked
+to decide whether the movements of the objects in the clips are related
+with each other in some way. The movie clips were originally prepared
+by Castelli et al. (2000) and Wheatley et al. (2007).
+7. WM (Working Memory): Participants were asked to complete twoback working memory tasks and zero-back tasks with four different
+types of image stimuli (places, tools, faces or body parts).
+
+Table 1: Number of scans per session and its duration (min:sec)
+
+Scans
+Duration
+
+Emotion
+176
+2:16
+
+Gambling
+253
+3:12
+
+Language
+316
+3:57
+
+Motor
+284
+3:34
+
+Relational
+232
+2:56
+
+Social
+274
+3:27
+
+WM
+405
+5:01
+
+2.2. Deep neural networks
+We trained a deep neural network (DNN) with the input being the fMRI
+signals over aROIs and the output being their labeled task classes, i.e., the
+category of cognitive task performed by the participants. Prior to the training
+step, all fMRI scans were categorized into seven task classes, completely
+disregarding the time order. The weight parameters of the DNN were then
+trained to optimize the probability of successfully classifying the fMRI scans
+into the seven task categories (Fig. 1).
+We trained feed-forward neural networks (i.e., DNNs) with L hidden layers with stochastic gradient descent (SGD) with dropout (Hinton et al.,
+(l)
+2012). The internal potential of the i-th unit in the l-th hidden layer ai
+(l = 1, · · · , L) is given as a weighted summation of its inputs:
+nl−1
+(l)
+ai
+
+=
+
+X
+
+(l) (l−1)
+
+wij zj
+
+j=1
+
+5
+
+(l)
+
++ bi ,
+
+(1)
+
+Emotion sessions	
+Targets	
+
+Hidden	
+
+Gambling sessions	
+Inputs	
+
+Language sessions	
+
+Outputs	
+
+Emotion	
+Gambling	
+Language	
+Motor	
+Relational	
+
+Time	
+
+A sample of
+
+WM	
+
+Social	
+
+WM sessions	
+1 session	
+
+WM	
+
+Time	
+
+Neural Network (2 hidden layers)	
+
+Figure 1: We trained DNNs with the input being the fMRI scans and the output being
+their labeled task classes.
+
+(l)
+
+(l)
+
+where wij and bi are a weight and a bias, respectively. Here, nl is the number
+of units in the l-th hidden layer, which was set at nl = 500 for any l > 0. We
+define z (0) as the input vector x to the network. This forces
+
+ n0 to be equal
+(l)
+(l)
+(l)
+to the input’s dimensionality d(= 116). We denote z = z1 , · · · , znl as
+the outputs of the l-th hidden layer. These outputs are given by applying a
+nonlinear activation function h to the internal potential as
+(l)
+
+(l)
+
+zi = h(ai ).
+
+(2)
+
+Here ReLU (Jarrett et al., 2009), a piecewise linear function max(0, x), was
+used for the activation function h. ReLU as a choice of the activation function
+has a couple of advantages; its piecewise linearity can save the computational
+cost to calculate its derivative, and its non-saturating character in the positive domain prevents the learning algorithm from halting due to gradient
+vanishing of nonlinear activation functions. The last hidden layer was connected to the softmax (output) layer, so that the output from the k-th unit
+of the output layer can be interpreted as the posterior probability of class k,
+given by
+P
+
+(L)
+nL
+exp
+w
+z
++
+b
+k
+j=1 kj j
+P
+,
+P (Y = k | x, W ) = P
+(3)
+(L)
+K
+nL
+0 z
+0
+0
+exp
+w
++
+b
+k
+k =1
+j=1 k j j
+where K(= 7) is the number of classes, and W denotes all the parameters
+(weights and biases) of the whole network. Here, Y is a random variable
+signifying the class to which x belongs.
+6
+
+We used a negative log-likelihood as the cost function of the learning
+L(W ) = −
+
+N
+X
+
+log P (Yn = tn | xn , W ),
+
+(4)
+
+n=1
+
+where {(x1 , t1 ), · · · , (xN , tN )} constituted the given dataset. Here t ∈ {1, · · · , K}
+denotes a class label. To minimize the above cost function, minibatch stochastic gradient descent (MSGD) was introduced so that SGD was performed
+every 100 samples:
+
+∂L0 (W ) 
+,
+(5)
+W t = W t−1 − ηt
+∂W W t−1
+where L0 is the cost function for the cached subset of 100 samples in the
+minibatch, and ηt is the learning rate. For our case we adopted a constant rate
+ηt = η0 , and this value was set at either of {0.1, 1.0} that yielded better result
+for the validation dataset (see Section 2.3). Each weight of hidden layers
+was initialized at a small value randomly sampled from a zero-mean normal
+distribution with the standard deviation of 0.01, and weights of softmax layer
+and biases were initialized to zero. Early stopping was also adopted; if the
+decoding accuracy for the validation dataset did not increase for 100 learning
+epochs, then learning was terminated.
+To further avoid over-fitting, we used the dropout technique (Hinton
+(l)
+et al., 2012). During the training, the activity zi was randomly replaced
+by 0 with probability p. We set p = 0.5 for hidden units and 0.2 for inputs.
+This drop-out procedure plays a role of regularization and is expected to
+prevent the decoder from acquiring subject-specific features. When testing
+the trained neural network, all the nodes were activated, and their weights
+were multiplied by 1 − p. This is to make the mean activity level of each
+network element consistent between the training phase and the test phase.
+2.3. Subject-transfer decoding
+To examine the subject-transferability of our decoder’s architecture, we
+selected hundred individuals from all 499 subjects who (1) are unrelated with
+each other and (2) successfully completed all seven cognitive tasks twice. Let
+D be the dataset of these 100 subjects. We then executed a leave-10-subjectsout (or 10-folds) cross calidation to the dataset D. To be more specific, the
+D was partitioned into a test dataset of 10 subjects, a validation dataset of
+7
+
+10 subjects, and a training dataset of 80 subjects without any overlap. We
+trained our DNN with the training dataset, while using the validation dataset
+to determine the hyper parameters and to perform early stopping. We then
+tested the decoding accuracy of trained DNNs over the test dataset. We
+repeated this cycle 10 times, choosing different test and validation datasets
+in each iteration. In order to examine how the size of the dataset influences
+the decoding accuracy, we conducted the above experiments with different
+size of training dataset (10 ∼ 80 subjects) without changing the test dataset
+and the validation dataset.
+2.4. Analysis for trained decoder
+The purpose of the brain decoder is here to classify the brain activities
+into seven categories. The result of the classification itself, however, does not
+necessarily give informatoin of neuroscientific bases behind the classification.
+One might therefore wish to investigate the decoder in an attempt to learn
+the signature that characterizes each target class. This approach relies on the
+philosophy of “knowledge discovery,” and one may interpret these signatures
+acquired by the decoder as the decoder’s knowledge. Any association between
+the knowledge of the brain decoder and the knowledge of the neuroscience
+can help assess the reason why the decoder performs well/terrible, and in
+some case help understand the neural bases useful in brain decoding. In the
+case of linear decoders, the weight visualization is often used for this purpose
+(Miyawaki et al., 2008; Abraham et al., 2014). Such visualization can be
+inappropriate for decoders with a nonlinear and hierarchical architecture like
+DNN because the middle layer will mask the direct relation between the input
+and output. A well known alternative to the weight visualization in such cases
+is the sensitivity analysis (Zurada et al., 1994, 1997; Kjems et al., 2002),
+which computes the expected sensitivity of the classifier’s output (posterior
+probability of the successful classification) with respect to the perturbation
+in the input. In this study, we applied principal sensitivity analysis (PSA)
+introduced by the authors (Koyamada et al., 2014), a PCA like extension of
+the sensitivity analysis, to our DNN-based decoder. PSA distinguishes itself
+from the ordinary sensitivity analysis in that it can identify the direction in
+the input space to which the classifier is most sensitive. It can also decompose
+the input space into the classifier-sensitive spaces and rank them in order
+of sensitivity. In next two subsections, we briefly describe the sensitivity
+analysis and PSA.
+
+8
+
+2.4.1. Sensitivity analysis
+Let fk (x) : Rd → R be the logarithm of the output from the k-th unit in
+the final layer, namely
+fk (x) := log P (Y = k | x, W ),
+
+(6)
+
+where W is the parameters of the trained decoder. For simplicity, we would
+omit index k in the rest of this section. The sensitivity of f with respect to
+the i-th input feature is defined by
+"
+2 #
+∂f (x)
+,
+(7)
+si := Eq
+∂xi
+where q is the true input distribution. In actual implementation, the expectation (7) is computed with respect to the empirical distribution of the test
+dataset. Kjems et al. (2002) defined the vector
+s := (s1 , . . . , sd )
+
+(8)
+
+of these values as sensitivity map over the set of input features. This
+sensitivity map will give us a measure for the degree of importance that the
+classifier puts to each input.
+2.4.2. Principal Sensitivity Analysis (PSA)
+The purpose of the PSA is to compute the direction v for which f is
+most sensitive in the input space. This amounts to solving the following
+optimization problem about v:
+maximize
+
+s(v)
+
+subject to v T v = 1,
+where s(v) is the sensitivity of f for the direction v, given by
+
+
+s(v) := Eq k∇v f (x)k22 ,
+
+(9)
+
+(10)
+
+where k·k2 defines the L2-norm. Recall that the directional derivative is
+defined by
+∇v f (x) = v T ∇f (x).
+(11)
+
+9
+
+
+
+Because we can rewrite s(v) as v T Kv, where K := Eq ∇f (x)∇f (x)T , the
+optimization problem (9) equals to
+maximize
+
+v T Kv
+
+subject to v T v = 1.
+
+(12)
+
+The solution to this problem is simply the maximal eigenvector ±v ∗ of K.
+Koyamada et al. (2014) defined this vector as principal sensitivity map
+(PSM) over the space of input features. The magnitude of vi represents the
+extent to which f is sensitive to the i-th input feature, and the sign of vi tells
+us the relative direction to which the input feature influences f . Recall that,
+if the positive definite matrix K is replaced by the covariance Eq [xxT ], where
+x is the centered random variable, the optimization problem (12) can be seen
+as the problem of solving for the first principal component of the ordinary
+PCA. Since the k-th component of the ordinary PCA is the k-th dominant
+eigenvector of the covariance matrix, the k-th dominant eigenvector of K can
+be called the k-th principal sensitivity map (k-th PSM). These subprincipal sensitivity maps grant us access to even richer information that
+underlies the dataset through the classifier.
+3. Results
+First, we compared the decoding accuracy of the DNNs with those of
+other baseline methods using the dataset D (see Section 2.3). We trained
+three neural networks with one, two and three hidden layers, each with the
+output logistic regression layer. The baseline methods investigated in this
+study include logistic (softmax) regression, which corresponds to 0-hidden
+layer neural network and SVMs with linear kernel and RBF kernel (see
+Appendix A for the specification of these baseline methods). The mean
+decoding accuracy and its standard deviation in the leave-10-subjects-out
+cross validation are summarized in Table 3. The decoding accuracies of the
+DNN decoders not only exceeded the prior chance level (the true fraction
+of the largest class, 20.88%), but were also higher than those of the other
+baseline methods. In particular, the DNN with two hidden layers exhibited the best decoding accuracy of 50.74%, which was significantly higher
+than that of the RBF-kernel SVM (p < 0.01, one-sided Welch test). Linear methods, the logistic regression and the linear-kernel SVM, showed poor
+decoding accuracies that are comparable to the chance level. These results
+10
+
+Table 2: Sujbect-transfer decoding performance
+
+Method
+Logistic regression
+Support vector machine
+Support vector machine
+Neural network
+Neural network
+Neural network
+Prior chance level
+
+Architecture
+116-7
+Linear kernel
+RBF kernel
+116-500-7
+116-500-500-7
+116-500-500-500-7
+
+Mean accuracy [%]
+20.81
+20.87
+47.97
+48.94
+50.74
+50.57
+
+± s.d.
+± 0.15
+± 0.01
+± 1.57
+± 1.15
+± 1.25
+± 1.31
+20.88
+
+clearly show the advantage of nonlinear decoders over linear decoders in the
+subject-transfer setting, and suggest that the DNN may be more effective in
+extracting subject-independent features from big data than the other baseline
+methods.
+Second, we investigated how the decoder’s performance changes with the
+size of training dataset. We trained the decoder with various sizes of training
+dataset, and plotted the decoding accuracy against the dataset size. In this
+set of experiments, we employed the DNN with two hidden layers (L = 2),
+which showed better decoding accuracy than the L = 1 and L = 3 versions
+over the dataset D. To evaluate the performance of a DNN decoder trained
+with a training set of M subjects, we used the following cross validation
+procedure. The setup of the cross validation is basically same as the one
+explained in Section 2.3. At each iteration of the cross validation procedure,
+we selected 10 subjects for the test set, 10 subjects for the validation set,
+and M subjects for the training set from the dataset D without any overlap.
+We repeated this process 10 times, selecting 10 entirely new subjects for
+the test set at each iteration. We conducted this set of iteration procedure
+for M = 10 ∼ 80. In order to check the asymptotic trend of the decoding
+accuracy, we examined the M = 479 case as well, in which all of the 499
+subjects registered in the S500 release were used. The results are displayed
+in Fig. 2. As the number of subjects in the training dataset increased from 10
+to 80, the performance of the DNN decoder also increased, as expected. The
+performance was best at M = 479. We attribute this trend to the positive
+relationship between the size of the training dataset and the reliability of
+the subject-independent features captured by the DNN decoder. This result
+also implies that our DNN-based subject-transfer decoding would become
+increasingly more practical if we can access to the brain signal databases
+11
+
+Subject-transfer
+decoding accuracy [%]
+
+gathered from even larger set of subjects. DNN together with big data thus
+proves to be an effective approach in subject-transfer decoding.
+DNN (2 hidden layers)
+
+55
+
+50
+
+45
+
+40
+10
+
+20
+
+30
+
+40
+
+50
+
+60
+
+70 80
+
+100
+
+479
+
+log(# of training subjects)
+
+Figure 2: Mean decoding accuracy plotted against the number of training subjects (M )
+in log scale. Error bars indicate s.d. across ten cross validation iterations.
+
+In order to extract the discriminative features in brain activities captured
+by brain decoder trained with the large scale database, we conducted principal sensitivity analysis (PSA). PSA is different from the standard sensitivity
+analysis in that it quantifies the combinations of aROIs used in the decoder’s
+classification, whereas the standard sensitivity analysis computes the independent contribution of each aROI to the decoder’s decision. The PSA is
+more suited for our purpose because there is a strong evidence of functional
+connectivity among aROIs (Buckner et al., 2013; Cole et al., 2014), and classifiers with high decoding accuracy are likely to capture coactivation patterns
+of aROIs. The expectation in equation (10) depends on the distribution q
+over the sample space. In order to best approximate the true distribution of
+q, we used the empirical distribution over the dataset of all subjects except
+the subjects used in D. Fig. 3(a) shows the first, second and third PSMs for
+Emotion and Motor classes2 . The set of PSMs presented in Fig. 3(a) is one
+of the 10 variants of the sets of PSMs obtained in the leave-10-subjects-out
+cross validation over the dataset D. These variants did not exhibit siginificant
+variation. PSMs are superior to standard sensitibity maps in that they can
+describe the aROIs which act oppositely in characterizing the class. Any pair
+of anatomical regions with different color assignments in Fig. 3 contributes to
+2
+
+See Appendix B Fig. B.4 for the PSMs of the other classes.
+
+12
+
+the classifier’s decision in opposite direction. Our PSA seems to imply that
+the information learned by our DNN-based subject-transferable decoder has
+some correlation with the existing knowledge of functional connectivity supported in neuroscience. For instance, in the 2nd PSM of Motor class and the
+first PSM of Social class (Fig. 3), we can identify the two sets of functional
+connectivitiy established in previous works, namely fronto-parietal network
+(Cole et al., 2013) and salience network (Taylor et al., 2009). In the 2nd
+PSM of Social class (Fig. 3), we can also find a component of the default
+mode network (Raichle and Snyder, 2007; Raichle et al., 2001) in the left
+hemisphere. In addition, to quantify the similarity of PSMs, we calculated
+the absolute cosine similarity for each pair of the PSMs and aligned the maps
+by hierarchical clustering (Fig. 3(b)). For any pair of PSMs (v 1 , v 2 ), the absolute cosine similarity was calculated by |hv 1 , v 2 i|, where h·, ·i is an inner
+product, because of kvk2 = 1 for each PSM v. In the similarity matrix, we
+can confirm two large clusters, consisting mainly of first and second PSMs,
+respectively. This implies that the funcational connectivity interpretation
+that we made above for the first and the second PSMs of the Social class and
+the the first PSM of the Motor class applies to all the other PSMs sharing
+the same cluster memberships (see also Appendix B Fig. B.4). On the other
+hand, the sub-principal PSMs, such as the third PMSs of Emotion and Motor
+classes, showed task-specific features. Finally, note that many of our PSMs
+span large brain regions. This suggests that the subject independent features that we extracted from the large fMRI database in our deep learning
+procedure are specific(common) brain-wide networks that activates during
+particular(all) task(s).
+4. Conclusion
+In this study, we applied deep learning to a large fMRI database to classify
+brain activities into seven human categories. In particular, we constructed
+a DNN-based brain decoder aimed at classifying the brain activities of any
+arbitrary individual. The strength of DNN is its high ability to capture nonlinear, high dimensional features from bigdata. In fact, the decoding accuracy
+of our DNN was superior to those of other baseline methods, including SVMs
+and logistic regressions. The high performance of our DNN over the dataset
+acquired from a large population is indicative of the ability of our decoder
+to capture nonlinear discriminative features that are common to all subjects.
+Interestingly, when we visualzied these universal discriminative features in
+13
+
+Left	
+
+Right	
+
+Right	
+
+Left	
+
+Right	
+Lateral	
+
+1st PSM	
+
+2nd PSM	
+
+3rd PSM	
+
+1st PSM	
+
+2nd PSM	
+
+3rd PSM	
+
+Medial	
+
+Motor	
+
+Left	
+
+Social	
+
+A	
+
+Lateral	
+Medial	
+
+B	
+
+3rd PSM (Language)
+3rd PSM (Gambling)
+3rd PSM (Motor)
+3rd PSM (Wm)
+2nd PSM (Social)
+3rd PSM (Relational)
+3rd PSM (Emotion)
+3rd PSM (Social)
+2nd PSM (Wm)
+2nd PSM (Relational)
+2nd PSM (Gambling)
+2nd PSM (Emotion)
+1st PSM (Motor)
+1st PSM (Language)
+2nd PSM (Motor)
+1st PSM (Emotion)
+1st PSM (Wm)
+1st PSM (Social)
+1st PSM (Relational)
+1st PSM (Gambling)
+2nd PSM (Language)
+
+0.0
+
+0.5
+
+1.0
+
+Figure 3: (a) We calculated the first, second and third PSMs for each class. The PSMs of
+Motor and Social classes are shown here (see Appendix B Fig. B.4 for the other classes). We
+recall that we intentionally omitted the class index in the formulation (12) for simplicity,
+and that PSMs are actually meant to be computed for each class separately. In the
+visualization of each PSM, we exclusivly colored the ROIs with values that are at least
+one s.d. away from the mean. Red and blue indicate different signs in the PSM values,
+i.e., the corresponding aROIs act oppositely in characterizing the class. (b) Similarity
+between maps was evaluated by cosine similarity. We calculated the absolute value of
+cosine similarity (for definition, see the text) between all pairs of the first, second and
+third PSMs of the seven classes. Based on these similarity values, we applied a hierarchical
+clustering to the set of all the computed PSMs. The similarity matrix above is based on
+leaf order in the dendrogram (attached to the left side of the matrix) obtained by the
+hierarchical clustering. Intensity of the color indicates the degree of similarity.
+
+14
+
+the form of PSMs, we were able to find non trivial associations between
+the features and functionally connected networks recognized in neuroscience.
+This observation suggests that the functional connectivity common to all
+subjects are playing important roles in characterizing task-specific brain activities. Furthermore, our DNN-based decoder leaves some room for further
+improvement. For instance, the training of DNN and its final performance
+depend largely on the initial parameters. One may use our DNN as a initial
+model to construct a decoder that is highly tuned for a specific individual.
+One can expect such decoder to utilize both subject-independent features
+and subject-specific features. As another interesting extension to this research, we may add demographic features like age and sex to the model. The
+flexibility of DNN architecture allows for numerous modification of the base
+model. Also, the relationship between the number of training subjects and
+the decoding accuracy was positive. With a bigger and more multimodal
+dataset and a DNN with more sophisticated architecture, one might be able
+to capture richer signatures that are otherwise difficult to uncover, and such
+signatures might inspire a novel insight into neural bases recruited in different situations in the brain. Our results hint that advanced machine learning
+techniques will continue to grow in importance in the coming era of computational neuroscience that finds its basis in the statistics of heterogenous big
+data.
+Acknowledgement
+Data were provided by the Human Connectome Project, WU-Minn Consortium3 funded by the 16 NIH Institutes and Centers that support the NIH
+Blueprint for Neuroscience Research; and by the McDonnell Center for Systems Neuroscience at Washington University.
+Appendix A. Specifications of baseline methods
+Each version of SVM consists of seven one-versus-the-rest classifiers. As
+for the SVMs, we used scikit-learn (Pedregosa et al., 2011). Hyper-parameters
+were chosen to maximize the decoding accuracy over the validation dataset
+(see Section 2.3); we heuristically prepared nine sets of hyper-parameters for
+each method, and adopted the one that achieved the best decoding accuracy
+3
+
+Principal Investigators: David Van Essen and Kamil Ugurbil; 1U54MH091657
+
+15
+
+for the validation dataset. The hyper-parameter for the logistic regression
+was the learning rate in the MSGD. The hyper-parameter for the linearkernel SVM was the regularization strength C used in the scikit-learn. The
+RBM-kernel SVM was dependent on a pair of hyper-parameters, the regularization strength C and the kernel width γ. We considered 3 values each
+for C and γ, and examined all nine pairs for the best choice.
+Appendix B. PSMs of the subject-transfer decoder
+References
+Abraham, A., Pedregosa, F., Eickenberg, M., Gervais, P., Mueller, A., Kossaifi, J., Gramfort, A., Thirion, B., Varoquaux, G., 2014. Machine learning
+for neuroimaging with scikit-learn. Frontiers in Neuroinformatics 8.
+Barch, D. M., Burgess, G. C., Harms, M. P., Petersen, S. E., Schlaggar, B. L.,
+Corbetta, M., Glasser, M. F., Curtiss, S., Dixit, S., Feldt, C., et al., 2013.
+Function in the human connectome: Task-fMRI and individual differences
+in behavior. NeuroImage 80, 169–189.
+Binder, J. R., Gross, W. L., Allendorfer, J. B., Bonilha, L., Chapin, J.,
+Edwards, J. C., Grabowski, T. J., Langfitt, J. T., Loring, D. W., Lowe,
+M. J., et al., 2011. Mapping anterior temporal lobe language areas with
+fMRI: a multicenter normative study. NeuroImage 54 (2), 1465–1475.
+Buckner, R. L., Krienen, F. M., Castellanos, A., Diaz, J. C., Yeo, B. T.,
+2011. The organization of the human cerebellum estimated by intrinsic
+functional connectivity. Journal of Neurophysiology 106 (5), 2322–2345.
+Buckner, R. L., Krienen, F. M., Yeo, B. T., 2013. Opportunities and limitations of intrinsic functional connectivity MRI. Nature Neuroscience 16 (7),
+832–837.
+Castelli, F., Happé, F., Frith, U., Frith, C., 2000. Movement and mind:
+a functional imaging study of perception and interpretation of complex
+intentional movement patterns. NeuroImage 12 (3), 314–325.
+Cole, M. W., Bassett, D. S., Power, J. D., Braver, T. S., Petersen, S. E., jul
+2014. Intrinsic and task-evoked network architectures of the human brain.
+Neuron 83 (1), 238–51.
+16
+
+Right	
+
+2nd PSM	
+
+3rd PSM	
+
+1st PSM	
+
+2nd PSM	
+
+3rd PSM	
+
+1st PSM	
+
+2nd PSM	
+
+3rd PSM	
+
+1st PSM	
+
+2nd PSM	
+
+3rd PSM	
+
+1st PSM	
+
+2nd PSM	
+
+3rd PSM	
+
+Medial	
+
+1st PSM	
+
+Gambling	
+
+Left	
+
+Language	
+
+Right	
+
+Relational	
+
+Left	
+
+WM	
+
+Right	
+
+Lateral	
+
+Emotion	
+
+Left	
+
+Lateral	
+Medial	
+Lateral	
+Medial	
+Lateral	
+Medial	
+Lateral	
+Medial	
+
+Figure B.4: PSMs of the other classes. See the caption of Fig. 3 for the specification.
+
+17
+
+Cole, M. W., Reynolds, J. R., Power, J. D., Repovs, G., Anticevic, A., Braver,
+T. S., 2013. Multi-task connectivity reveals flexible hubs for adaptive task
+control. Nature Neuroscience 16 (9), 1348–1355.
+Cox, D. D., Savoy, R. L., 2003. Functional magnetic resonance imaging
+(fMRI)“brain reading”: detecting and classifying distributed patterns of
+fMRI activity in human visual cortex. NeuroImage 19 (2), 261–270.
+Delgado, M. R., Nystrom, L. E., Fissell, C., Noll, D., Fiez, J. A., 2000.
+Tracking the hemodynamic responses to reward and punishment in the
+striatum. Journal of Neurophysiology 84 (6), 3072–3077.
+Fazli, S., Popescu, F., Danóczy, M., Blankertz, B., Müller, K.-R., Grozea,
+C., 2009. Subject-independent mental state classification in single trials.
+Neural Networks 22 (9), 1305–1312.
+Glasser, M. F., Sotiropoulos, S. N., Wilson, J. A., Coalson, T. S., Fischl, B.,
+Andersson, J. L., Xu, J., Jbabdi, S., Webster, M., Polimeni, J. R., et al.,
+2013. The minimal preprocessing pipelines for the Human Connectome
+Project. NeuroImage 80, 105–124.
+Hariri, A. R., Tessitore, A., Mattay, V. S., Fera, F., Weinberger, D. R., 2002.
+The amygdala response to emotional stimuli: a comparison of faces and
+scenes. NeuroImage 17 (1), 317–323.
+Hatakeyama, Y., Yoshida, S., Kataoka, H., Okuhara, Y., 2014. Multi-Voxel
+Pattern Analysis of fMRI Based on Deep Learning Methods. Soft Computing in Big Data Processing, 29–38.
+Haxby, J. V., Gobbini, M. I., Furey, M. L., Ishai, A., Schouten, J. L., Pietrini,
+P., 2001. Distributed and overlapping representations of faces and objects
+in ventral temporal cortex. Science 293 (5539), 2425–2430.
+Hinton, G. E., Srivastava, N., Krizhevsky, A., Sutskever, I., Salakhutdinov,
+R. R., jul 2012. Improving neural networks by preventing co-adaptation of
+feature detectors. arXiv preprint arXiv:1207.0580, 1–18.
+Horikawa, T., Tamaki, M., Miyawaki, Y., Kamitani, Y., 2013. Neural decoding of visual imagery during sleep. Science 340 (6132), 639–642.
+
+18
+
+Jarrett, K., Kavukcuoglu, K., Ranzato, M., LeCun, Y., 2009. What is the
+best multi-stage architecture for object recognition? In: 2009 IEEE 12th
+International Conference on Computer Vision. IEEE, pp. 2146–2153.
+Kamitani, Y., Tong, F., 2005. Decoding the visual and subjective contents
+of the human brain. Nature neuroscience 8 (5), 679–685.
+Kjems, U., Hansen, L. K., Anderson, J., Frutiger, S., Muley, S., Sidtis, J.,
+Rottenberg, D., Strother, S. C., apr 2002. The quantitative evaluation of
+functional neuroimaging experiments: mutual information learning curves.
+NeuroImage 15 (4), 772–86.
+Koyamada, S., Koyama, M., Nakae, K., Ishii, S., dec 2014. Principal Sensitivity Analysis. arXiv preprint arXiv:1412.6785, 1–13.
+LaConte, S. M., 2011. Decoding fMRI brain states in real-time. Neuroimage
+56 (2), 440–454.
+Lemm, S., Blankertz, B., Dickhaus, T., Müller, K.-R., 2011. Introduction to
+machine learning for brain imaging. Neuroimage 56 (2), 387–399.
+Marquand, A. F., Brammer, M., Williams, S. C., Doyle, O. M., 2014.
+Bayesian multi-task learning for decoding multi-subject neuroimaging
+data. NeuroImage 92, 298–311.
+Miyawaki, Y., Uchida, H., Yamashita, O., Sato, M.-a., Morito, Y., Tanabe,
+H. C., Sadato, N., Kamitani, Y., 2008. Visual image reconstruction from
+human brain activity using a combination of multiscale local image decoders. Neuron 60 (5), 915–929.
+Nishimoto, S., Vu, A. T., Naselaris, T., Benjamini, Y., Yu, B., Gallant,
+J. L., 2011. Reconstructing visual experiences from brain activity evoked
+by natural movies. Current Biology 21 (19), 1641–1646.
+Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel,
+O., Blondel, M., Prettenhofer, P., Weiss, R., Dubourg, V., et al., 2011.
+Scikit-learn: Machine learning in Python. The Journal of Machine Learning Research 12, 2825–2830.
+Plis, S. M., Hjelm, D., Salakhutdinov, R., Allen, E. A., Bockholt, H. J.,
+Long, J. D., Johnson, H. J., Paulsen, J., Turner, J. A., Calhoun, V. D.,
+19
+
+2014. Deep learning for neuroimaging: a validation study. Frontiers in
+Neuroscience 8 (229).
+Raichle, M. E., MacLeod, A. M., Snyder, A. Z., Powers, W. J., Gusnard,
+D. A., Shulman, G. L., 2001. A default mode of brain function. Proceedings
+of the National Academy of Sciences 98 (2), 676–682.
+Raichle, M. E., Snyder, A. Z., 2007. A default mode of brain function: a brief
+history of an evolving idea. NeuroImage 37 (4), 1083–1090.
+Raizada, R. D., Connolly, A. C., 2012. What makes different people’s representations alike: neural similarity space solves the problem of acrosssubject fMRI decoding. Journal of Cognitive Neuroscience 24 (4), 868–877.
+Shibata, K., Watanabe, T., Sasaki, Y., Kawato, M., 2011. Perceptual learning
+incepted by decoded fMRI neurofeedback without stimulus presentation.
+Science 334 (6061), 1413–1415.
+Sitaram, R., Caria, A., Veit, R., Gaber, T., Rota, G., Kuebler, A., Birbaumer, N., 2007. FMRI brain-computer interface: a tool for neuroscientific research and treatment. Computational Intelligence and Neuroscience
+2007, 25487.
+Sitaram, R., Veit, R., Stevens, B., Caria, A., Gerloff, C., Birbaumer, N.,
+Hummel, F., 2012. Acquired control of ventral premotor cortex activity
+by feedback training an exploratory real-time fMRI and TMS study. Neurorehabilitation and Neural Repair 26 (3), 256–265.
+Taylor, K. S., Seminowicz, D. A., Davis, K. D., 2009. Two systems of resting
+state connectivity between the insula and cingulate cortex. Human Brain
+Mapping 30 (9), 2731–2745.
+Tzourio-Mazoyer, N., Landeau, B., Papathanassiou, D., Crivello, F., Etard,
+O., Delcroix, N., Mazoyer, B., Joliot, M., 2002. Automated anatomical
+labeling of activations in SPM using a macroscopic anatomical parcellation
+of the MNI MRI single-subject brain. NeuroImage 15 (1), 273–289.
+Van Essen, D. C., Smith, S. M., Barch, D. M., Behrens, T. E., Yacoub, E.,
+Ugurbil, K., 2013. The WU-Minn human connectome project: an overview.
+NeuroImage 80, 62–79.
+
+20
+
+Wheatley, T., Milleville, S. C., Martin, A., 2007. Understanding animate
+agents distinct roles for the social network and mirror system. Psychological Science 18 (6), 469–474.
+Zurada, J. M., Malinowski, A., Cloete, I., 1994. Sensitivity analysis for minimization of input data dimension for feedforward neural network. Circuits
+and Systems, 447–450.
+Zurada, J. M., Malinowski, A., Usui, S., 1997. Perturbation method for deleting redundant inputs of perceptron networks. Neurocomputing 14 (2), 177–
+193.
+
+21
+
+

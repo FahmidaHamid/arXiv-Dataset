@@ -1,0 +1,3925 @@
+Inference of Natural Selection from Interspersed Genomic
+Elements Based on Polymorphism and Divergence
+
+arXiv:1109.6381v6 [q-bio.GN] 23 Apr 2013
+
+Ilan Gronau1 , Leonardo Arbiza1 , Jaaved Mohammed1,2 , and Adam Siepel1
+
+1
+
+Department of Biological Statistics and Computational Biology, Cornell University, Ithaca, NY 14853, USA
+2
+
+Tri-Institutional Training Program in Computational Biology and Medicine
+
+Submission type:
+
+Research Article
+
+Keywords:
+
+Molecular evolution, population genetics, noncoding DNA, regulatory sequences, probabilistic graphical models
+
+Running Head:
+
+Inference of Selection from Interspersed Genomic Elements
+
+Corresponding Author:
+
+Adam Siepel
+102E Weill Hall, Cornell University
+Ithaca, NY 14853
+Phone: +1-607-254-1157
+Fax: +1-607-255-4698
+Email: acs4@cornell.edu
+
+This is an electronic version of an article published in Mol Biol Evol, 2013. doi:10.1093/molbev/mst019.
+
+Abstract
+Complete genome sequences contain valuable information about natural selection, but extracting this information for short, widely scattered noncoding elements remains a challenging problem. Here we introduce
+a new computational method for addressing this problem called Inference of Natural Selection from Interspersed Genomically coHerent elemenTs (INSIGHT). INSIGHT uses a generative probabilistic model to
+contrast patterns of polymorphism and divergence in the elements of interest with those in flanking neutral
+sites, pooling weak information from many short elements in a manner that accounts for variation among
+loci in mutation rates and genealogical backgrounds. The method is able to disentangle the contributions of
+weak negative, strong negative, and positive selection based on their distinct effects on patterns of polymorphism and divergence. Information about divergence is obtained from multiple outgroup genomes using a
+full phylogenetic model. The model is efficiently fitted to genome-wide data by decomposing the maximum
+likelihood estimation procedure into three straightforward stages. The key selection-related parameters are
+estimated by expectation maximization. Using simulations, we show that INSIGHT can accurately estimate
+several parameters of interest even in complex demographic scenarios. We apply our methods to noncoding RNAs, promoter regions, and transcription factor binding sites in the human genome, and find clear
+evidence of natural selection. We also present a detailed analysis of particular nucleotide positions within
+GATA2 binding sites and primary micro-RNA transcripts.
+
+Inference of Selection from Interspersed Genomic Elements
+
+1
+
+Introduction
+Evolutionary modeling has become an essential tool in genomic analysis. It is particularly valuable in the
+study of noncoding genomic elements in large, complex eukaryotic genomes, because these elements are
+often sparsely annotated, poorly understood, and difficult to examine experimentally. Rapid growth in the
+availability of complete genome sequences, both within and across species, has led to many new opportunities for evolutionary genomic analysis. Among other things, evolutionary models have been used to measure
+the fractions of nucleotides likely to have fitness-influencing functions (Mouse Genome Sequencing Consortium, 2002; Chiaromonte et al., 2003; Lunter, Ponting and Hein, 2006), to distinguish functional from
+nonfunctional sequences (Kellis et al., 2003; Guigó et al., 2003; Siepel et al., 2007), and to detect sequences
+likely to be responsible for phenotypic differences between species (Pollard et al., 2006; Prabhakar et al.,
+2008).
+Most evolutionary analyses of noncoding elements so far have made use of sequence conservation between genomes that diverged millions of years ago. Many confounding factors limit the utility of these
+approaches, including turnover of regulatory elements (Dermitzakis and Clark, 2002; Moses et al., 2006;
+Schmidt et al., 2010), challenges in orthology identification, and alignment error. In principle, data describing genetic variation could help to address these limitations, because it reflects evolutionary processes on
+much shorter timescales, during which turnover should be much less prevalent. Orthology identification and
+alignment are also much more straightforward on these time scales. It is well known that patterns of polymorphism within a species and divergence between species can be used to tease apart the effects of positive
+selection, negative selection, and neutral drift for a given collection of functional elements (McDonald and
+Kreitman, 1991; Sawyer and Hartl, 1992; Bustamante et al., 2005). In practice, however, it is technically
+challenging to extract useful information about noncoding elements from patterns of polymorphism and
+divergence for various reasons. Many noncoding elements of interest, such as transcription factor binding
+sites, are quite short (typically <10 bp) and polymorphisms tend to be sparse, so that most elements contain
+no informative sites. Furthermore, factors such as variation across loci in mutation rates and time to most
+recent common ancestry, and the influence of demography on patterns of polymorphism, make it difficult
+to interpret patterns of polymorphism and divergence in noncoding elements, and prohibit straightforward
+pooling of data from multiple elements across the genome.
+Here we describe a new computational method, called Inference of Natural Selection from Interspersed
+
+Inference of Selection from Interspersed Genomic Elements
+
+2
+
+Genomically coHerent elemenTs (INSIGHT), that is designed to address these challenges. INSIGHT uses
+the general strategy of contrasting patterns of polymorphism and divergence in a collection of elements
+of interest with those in flanking neutral regions, thereby mitigating biases from demography, variation in
+mutation rates, and differences in genealogical backgrounds. In this way, it resembles McDonald-Kreitmanbased methods for identifying departures from neutrality (McDonald and Kreitman, 1991; Andolfatto, 2005;
+Sawyer and Hartl, 1992; Smith and Eyre-Walker, 2002). Unlike these methods, however, INSIGHT is based
+on a generative probabilistic model, accommodates weak negative selection (Charlesworth and Eyre-Walker,
+2008), and allows diffuse information from many short elements across the genome to be pooled efficiently,
+in a manner that avoids statistical pitfalls arising from pooling counts of site classes (Smith and Eyre-Walker,
+2002; Stoletzki and Eyre-Walker, 2011). Our modeling approach accommodates variable mutation rates
+and times to most recent common ancestry along the genome and fully integrates phylogenetic information
+from multiple outgroup species with genome-wide population genetic data. In other recent work, we have
+applied INSIGHT in a large-scale analysis of transcription factor binding sites in the human genome, using
+chromatin immunoprecipitation and sequencing (ChIP-seq) data for 78 human transcription factors (TFs)
+from the ENCODE project (Bernstein et al., 2012) and 54 unrelated complete human genome sequences
+from Complete Genomics (http://www.completegenomics.com/public-data/69-Genomes/) (Drmanac et al.,
+2010). Our focus in this article is to detail the probabilistic model and inference strategy underlying the
+method, and examine its performance on simulated data under a range of scenarios. In addition, we provide
+an analysis of several additional classes of noncoding elements, a more detailed analysis of GATA2 binding
+sites, and a detailed analysis of individual positions within primary micro-RNA transcripts.
+
+Methods
+General Approach
+Our method is designed to measure the influence of natural selection on a collection of genomic elements
+scattered across the genome (Fig. 1). The collection of interest could be defined in various ways; for example, it could consist of all binding sites of a particular transcription factor, all noncoding RNAs of a
+particular type, or a subset of interest, such as binding sites near genes of a particular functional category
+(see Discussion). We assume the individual elements are quite short—typically only a few nucleotides in
+length, and not longer than a few kilobases. The key modeling challenge is to integrate sparse information
+
+Inference of Selection from Interspersed Genomic Elements
+
+3
+
+from many such elements in a manner that accounts for variation along the genome in properties such as
+mutation rates and local genealogical structure. (Note that, even with constant mutation rates, regions will
+differ in their patterns of polymorphisms due to differences in times to most recent common ancestry and
+other properties.) Rather than attempting to fully describe the relationships among selection, polymorphism,
+and divergence—which is complex and demography-dependent—our model works by contrasting patterns
+of polymorphism and divergence in the elements of interest with those in putatively neutral sites nearby.
+We assume genome-wide polymorphism data is available for a particular target population, in a form
+that allows polymorphic sites to be reliably distinguished from invariant sites, and that provides reasonably
+accurate information about allele frequencies. At present, this is most easily achieved using high-coverage
+individual genome sequences, although our methods could also be adapted make use of statistically inferred genotype frequencies based on low-coverage sequence data (Yi et al., 2010). We further assume
+genome-wide data is available for one or more outgroup species, typically in the form of reference genome
+assemblies. While the method can be used with a single outgroup genome, it is highly desirable to make
+use of two or more outgroups that diverged from one another prior to the divergence of either from the
+target population. In addition, the outgroup sequences generally should be as closely related to the target
+population as possible. This will ensure the highest quality information about ancestral alleles for the target
+population.
+We use a categorical model for the distribution of fitness effects (DFE). Specifically, we assume each nucleotide site evolves according to one of four possible selective modes: neutral drift (neut), strong negative
+selection (SN), weak negative selection (WN), or strong positive selection (SP). (Sites under weak positive
+selection are assumed to be rare and are absorbed in the neutral category.) This coarse-grained approach is
+motivated by observations indicating that the data contain only limited information about the full distribution
+of fitness effects (Boyko et al., 2008; Wilson et al., 2011). These categories are chosen for having qualitatively distinct effects on patterns of polymorphism and divergence (see Bierne and Eyre-Walker, 2004).
+In particular, our model makes use of the fact that strong selection (negative or positive) generally causes
+mutations to be eliminated or reach fixation rapidly, while weak negative selection allows polymorphisms to
+persist for longer periods of time, but tends to hold derived alleles at low frequencies. Therefore, we assume
+that at nucleotide sites under selection, (1) only SP sites make nonnegligible contributions to divergence, (2)
+only WN sites make nonnegligible contributions to polymorphism, and (3) any polymorphisms must have
+low derived allele frequencies. Together, these assumptions allow the fraction of sites under selection to be
+
+Inference of Selection from Interspersed Genomic Elements
+
+4
+
+estimated. As it turns out, they are not sufficient to fully disentangle the contributions of all four selective
+modes, but they do allow us to obtain indirect information about the contributions of positive and weak
+negative selection at selected sites (see below).
+In addition, our model reduces the site frequency spectrum (SFS) to three classes: every site is considered monomorphic (M), polymorphic with a low-frequency derived allele (L), or polymorphic with a
+high-frequency derived allele (H), where the distinction between L and H sites depends on a designated
+low-frequency threshold f (typically f = 0.15). Information about selection comes from the relative frequencies of these labels in the elements of interest relative to the flanking neutral sites, together with patterns
+of divergence with respect to the outgroup genomes. A minor complication is that in some cases, the derived
+allele class depends on the ancestral allele, which is not known. We address this problem by treating the
+ancestral allele as a hidden (latent) random variable and integrating over possible values as needed. The use
+of a low-dimensional projection of the SFS is intended to buffer our method from the effects of recent demographic changes in the target population. In the simulation analyses reported below, we examine the extent
+to which our inferences are robust to demography. We also examine their dependence on the threshold f .
+
+Probabilistic Model
+Our model assumes that the genomic regions under study are partitioned into a collection of blocks, B. The
+nucleotide sites within each block b ∈ B are further partitioned into sites within the elements of interest, Eb ,
+and the associated neutral flanking sites, Fb (cumulatively E and F , respectively). Each block is assigned
+a population-scaled mutation rate (θb ), a neutral divergence scale factor (λb ), and an outgroup divergence
+scale factor (λO
+b ). In addition, the model has four global parameters: the fraction of sites under selection in
+elements (ρ), the relative divergence (η) and polymorphism (γ) rates at selected sites, and β, a multivariate
+parameter summarizing the neutral site frequency spectrum (see Table 1). The full set of parameters is
+denoted ζ.
+Each site i is associated with a set of aligned bases from outgroup genomes (Oi ) and the polymorphism
+maj
+
+maj
+
+data for the target population (Xi ). Xi is further summarized as Xi = (Xi , Ximin , Yi ), where Xi
+
+and
+
+Ximin are the observed major and minor alleles, and Yi ∈{M, L, H} is the minor frequency class (Ximin = ∅
+when Yi = M). The entire data set is denoted by (X, O). Yi is defined by the observed minor allele
+frequency mi and the specified low-frequency threshold, f <
+
+1
+2;
+
+in particular, Yi = M when mi = 0,
+
+Yi = L when 0 < mi < f , and Yi = H when mi ≥ f . Sites with three or more alleles are discarded in
+
+Inference of Selection from Interspersed Genomic Elements
+
+5
+
+pre-processing. Each site is associated with three hidden variables: a selection class (Si ∈ {sel, neut}), a
+“deep” ancestral allele at the most recent common ancestor of the target population and closest outgroup
+(Zi ), and a population ancestral allele (Ai ) (Table 2). In addition, when Yi = L, the model has to consider
+uncertainty in the derived allele frequency class, which could be L or H, depending on the identity of the
+ancestral allele.
+We assume independence of blocks, conditional independence of the nucleotide sites within each block
+given the model parameters, conditional independence of the variables describing the target population (Ai ,
+Si , and Xi ) and the outgroups (Oi ) given the deep ancestral allele Zi , and independence of the Si values
+given the parameter ρ (as shown graphically in Fig. 2). The same graphical model applies to all sites, except
+that the selection class is fixed to “neut” for the flanking sites. Thus, a likelihood function for the model,
+conditional on the outgroup data, can be written as follows:
+L(ζ ; X, O) ≡ P (X | O, ζ) =
+"
+#
+Y
+Y XX
+P (Xi , Zi = z, Ai = a | Si = neut, Oi , ζ)
+b∈B
+
+i∈Fb
+
+z
+
+a
+
+
+×
+
+
+Y
+
+X
+
+P (Si = s | ζ)
+
+i∈Eb s∈{neut,sel}
+
+XX
+z
+
+P (Xi , Zi = z, Ai = a | Si = s, Oi , ζ) .
+
+(1)
+
+a
+
+Furthermore, each term of the form P (Xi , Zi , Ai | Si , Oi , ζ) can be factorized as follows:
+P (Xi ,Zi , Ai | Si , Oi , ζ) = P (Zi | Oi , λO
+b ) P (Ai | Si , Zi , ζ) P (Xi | Si , Ai , Zi , ζ)
+
+(2)
+
+This likelihood function is composed of four conditional probability distributions, corresponding to the
+variables Si , Zi , Ai , and Xi . The distribution for Si is needed only for element sites and is given by a
+two-component mixture model with coefficient ρ:
+
+P (Si = s | ζ) =
+
+
+
+ρ
+
+s = sel
+
+
+1 − ρ
+
+s = neut
+
+.
+
+(3)
+
+The conditional distribution for Zi given the outgroup data, P (Zi | Oi , λO
+b ), is based on a standard
+statistical phylogenetic model and is computed using existing software. Notice that our model assumes
+that the phylogenetic model for the outgroups is independent of the selection class, Si . This assumption
+is not strictly warranted (sites under selection are likely to evolve at different rates in the outgroups), but
+
+Inference of Selection from Interspersed Genomic Elements
+
+6
+
+it dramatically simplifies the inference procedure by allowing us to pre-estimate the outgroup scale factors
+(λO
+b ) and the sitewise distributions for Zi (see Parameter Inference). It also allows us to avoid specifying
+a model for the poorly understood process of turnover of functional elements. In practice, this simplifying
+assumption is of little consequence, because it only affects the prior distribution for Zi , which is fairly
+insensitive to evolutionary rates in outgroup lineages as long as the branches of the phylogeny are not too
+long.
+The third conditional distribution, P (Ai | Si , Zi , ζ), describes the process of sequence divergence on
+the lineage leading to the target population. Given a global neutral branch length t for this lineage (in
+substitutions per site), we assume a nucleotide substitution rate of λb t for neutral sites and ηλb t for sites
+under selection. Note that η can be driven downward by negative selection or upward by positive selection
+so it may be greater or less than one, depending on the DFE. In principle, any DNA substitution model could
+be used to define P (Ai | Si , Zi , ζ). However, because we are primarily interested in cases in which t is
+quite small (e.g., t ≈ 0.005 for the case of humans and chimpanzees), we assume a Jukes-Cantor or Poisson
+substitution model and approximate the divergence probabilities as:
+
+P (Ai = a | Si = s, Zi = z, ζ) =
+
+
+
+
+ 31 λb t
+
+
+
+
+
+
+1 − λ b t
+
+
+1
+
+
+3 ηλb t
+
+
+
+
+
+1 − ηλ t
+b
+
+s = neut, a 6= z
+s = neut, a = z
+(4)
+s = sel, a 6= z
+s = sel, a = z
+
+Finally, the fourth conditional distribution, P (Xi | Si , Ai , Zi , ζ), describes the patterns of polymorphism in the target population given the ancestral alleles and selection class. In deriving this expression,
+we first assume an infinite sites model for the time since the population-level MRCA (which is expected
+maj
+
+to be much shorter than the time since the deep ancestral allele), implying that Ai ∈ {Xi , Ximin }. The
+neutral population-scaled mutation rate is given by θb = 4Nb µb , where Nb is a hypothesized block-specific
+effective population size. Because θb is estimated freely, without any constraints on µb or Nb , the model
+can accommodate sources of variation in nucleotide diversity other than variable mutation rates, such as
+selection from linked sites (i.e., background selection or hitchhiking). Sites under selection (Si = sel) are
+assumed to have a population-scaled mutation rate of γθb (we expect, but do not require, γ < 1). Given a
+population-scaled mutation rate of θb , the probability of observing a polymorphic sites in a sample of size n
+P
+is given by θb an , where an = n−1
+k=1 1/k (Watterson, 1975). In the absence of missing data, an is a constant
+
+Inference of Selection from Interspersed Genomic Elements
+
+7
+
+of no consequence in the inference procedure, but it can be used to accommodate missing data if desired
+(see Discussion and Supplementary Methods).
+Under neutrality, the polymorphism and divergence components of the model are assumed to be independent; i.e., Xi and Zi are conditionally independent given Ai and Si = neut. In this case, the derived
+allele in a polymorphic site is assumed to be chosen uniformly at random from the three bases not equal to
+Ai , and the derived allele frequency class is assumed to be chosen at random from the three intervals (0, f ),
+[f, 1 − f ], or (1 − f, 1) with probabilities β1 , β2 , and β3 , respectively. The distinction between the two highfrequency classes, [f, 1 − f ] and (1 − f, 1), is required because they correspond to different minor allele
+frequency classes (Yi = H and Yi = L, respectively), which, in general, will have different probabilities.
+Thus, in the case of Si = neut, the conditional probability for Xi is given by:
+
+
+P Xi = (xmaj , xmin , y) | Si = neut, Ai = a, Zi , ζ =
+
+
+
+
+1 − θb an
+
+
+
+
+
+
+1
+
+
+ 3 β1 θb an
+
+
+
+P Xi = (xmaj , xmin , y) | Si = neut, Ai = a, ζ = 1 β3 θb an
+3
+
+
+
+
+
+
+1
+
+
+3 β2 θb an
+
+
+
+
+
+0
+
+y = M, a = xmaj
+y = L , a = xmaj
+y = L , a = xmin
+
+(5)
+
+y = H , a ∈ {xmaj , xmin }
+otherwise
+
+The model for polymorphism at selected sites is similar, but incorporates our two main assumptions
+regarding sites under selection, namely that polymorphisms are restricted to WN sites, implying that they
+do not occur in sites that have experienced divergence (hence the conditional dependence in Zi ), and that
+maj
+
+WN polymorphisms have low derived allele frequencies, implying that Yi = L and Xi
+
+
+P Xi = (xmaj , xmin , y)| Si = sel, Ai = a, Zi = z, ζ =
+
+
+
+
+1 − γθb an
+
+
+
+
+
+
+
+1
+
+
+1
+
+
+3 γθb an
+
+
+
+
+
+0
+
+= Ai :
+
+y = M, z = a = xmaj
+y = M, z 6= a = xmaj
+(6)
+y = L, z = a = xmaj
+otherwise
+
+Finally, the models for polymorphism and divergence (Equations 4–6) can be combined into a single
+
+Inference of Selection from Interspersed Genomic Elements
+
+8
+maj
+
+conditional distribution table, P (Xi | Zi , Si , ζ) (Table 3), by integrating over the cases of Ai ∈ {Xi , Ximin }.
+
+Parameter Inference
+The main objective of the inference procedure is to produce maximum likelihood estimates (MLEs) of the
+
+selection parameters, ρ, η, and γ, but in order to do so, the neutral parameters ζneut = λO , λ, θ, β must
+also be estimated. In principle, an expectation-maximization (EM) algorithm could be used to jointly estimate all model parameters. However, this approach is impractical for genome-wide applications involving
+millions of nucleotide sites. Instead, we take advantage of the “loose coupling” between the phylogenetic
+outgroup model and the remaining portions of the model, and between the portions of the model concerned
+with the elements and the flanking sites, to decompose the inference procedure into separate stages, each of
+which can be performed fairly simply and efficiently.
+First, observe that the likelihood function can be viewed as a product of a function of the flanking
+sites and a function of the element sites. The first function does not depend on the selection parameters.
+Moreover, if the flanking sites significantly outnumber the neutral sites within the elements, as we expect,
+then the neutral parameters can be estimated to a good approximation by maximizing this function only.
+The selection parameters can then be estimated by conditionally maximizing the second function. More
+precisely, we represent the likelihood function as:
+L(ζ ; X, O) = LF (β, λO , λ, θ ; XF , OF ) × LE (ρ, η, γ ; XE , OE , β, λO , λ, θ),
+
+(7)
+
+where
+LF (β, λO , λ, θ ; XF , OF ) =
+
+Y Y
+
+P (Xi | Si = neut, Oi , λO
+b , λb , θb , β) ,
+
+(8)
+
+b∈B i∈Fb
+
+LE (ρ, η, γ ; XE , OE , β, λO , λ, θ) =
+
+Y Y
+
+X
+
+P (Si = s|ρ) P (Xi | Si = s, Oi , η, γ, λO
+b , λb , θb , β),
+
+b∈B i∈Eb s∈neut, sel
+
+(9)
+
+and we estimate the neutral parameters by maximizing Equation 8, then estimate the selection parameters
+by conditionally maximizing Equation 9.
+Furthermore, the phylogenetic and population genetic parameters in Equation 8 can be estimated separately by making some additional minor simplifying assumptions. Briefly, the divergence scale factors λb
+and λO
+b are first estimated by fitting a pre-estimated neutral phylogenetic model to putative neutral sites in
+
+Inference of Selection from Interspersed Genomic Elements
+
+9
+
+each genomic block using standard phylogenetic fitting procedures (Hubisz, Pollard and Siepel, 2011) (see
+Supplementary Methods). The fitted phylogenetic model is then used to compute the prior distribution for
+ancestral alleles, P (Zi | Oi , λO
+b ), at all sites in the block (including Eb ), conditioning on the outgroup sequences only. Next, maximum likelihood estimates of the block-specific polymorphism rate parameters, θ̂b ,
+and the global parameter β2 are obtained using simple closed-form expressions (see Supplementary Methods). Due to uncertainty about the ancestral allele, β1 and β3 do not have closed-form estimators, and are
+estimated by a simple EM algorithm.
+Finally, the selection parameters are estimated conditional on the neutral parameters by maximizing
+Equation 9 by EM. To derive this algorithm, let us first imagine that all variables are observed, and denote
+by cQ (X ) the number of sites in a set Q that have a configuration X . Using this notation, the complete-data
+log-likelihood function for selected sites can be expressed as:
+ln[ LE (ρ, η, γ; XE , OE , β̂, λ̂O , λ̂, θ̂) ] =
+cE (Si = sel) ln(ρ) + cE (Si = neut) ln(1 − ρ) +
+X
+cE (Si = sel, Zi 6= Ximaj ) ln(η) +
+cEb (Si = sel, Zi = Ximaj ) ln(1 − ηλb t) +
+b∈B
+
+cE (Si = sel, Yi = L) ln(γ) +
+
+X
+
+cEb (Si = sel, Yi = M, Zi = Ximaj ) ln(1 − γθb an ) + C ,
+
+(10)
+
+b∈B
+
+where C is a constant term that does not depend on ρ, η, or γ. In practice, the counts in Equation 10
+depend on the hidden variables Zi and Si , so this function must be iteratively optimized by EM. Briefly,
+the E step in each iteration uses the current estimates of the model parameters to obtain expectations of
+these counts by computing the sitewise posterior probabilities of the variable configurations (Si = neut),
+maj
+
+maj
+
+(Si = sel, Zi = Xi ), and (Si = sel, Zi 6= Xi ). These calculations make use of the conditional
+probabilities in Table 3 and the pre-computed prior distributions, {P (Zi | Oi , λ̂O
+b )}i∈E . After obtaining
+the expected counts, the M step updates the selection parameters ρ, η, and γ to values that maximize the
+expected log-likelihood function. The update for ρ is achieved using a close-form expression, while the
+updates for η and γ require numerical optimization of a concave function (see Supplementary Methods).
+
+Extracting Information about the Modes of Selection
+While the model does not permit direct estimation of the fractions of sites under weak negative (WN),
+strong negative (SN), or strong positive (SP) selection, it can be used to obtain indirect measures of the
+
+Inference of Selection from Interspersed Genomic Elements
+
+10
+
+impact of WN and SP selection. In particular, a useful measure of SP selection is Dp , the number of
+divergence events driven by positive selection (sometimes called “adaptive substitutions”) on the branch to
+the target population. A similar measure pertaining to WN selection is Pw , the number of polymorphic
+sites subject to selection. Expected values for Dp and Pw can be obtained by summing over site-wise
+posterior probabilities associated with the variable configurations (Yi = M, Zi 6= Ai , Si = sel) and (Yi =
+L, Si = sel), respectively (see Supplementary Methods). These calculations make use of our assumptions
+that, among selected sites, divergence events occur only due to SP selection, and polymorphisms occur only
+due to WN selection and are restricted to frequency class ‘L’. In our analysis, we normalize E[Dp ] and
+E[Pw ] by dividing them by the number of nucleotide sites considered (in kilobases), to allow comparisons
+between sets of different sizes. By dividing E[Dp ] by the total (expected) number of divergences, one can
+alternatively obtain an estimate of the fraction of substitutions driven by positive selection, a quantity known
+as α (e.g., Smith and Eyre-Walker, 2002; Andolfatto, 2005) (see Supplementary Methods).
+
+Confidence Intervals and Likelihood Ratio Tests
+Standard errors for the estimated selection parameters were estimated using the curvature method (Lehmann
+and Casella, 1998), based on an approximate Fisher information matrix derived from the 3 × 3 matrix of
+second derivatives for the log-likelihood function for ρ, η, and γ (Equation 9) at the joint MLE (see Supplementary Methods). In addition, we used likelihood ratio tests (LRTs) to evaluate evidence for selection in
+general (ρ > 0), positive selection (η > 0), and weak negative selection (γ > 0). The LRTs were performed
+by fitting the model to the data twice, once with no restrictions on the free parameters, and once with a
+parameter of interest fixed at zero. Twice the difference in log likelihoods was then treated as a test statistic
+and compared to an appropriate asymptotic distribution. The tests for η > 0 and γ > 0 involve nested
+models in which the null hypothesis falls at a boundary of the alternative hypothesis. The associated test
+statistics therefore have asymptotic null distributions equal to a 50:50 mixture of a χ2 distribution with one
+degree of freedom (dof) and a point mass at zero (Chernoff, 1954; Self and Liang, 1987). The case of ρ is
+more complex, because a value of ρ = 0 causes η and γ to become irrelevant to the likelihood function,
+violating the regularity conditions for the asymptotic mixture distribution. Still, it is reasonable to expect
+that the asymptotic distribution will be approximately given by a 50:50 mixture of a χ2 distribution with 3
+dof and a point mass at zero. These asymptotic distributions are of course not guaranteed to hold for real
+data sets, and we use them only for approximate assessments of statistical significance (see Results).
+
+Inference of Selection from Interspersed Genomic Elements
+
+11
+
+Implementation and Software
+The INSIGHT software consists of several modules. The main module is a C program implementing the EM
+algorithm for inference of the selection parameters, as well as the simpler EM algorithm for estimation of β1
+and β3 . This program outputs maximum likelihood estimates of ρ, η, and γ, the posterior expected values
+E[Dp ], E[Pw ], and α, and approximate standard errors for the reported values. The phylogenetic model
+fitting stage is implemented separately using procedures from RPHAST (Hubisz, Pollard and Siepel, 2011),
+and additional scripts are used for processing and filtering the polymorphism data. Source code, documentation and sample files are available for download from http://compgen.bscb.cornell.edu/INSIGHT/.
+
+Simple Site-count-based Estimates
+For comparison with our model-based estimates, we made use of simple estimators for the fraction of sites
+under selection (ρ) and the number of adaptive substitutions (Dp ). These estimators are based on the numbers of polymorphisms in element and flanking sites, denoted PE and FE , respectively, and the numbers
+of divergence events in element and flanking sites, denoted DE and DF , respectively. They include a
+divergence-based estimator for ρ introduced by Kondrashov and Crow (1993),
+
+ρ̂Div = 1 −
+
+DE |F |
+,
+|E| DF
+
+(11)
+
+PE |F |
+,
+|E| PF
+
+(12)
+
+a parallel estimator based on polymorphism rates,
+
+ρ̂Poly = 1 −
+
+and an estimator for E[Dp ] based on the McDonald-Kreitman (1991) test, adapted from Smith and EyreWalker (2002):
+D̂p -MK = DE −
+
+PE DF
+.
+PF
+
+(13)
+
+In comparison with our model based estimates, the divergence-based estimator ρ̂Div ignores the effect of
+positive selection, and the estimators ρ̂Poly and D̂p -MK both implicitly assume no polymorphisms occur in
+selected sites, thus ignoring the effects of WN selection. All three estimators share the limitation of pooling
+counts across elements in a manner that does not account for variable mutation rates across loci.
+
+Inference of Selection from Interspersed Genomic Elements
+
+12
+
+Simulations
+Simulated elements and flanking regions were generated with the forward simulator SFS CODE (Hernandez, 2008), assuming various mixtures of selective modes for the elements. We simulated data for human
+populations and chimpanzee, orangutan, and rhesus macaques outgroups, using parameters based on previous studies. Each simulated block consisted of a 10 bp element, reflecting a typical binding site, and 5,000
+flanking neutral sites on each side. We assumed a constant recombination rate and a randomly varying
+mutation rate, and each nucleotide position was assigned to one of four selection classes: neutral evolution
+(2Ne s = 0), strong negative selection (2Ne s = −100), weak negative selection (2Ne s = −10), and positive
+selection (2Ne s = 10). Our choices of population-scaled selection coefficients were approximately based
+on several other recent studies (e.g., Eyre-Walker, Woolfit and Phelps, 2006; Boyko et al., 2008; Wilson
+et al., 2011). Selection at WN and SN sites was held constant across the phylogeny, while for SP sites we
+assumed an interval of positive selection followed by weak negative selection on the lineage leading to the
+human population, to simulate selective sweeps rather than recurrent positive selection (see Supplementary
+Methods for complete details). The 10 kb flanking sites were all assigned to the neutral class, and the 10 bp
+of each simulated element were allocated among the four classes by multinomial sampling. In addition to
+assuming a range of mixtures of selective modes, we considered scenarios with various numbers of elements
+(ranging from 10,000–20,000).
+The values of ρ, E[Dp ] and E[Pw ] estimated by INSIGHT were compared with “true” values for each
+simulation. The true value of ρ was simply the fraction of sites assumed to be under selection during data
+generation. The true value of Dp was taken to be the number of actual divergence events that occurred in
+sites under positive selection. The true value of Pw was taken to be the number of negatively selected sites
+that are polymorphic. In computing this quantity we allowed for both strong and weak negative selection,
+because the distinction between them is somewhat arbitrary in our model. For ρ and Dp we also compared
+our model-based estimates with the simple estimates based on counts of polymorphic and divergent sites
+(Equations 11–13).
+
+Analysis of Human Noncoding Genomic Elements
+In our experiments on real data, we made use of the 69 individual human genome sequences recently
+released by Complete Genomics (http://www.completegenomics.com/public-data/69-Genomes/) (Drmanac
+
+Inference of Selection from Interspersed Genomic Elements
+
+13
+
+et al., 2010), using data for 54 unrelated individuals. While larger data sets are available (The 1000 Genomes
+Project Consortium, 2010), this one was selected for its high coverage, which reduces the effect of genotyping error and allows singleton variants to be characterized with fairly high confidence. For outgroup
+genomes, we used the chimpanzee (panTro2), orangutan (ponAbe2), and rhesus Macaque (rheMac2) reference genomes. Various filters were applied to guarantee high quality alignments and variant calls (see Supplementary Methods). Putatively neutral sites were identified by excluding exons of known protein-coding
+and RNA genes plus 1kb of flanking sites on each side, and previously predicted conserved noncoding elements plus flanking regions of 100 bp. After these filters were applied, average of 3,881 sites per 10,000 bp
+block remained. Genomic blocks with <100 putative neutral sites were discarded.
+We examined several classes of short interspersed noncoding elements in the human genome, including
+(1) several collections of regulatory noncoding RNAs from GENCODE V.13 (Harrow et al., 2006) (See
+Supplementary Methods), (2) proximal promoters of known genes (defined as 100 bp upstream the transcription start site), and (3) a collection of GATA2 transcription factor binding sites. The GATA2 binding
+sites were identified by a pipeline developed another recent study (Arbiza et al., 2012), based on genomewide chromatin immunoprecipitation and sequencing (ChIP-seq) data from the ENCODE project (Bernstein
+et al., 2012). To improve efficiency, we performed the phylogenetic model fitting stage of our analysis on a
+fixed set of 10kb genomic windows (overlapping by 5kb), in a preprocessing step. We fitted a neutral model
+estimated from fourfold degenerate sites to the neutral sites in each window by estimating two scale factors,
+one for the branch to the human genome (λb ) and one for the other branches in the tree (λO
+b ; see Pollard
+et al. (2010) for details). This analysis assumed a (((human, chimpanzee), orangutan), rhesus macaque) tree
+topology. After fitting the model, we also computed conditional distributions for the ancestral allele Zi given
+the outgroup sequences at each nucleotide position i. We also estimated θb for each block. The estimates of
+λb and θb , and the distributions for Zi , were recorded in a database and used in all subsequent analyses.
+
+Results
+Simulations
+We applied INSIGHT to various collections of synthetic elements and compared our model-based parameter
+estimates both with “true” values reflecting the simulated evolutionary histories and with various simple
+estimators based on counts of polymorphisms and divergences (see Methods). We simulated collections
+
+Inference of Selection from Interspersed Genomic Elements
+
+14
+
+roughly similar to our real data sets (Supplementary Table S2), with 10,000–20,000 blocks consisting of
+10 bp elements and 10 kbp of flanking neutral sequence. We considered a range of mixtures of neutral,
+weak negative (WN), strong negative (SN), and strong positive (SP) selection (see Methods). Here we
+focus on four representative data sets: (1) one with relatively few sites under selection (10%) and negative
+selection only (‘Neg’ in Fig. 3A); (2) another with a moderate fraction of sites under selection (30%),
+including a substantial fraction (5%) under positive selection (‘Pos’); (3) another with a high fraction of
+sites under weak negative selection (50%) and no sites under positive selection (‘Weak’); and, finally, (4)
+a set with a substantial fraction of sites in each of the selective modes (‘Mix’). We found that our modelbased estimates of ρ and Dp were highly accurate across all mixtures of selective modes. Our estimates of
+Pw were also reasonably accurate, but had slightly larger confidence intervals. The simple estimators also
+performed reasonably well in many cases, but the divergence-based estimators for ρ were strongly biased
+by positive selection (e.g., ρ̂Div = −0.52 in Pos and ρ̂Div = −0.13 in Mix). The reason for this bias is
+that these estimators implicitly attribute all divergence to neutral drift, an assumption that is violated by
+non-negligible levels of positive selection. Similarly, the polymorphism-based estimator for ρ was biased
+downward in the presence of weak negative selection (e.g., ρ̂Poly = 0.59 and ρTrue = 0.8 in Mix), because
+this estimators implicitly assumes that selection completely eliminates polymorphism, which is not true in
+this case. For similar reasons, the McDonald-Kreitman (MK)-based estimates of the number of adaptive
+divergences (D̂p -MK ) was also biased in the presence of weak negative selection (see Charlesworth and
+Eyre-Walker, 2008).
+These synthetic data sets—generated by forward simulation, under fairly realistic assumptions—also
+enabled us to directly evaluate the assumptions underlying our model. Consistent with our assumptions,
+no mutations reached fixation in the 34,000 negatively selected sites (weak or strong) in our synthetic data
+sets. Thus, our simulations strongly support the critical assumption enabling the posterior expected number
+of divergences under selection (E[Dp ]) to be interpreted as a measure of positive selection. On the other
+hand, selected polymorphisms were not completely restricted to WN sites, as assumed; instead, 8% of polymorphisms under selection occurred in SN sites and 9% in SP sites, with the remaining 83% at WN sites.
+However, the distinction our model makes between WN and SN sites is inevitably somewhat arbitrary, and
+some residual polymorphism in SN sites should have little impact on our inference procedure. (Indeed, it
+may be best to think of the WN sites as being operationally defined as those negatively selected sites in
+which polymorphisms are possible.) On the other hand, the presence of some polymorphic SP sites could
+
+Inference of Selection from Interspersed Genomic Elements
+
+15
+
+lead to over-estimation of Pw , because these sites will tend to be assigned to the WN class. However,
+our inference procedure appeared to be robust to minor violations of this assumption, with no significant
+over-estimation of Pw . Importantly, only a small fraction (4%) of all selected polymorphisms exhibited
+derived allele frequencies >15%, and these were vastly outnumbered by neutral high-frequency polymorphisms. Thus, while the simulation study did not fully support our modeling assumptions, only fairly minor
+violations were observed and our inference procedure seemed to be robust to them.
+In the above analysis, we assumed a low-frequency threshold of f = 15%, similar to previous studies
+(Fay, Wyckoff and Wu, 2001; Zhang and Li, 2005; Charlesworth and Eyre-Walker, 2008). In reality, of
+course, the upper bound for the derived allele frequency at negatively selected sites depends on various factors, including the actual distribution of selection coefficients and the demographic history of the sample. To
+test the robustness of our model to the choice of f , we generated eleven collections of 10,000 elements with
+true fractions of sites under selection ranging from 0 to 1 (in steps of 0.1), keeping the proportion within selected sites in each collection constant at 45% WN, 50% SN, and 5% PD. We then applied INSIGHT to each
+data set using values of f ranging from 1% to 40% (Fig. 3B). We found that very low thresholds (f < 7%)
+resulted in clear under-estimation of all model parameters, due to the presence of selected polymorphisms
+with DAF exceeding the threshold, while very high thresholds (f > 20%) led to high variance and some
+downward bias in the estimates, due to sparse data for high-frequency polymorphisms. Importantly, however, no bias was observed for thresholds in the range of 7–20%, indicating robustness to the specific choice
+of threshold and justifying our default choice of 15%.
+An important feature of our model is that it directly contrasts sequence patterns in elements with those
+in nearby neutral sites, which should make it insensitive to the particular demographic history of the target
+population. To test robustness to demography, we simulated data sets for each of eleven mixtures of selective modes described above using four different demographic scenarios for the target population: one with
+constant population size since divergence from chimpanzee, one with a moderate population expansion, and
+two others with a severe population bottleneck followed by an exponential expansion (Supplementary Table
+S1). Inference was performed separately for each of these 4×11 data sets. The estimated parameters were
+then compared with their true values and with the simple count-based estimates (Fig. 3C). The divergencebased estimates, ρ̂Div , were quite poor due to the effects of positive selection, as discussed above. The
+polymorphism-based estimates, ρ̂Poly , also consistently under-estimated the true values, by an average of
+24% in the first two (more moderate) scenarios and an average of 42% in the scenarios with bottlenecks. A
+
+Inference of Selection from Interspersed Genomic Elements
+
+16
+
+more severe underestimation in the second two scenarios was also observed for the MK-based estimator of
+the number of adaptive divergences, D̂p -MK . In both cases, these underestimates may reflect an increased
+influence from weak negative selection in populations that have undergone bottlenecks. In contrast, our
+model-based estimates of ρ and Dp showed no apparent bias in any of the simulated demographic scenarios.
+Estimates of the number of polymorphisms under selection, Pw , showed somewhat greater variance, as observed in our initial simulation study (Fig. 3A), but the error in these estimates did not seem to be affected
+by demography. Thus, our method appears to be capable of disentangling the contributions of positive and
+negative selection even in the presence of a complex demographic history, without the need for explicit
+demographic inference.
+
+Analysis of Human Noncoding Genomic Elements
+We next applied INSIGHT to real human genomic data, using 54 unrelated individual genomes from Complete Genomics to define human polymorphisms and the chimpanzee, orangutan, and macaque genomes as
+outgroups (see Methods). First, we applied the method to randomly selected “neutral” regions (arbitrary
+genomic regions excluding genes, conserved noncoding elements, and their immediate flanks; see Methods), to ensure that it adequately controls for false positive inferences of selection in real data. From the
+previously identified putatively neutral regions, we sampled 500 mutually exclusive collections of roughly
+30,000 “neutral elements,” 10 bp long. For each collection, we estimated ρ and the corresponding likelihood
+ratio test (LRT) statistic for the null hypothesis of ρ = 0. The 500 estimated values of ρ were generally close
+to zero, with a median of 0.03 (Supplementary Fig. S1) and almost no values >0.1. The distribution of LRT
+statistics was roughly similar to a 50:50 mixture of a point mass at zero and a χ2 distribution with three
+degrees of freedom, as expected (see Methods), but did show a clear shift toward large values relative to
+this distribution (Fig. 4A). This shift may reflect violations of our simplifying assumptions in real genomic
+data (e.g., variation in mutation rates within blocks), contributions from alignment errors, or the inclusion
+of some functional sites within our “neutral” elements. Nevertheless, we found that the use of a more conservative (non-mixed) χ2 distribution with three degrees of freedom adequately controlled for the excess in
+large LRT statistics (Fig. 4A). In particular, four of our data sets (0.8%) had LRT statistics that exceeded the
+p = 0.01 cutoff and 24 data sets (4.8%) had LRT statistics that exceeded the p = 0.05 cutoff, indicating a
+good fit at the tail of the distribution. Thus, we use this distribution for approximate calculations of nominal
+p-values in our subsequent analyses.
+
+Inference of Selection from Interspersed Genomic Elements
+
+17
+
+Next we examined five classes of noncoding elements annotated by the GENCODE project. These included proximal promoter regions of known genes (defined as 100 bp upstream of the transcription start
+site), three classes of noncoding RNAs (micro-RNAs [miRNAs], small nucleolar RNAs [snoRNAs], and
+large interspersed non-coding RNAs [lincRNAs]), and binding sites of the GATA2 transcription factor, in
+which we recently found evidence of both positive and negative selection (Arbiza et al., 2012). We applied
+INSIGHT
+
+to a high-confidence subset of annotated elements in each of these five classes (Supplementary
+
+Table S2; see Supplementary Methods). Our analysis considered various thresholds for distinguishing between low and high frequency polymorphisms, but our estimates were fairly insensitive to this threshold
+(Supplementary Fig. S2), so we focus below on results for the default threshold of 15%.
+All five classes of elements were estimated to have significant fractions of sites under selection (ρ > 0;
+p ≤ 0.01; Fig. 4B). The snoRNAs showed the highest estimated value (ρ = 0.46 ± 0.11), consistent with
+their essential role in guiding chemical modifications of ribosomal and transfer RNAs (Matera, Terns and
+Terns, 2007; Pang, Frith and Mattick, 2006). miRNAs and GATA2 binding sites also showed estimates of
+ρ exceeding 0.3, approximately the average for annotated transcription factor binding sites (Arbiza et al.,
+2012). By contrast, lincRNAs were inferred to have a much smaller (but still significant) fraction of sites
+under selection, consistent with previous observations indicating high levels of conservation are generally
+limited to short segments within lincRNAs (Guttman et al., 2009; Marques and Ponting, 2009; Ulitsky et al.,
+2011). We found significant evidence of weak negative selection (γ > 0; p ≤ 0.01) for lincRNAs, snoRNAs,
+and proximal promoters, with snoRNAs showing particularly high rates of weakly selected segregating polymorphisms (E[Pw ] = 1.7 ± 0.6 polymorphisms per kbp). Interestingly, only GATA2 binding sites showed
+significant evidence of positive selection (η > 0; p ≤ 0.01) (Fig. 4B), indicating that negative selection
+is dominant for most of these noncoding elements, but at least some classes of transcription factor binding
+sites exhibit substantial evidence of recent adaptation (Arbiza et al., 2012). Estimates of ρ naturally depend
+on the density of functional sites within each annotation class, and the reduced estimates for promoters and
+lincRNAs likely reflect a relatively low density of functional nucleotides.
+To shed additional light on the manner in which natural selection has influenced these elements, we
+performed a more detailed analysis of two classes of elements, GATA2 binding sites and miRNA primary
+transcripts. First, we partitioned the nucleotides in the annotated GATA2 binding sites into 11 classes,
+corresponding to the 11 positions in the GATA2 motif, and applied INSIGHT separately to each class (Fig.
+4C). This analysis indicated that the effects of natural selection are concentrated in the seven-nucleotide
+
+Inference of Selection from Interspersed Genomic Elements
+
+18
+
+“core” region of the motif (Fig. 4C); all seven of these positions, and only one other position, were found to
+have significant estimates of ρ (p ≤ 0.01). Furthermore, it indicated that the signature of positive selection
+comes primarily from the 7th and 8th positions, which together contribute a total posterior expected number
+of adaptive divergences of 123±43 across roughly 30,000 binding sites (2.4±0.7 per kbp). Interestingly,
+these positions (particularly the 8th) are know to play a role in modulating binding specificity of GATA2
+(Ko and Engel, 1993; Merika and Orkin, 1993). They are also critical in determining the relative binding
+affinities of GATA1, GATA2, and GATA3, which regulate overlapping sets of genes and are known to
+serve as “switches” between alternative modes of gene expression (Bresnick et al., 2010; Dore et al., 2012).
+Notably, the 4th and 5th positions in the core GATA motif showed significant evidence of weak negative
+selection (γ > 0; p ≤ 0.01), despite no significant signature of weak negative selection in the global analysis
+of the binding site (above).
+In our second detailed analysis, we partitioned the nucleotides in the annotated miRNAs into several
+structural classes based on predictions of hairpin secondary structures (see Supplementary Methods), and
+we applied INSIGHT separately to each class. We first partitioned the primary miRNA into loop and stem
+regions (Fig. 4D, inset) , distinguishing between paired and unpaired bases within the stem. Among the
+three partitions, only paired bases in the stem were estimated to have a significant fraction of sites under
+selection (ρ = 0.48 ± 0.06; p < 10−5 ; Fig. 4D), consistent with their key role in stabilizing the hairpin
+structure. The estimate for the unpaired stem positions was particularly low (ρ = 0.15 ± 0.12; p > 0.05).
+These results are consistent with previous comparative genomic studies in Drosophila (Clark et al., 2007;
+Stark et al., 2007b). The estimate for the loop region was surprisingly high (ρ = 0.36 ± 0.22 p > 0.05),
+given that this region has no known sequence-specific role in miRNA biogenesis, but data for the loop was
+somewhat sparse, leading to high variance in the estimate.
+Finally, we further partitioned the stem into four sub-regions—loop-proximal, lower stem, star, mature—
+reflecting the cleavage activity of Drosha and Dicer, the two RNase III cleavage enzymes of primary importance in miRNA biogenesis. Estimates of ρ for paired bases in these five regions (Fig. 4D) were generally
+concordant with previous comparative analyses and with what is currently known about miRNA biogenesis and target gene regulation (Lai et al., 2003; Clark et al., 2007; Stark et al., 2007a). In particular, the
+highest estimate of ρ (0.66±0.15) corresponds to the 21–22nt mature (miRNA) region, which has a dual
+role in structure preservation for efficient recognition and processing by Drosha and Dicer, and in direct
+post-transcriptional regulation of mRNA transcripts. The lower-stem and loop-proximal regions had lower
+
+Inference of Selection from Interspersed Genomic Elements
+
+19
+
+estimates of ρ, probably because they do not serve any direct regulatory role, but are important in preserving
+the hairpin structure. The star region had an intermediate estimate of ρ, perhaps because a fraction of star
+sequences are loaded into AGO complexes and carry out functional roles, even though most are degraded
+(Okamura et al., 2008; Clark et al., 2007). The estimates of ρ obtained using INSIGHT are generally similar
+to comparative genomic estimates based on the phyloP program (Pollard et al., 2010) (Supplementary Fig.
+S3), but differ from them in some respects. For example, INSIGHT finds somewhat weaker evidence for selection in the star relative to the mature region of the miRNA than does phyloP. This difference could reflect
+a shift toward weak negative selection in the star region, which is not apparent on comparative genomic time
+scales because selection is sufficiently strong to prohibit long-term fixation of derived alleles.
+
+Discussion
+Methods based on patterns of divergence between species have become widely used for identifying and
+characterizing noncoding functional elements (Margulies et al., 2003; Siepel et al., 2005; Cooper et al., 2005;
+Pollard et al., 2010), but these methods are limited by their consideration of relatively long evolutionary
+time scales and their sensitivity to alignment errors and other technical artifacts. The goal of INSIGHT is to
+shed new light on recent evolutionary patterns by taking advantage of newly available population genomic
+data, together with comparative genomic data for closely related species. Any inference method focused
+on recent evolutionary time must confront the problem that data describing variation within populations
+and divergence on short time scales is necessarily sparse. INSIGHT addresses this problem by considering
+relatively large collections of elements of the same type, and directly contrasting them with flanking neutral
+regions. In this way, it accommodates differences in mutation rates and genealogical backgrounds across
+the genome, and mitigates biases from complex demographic histories.
+INSIGHT
+
+bears some similarities to McDonald-Kreitman (MK)-based methods (McDonald and Kreit-
+
+man, 1991; Smith and Eyre-Walker, 2002; Bierne and Eyre-Walker, 2004; Andolfatto, 2005), Poisson Random Field (PRF)-based methods (Sawyer and Hartl, 1992; Bustamante et al., 2002, 2005; Williamson et al.,
+2005), and related methods for characterizing the distribution of fitness effects (Eyre-Walker, Woolfit and
+Phelps, 2006; Boyko et al., 2008; Eyre-Walker and Keightley, 2009), but it differs from previous methods in
+several important respects. Unlike MK-based methods, INSIGHT is based on a full generative probabilistic
+model, pools information from many loci in a statistically rigorous manner, and explicitly models weak
+
+Inference of Selection from Interspersed Genomic Elements
+
+20
+
+negative selection. Unlike PRF-based methods, it direct contrasts patterns of polymorphism and divergence
+in elements of interest with flanking sites, rather than attempting to model the complex dependency of absolute allele frequencies on selection coefficients. INSIGHT additionally allows for straightforward likelihood
+ratio tests of various hypotheses of interest, and it allows parameter variances to be approximately characterized using standard methods. For these reasons, we expect it to be a valuable complement both to existing
+methods for analyzing noncoding regions based on long-term evolutionary conservation, and to methods for
+analyzing protein-coding sequences based on patterns of polymorphism and divergence.
+Our relatively simple probabilistic model is designed to exploit newly available genome-scale data sets
+describing both candidate functional elements (Bernstein et al., 2012; Gerstein et al., 2010; Roy et al., 2010)
+and variation within populations (The 1000 Genomes Project Consortium, 2010; Mackay et al., 2012). However, a naive approach to parameter estimation would still be prohibitively CPU-intensive with genome-wide
+data. We achieve major gains in efficiency by decomposing the inference procedure into three separate steps,
+concerned with the estimation of the phylogenetic, neutral, and selection parameters, respectively. This decomposition relies on the simplifying assumption that neutral sites within the elements of interest contain
+negligible information about the neutral parameters of the model, because they are vastly outnumbered by
+the flanking neutral sites—a property that can typically be guaranteeed by construction. It also depends on
+the use of a single phylogenetic model per locus in estimating the prior distribution of the ancestral allele at
+all sites, which should be adequate as long as relatively close outgroups are used. Notably, the first two of
+these steps can be performed in preprocessing and reused in the analysis of any set of loci that use the same
+flanking regions. Furthermore, the neutral flanks can be designed to maximize the potential for reuse, as in
+this work, by defining a set of constant genomic blocks, and associating each element with the neutral sites
+of the nearest block. This strategy allows the neutral and phylogenetic parameters to be pre-estimated for
+each block and reused in any number of subsequent analyses. Importantly, these steps dominate the running
+time of the inference algorithm (particularly the phylogenetic estimation step). The final stage, in which the
+parameters ρ, η, and γ are estimated, is independent of the number of genomes considered and typically
+takes less than a minute.
+It is worth emphasizing that INSIGHT can be applied to any collection of genomic elements, provided
+each one is sufficiently short that it does not span regions having markedly different mutation rates or genealogies, and provided each element can be associated with nearby sites likely to be free from the effects of
+selection. In this paper, we have focused on the case of genome-wide collections of elements of a particular
+
+Inference of Selection from Interspersed Genomic Elements
+
+21
+
+type, such as miRNAs or binding sites for a particular transcription factor, but many other types of analysis
+are possible. For example, in related work (Arbiza et al., 2012), we have examined various subsets of TFBSs, such as those associated with genes of a particular Gene Ontology category or expressed at a various
+levels, and those having various levels of predicted binding affinity. As we have shown, the method can also
+be applied to well-defined subsets of positions within elements, such as those corresponding to particular
+motif positions or particular miRNA structural regions. Similar analyses could be used to contrast regions
+of the genome having different epigenomic marks, sequences near to and far from genes, sequences on sex
+chromosomes and autosomes, or any number of other biologically significant genomic partitions.
+INSIGHT
+
+could be extended in various ways to improve the fit of the model to the data and broaden the
+
+utility of the program. In this analysis we had a sufficiently large and complete collection of human variation
+data to simply discard positions with missing data in one or more samples. In cases of more missing data,
+however, it may be worthwhile to use the strategy of adjusting Watterson’s constant an in the appropriate
+conditional distributions (see Table 3) based on the number of samples for which data is available at each
+genomic position. This simple approach should work well as long as the amount of missing data is not
+excessive, but it will require some care in programming to accommodate site-wise variation in an efficiently.
+Another useful extension would be to allow for variation across loci in the global parameters ρ, η, and γ, say,
+by assuming locus-specific parameters are drawn from Beta (for ρ) or Gamma (for η and γ) distributions
+and estimating the hyper-parameters for these distributions from the data. This strategy should improve
+model fit considerably in cases of variable selection across loci, similar to phylogenetic models that allow
+for rate variation among sites (Yang, 1994). A further extension would be to use a fully Bayesian approach
+and infer posterior distributions for the parameters of interest. This would also be fairly straightforward, but
+would most likely require Markov chain Monte Carlo sampling or variation Bayes approximations. These
+and other extensions would help further in using patterns of polymorphism and divergence to shed light on
+recent evolutionary processes, particularly in noncoding regions, and may improve predictions of the fitness
+effects of mutations across the genome.
+
+Literature Cited
+Andolfatto P. 2005. Adaptive evolution of non-coding DNA in Drosophila. Nature. 437:1149–1152.
+Arbiza L, Gronau I, Aksoy BA, Hubisz MJ, Gulko B, Keinan A, Siepel A. 2012. Genome-wide inference
+
+Inference of Selection from Interspersed Genomic Elements
+
+22
+
+of natural selection on human transcription factor binding sites. Submitted. .
+Bernstein BE, Birney E, Dunham I, et al. (600 co-authors). 2012. An integrated encyclopedia of DNA
+elements in the human genome. Nature. 489:57–74.
+Bierne N, Eyre-Walker A. 2004. The genomic rate of adaptive amino acid substitution in Drosophila. Mol.
+Biol. Evol. 21:1350–1360.
+Boyko AR, Williamson SH, Indap AR, et al. (14 co-authors). 2008. Assessing the evolutionary impact of
+amino acid mutations in the human genome. PLoS Genet. 4:e1000083.
+Bresnick EH, Lee HY, Fujiwara T, Johnson KD, Keles S. 2010. GATA switches as developmental drivers.
+J. Biol. Chem. 285:31087–31093.
+Bustamante CD, Fledel-Alon A, Williamson S, et al. (11 co-authors). 2005. Natural selection on proteincoding genes in the human genome. Nature. 437:1153–1157.
+Bustamante CD, Nielsen R, Sawyer SA, Olsen KM, Purugganan MD, Hartl DL. 2002. The cost of inbreeding in Arabidopsis. Nature. 416:531–534.
+Charlesworth J, Eyre-Walker A. 2008. The McDonald-Kreitman test and slightly deleterious mutations.
+Mol. Biol. Evol. 25:1007–1015.
+Chernoff H. 1954. On the distribution of the likelihood ratio. Ann Math Statist. 25:573–578.
+Chiaromonte F, Weber RJ, Roskin KM, Diekhans M, Kent WJ, Haussler D. 2003. The share of human
+genomic DNA under selection estimated from human-mouse genomic alignments. In: Cold Spring Harbor
+Symp Quant Biol. volume 68, pp. 245–254.
+Clark A, Eisen M, Smith D, et al. (11 co-authors). 2007. Evolution of genes and genomes on the Drosophila
+phylogeny. Nature. 450:203–218.
+Cooper GM, Stone EA, Asimenos G, Green ED, Batzoglou S, Sidow A. 2005. Distribution and intensity of
+constraint in mammalian genomic sequence. Genome Res. 15:901–913.
+Dermitzakis ET, Clark AG. 2002. Evolution of transcription factor binding sites in mammalian gene regulatory regions: conservation and turnover. Mol Biol Evol. 19:1114–1121.
+
+Inference of Selection from Interspersed Genomic Elements
+
+23
+
+Dore LC, Chlon TM, Brown CD, White KP, Crispino JD. 2012. Chromatin occupancy analysis reveals
+genome-wide GATA factor switching during hematopoiesis. Blood. 119:3724–3733.
+Drmanac R, Sparks AB, Callow MJ, et al. (65 co-authors). 2010. Human genome sequencing using unchained base reads on self-assembling DNA nanoarrays. Science. 327:78–81.
+Eyre-Walker A, Keightley PD. 2009. Estimating the rate of adaptive molecular evolution in the presence of
+slightly deleterious mutations and population size change. Mol. Biol. Evol. 26:2097–2108.
+Eyre-Walker A, Woolfit M, Phelps T. 2006. The distribution of fitness effects of new deleterious amino acid
+mutations in humans. Genetics. 173:891–900.
+Fay JC, Wyckoff GJ, Wu CI. 2001. Positive and negative selection on the human genome. Genetics.
+158:1227–1234.
+Gerstein MB, Lu ZJ, Van Nostrand EL, et al. (131 co-authors). 2010. Integrative analysis of the Caenorhabditis elegans genome by the modENCODE project. Science. 330:1775–1787.
+Guigó R, Dermitzakis ET, Agarwal P, et al. (11 co-authors). 2003. Comparison of mouse and human
+genomes followed by experimental verification yields an estimated 1,019 additional genes. Proc Natl
+Acad Sci USA. 100:1140–1145.
+Guttman M, Amit I, Garber M, et al. (20 co-authors). 2009. Chromatin signature reveals over a thousand
+highly conserved large non-coding RNAs in mammals. Nature. 458:223–227.
+Harrow J, Denoeud F, Frankish A, et al. (11 co-authors). 2006. GENCODE: producing a reference annotation for ENCODE. Genome Biol. 7 Suppl 1:1–9.
+Hernandez RD. 2008. A flexible forward simulator for populations subject to selection and demography.
+Bioinformatics. 24:2786–2787.
+Hubisz MJ, Pollard KS, Siepel A. 2011. PHAST and RPHAST: Phylogenetic analysis with space/time
+models. Briefings in Bioinformatics. 12:41–51.
+Kellis M, Patterson N, Endrizzi M, Birren B, Lander ES. 2003. Sequencing and comparison of yeast species
+to identify genes and regulatory elements. Nature. 423:241–254.
+
+Inference of Selection from Interspersed Genomic Elements
+
+24
+
+Ko LJ, Engel JD. 1993. DNA-binding specificities of the GATA transcription factor family. Mol. Cell. Biol.
+13:4011–4022.
+Kondrashov AS, Crow JF. 1993. A molecular approach to estimating the human deleterious mutation rate.
+Hum. Mutat. 2:229–234.
+Lai EC, Tomancak P, Williams RW, Rubin GM. 2003. Computational identification of Drosophila microRNA genes. Genome Biol. 4:R42.
+Lehmann EEL, Casella G. 1998. Theory of point estimation. Springer.
+Lunter G, Ponting CP, Hein J. 2006. Genome-wide identification of human functional DNA using a neutral
+indel model. PLoS Comput. Biol. 2:e5.
+Mackay TF, Richards S, Stone EA, et al. (52 co-authors). 2012. The Drosophila melanogaster Genetic
+Reference Panel. Nature. 482:173–178.
+Margulies EH, Blanchette M, NISC Comparative Sequencing Program, Haussler D, Green ED. 2003. Identification and characterization of multi-species conserved sequences. Genome Res. 13:2507–2518.
+Marques AC, Ponting CP. 2009. Catalogues of mammalian long noncoding RNAs: modest conservation
+and incompleteness. Genome Biol. 10:R124.
+Matera AG, Terns RM, Terns MP. 2007. Non-coding RNAs: lessons from the small nuclear and small
+nucleolar RNAs. Nat. Rev. Mol. Cell Biol. 8:209–220.
+McDonald JH, Kreitman M. 1991. Adaptive protein evolution at the Adh locus in Drosophila. Nature.
+351:652–654.
+Merika M, Orkin SH. 1993. DNA-binding specificity of GATA family transcription factors. Mol. Cell.
+Biol. 13:3999–4010.
+Moses AM, Pollard DA, Nix DA, Iyer VN, Li XY, Biggin MD, Eisen MB. 2006. Large-scale turnover of
+functional transcription factor binding sites in Drosophila. PLoS Comput. Biol. 2:e130.
+Mouse Genome Sequencing Consortium. 2002. Initial sequencing and comparative analysis of the mouse
+genome. Nature. 420:520–562.
+
+Inference of Selection from Interspersed Genomic Elements
+
+25
+
+Okamura K, Phillips MD, Tyler DM, Duan H, Chou YT, Lai EC. 2008. The regulatory activity of microRNA* species has substantial influence on microRNA and 3’ UTR evolution. Nat. Struct. Mol. Biol.
+15:354–363.
+Pang KC, Frith MC, Mattick JS. 2006. Rapid evolution of noncoding RNAs: lack of conservation does not
+mean lack of function. Trends Genet. 22:1–5.
+Pollard KS, Hubisz MJ, Rosenbloom KR, Siepel A. 2010. Detection of nonneutral substitution rates on
+mammalian phylogenies. Genome Res. 20:110–121.
+Pollard KS, Salama SR, Lambert N, et al. (11 co-authors). 2006. An RNA gene expressed during cortical
+development evolved rapidly in humans. Nature. 443:167–172.
+Prabhakar S, Visel A, Akiyama JA, et al. (13 co-authors). 2008. Human-specific gain of function in a
+developmental enhancer. Science. 321:1346–1350.
+Roy S, Ernst J, Kharchenko PV, et al. (269 co-authors). 2010. Identification of functional elements and
+regulatory circuits by Drosophila modENCODE. Science. 330:1787–1797.
+Sawyer SA, Hartl DL. 1992. Population genetics of polymorphism and divergence. Genetics. 132:1161–
+1176.
+Schmidt D, Wilson MD, Ballester B, et al. (13 co-authors). 2010. Five-vertebrate ChIP-seq reveals the
+evolutionary dynamics of transcription factor binding. Science. 328:1036–1040.
+Self S, Liang K. 1987. Asymptotic properties of maximum likelihood estimators and likelihood ratio tests
+under nonstandard conditions. J. Am. Stat. Assoc. 82:605–610.
+Siepel A, Bejerano G, Pedersen JS, et al. (16 co-authors). 2005. Evolutionarily conserved elements in
+vertebrate, insect, worm, and yeast genomes. Genome Res. 15:1034–1050.
+Siepel A, Diekhans M, Brejova B, et al. (18 co-authors). 2007. Targeted discovery of novel human exons
+by comparative genomics. Genome Res. 17:1763–1773.
+Smith NG, Eyre-Walker A. 2002. Adaptive protein evolution in Drosophila. Nature. 415:1022–1024.
+Stark A, Kheradpour P, Parts L, Brennecke J, Hodges E, Hannon GJ, Kellis M. 2007a. Systematic discovery
+and characterization of fly microRNAs using 12 Drosophila genomes. Genome Res. 17:1865–1879.
+
+Inference of Selection from Interspersed Genomic Elements
+
+26
+
+Stark A, Lin M, Kheradpour P, et al. (61 co-authors). 2007b. Discovery of functional elements in 12
+Drosophila genomes using evolutionary signatures. Nature. 450:219–232.
+Stoletzki N, Eyre-Walker A. 2011. Estimation of the neutrality index. Mol. Biol. Evol. 28:63–70.
+The 1000 Genomes Project Consortium. 2010. A map of human genome variation from population-scale
+sequencing. Nature. 467:1061–1073.
+Ulitsky I, Shkumatava A, Jan CH, Sive H, Bartel DP. 2011. Conserved function of lincRNAs in vertebrate
+embryonic development despite rapid sequence evolution. Cell. 147:1537–1550.
+Watterson GA. 1975. On the number of segregating sites in genetical models without recombination. Theor
+Popul Biol. 7:256–276.
+Williamson SH, Hernandez R, Fledel-Alon A, Zhu L, Nielsen R, Bustamante CD. 2005. Simultaneous
+inference of selection and population growth from patterns of variation in the human genome. Proc. Natl.
+Acad. Sci. U.S.A. 102:7882–7887.
+Wilson DJ, Hernandez RD, Andolfatto P, Przeworski M. 2011. A population genetics-phylogenetics approach to inferring natural selection in coding sequences. PLoS Genet. 7:e1002395.
+Yang Z. 1994. Maximum likelihood phylogenetic estimation from DNA sequences with variable rates over
+sites: approximate methods. J Mol Evol. 39:306–314.
+Yi X, Liang Y, Huerta-Sanchez E, et al. (70 co-authors). 2010. Sequencing of 50 Human Exomes Reveals
+Adaptation to High Altitude. Science. 329:75–78.
+Zhang L, Li WH. 2005. Human SNPs reveal no evidence of frequent positive selection. Mol. Biol. Evol.
+22:2504–2507.
+
+Inference of Selection from Interspersed Genomic Elements
+
+27
+
+Tables
+Table 1. Model parameters
+Parameter
+λO = {λO
+b }b∈B
+
+Type
+neutral
+
+λ = {λb }b∈B
+θ = {θb }b∈B
+β = (β1 , β2 , β3 )
+
+neutral
+neutral
+neutral
+
+ρ
+η
+
+selection
+selection
+
+γ
+
+selection
+
+Description
+Block-specific neutral scaling factor for the outgroup portion of
+the phylogeny, used when computing the prior distributions for
+each deep ancestral alleles, P (Zi | Oi , λO
+b )
+Block-specific neutral scaling factor for divergence
+Block-specific neutral polymorphism rate
+Relative frequencies of the three derived allele frequency classes, (0, f ),
+[f, 1 − f ], and (1 − f, 1), within neutral polymorphic sites
+Fraction of sites under selection within functional elements
+Ratio of divergence rate at selected sites to local neutral
+divergence rate
+Ratio of polymorphism rate at selected sites to local neutral
+polymorphism rate
+
+Table 2. Model variables associated with site i
+Variable
+Oi
+maj
+Xi
+Ximin
+Yi
+
+Type
+observed
+observed
+observed
+observed
+
+Si
+
+hidden
+
+Zi
+
+hidden
+
+Ai
+
+hidden
+
+Description
+Set of aligned bases from outgroup species
+Base for major allele in target population
+Base for minor allele in target population (NA for monomorphic sites)
+MAF class for site i: ‘M’ for monomorphic sites (MAF=0)
+‘L’ for polymorphic sites with MAF < f
+‘H’ for polymorphic sites with MAF ≥ f
+Selection class: ‘neut’ for neutral sites
+‘sel’ for sites under selection
+Ancestral allele at the most recent common ancestor (MRCA) of the target
+population and the closest outgroup
+Ancestral allele at the MRCA of samples from the target population
+
+Inference of Selection from Interspersed Genomic Elements
+
+28
+
+Table 3. Conditional distribution table for P (Xi | Si , Zi , ζ)
+s
+neut
+neut
+neut
+neut
+neut
+neut
+neut
+sel
+sel
+sel
+sel
+sel
+
+y
+M
+M
+L
+L
+L
+H
+H
+M
+M
+L
+L
+H
+
+maj
+
+z, xi , xmin
+[a ]
+i
+maj
+z=x
+z 6= xmaj
+z = xmaj
+z = xmin
+z∈
+/ {xmaj , xmin }
+z ∈ {xmaj , xmin }
+z∈
+/ {xmaj , xmin }
+z = xmaj
+z 6= xmaj
+z = xmaj
+z 6= xmaj
+—
+
+P Xi = (xmaj , xmin , y) | Si = s, Zi = z, ζ
+(1 − λb t)(1 − θb an )
+1
+3 λb t(1 − θb an )
+
+(1 − λb t)β1 + 13 λb tβ3  31 θb an
+(1 − λb t)β3 + 13 λb tβ1 31 θb an
+1
+1
+3 λb t (β1 + β3 ) 3θb an
+1
+1 − λb t + 3 λb t β2 13 θb an
+2
+1
+3 λb tβ2 3 θb an
+(1 − ηλb t)(1 − γθb an )
+1
+3 ηλb t
+(1 − ηλb t) 13 γθb an
+0
+0
+
+
+
+Relationships among variables. It is implicit that xmaj ∈ {A, C, G, T} and xmaj 6= xmin in all cases. In
+addition, xmin = ∅ when y = M
+a
+
+Inference of Selection from Interspersed Genomic Elements
+
+29
+
+Figure Legends
+Figure 1. Schematic description of INSIGHT. The method measures the influence of natural selection
+by contrasting patterns of polymorphism and divergence in a collection of genomic elements of interest
+(gold) with those in flanking neutral sites (dark gray). Nucleotide sites in both elements (Eb ) and flanks (Fb )
+are grouped into a series of genomic blocks (b) to accommodate variation along the genome in mutation
+rates and genealogical backgrounds. The model consists of phylogenetic (gray), recent divergence (blue),
+and intraspecies polymorphism (red) components, which are applied to genome sequences for the target
+population (X, red) and outgroup species (O, gray). At each nucleotide position, the alleles at the most
+recent common ancestors of the samples from the target population (A) and of the target population and
+closest outgroup (Z) are represented as hidden variables and treated probabilistically during inference. The
+allele Z determines whether or not monomorphic sites are considered to be divergent (D). Polymorphic sites
+are classified as having low- (L) or high- (H) frequency derived alleles based on A and a frequency threshold
+f . The labels shown here are based on a likely setting of Z and A. Vertical ticks represent single nucleotide
+variants relative to an arbitrary reference. Inference is based on differences in the patterns of polymorphism
+and divergence expected at neutral and selected sites.
+
+Inference of Selection from Interspersed Genomic Elements
+
+30
+
+Figure 2. Graphical model for a given nucleotide site i. As in Fig. 1, the phylogenetic portion of
+the model is shown in gray, the divergence component in blue, and the polymorphism component in red.
+Observed variables are represented by solid circles and hidden variables by empty circles. The observed
+alleles in the target population and outgroups are represented by Xi and Oi , respectively. Xi is further
+maj
+
+summarized using a major (Xi ) and minor (Ximin ) allele, as well as the minor allele frequency class
+(Yi ; not shown). The selection class is denoted Si , and the ancestral alleles are denoted Zi and Ai , as
+described in Fig. 1. Conditional dependence between the variables is indicated by directed edges, in the
+standard manner for probabilistic graphical models. Model parameters are shown alongside the associated
+conditional dependency edges. The selection parameters ζ sel = (ρ, η, γ) are highlighted in green.
+
+Inference of Selection from Interspersed Genomic Elements
+
+31
+
+Figure 3. Simulation results. (A) Parameter estimates for four collections of 20,000 simulated elements
+based on different mixtures of neutral (neut), strong positive (SP), strong negative (SN), and weak negative
+(WN) selection (as indicated at bottom). The true values of ρ, Dp , and Pw are indicated by solid bars,
+and estimates from INSIGHT are indicated by diamonds, with error bars representing one standard error.
+For comparison, estimates from several simpler count-based methods are also shown, including estimates
+of ρ based on polymorphism (ρ̂Poly ; ‘+’) and divergence (ρ̂Div ; solid squares) rates, and estimates of Dp
+based on the McDonald-Kreitman framework (D̂p -MK ; ‘×’). Adaptive divergences (Dp ) and deleterious
+polymorphisms (Pw ) are shown as rates per 1,000 base pairs (kbp). See Methods for details. (B) INSIGHT
+was applied to 11 collections of 10,000 elements with various fractions of sites under selection (see text),
+assuming a range of values for the low-frequency derived allele threshold f . Shown are (left column) relative estimation errors for ρ, Dp , and Pw , measured as differences between the estimates and true values
+normalized by the true value, and (right column) curvature-based standard errors (SE) for the estimates,
+both as a function of the frequency threshold f . Each boxplot describes the distribution of values for the 11
+collections considered. (C) Each of the same 11 selection mixtures was combined with four different demographic scenarios having varying degrees of complexity (Supplementary Table S1). Box plots represent
+the distribution of relative error across the eleven collections for each demographic scenario. The relative
+estimation error for the simple site-count-based estimates, ρ̂Poly , ρ̂Div , and D̂p -MK is shown for comparison.
+
+Inference of Selection from Interspersed Genomic Elements
+
+32
+
+Figure 4. Analysis of human genomic elements. (A) Distribution of likelihood ratio test statistics for
+500 sampled sets of “neutral” genomic elements, with ∼30,000 elements per set. Test statistics reflect a
+null hypothesis that ρ = 0 and an alternative hypothesis that ρ > 0. For comparison, a χ23 distribution
+(with three degrees of freedom; red) and a 50:50 mixture of a χ23 distribution and a point mass at 0 (green)
+are also shown. Blue lines indicate significance thresholds for p = 0.01 and p = 0.05 based on the χ23
+distribution. Four of the 500 data sets (0.8%) had test statistics exceeding the p = 0.01 cutoff, and 24
+(4.8%) exceeded the p = 0.05 cutoff, indicating a reasonably good fit to the tail of the distribution. The
+distribution of estimated values of ρ is shown in Supplementary Figure S1. (B) Model-based estimates of
+ρ, E[Dp ], and E[Pw ] for three classes of noncoding RNAs (lincRNAs, miRNAs, and snoRNAs), promoter
+regions, and GATA2 binding sites (see Methods). Error bars indicate one standard error. For comparison,
+estimates of ρ based on polymorphism (ρ̂Poly ) and divergence (ρ̂Div ) counts are also shown. Symbols in
+red indicate statistical significance in likelihood ratio tests for overall selection (ρ > 0; ‘*’ → p < 0.01),
+positive selection (η > 0; ‘p’ → p < 0.01), and weak negative selection (γ > 0; ‘w’ → p < 0.01), based on
+a χ23 distribution for ρ > 0 and a χ21 distribution for η > 0 and γ > 0. (C) The motif inferred for GATA2
+together with position-specific estimates of ρ (left axis), Dp , and Pw (right axis). Statistical significance is
+assessed and indicated as in (B). The “core” seven positions of the motif, having IC> 12 , are highlighted in
+gray. Note that all seven core positions display significant evidence of selection. In addition, positions 7 and
+8 show significant evidence of positive selection, and positions 5 and 6 show significant evidence of weak
+negative selection. (D) Estimates of ρ for several structural regions of miRNAs (inset). (Left) Results for
+a coarse-grained partitioning into loop bases, unpaired stem bases, and paired stem bases. (Right) Results
+for a finer-grained partitioning of paired bases in the stem into loop-proximal, lower-stem, star and mature
+regions, corresponding to the regions that undergo cropping and dicing by Drosha and Dicer (dashed lines).
+Estimates found to be significantly greater than 0 (p ≤ 0.01) are highlighted (‘*’).
+
+Inference of Selection from Interspersed Genomic Elements
+
+33
+
+Figures
+Fb
+
+ly.
+po
+
+block b
+
+Eb
+
+...
+
+X
+
+div
+.
+
+se
+
+lec
+tio
+
+n
+
+...
+
+A
+Z
+
+L
+
+D
+
+L
+
+D D
+
+D
+
+H
+
+H
+
+O
+Figure 1
+
+ρ
+O
+
+λb
+
+Zi
+
+λb η S
+i
+γ
+Ai
+
+TO
+
+θb β
+
+...
+
+maj
+
+Xi
+
+Oi
+Figure 2
+
+f
+
+min
+
+L
+
+D
+
+L
+
+Inference of Selection from Interspersed Genomic Elements
+
+5
+
+0.5 1.0 1.5
+
+Relative error
+
+ρ
+
+SE
+
+−0.5
+
+0.04
+
+10
+
+15
+
+20
+
+25
+
+30
+
+35
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Frequency threshold (%)
+
+−1.5
+
+5
+
+Frequency threshold (%)
+
+35
+
+15
+
+20
+
+25
+
+30
+
+35
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Frequency threshold (%)
+
+0.5 1.0 1.5
+−1.5
+
+10
+
+35
+
+0.5 1.0 1.5
+
+0.30
+
+10
+
+15
+
+20
+
+25
+
+30
+
+35
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Frequency threshold (%)
+
+scenario 2
+
+(moderate increase)
+
+35
+
+scenario 3
+(bottleneck + expansion)
+
+scenario 4
+
+−1.5
+
+5
+
+Frequency threshold (%)
+
+scenario 1
+
+(constant size)
+
+−0.5
+
+Pw / kbp
+
+0.5
+
+0
+
+^ p -MK
+D
+
+INSIGHT
+
+Relative error
+
+50%
+
+0.20
+
+50%
+
+SE
+
+10%
+
+0.10
+
+5%
+20%
+5%
+
+20%
+5%
+25%
+
+−0.5
+
+Pw / kbp
+
+90%
+
+Relative error
+
+70%
+
+−1.5
+
+0.0
+neut 90%
+SP
+SD
+WD
+5%
+5%
+
+Div
+
+−0.5
+
+Dp / kbp
+
+SE
+5
+
+Frequency threshold (%)
+
+1.5
+
+0
+
+ρ^
+
+ρ^Poly
+
+INSIGHT
+
+Relative error
+
+0.5
+0.4
+
+0.5
+0.0
+−0.5
+
+Dp / kbp
+
+1.0
+
+0
+
+Relative error
+
+1
+−1
+0.8
+
+INSIGHT
+
+0.4
+
+Pw / kbp
+
+−1.0
+
+3
+
+Dp / kbp
+
+INSIGHT
+
+0.00
+
+−1.0
+
+Div
+
+^ p -MK
+D
+
+0.08
+
+0.5
+
+ρ
+
+0.0
+
+ρ^
+
+−0.5
+
+ρ^Poly
+
+Relative error
+
+INSIGHT
+
+0.2
+
+ρ
+
+C
+
+B
+
+Mix
+
+0.3
+
+Weak
+
+0.2
+
+Pos
+
+1.0
+
+Neg
+
+0.6
+
+1.0
+
+A
+
+34
+
+(bottleneck + expansion)
+
+INSIGHT
+
+Figure 3
+
+bits
+
+1.0
+
+0.2
+
+0.8
+
+χ3
+
+C
+
+2
+
+3
+
+E[Pw]
+ρ
+E[Dp]
+
+A
+
+AG
+
+C
+
+4
+
+5
+
+C
+C
+
+G
+T
+T
+
+7
+
+6
+
+8
+
+9
+
+11
+
+10
+
+0.4
+
+20
+
+* * * * * * *
+w
+
+1.0
+
+Drosha
+
+0.8
+0.6
+
+ρ
+0.4
+
+Figure 4
+
+ar
+
+*
+
+ur
+e
+at
+m
+
+*
+
+st
+
+te
+
+m
+
+0.2
+
+*
+
+m
+al
+
+*
+
+1
+
+lo
+w
+er
+s
+
+p
+GATA2
+
+2
+
+lo
+
+*
+
+ire
+d
+
+*
+
+w
+w
+snoRNA promoter
+
+4
+
+p
+
+loop
+
+5
+
+un
+pa
+
+*
+
+miRNA
+
+lo
+op
+
+*
+
+w
+lincRNA
+
+3'
+
+p
+
+w
+
+stem
+3
+
+0.0
+
+0.2
+
+ρ
+
+0.4
+
+^
+ρ
+Div
+^
+ρ
+Poly
+
+0
+
+E[Pw]
+ρ
+E[Dp]
+
+0.5 1 1.5 2 2.5
+E[Dp]/kbp , E[Pw]/kbp
+
+D
+5'
+
+0
+
+0.0
+
+*
+
+op
+−p
+ro
+xi
+
+16
+
+Dicer
+
+12
+
+ire
+d
+
+8
+
+pa
+
+4
+
+0.2
+
+0
+
+B
+0.6
+
+T
+
+1
+
+AGATAAG
+
+G
+AC
+T
+
+G
+A
+
+A
+
+G
+
+C
+
+ρ
+
+0.6
+
+p=0.05
+p=0.01
+
+2 x ln−likelihood diff for ρ = 0
+
+0.0
+
+1
+0
+
+2
+
+0.0
+
+Freq
+
+50:50
+
+2
+
+1
+2
+3
+4
+E[Dp]/kbp , E[Pw]/kbp
+
+C
+
+0.4
+
+A
+
+Supplementary Material
+
+35
+
+Supplementary Material
+
+Supplementary Figures
+S1
+
+Observed distribution of ρ estimates across 500 “neutral” collections of elements . . . . . . 39
+
+S2
+
+Analysis of genomic elements using alternative frequency thresholds . . . . . . . . . . . . . 40
+
+S3
+
+Mean conservation scores for five miRNA components . . . . . . . . . . . . . . . . . . . . 41
+
+Supplementary Tables
+S1
+
+Demographic scenarios used in simulation . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+
+S2
+
+Classes of genomic elements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+
+S3
+
+Joint Probabilities Used in E Step of EM Algorithm . . . . . . . . . . . . . . . . . . . . . . 38
+
+Supplementary Methods
+Detailed Inference Algorithm . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42
+Phylogenetic Model Fitting . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43
+Neutral Polymorphism Model Fitting . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+Selection Inference . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45
+Procedure for Numerical Optimization of “Sum of Logs” Functions . . . . . . . . . . . . . 48
+Dealing with Missing Data . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 50
+
+Supplementary Material
+
+36
+
+Estimating Approximate Standard Errors Using the Curvature Method . . . . . . . . . . . . . . . 51
+Analytical computation of the Hessian matrix . . . . . . . . . . . . . . . . . . . . . . . . . 53
+Computing the Posterior Expected Counts E[Dp ] and E[Pw ] . . . . . . . . . . . . . . . . . . . . 55
+Simulation Setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+Demographic Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+Modeling recombination, mutation rate variation, and selection . . . . . . . . . . . . . . . . 57
+Technical simulation settings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+Analysis of Human Genomic Elements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+Variant Calling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+Filters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+Putative Neutral Sites . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+Non-coding Genomic Elements from GENCODE . . . . . . . . . . . . . . . . . . . . . . . 60
+Binding Sites for the GATA2 Transcription Factor . . . . . . . . . . . . . . . . . . . . . . . 61
+Structural Partitioning of miRNAs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 61
+Analysis of Genomic Elements Using Alternative Frequency Thresholds . . . . . . . . . . . 62
+
+Supplementary Material
+
+37
+
+Supplementary Tables
+Table S1. Demographic scenarios used in simulation
+Time a
+220 kya e
+140 kya f
+20.8 kya g
+20.8 kya g
+
+scenario 1 b
+–
+–
+–
+–
+
+scenario 2 c
+1.23x h
+–
+–
+–
+
+scenario 3 d
+1.23x h
+0.17x h
+0.476x h
+exp(79.8) i
+
+scenario 4 d
+1.23x h
+0.17x h
+0.242x h
+exp(109.7) i
+
+a
+
+Time of change in Ne (kya = 1,000 years ago). All demographic scenarios start with an ancestral Ne of 10,000 after
+divergence from chimpanzee, 6.5 mya. Demographic scenarios follow the model suggested by Gutenkunst et al.
+(2009).
+b
+Scenario 1 no demographic changes throughout history.
+c
+Scenario 2 corresponds to the demographic history of an African population with a single moderate population
+expansion.
+d
+Scenario 3 & 4 correspond to the demographic histories of a European and East Asian population, resp., each with a
+moderate population expansion followed by two population bottlenecks and an exponential expansion.
+e
+Moderate population expansion in the African population ancestral to all current human populations.
+f
+Divergence point of an ancestral Eurasian population from an ancestral African population associated with a strict
+population bottleneck in the ancestral Eurasian population.
+g
+Divergence of European and East Asian population associated with additional bottlenecks in both ancestral
+populations followed by exponential expansion.
+h
+Instantaneous population size increase or decrease by a given multiplicative factor.
+i
+Exponential population size expansion at a given rate expressed as log(Nefinal /Neinitial )/time, where time is in units
+of 2Ne generations.
+
+Table S2. Classes of genomic elements analyzed by INSIGHT
+
+Class
+lincRNAsc
+miRNAsc
+snoRNAsc
+proximal promotersd
+GATA2 binding sitesf
+a
+
+elementsa
+3,362
+1,323
+416
+18,453
+39,535
+
+element sites b
+323,284
+63,543
+22,331
+613,339
+209,065
+
+flanking sitesc
+1.6 Mb
+2.5 Mb
+0.3 Mb
+20.3 Mb
+109.0 Mb
+
+Number of distinct elements in class.
+Number of site in entire collection after filtering (|E|).
+c
+Number of neutral flanking sites in megabases (Mb) used for neutral inference (|F |).
+d
+“Exon” level transcripts tagged as “known” in GENCODE v.13.
+e
+Proximal promoters are defined as the 100 bp region upstream the transcription start site of known genes.
+e
+Binding sites identified in ChIP-seq peaks from ENCODE data on multiple cell lines.
+b
+
+Supplementary Material
+
+38
+
+Table S3. Joint Probabilities with Data Used in E Step of EM Algorithma
+Yi
+M
+L
+H
+
+q(Si = neut)
+
+
+
+maj
+1
+λ̂
+t(1
+−
+p
+(1 − λ̂b t)pmaj
+)
+(1 − θ̂b an )
++
+b
+i
+3
+h
+i
+
+
+i
+maj
+(1 − ρ(k) ) (1 − λ̂b t) β̂1 pi
++ β̂3 pmin
++ 13 λ̂b t β̂1 (1 − pmaj
+) + β̂3 (1 − pmin
+) 31 θ̂b an
+i
+i
+i
+h
+i
+maj
+2
+1
+min
+min
+(1 − ρ(k) ) (1 − 23 λ̂b t)(pmaj
+λ̂
+t(1
+−
+p
++
+p
+)
++
+−
+p
+)
+b
+i
+i
+i
+i
+3
+3 β̂2 θ̂b an
+
+(1 − ρ(k) )
+
+Yi
+M
+L
+H
+
+q(Si = sel, Zi = Ximaj )
+ρ(k) pmaj
+(1 − η (k) λ̂b t) (1 − γ (k) θ̂b an )
+i
+maj
+ρ(k) pi
+(1 − η (k) λ̂b t)( 13 θ̂b an γ (k) )
+0
+
+q(Si = sel, Zi 6= Ximaj )
+1 (k)
+(1 − pmaj
+) η (k) λ̂b t
+i
+3ρ
+0
+0
+
+The joint probabilities associated with site i, q(Si = neut), q(Si = sel, Zi = Ximaj ), and q(Si = sel, Zi 6= Ximaj ),
+are defined in Equations 33 - 35. Values of the selection parameters in the kth iteration of the EM algorithm are
+represented by ρ(k) , η (k) , and γ (k) , and the previously-estimated (and fixed) neutral model parameters are
+represented by β̂1 , β̂2 , β̂3 , λ̂b t, and θ̂b an (b is the genomic block that contains site i). We use the following notation
+min
+for the deep ancestral priors: pmaj
+≡ P (Zi = Ximaj | Oi , λ̂O
+≡ P (Zi = Ximin | Oi , λ̂O
+i
+b ) ; pi
+b )
+
+a
+
+Supplementary Material
+
+39
+
+0.0
+
+0.2
+
+0.4
+
+Supplementary Figures
+
+0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+0.5
+
+Figure S1. The observed distribution of ρ estimates for 500 collections of “neutral” elements extracted
+from putative neutral regions used in our control study (see Fig. 4A). Estimated values of ρ had a median of
+0.03 and a maximum of 0.17.
+
+40
+
+10
+
+15
+
+20
+
+0
+
+5
+
+10
+
+15
+
+20
+
+0
+
+5
+
+10
+
+15
+
+20
+
+0
+
+5
+
+10
+
+15
+
+20
+
+0
+
+5
+
+10
+
+15
+
+20
+
+0
+
+5
+
+10
+
+15
+
+20
+
+0.10
+1.0
+
+1.5
+
+−0.10
+
+0.00
+
+0.4
+0.2
+
+0.5
+INSIGHT
+
+^
+
+Div
+
+^
+
+Poly
+
+0.0
+
+0.0
+0.4
+0.2
+0.0
+
+0.0
+
+5
+
+0.20
+
+0
+
+0.6
+
+0.00
+
+0.10
+
+0.2
+
+0.20
+
+0.4
+
+0.30
+
+Supplementary Material
+
+^
+
+Poly-H
+
+^ p -MK
+D
+
+^ p -MK-H
+D
+
+Figure S2. Analysis of the five classes of human noncoding genomic elements for alternative values of the
+frequency threshold f . The INSIGHT estimates (solid lines) are shown with their curvature-based
+confidence intervals (dashed lines). A frequency threshold of 15% (dotted vertical line) was used in our
+main analysis. Count-based estimates for rates of divergent (ρ̂Div ; horizontal blue line) and polymorphic
+(ρ̂Poly ; horizontal red line) sites are shown for comparison. Corrected polymorphism-based estimates
+obtained by discarding low-frequency polymorphisms (ρ̂Poly-H ; Equation 61; dashed red line) are shown as
+well. In addition, estimated posterior expected numbers of adaptive divergences (E[Dp ]) are shown for
+GATA2 (bottom right) as a function of the frequency threshold, together with the MK-based estimates
+(D̂p -MK ; horizontal green) and a corrected MK-based estimates excluding low-frequency polymorphisms
+(D̂p -MK-H ; Equation 62; dashed green).
+
+41
+
+0.15
+0.10
+
+e
+ur
+m
+at
+
+ar
+st
+
+m
+te
+
+lo
+w
+er
+s
+
+lo
+op
+
+−p
+
+pa
+
+ro
+xi
+
+ire
+
+m
+al
+
+d
+
+d
+ire
+pa
+un
+
+lo
+o
+
+p
+
+0.05
+0.00
+
+mean phyloP score
+
+0.20
+
+Supplementary Material
+
+Figure S3. Sequence conservation for the five miRNA considered in our analysis (Fig. 4D) estimated from
+a multiple sequence alignment of eleven primate species using phyloP (Pollard et al., 2010). The plot
+represents mean sitewise phyloP scores with standard errors. The main trends are consistent with our
+INSIGHT-based estimates, namely, higher conservation in paired vs. unpaired bases, and lower conservation
+in the loop region vs. the stem region. However, unlike the conservation scores, the INSIGHT-based
+estimates of ρ indicate stronger selection for the mature strand than for other regions of the miRNA stem.
+
+Supplementary Material
+
+42
+
+Supplementary Methods
+Detailed Inference Algorithm
+Recall that the probabilistic model of INSIGHT has four global parameters (see Table 1): the fraction of sites
+under selection in elements (ρ), the relative divergence (η) and polymorphism (γ) rates at selected sites, and
+β, a multivariate parameter summarizing the neutral site frequency spectrum. In addition, each genomic
+block, b ∈ B is associated with three block-specific paramters: a population-scaled mutation rate (θb ), a
+neutral divergence scale factor (λb ), and an outgroup divergence scale factor (λO
+b ). The objective of the
+inference algorithm is to estimate approximate MLEs for all these parameters given the following input:
+1. The polymorphism class Yi and the major and minor alleles (Ximaj , Ximin ) observed across the sampled individuals in the target population, for each site i along the genome.
+2. An alignment of each outgroup species to the reference sequence of the target population (the columns
+of this multiple genome alignment are represented by {Oi } in our graphical model).
+3. A phylogenetic tree T with branch lengths and an instantaneous substitution rate matrix. In the tree
+T , we denote by ex (or target branch) the terminal branch in T leading to the target population and
+by TO the outgroup phylogeny consisting of all branches in T other than ex (see Fig. 1A).
+4. A collection of putative neutral sites F .
+5. A collection of sites within functional elements E.
+6. A partitioning of the genome into a series of mutually exclusive blocks B.
+
+The inference procedure consists of three separate stages: (1) phylogenetic model fitting, (2) neutral polymorphism model fitting, and (3) selection inference. The neutral inference, which consists of the first two
+stages, makes use of all the above input components other than the collection of functional element sites E.
+The selection inference stage uses the output of the first two stages together with the polymorphism data
+across sites in E. This implies that the neutral inference can be executed without any knowledge of E. Its
+output can be stored and later contrasted against multiple collections of functional elements (using a single
+application of the selection inference stage for each such collection).
+
+Supplementary Material
+
+43
+
+Phylogenetic Model Fitting
+
+The phylogenetic model fitting stage makes use of all input components mentioned above other than (5), the
+collection of element sites. The phylogenetic model is fitted separately to each genomic block to account
+for variation in mutation rate along the genome. For each block b, we fit two scaling factors for branch
+lengths in the phylogenetic tree T : a divergence scaling factor (λ̂b ) corresponding to the target branch,
+ex , and an outgroup scaling factor (λ̂O
+b ) corresponding to the outgroup portion of the phylogeny, TO . The
+two scaling factors are fitted to the outgroup alignments with a single call to the phyloFit function from
+RPHAST (Hubisz, Pollard and Siepel, 2011), using a user-specified instantaneous substitution rate matrix.
+Both scaling factors are fitted to the multiple sequence alignment of outgroup genomes to the reference
+sequence at the putative neutral sites (Fb ) within block b. Note that obtaining accurate MLEs for all blockspecific λb parameters requires joint estimation with the global parameters β1 and β3 (see below). However,
+since β1 and β3 affect the likelihood only at polymorphic sites (specifically with Y − i = L), and those
+are typically rare (fewer than 1% of sites), a good approximation of the MLEs can be obtained by fitting λb
+while considering only monomorphic sites. This allows us to separately infer each block-specific λb and to
+decouple this task from that of inferring β1 and β3 .
+After fitting the two scaling factors, the scaled outgroup phylogeny, λ̂O
+b · TO , is used to obtain the prior
+distributions for the deep ancestral allele, P (Zi | Oi , λ̂b ), for each site within block b (not only the sites in
+Fb ). This computation is done by masking out the entire reference sequence of the target population within
+the multiple alignment of outgroups, and by applying the postprob.msa function in RPHAST to compute
+the posterior probability distribution over bases at the ancestral node at the root of ex for each site along the
+alignment. It is worth noting that although this is considered a “posterior probability” by RPHAST, because
+the reference sequence is masked it is actually the conditional probability of Zi given the outgroup genomes
+only, and therefore can be considered as a conditional prior distribution in our model. The output of the
+phylogenetic model fitting stage is the set of estimated divergence rates, {λ̂b t} (t is the length of ex ), and
+the deep ancestral priors across all non-filtered sites in the genome, which we will denote from this point
+on by {p(Zi ) ≡ P (Zi | Oi , λ̂b )}. The estimates of the outgroup scaling factors, {λ̂O
+b }, are not used by any
+of the subsequent stages. Blocks with too few informative sites (100 bp in our data analysis) are discarded,
+and element sites within these blocks are filtered from the analysis.
+
+Supplementary Material
+
+44
+
+Neutral Polymorphism Model Fitting
+The neutral polymorphism model fitting stage makes use of input components (1), (4), and (6) mentioned
+above, as well as the divergence rates, {λ̂b t}, and deep ancestral priors, {p(Zi )}i∈F , computed in the previous stage. This stage estimates the neutral polymorphism parameters {θb } and β = (β1 , β2 , β3 ) by
+maximum likelihood, considering only sequence data in F and conditioning on the previously estimated
+divergence scales and ancestral priors. Assuming completely observed model variables, The log-likelihood
+function can be expressed as a function of simple site category counts. For this purpose, we use the notation
+cQ (X ) to indicate the number of sites within subset Q with variable configuration X . Using this notation,
+the relevant portion of the likelihood function (Equation 1; main text) can be expressed as follows:
+
+ln
+
+
+
+B
+
+
+X
+LF {θb }, β ; XF , OF , λ̂
+=
+(cFb (Yi 6= M) ln(θb ) + cFb (Yi = M) ln(1 − θb an ) )
+
+(14)
+
+b=1
+
+
+
+
++ cF Yi = L, Ai = Ximaj ln(β1 ) + cF Yi = L, Ai = Ximin ln(β3 )
++ cF (Yi = H) ln(β2 )
++ C,
+
+where C represents a term that does not depend on β1 , β2 , β3 , or {θb }.
+Maximum likelihood estimates (MLEs) for {θb } and β2 depend only on the observed variable Yi and can
+thus be obtained using the following closed-form solutions:
+1 cFb (Yi 6= M)
+.
+an
+|Fb |
+cF (Yi = H)
+β̂2 =
+cF (Yi 6= M)
+θ̂b =
+
+(15)
+(16)
+
+The MLEs for β1 and β3 depend on counts associated with the hidden variable Ai and are estimated using
+the following EM algorithm.
+
+EM Algorithm for β1 and β3 :
+(0)
+
+Initialization: initialize the iteration counter k ← 0 and initialize β1 and β3 as follows: β1 ← δ(1 − β̂2 )
+(0)
+
+and β3 ← (1 − δ)(1 − β̂2 ), where 0 < δ < 12 .
+
+Supplementary Material
+
+45
+
+Iterate until convergence:
+Expectation: For every site i ∈ F with Yi = L, compute the following posterior probability:
+
+
+(k)
+p(Ai = Ximaj ) = P Ai = Ximaj | Xi , Si = neut, Oi , θ̂b , λ̂b , λ̂O
+b , β1
+
+
+(k)
+β1 ψ p(Zi = Ximaj ), λ̂b t
+
+
+,
+
+=
+(k)
+(k)
+β1 ψ p(Zi = Ximaj ), λ̂b t + β3 ψ p(Zi = Ximin ), λ̂b t
+
+(17)
+
+where ψ(x, λ̂b t) = x(1 − λ̂b t) + (1 − x) 31 λ̂b t (see Table 3).
+Then use these values to compute the following expected count:
+h cF (Yi = L, Ai = Ximaj ) i =
+
+X
+
+p(Ai = Ximaj ) .
+
+(18)
+
+i∈F | Yi =L
+
+Maximization: maximize the expected log-likelihood function by updating β1 and β3 as follows:
+h cF (Yi = L, Ai = Ximaj ) i
+,
+cF (Yi 6= M)
+
+(k+1)
+
+=
+
+(k+1)
+
+= 1 − β̂2 − β1
+
+β1
+β3
+
+(k+1)
+
+.
+
+(19)
+(20)
+
+Note that throughout the EM algorithm, the sum of β1 and β3 remains constant at 1 − β̂2 . Also note that
+the computation in each iteration depends on the current values of β1 and β3 , as well as on the divergence
+rate parameters {λ̂b } and deep ancestral state priors {p(Zi )}i∈F computed in the phylogenetic model fitting
+stage. It is, however, independent of the estimated polymorphism rate parameters {θ̂b }, implying that β and
+{θb } can be estimated in parallel.
+
+Selection Inference
+
+The selection inference stage receives as input the polymorphism data across element sites, E, as well
+as the ancestral priors and neutral parameter estimates from the previous stages of inference. This stage
+estimates the selection parameters ρ, η, and γ by maximizing the log-likelihood function, conditional on the
+previously estimated values of the neutral parameters. Assuming completely observed model variables, The
+log-likelihood function can be expressed as a function of simple site category counts as follows (see also
+
+Supplementary Material
+
+46
+
+Equation 10):
+
+ln[L(ρ, η, γ ; X, O, ζ̂neut )] =
+
+(21)
+
+cE (Si = sel) ln(ρ) + cE (Si = neut) ln(1 − ρ) +
+X
+cE (Si = sel, Zi 6= Ximaj ) ln(η) +
+cEb (Si = sel, Zi = Ximaj ) ln(1 − ηλb t) +
+b∈B
+
+cE (Si = sel, Yi = L) ln(γ) +
+
+X
+
+cEb (Si = sel, Yi = M, Zi = Ximaj ) ln(1 − γθb an ) + C ,
+
+b∈B
+
+where C represents a term that does not depend on ρ, η, or γ.
+Since the selection class Si is unknown, we use an EM algorithm, as detailed below, to find the MLEs for
+ρ, η, and γ. Note that in the presence of missing data, an varies along the genome, and the second sum over
+blocks in Equation 21 is broken up into a sum over sites. The same EM algorithm is applicable in this case,
+but the function maximized in each update of γ would have more terms, and would thus take more time to
+numerically maximize (see details below).
+
+EM Algorithm for ρ, η and γ:
+Initialization: initialize the iteration counter k ← 0 and select plausible initial values for ρ, η, and γ, for
+instance, ρ(0) ← 0.6, η (0) ← 1.0, and γ (0) ← 0.5.
+Iterate until convergence:
+Expectation: For every site i ∈ E, compute the following posterior distributions (see Table S3):
+
+p(Si = neut)
+
+= P (Si = neut | Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) ) ,
+
+(22)
+
+p(Si = sel, Zi = Ximaj ) = P (Si = sel, Zi = Ximaj | Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) ) , (23)
+p(Si = sel, Zi 6= Ximaj ) = P (Si = sel, Zi 6= Ximaj | Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) ) , (24)
+
+Supplementary Material
+
+47
+
+Then compute the following global expected counts:
+X
+
+h cE (Si = sel) i =
+
+(1 − p(Si = neut)) ,
+
+(25)
+
+p(Si = sel, Zi 6= Ximaj ) ,
+
+(26)
+
+i∈E
+
+h cE (Si = sel, Zi 6=
+
+Ximaj )
+
+X
+
+i =
+
+i∈E
+
+X
+
+h cE (Si = sel, Yi = L) i =
+
+(1 − p(Si = neut)) ,
+
+(27)
+
+i∈E , Yi =L
+
+and the following block-specific counts:
+h cEb (Si = sel, Zi = Ximaj ) i =
+
+X
+
+p(Si = sel, Zi = Ximaj ) ,
+
+(28)
+
+i∈Eb
+
+h cEb (Si = sel, Yi = M, Zi = Ximaj ) i =
+
+X
+
+p(Si = sel, Zi = Ximaj ) . (29)
+
+i∈Eb , Yi =M
+
+Maximization: maximize the expected log-likelihood by updating ρ as follows:
+ρ(k+1) =
+
+h cE (Si = sel) i
+,
+|E|
+
+(30)
+
+and updating η and γ by numerically finding the maxima for the two following functions, respectively:
+f1 (η)
+
+= h cE (Si = sel, Zi 6= Ximaj ) i ln(η) +
+
+X
+
+h cEb (Si = sel, Zi = Ximaj ) i ln(1 − η λ̂b t) ,
+
+(31)
+
+b
+
+f2 (γ)
+
+= h cE (Si = sel, Yi = L) i ln(γ) +
+
+X
+
+h cEb (Si = sel, Yi = M, Zi = Ximaj ) i ln(1 − γ θ̂b an ) . (32)
+
+b
+
+Due to variation in divergence and polymorphism rates across genomic blocks, the M-step updates for η and
+γ require numerical optimization. This optimization procedure uses standard techniques for optimization of
+convex functions (see Procedure for Numerical Optimization below).
+The description of the EM algorithm is finalized by presenting the formulas used for the computation of
+three posterior distributions, p(Si = neut), p(Si = sel, Zi = Ximaj ), and p(Si = sel, Zi 6= Ximaj ), used
+in the E step of each iteration (Equations 22–24). In order to compute these posteriors, we compute the
+joint distribution with the data for each of these three variable configurations, and then normalize these joint
+
+Supplementary Material
+
+48
+
+distributions in the appropriate way. We define the following notation for these joint distributions:
+q(Si = neut)
+
+= P (Si = neut , Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) ) .
+
+(33)
+
+q(Si = sel, Zi = Ximaj )
+
+= P (Si = sel, Zi = Ximaj , Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) ) .
+
+(34)
+
+q(Si = sel, Zi 6= Ximaj )
+
+= P (Si = sel, Zi 6= Ximaj , Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) ) .
+
+(35)
+
+qtotal
+
+= P (Xi , Oi , ζ̂neut , ρ(k) , η (k) , γ (k) )
+= q(Si = neut) + q(Si = sel, Zi = Ximaj ) + q(Si = sel, Zi 6= Ximaj ) .
+
+(36)
+
+Expressions for q(Si = neut), q(Si = sel, Zi = Ximaj ), and q(Si = sel, Zi 6= Ximaj ) are given in Table S3,
+and each of the three posterior distributions, p(Si = neut), p(Si = sel, Zi = Ximaj ), and p(Si = sel, Zi 6=
+Ximaj ), is obtained by normalizing the appropriate joint probability by the total probability associated with
+site i: p(χ) = q(χ)/qtotal .
+
+Procedure for Numerical Optimization of “Sum of Logs” Functions
+
+The update steps for η and γ in the EM algorithm require finding the maximum of a function that is the
+following sum of log terms:
+
+f (x) = c0 ln(x) +
+
+K
+X
+
+ci ln(1 − wi x) .
+
+(37)
+
+i=1
+
+This sum-of-logs function has a single parameter x and a series of 2K + 1 positive arguments: {ci }K
+i=0
+and {wi }K
+i=1 . We assume that the weight arguments {wi } are distinct and denote by wmin and wmax the
+minimum and maximum weights (if wmin = wmax , then K = 1). Note that f (x) is defined in the open
+1
+interval (0, wmax
+), and is a concave function in that interval (since ln(a + bx) is a concave function for
+
+any choice of a and b and the sum of concave functions is concave as well). Therefore, it has a unique
+1
+local maximum within the interval (0, wmax
+), which could be found by any standard greedy method for
+
+optimization. The sum-of-logs function has well-defined derivatives that are simple to compute and can be
+used to aid the optimization procedure. The nth derivative of the sum-of-logs function is defined as follows
+
+Supplementary Material
+
+49
+
+(for n ≥ 1):
+f
+
+
+
+
+n !
+K
+1 n X
+wi
++
+.
+= − (n − 1)! c0 −
+ci
+x
+1 − wi x
+
+(n)
+
+(38)
+
+i=1
+
+In our implementation, we find the maximum of the function f by finding the root of f 0 without directly
+evaluating the function f itself. This approach expedites optimization, since the derivatives of f take less
+time to compute than f itself due to the overhead required for evaluating the log function. The optimization
+procedure is further expedited by using upper and lower bounds on the root of f 0 , as described below.
+Lemma 1. Let f () be the sum-of-logs function specified in Equation 37, and let wmin and wmax denote the
+0
+minimum and maximum weights in {wi }K
+i=1 . Then the unique root of f lies within the interval [l, u], where
+
+l =
+
+c0
+P
+c0 wmax + K
+i=1 ci wi
+
+,
+
+u =
+
+c0
+.
+P
+c0 wmin + K
+i=1 ci wi
+
+Proof. The lemma is proven by showing that f 0 (l) ≥ 0 and f 0 (u) ≤ 0. Let us denote A =
+Then,
+f 0 (l) =
+
+K
+K
+X
+c0 X ci wi
+ci wi
+−
+= c0 wmax + A −
+l
+1
+−
+w
+l
+1
+− wi l
+i
+i=1
+i=1
+
+≥ c0 wmax + A −
+= c0 wmax + A −
+
+A
+= c0 wmax + A −
+1 − wmax l
+1−
+A
+A
+c0 wmax +A
+
+A
+c0 wmax
+c0 wmax +A
+
+= c0 wmax + A − (c0 wmax + A)
+
+= 0 .
+
+Similarly,
+f 0 (u) =
+
+K
+K
+X
+ci wi
+c0 X ci wi
+−
+= c0 wmin + A −
+u
+1
+−
+w
+u
+1
+−
+wi u
+i
+i=1
+i=1
+
+≤ c0 wmin + A −
+= c0 wmax + A −
+= 0 .
+
+A
+A
+= c0 wmin + A −
+wmin
+1 − wmin u
+1 − c0cw0min
++A
+A
+A
+c0 wmin +A
+
+= c0 wmin + A − (c0 wmin + A)
+
+(39)
+
+PK
+
+i=1 ci wi .
+
+Supplementary Material
+
+50
+
+Dealing with Missing Data
+The probabilistic nature of our method makes it fairly easy to address the issue of missing sequence data.
+Missing genotypes in the outgroup alignments are dealt with in the phylogenetic model fitting stage by
+masking them with ‘N’s in the standard way. Missing data in the individual genomes sampled from the target
+population could be accommodated using two different approaches. If missing data is sufficiently sparse,
+it is reasonable to discard sites with missing genotypes. This is the approach we took in our data analysis,
+since the Complete Genomics individual genomes have high confidence genotypes for ∼90% of the human
+reference genome, and more than 75% of the reference genome is covered by high confidence genotypes in
+all 54 individuals. However, with other data sets, it might be desirable to accommodate sites with moderate
+amounts of missing genotypes. The relationship between the number samples (n) and the probability of
+observing a polymorphism at a given site is represented in our model by the multiplicative factor an (see
+Equations 5-6 in main text). This factor, introduced by Watterson (1975), corresponds to the mean total
+Pn−1
+1/k. Note
+branch length (scaled by population size) of a genealogy with n terminal branches: an = k=1
+that if the number of sampled genomes, n, is constant across all sites, the factor an serves as a constant
+scaling factor and its value is of no real consequence in the inference procedure (since the multiplicative
+factor θ is estimated from the data). However, if site i has a small number of samples (mi ) with missing
+genotypes, the conditional distribution P (Xi | Si , Ai , Zi , ζ) at that site can be adjusted by replacing the
+factor an with ani = a(n−mi ) .
+This fairly simple adjustment of the model requires several straightforward modifications in the inference
+procedure. First, the neutral portion of the likelihood function is adjusted as follows (see Equation 14):
+
+ln
+
+
+
+
+
+LF {θb }, β ; XF , OF , λ̂
+
+
+
+=
+
+B
+X
+
+!
+cFb (Yi 6= M) ln(θb ) +
+
+b=1
+
+X
+
+c{i} (Yi = M) ln(1 − θb ani )
+
+(40)
+
+i∈Fb
+
+
+
+
++ cF Yi = L, Ai = Ximaj ln(β1 ) + cF Yi = L, Ai = Ximin ln(β3 )
++ cF (Yi = H) ln(β2 )
++ C,
+
+implying that the MLEs of the block-specific polymorphism rates, θb , are obtained by maximizing the
+
+Supplementary Material
+
+51
+
+following function:
+
+f (θb ) = cFb (Yi 6= M) ln(θb ) +
+
+X
+
+ln(1 − θb ai ) .
+
+(41)
+
+i∈Fb ,Yi =M
+
+Notice that f (θb ) is a “sum-of-logs” function, and can be numerically optimized using straightforward
+methods, as described above.
+The selection portion of the likelihood is also affected by this adjustment to missing data in the following
+way (see Equation 21):
+
+ln[L(ρ, η, γ ; X, O, ζ̂neut )] =
+
+(42)
+
+cE (Si = sel) ln(ρ) + cE (Si = neut) ln(1 − ρ) +
+X
+cE (Si = sel, Zi 6= Ximaj ) ln(η) +
+cEb (Si = sel, Zi = Ximaj ) ln(1 − ηλb t) +
+b∈B
+
+cE (Si = sel, Yi = L) ln(γ) +
+
+X X
+
+ci (Si = sel, Yi = M, Zi = Ximaj ) ln(1 − γθb ani ) + C ,
+
+b∈B i∈EB
+
+and the selection parameter γ is updated in each step of the EM algorithm by maximizing the following
+function of the expected counts:
+f2 (γ)
+
+=
+
+h cE (Si = sel, Yi = L) i ln(γ) +
+
+XX
+b
+
+h cEb (Si = sel, Yi = M, Zi = Ximaj ) i ln(1 − γ θ̂b ani )(43)
+.
+
+i∈Eb
+
+As in the case without missing data (see Equation 32), this is a “sum-of-logs” function that can be easily be
+maximized using standard numerical optimization techniques. However, the function in the case of missing
+data potentially has more terms (depending on how many unique values of ni there are in each block), which
+would make the optimization slower. Nonetheless, small amounts of missing data should result in no more
+than a moderate increase in running time.
+
+Estimating Approximate Standard Errors Using the Curvature Method
+We implemented a method that uses the curvature of the likelihood function at the estimated point of MLE
+in order to derive approximate standard errors for the estimates of the three selection parameters—ρ, η,
+
+Supplementary Material
+
+52
+
+and γ. This approach, sometimes referred to as the “curvature method” (Lehmann and Casella, 1998),
+produces a 3×3 variance/covariance matrix for ρ, η, and γ by inverting an estimated Fisher information
+matrix (FIM) obtained by negating the 3×3 Hessian of the log-likelihood function (the matrix of partial
+second derivatives). Formally, denote p1 = ρ, p2 = η, and p3 = γ, then the variance/covariance matrix is
+approximated by V = −H −1 , where the Hessian, H, is defined as follows:
+ h
+i 
+∂ 2 ln L(p1 , p2 , p3 ; X, O, ζ̂neut )
+
+H=
+∂pj ∂pk
+
+
+.
+
+(44)
+
+j,k∈{1,2,3}
+
+The analytical computation of the Hessian at a given point is detailed later in this section. The standard
+errors of ρ, η, and γ are defined as the square root of the appropriate diagonal elements of V . Standard
+errors of expected posterior counts, such as E[Dp ] and E[Pw ], are derived by using an additional approximation. For E[Dp ], we use use the approximation E[Dp ] ≈ ρη λ̄t, where λ̄ is a weighted average of all λb
+values (weighted according to |Eb |). This approximation is derived by summing over all sites in i ∈ E the
+probability, ρηλb t, of there being a divergence under selection at site i (see Table 3). Using a first-order
+Taylor approximation (Oehlert, 1992), we then estimate the variance of E[Dp ] to be:
+
+Var[ E[Dp ] ] ≈ (ηρλ̄t)
+
+2
+
+
+
+Var[ρ] Var[η]
+Cov[ρ, η]
++
++2
+2
+2
+ρ
+η
+ρη
+
+
+,
+
+(45)
+
+where Var[ρ] = V1,1 and Var[η] = V2,2 , and Cov[ρ, η] = V1,2 .
+The variance of E[Pw ] can be approximated by a similar, but slightly more complex, calculation based
+on the approximation E[Pw ] ≈ ργan (θ̄ − ηλθt), where θ̄ is a weighted average of all θb values and λθ
+is a weighted average of all products λb θb . Similarly to the approximation of E[Dp ], this approximation is
+derived by summing over all sites in i ∈ E the probability, ργ(1−ηλb t)an θb , of there being a polymorphism
+under selection at site i (see Table 3). The variance of E[Pw ] is then approximated as follows:
+Var[ E[Pw ] ] ≈ (ργan (θ̄ − ηλθt))2 ×
+(46)
+!
+
+2
+Var[ρ]
+λθt
+Var[γ]
+λθt Cov[ρ, η]
+Cov[ρ, γ]
+λθt Cov[η, γ]
+−
+Var[η] +
+−2
++2
+−2
+.
+2
+ρ2
+γ
+ργ
+θ̄ − ηλθt
+ρ(θ̄ − ηλθt)
+γ(θ̄ − ηλθt)
+
+Supplementary Material
+
+53
+
+Note that these curvature-based estimates of standard error for ρ, γ, η, E[Dp ], and E[Pw ] do not capture
+uncertainty in the estimates of the neutral parameters. However, uncertainty in the neutral estimates should
+be fairly low assuming a sufficient number of putative neutral sites within the relevant genomic blocks. This
+can be ensured by filtering element sites in genomic blocks with too few putative neutral sites.
+
+Analytical computation of the Hessian matrix
+
+We now turn to describe in detail a method for computing the Hessian matrix, H, for a given data set (X, O)
+and an assignment to all model parameters: the neutral parameters ζneut , as well as the selection parameters
+p1 = ρ, p2 = η, and p3 = γ. Due to independence across sites, the log-likelihood can be expressed as
+follows:
+h
+
+i
+i
+X h
+ln L(p1 , p2 , p3 ; X, O, ζ̂neut ) = C +
+ln P (Xi | Oi , p1 , p2 , p3 , ζ̂neut ) ,
+
+(47)
+
+i∈E
+
+where C is a term that does not depend on any of the selection parameters. Therefore, the Hessian can
+P
+i
+similarly be expressed as a sum over sites, H =
+i∈E H , where
+ h
+i 
+∂ 2 ln P (Xi | Oi , p1 , p2 , p3 , ζ̂neut )
+
+Hi = 
+∂pj ∂pk
+
+
+.
+
+(48)
+
+j,k∈{1,2,3}
+
+In order to compute the Hessian matrix, we thus have to compute for each site, i ∈ E, the partial second
+derivatives of the site-wise likelihood function with respect to the three selection parameters. The site-wise
+likelihood can be expressed using a mixture of the two selection classes:
+
+neut
+P (Xi | Oi , ρ, η, γ, ζ̂neut ) = ρ psel
+,
+i (η, γ) + (1 − ρ)pi
+
+(49)
+
+neut ≡ P (X | O , S =
+where psel
+i
+i
+i
+i (η, γ) ≡ P (Xi | Oi , Si = sel, η, γ, ζ̂neut ) is a function of η and γ, and pi
+
+neut, ζ̂neut ) is a term that does not depend on any of the selection parameters, and is a constant that can be
+derived directly from the conditional probabilities of the model. The function psel
+i (η, γ) can be expressed as
+
+Supplementary Material
+
+54
+
+follows (see Table 3):
+
+psel
+i (η, γ) = P (Xi | Oi , Si = sel, η, γ, ζ̂neut ) =
+
+
+
+
+(1 − ηλb t)(1 − γθb an ) pmaj
++
+
+i
+
+
+
+
+
+
+ 1 ηλb t (1 − pmaj
+)
+i
+3
+
+
+
+(1 − ηλb t) 13 γθb an pmaj
+
+i
+
+
+
+
+
+0
+
+Yi = M
+
+(50)
+
+Yi = L
+Yi = H
+
+sel
+where pmaj
+≡ P (Zi = Ximaj |Oi , λ̂O
+i
+b ). Notice that pi (η, γ) has the following general form
+
+psel
+i (η, γ) = Ti + Ui η + Vi γ + Wi ηγ ,
+
+(51)
+
+in which Ti , Ui , Vi , and Wi are determined as follows:
+
+Ti
+
+Ui
+
+Vi
+
+Wi
+
+Yi = M
+
+pmaj
+i
+
+1
+3 λb t(1
+
+−θb an pmaj
+i
+
+λb tθb an pmaj
+i
+
+Yi = L
+
+0
+
+0
+
+maj
+1
+3 θb an pi
+
+− 13 λb tθb an pmaj
+i
+
+Yi = H
+
+0
+
+0
+
+0
+
+0
+
+− 4pmaj
+)
+i
+
+Thus, by determining Ti , Ui , Vi , Wi and pneut
+for each site, the site-wise likelihood function can be rei
+expressed as:
+
+P (Xi | Oi , ρ, η, γ, ζ̂neut ) = ρ · (Ti + Ui η + Vi γ + Wi ηγ) + (1 − ρ) · pneut
+,
+i
+
+(52)
+
+Supplementary Material
+
+55
+
+and the site-wise Hessian matrix can be derived using the following formulas:
+
+i
+H1,1
+
+i
+H2,2
+
+i
+H3,3
+
+i
+H1,2
+=
+
+ h
+i
+∂ 2 ln P (Xi | Oi , ρ, η, γ, ζ̂neut )
+=
+
+∂ρ2
+
+=
+
+ h
+i
+∂ 2 ln P (Xi | Oi , ρ, η, γ, ζ̂neut )
+=
+
+∂η 2
+
+=
+
+ h
+i
+∂ 2 ln P (Xi | Oi , ρ, η, γ, ζ̂neut )
+=
+
+i
+H2,1
+=
+
+i
+H1,3
+=
+
+i
+H3,1
+=
+
+i
+H2,3
+=
+
+i
+H3,2
+=
+
+∂γ 2
+
+=
+
+−
+
+Ti + Ui η + Vi γ + Wi ηγ − pneut
+i
+
+−
+
+−
+
+∂η ∂γ
+
+!2
+(54)
+
+P (Xi | Oi , ρ, η, γ, ζ̂neut )
+(Vi + Wi η)ρ
+
+!2
+
+P (Xi | Oi , ρ, η, γ, ζ̂neut )
+
+(P (Xi | Oi , ρ, η, γ, ζ̂neut ))2
+(Vi + Wi η)pmaj
+i
+
+=
+
+=
+
+(Ui + Wi γ)ρ
+
+(Ui + Wi γ)pmaj
+i
+
+=
+
+ h
+i
+∂ 2 ln P (Xi | Oi , ρ, η, γ, ζ̂neut )
+∂ρ ∂γ
+ h
+i
+∂ 2 ln P (Xi | Oi , ρ, η, γ, ζ̂neut )
+
+(53)
+
+P (Xi | Oi , ρ, η, γ, ζ̂neut )
+
+ h
+i
+∂ 2 ln P (Xi | Oi , ρ, η, γ, ζ̂neut )
+∂ρ ∂η
+
+!2
+
+(P (Xi | Oi , ρ, η, γ, ζ̂neut ))2
+Wi pmaj
+ρ(1 − ρ) + ρ2 (Ti Wi − Ui Vi )
+i
+(P (Xi | Oi , ρ, η, γ, ζ̂neut ))2
+
+(55)
+
+(56)
+
+(57)
+
+(58)
+
+These site-wise Hessians, H i , are summed across all sites i ∈ E, and then the Hessian is negated and
+P
+inverted to obtain the variance/covariance matrix: V = (− i∈E H i )−1 .
+
+Computing the Posterior Expected Counts E[Dp ] and E[Pw ]
+Given a joint assignment to all model variables, it is possible to produce posterior expectations for various
+measurements that directly relate to the the different modes of selection, namely strong positive and weak
+negative selection. A useful measure for the extent to which positive selection has affected the collection
+of functional elements is, Dp , the number of divergences within element sites that are driven by positive
+selection (also referred to as the number of adaptive divergences). A similar measurement pertaining to
+weak negative selection is Pw , the number of polymorphic sites subject to weak negative selection. Expected
+values for Dp and Pw are obtained by summing over site-wise posterior probabilities, as in the E step of the
+
+Supplementary Material
+
+56
+
+EM algorithm for selection inference:
+
+E[Dp ] = hcE (Yi = M, Zi 6= Ai , Si = sel)i
+X
+P (Zi 6= Ximaj , Si = sel |Xi , Oi , ζ) ,
+=
+
+(59)
+
+i∈E |Yi =M
+
+E[Pw ] = hcE (Yi = L, Si = sel)i
+X
+P (Si = sel |Xi , Oi , ζ) ,
+=
+
+(60)
+
+i∈E |Yi =L
+
+where hcE (χ)i denotes the expected number of element sites with model variable configuration χ. The
+site-wise posterior probabilities are computed, as in the EM algorithm, using the joint probabilities in Table
+S3.
+These formulas makes use of our two main assumptions regarding modes of selection, namely, that divergence at selected sites occurs only due to positive selection, and polymorphism at selected sites occurs only
+due to weak negative selection and is restricted to ‘L’ sites. For normalization, we will typically divide Dp
+and Pw by the total number of element sites, |E| (in kilobases). Alternatively, by normalizing E[Dp ] by the
+total (expected) number of divergences, we can also obtain an estimate of the fraction of fixed differences
+driven by positive selection, referred to in the literature as α (Smith and Eyre-Walker, 2002). Both measures,
+E[Dp ] per site and α, provide useful and somewhat complementary information on the extent to which positive selection has influenced the functional elements of interest. The fraction of fixed differences, α, which
+has been used in several recent studies as a measure for positive selection (Smith and Eyre-Walker, 2002;
+Andolfatto, 2005), describes the relative influence of positive selection on the set of observed divergences.
+As such, this measure also reflects negative selection acting on the sites, since negative selection reduces the
+overall number of divergences, and thus leads to an increase in α. Conversely, E[Dp ] per site measures the
+absolute influence of positive selection on the data, and as such, is not influenced by negative selection.
+
+Supplementary Material
+
+57
+
+Simulation Setup
+Demographic Model
+
+The demographic model used in simulation was designed to reflect the joint evolutionary history of humans
+and their closest primate relatives: the chimpanzee, orangutan, and rhesus macaque (see Supplementary
+Methods). The effective population size was held constant at Ne =10,000 across the outgroup portion of the
+phylogeny, and divergence times of 6.5, 17.5, and 25 million years ago were assumed for the chimpanzee,
+orangutan, and rhesus macaque outgroup populations, respectively. These times were expressed in generations by assuming an average generation time of 20 years throughout the phylogeny. In order to validate
+the robustness of our methods to changes in ancestral population sizes, we simulated the target population
+using four different demographic scenarios. In the simplest scenario, the target population was simulated
+with constant size since divergence from chimpanzee. Another scenario contained a moderate population
+expansion, and the final two scenarios contained population bottlenecks and exponential expansions (Table
+S1). The intensity and timing of the bottlenecks and expansions were taken from the demographic model
+suggested by Gutenkunst et al. (2009), reflecting the respective demographic histories of African, European,
+and East-Asian populations.
+
+Modeling recombination, mutation rate variation, and selection
+
+Our simulations were carried out using SFS CODE (Hernandez, 2008), which provides a flexible framework
+for full forward simulation of sequence evolution in populations with selection. Each simulation consisted
+of a synthetic block containing a 10 bp element and 5,000 neutral sites flanking it on each side. The synthetic
+blocks were simulated with a constant population-scaled recombination rate of ρ = 4Ne r = 4.4 × 10−4
+recombinations per nucleotide position, and a population-scaled mutation rate that varied across the different
+simulated blocks, sampled with a mean value of θ = 4Ne µ = 7.2 × 10−4 and a standard deviation equal to
+one tenth of the mean. Each nucleotide position in each simulated block was assigned to one of four selection
+classes: neutral evolution (2Ne s = 0), strong negative selection (2Ne s = −100), weak negative selection
+(2Ne s = −10), and positive selection (2Ne s = 10). The 10 kb flanking sites were all assigned to the neutral
+class, and a multinomial distribution was used to determine the number of sites in each selection class in the
+
+Supplementary Material
+
+58
+
+10 bp element. Selection at WN and SN sites was applied constantly across the phylogeny. Positive selection
+at SP sites was simulated in a slightly more complex way, since the default behavior in SFS CODE tends to
+produce repeated fixation events because positively selected sites are always assumed to have a suboptimal
+allele, even after a fixation has occurred. SP sites were, therefore, simulated under weak negative selection
+(2Ne s = −10) across most of the population phylogeny, with a switch to positive selection (2Ne s = 10) on
+the lineage leading to the target population at the point of divergence from chimpanzee (325,000 generations
+ago) for a period of 310,000 generations, followed by a return to weak negative selection for the final 15,000
+generations in the simulated history. This strategy provides an opportunity for fixation of positively selected
+mutations, but prevents recurrent positive selection from obscuring the signal of long term adaptation.
+
+Technical simulation settings
+
+To express times in units of 2Ne generations, as required by SFS CODE, we used the ancestral effective
+population size of 10,000 and assumed a generation time of 20 years. To save in computational cost, we
+used Nsim = 1,000 individuals in forward simulations. Notice that as long as Nsim is sufficiently large to
+limit sampling error, this strategy should have little effect on results, because all parameters are expressed
+in population-scaled form. We used the default “burn-in” of 5 × 2Nsim =10,000 generations before initiating
+the specified demographic scenario. At the end of the simulations, we sampled a single haploid genome
+from each of the three outgroup populations and fifty diploid individuals (100 chromosome samples) from
+the target population, closely resembling the scenario in our data analysis (with 54 individuals).
+Below is an example command line call to SFS CODE for a simulation of a synthetic block that was part of
+the ‘Mix’ data set used in our simulation study (Fig. 3A). The block contains two 5 kb neutral loci flanking a
+10 bp element with three neutral sites, three SP sites, two SN sites, and two WN sites. The mutation-scaled
+population size sampled for this simulation was θ = 0.0006492911.
+sfs code 7 1 -o sim.mix.block11.out -n 50 -N 1000 -TE 62.5 –INF SITES \
+–theta 0.0006492911 –rho 0.00044 -L 6 5000 3 3 2 2 5000 -a N \
+-W L 0 0 -W L 5 0 -W L 1 0 -W L 2 1 10 0 1 -TW 46.3 P 3 L 2 1 10 1 0 \
+-TW 61.75 P 3 L 2 1 10 0 1 -TW 61.75 P 4 L 2 1 10 0 1 -TW 61.75 P 5 L 2 1 10 0 1 \
+-W L 3 1 100 0 1 -W L 4 1 10 0 1 -TS 0 0 1 -TS 18.75 1 2 -TS 46.25 2 3 -TS 61.94 3 4 \
+
+Supplementary Material
+
+59
+
+-Td 61.95 P 4 1.23 -TS 62.15 4 5 -Td 62.15 P 5 0.17 -TS 62.448 5 6 \
+-Td 62.448 P 5 0.4761905 -Td 62.448 P 6 0.2428571 \
+-Tg 62.448 P 5 79.84042539 -Tg 62.448 P 6 109.69860461139491
+
+Analysis of Human Genomic Elements
+Variant Calling
+
+For individual human genome sequences we used 54 unrelated individuals taken from the “69 Genomes”
+data set released by Complete Genomics in 2011 (http://www.completegenomics.com/public-data/69-Genomes/).
+The 54 unrelated individuals were identified by eliminating 13 individuals from the 17-member CEPH pedigree (all but the four grandparents) and the child in each of the two trios. Genotype calls for these individuals
+were extracted from the individual “masterVar” filesa . We considered variants designated as “SNPs” and
+“length-preserving substitutions” in the masterVar files. We also recorded the positions at which Complete
+Genomics could not confidently assign a variant call for subsequent masking (see below). All other positions
+were assumed to be homozygous for the allele reported in the UCSC hg19 reference genome (Genome Reference Consortium Human Build 37). For outgroup genomes, we used alignments from the UCSC Genome
+Browser of the human reference genome (hg19) with the chimpanzee (panTro2), orangutan (ponAbe2), and
+rhesus macaque (rheMac2) genomes. For each position in hg19, we recorded the aligned base from each of
+the three nonhuman primates, or an indication that no syntenic alignment was available at that position.
+
+Filters
+
+We considered the autosomes only (chr1–chr22), and applied various filters to reduce the impact of technical
+errors from alignment, sequencing, genotype inference, and genome assembly. Our filters included repetitive
+sequences (simple repeats), recent transposable elements, recent segmental duplications, CpG site pairs,
+CpG islands, and regions not showing conserved synteny with outgroup genomes. CpG site pairs (prone to
+hypermutability) were identified as position pairs having a “CG” dinucleotide in any of the human samples
+a
+The masterVar files are included in tar files available from ftp://ftp2.completegenomics.com. The tar files currently have
+URLs of the form ftp://ftp2.completegenomics.com/$GROUP/ASM Build37 2.0.0/$SAMPLE-200-37-ASM-VAR-files.tar, where
+$GROUP is one of ‘Diversity’, ‘Pedigree 1463’, ‘YRI trio’, ‘PUR trio’ and $SAMPLE is the sample name. The enclosed masterVar files can be identified by names of the form masterVarBeta-$NAME-200-37-ASM.tsv.bz2.
+
+Supplementary Material
+
+60
+
+or the outgroup genomes. As a further caution, we excluded position pairs with C* in an outgroup and *G in
+human, to avoid potential ancestral CpGs. Sites in CpG islands were excluded because of their unusual base
+composition and substitution patterns compared with nearby regions. Non-syntenic regions and gaps in the
+outgroup alignment were masked (by “N”s) individually in each outgroup genome. This uncertainty was
+later incorporated by the phylogenetic model fitting stage of the inference (see above). Sites with missing
+genotypes in one of the 54 human individual genome sequences were masked out completely (see above
+Section on model adjustments for missing data). This additional missing data filter excluded roughly 20%
+of nucleotide sites in the genome. Further details about several of these filters are provided by Gronau et al.
+(2011).
+
+Putative Neutral Sites
+
+Our collection of genome-wide putative neutral sites was determined by eliminating sites likely to be under
+selection. Following a similar procedure to that described in Gronau et al. (2011), we eliminated: (1)
+exons of annotated protein-coding genes and the 1000 bp flanking them; (2) conserved non-coding elements
+(identified by phastCons) and 100 bp flanking them; and (3) RNA genes from GENCODE v.11 and 1000
+bp flanks. While a fraction of the remaining sites is likely to be functional, this set should be dominated
+by sequence evolving under neutral drift. Our examination of collections of short elements taken from this
+“neutral” set suggests that it contains at most a small fraction of functional nucleotides (Fig. 4A & S1).
+
+Non-coding Genomic Elements from GENCODE
+
+We extracted several classes of non-coding genomic elements from the transcript annotations provided by
+GENCODE v.13 (Harrow et al., 2006). These annotations were downloaded as a GTF file from http://www.
+gencodegenes.org/releases/13.html and subsequently processed. We considered “exon” level annotations of
+various non-coding RNAs and used only elements tagged as “known” (rather than “putative” or “novel”). We
+initially considered all four classes of noncoding RNAs: large interspersed non-coding RNAs (lincRNAs),
+microRNAs (miRNAs), small nucleolar RNAs (snoRNAs), and small nuclear RNAs (snRNAs). However,
+since the snRNA class had very sparse data, with 229 elements and only 2,648 sites after filtering, we chose
+to remove it from the analysis. In addition to the three classes of noncoding RNAs, we considered a class
+
+Supplementary Material
+
+61
+
+of promoter elements corresponding to 100 bp upstream the transcription start site of known protein coding
+genes. Those were extracted using the “transcript” level entries for “known” protein coding genes in the
+GTF file.
+
+Binding Sites for the GATA2 Transcription Factor
+
+In addition to the four GENCODE classes of noncoding elements, we analyzed a collection of binding
+sites for the GATA2 transcription factor. We used binding sites based on genome-wide chromatin immunoprecipitation and sequencing (ChIP-seq) data from the ENCODE project (Bernstein et al., 2012). These
+high-confidence binding sites were identified as part of our study of 78 human transcription factors (Arbiza
+et al., 2012). The full pipeline is described in detail in that manuscript. Briefly, this pipeline involved de
+novo motif discovery (using MEME; Bailey and Elkan, 1994), manual inspection, and binding-site prediction at ChIP-seq peaks (using MAST). ChIP-seq data from multiple cell lines was used to predict a separate
+set of binding sites for each cell type, and these sets were then merged. The sequence motif identified for
+GATA2, as depicted in Fig. 4C, contains 11 positions, with seven positions (4-10) having information content > 12 . In the literature, the binding sequence is often depicted by the core GATA motif (positions 5-8)
+with the two flanking bases (Ko and Engel, 1993; Merika and Orkin, 1993).
+
+Structural Partitioning of miRNAs
+
+To partition each of the 1,424 primary miRNAs from GENCODE v.13 into the five structural regions shown
+in Fig. 4D, we predicted the secondary structures using the RNAfold and RNAsubopt programs from the
+Vienna RNA software package (Hofacker et al., 1994; Lorenz et al., 2011). Human miR (mature miRNA)
+and miR* (star) coordinates were downloaded from miRBase rev. 19 (Griffiths-Jones et al., 2006, 2008;
+Kozomara and Griffiths-Jones, 2011). MiRBase does not distinguish between mature and star sequences,
+so in order to label each sequence as mature or star, we examined the total read count reported by the
+mature_read_count table in the miRBase database and selected the mature sequence as the predominantly expressed strand. In cases where miRBase only reported the mature sequence, we inferred the star
+sequence to be the complementary region in the hairpin structure. The predicted folds of 23 transcripts
+contained bifurcating stems (or multi-loop structures), and for an additional 25 transcripts, miRBase did
+
+Supplementary Material
+
+62
+
+not report a mature sequence. These 48 transcripts were removed from the analysis, leaving 1,376 miRNAs.
+Using the predicted secondary structure and the identification of the mature and star sequences, we used custom scripts to partition the hairpin structure into the five different components: (1) loop, (2) loop-proximal
+stem, (3) lower stem, (4) star, and (5) mature.
+
+Analysis of Genomic Elements Using Alternative Frequency Thresholds
+
+We analyzed the five classes of noncoding elements (lincRNAs, miRNAs, snoRNAs, promoters, and GATA2
+binding sites) with INSIGHT using various thresholds for distinguishing between low and high frequency
+polymorphisms. Figure S2 describes the estimates of ρ obtained for these five classes as a function of the
+frequency threshold used. Overall, the estimates were insensitive to the chosen threshold as long as it was
+sufficiently high (f >10%), as indicated by our simulation study (Fig. 3B). Estimates for GATA2 showed
+slightly more fluctuations than those for the other classes, possibly due to the combined effects of sparse data
+and more complex patterns of polymorphism caused by positive selection. The estimates of E[Dp ] obtained
+for GATA2, also shown in Figure S2 (bottom right), appear to follow the same fluctuation pattern as that of
+the ρ estimates for that class. We conclude that estimates obtained in our main analysis, using a frequency
+threshold of 15%, appear to be robust to our choice of threshold, and possibly slightly conservative in the
+case of GATA2.
+We also compared our estimates to those obtained by the simple site-count based estimators, ρ̂Poly and ρ̂Div
+(red and blue horizontal lines, resp.). As shown in our simulation study (Fig. 3), weak negative selection
+(found in lincRNAs, snoRNAs, and promoters) results in under-estimation of ρ by the polymorphism-based
+estimator, and positive selection in GATA2 results in under-estimation of ρ by the divergence-based estimator. We also considered a modified version of the polymorphism-based estimates and MK-based estimates
+based only on high-frequency polymorphisms
+
+ρ̂Poly-H = 1 −
+D̂p -MK-H = DE
+
+HE |F |
+,
+|E| HF
+HE DF
+−
+.
+HF
+
+(61)
+(62)
+
+where HE and HF are the numbers of high-frequency polymorphisms in element sites and flanking sites,
+
+Supplementary Material
+
+63
+
+respectively. The approach of discarding low-frequency polymorphisms as been used as a simple means for
+dealing with the effects of weak negative selection in several previous studies of selection (e.g., Fay, Wyckoff
+and Wu, 2001; Zhang and Li, 2005; Charlesworth and Eyre-Walker, 2008). Comparing these estimates to
+our model-based estimates using the same set of frequency thresholds (Fig. S2), we found that they provided
+only a partial correction for the effects of weak negative selection. This is likely because they do not consider
+patterns of divergence when estimating the fraction of sites under selection, and because they have reduced
+power due to a reduction in the data (Eyre-Walker and Keightley, 2009).
+
+Supplementary Material
+
+64
+
+Literature Cited
+1. Andolfatto P. 2005. Adaptive evolution of non-coding DNA in Drosophila. Nature. 437:1149–1152.
+2. Arbiza L, Gronau I, Aksoy BA, Hubisz MJ, Gulko B, Keinan A, Siepel A. 2012. Genome-wide inference
+of natural selection on human transcription factor binding sites. Submitted. .
+3. Bailey TL, Elkan C. 1994. Fitting a mixture model by expectation maximization to discover motifs in
+biopolymers. In: Proc. 6th Int’l Conf. on Intelligent Systems for Molecular Biology. pp. 28–36.
+4. Bernstein BE, Birney E, Dunham I, et al. (600 co-authors). 2012. An integrated encyclopedia of DNA
+elements in the human genome. Nature. 489:57–74.
+5. Charlesworth J, Eyre-Walker A. 2008. The McDonald-Kreitman test and slightly deleterious mutations.
+Mol. Biol. Evol. 25:1007–1015.
+6. Eyre-Walker A, Keightley PD. 2009. Estimating the rate of adaptive molecular evolution in the presence of
+slightly deleterious mutations and population size change. Mol. Biol. Evol. 26:2097–2108.
+7. Fay JC, Wyckoff GJ, Wu CI. 2001. Positive and negative selection on the human genome. Genetics.
+158:1227–1234.
+8. Griffiths-Jones S, Grocock RJ, van Dongen S, Bateman A, Enright AJ. 2006. miRBase: microRNA sequences, targets and gene nomenclature. Nucleic Acids Res. 34:D140–144.
+9. Griffiths-Jones S, Saini HK, van Dongen S, Enright AJ. 2008. miRBase: tools for microRNA genomics.
+Nucleic Acids Res. 36:D154–158.
+10. Gronau I, Hubisz MJ, Gulko B, Danko CG, Siepel A. 2011. Bayesian inference of ancient human demography from individual genome sequences. Nat. Genet. 43:1031–1034.
+11. Gutenkunst RN, Hernandez RD, Williamson SH, Bustamante CD. 2009. Inferring the joint demographic
+history of multiple populations from multidimensional SNP frequency data. PLoS Genet. 5:e1000695.
+12. Harrow J, Denoeud F, Frankish A, et al. (11 co-authors). 2006. GENCODE: producing a reference annotation for ENCODE. Genome Biol. 7 Suppl 1:1–9.
+
+Supplementary Material
+
+65
+
+13. Hernandez RD. 2008. A flexible forward simulator for populations subject to selection and demography.
+Bioinformatics. 24:2786–2787.
+14. Hofacker IL, Fontana W, Stadler PF, Bonhoeffer LS, Tacker M, Schuster P. 1994. Fast folding and
+comparison of RNA secondary structures. Monatshefte fr Chemie / Chemical Monthly. 125:167–188.
+10.1007/BF00818163.
+15. Hubisz MJ, Pollard KS, Siepel A. 2011. PHAST and RPHAST: Phylogenetic analysis with space/time
+models. Briefings in Bioinformatics. 12:41–51.
+16. Ko LJ, Engel JD. 1993. DNA-binding specificities of the GATA transcription factor family. Mol. Cell.
+Biol. 13:4011–4022.
+17. Kozomara A, Griffiths-Jones S. 2011. miRBase: integrating microRNA annotation and deep-sequencing
+data. Nucleic Acids Res. 39:D152–157.
+18. Lehmann EEL, Casella G. 1998. Theory of point estimation. Springer.
+19. Lorenz R, Bernhart SH, Honer Zu Siederdissen C, Tafer H, Flamm C, Stadler PF, Hofacker IL. 2011.
+ViennaRNA Package 2.0. Algorithms Mol Biol. 6:26.
+20. Merika M, Orkin SH. 1993. DNA-binding specificity of GATA family transcription factors. Mol. Cell.
+Biol. 13:3999–4010.
+21. Oehlert G. 1992. A note on the delta method. The American Statistician. 46:27–29.
+22. Pollard KS, Hubisz MJ, Rosenbloom KR, Siepel A. 2010. Detection of nonneutral substitution rates on
+mammalian phylogenies. Genome Res. 20:110–121.
+23. Smith NG, Eyre-Walker A. 2002. Adaptive protein evolution in Drosophila. Nature. 415:1022–1024.
+24. Watterson GA. 1975. On the number of segregating sites in genetical models without recombination. Theor
+Popul Biol. 7:256–276.
+25. Zhang L, Li WH. 2005. Human SNPs reveal no evidence of frequent positive selection. Mol. Biol. Evol.
+22:2504–2507.
+
+

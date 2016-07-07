@@ -1,0 +1,1308 @@
+Accurate Estimation of Quantitative Trait Locus Effects
+with Epistatic by Improved Variational Linear Regression
+Dong Zijian 1, Wang Jingzhuo 1, Wang Zhongming 2*
+1. School of Electronic Engineering, Huaihai Institute of Technology, Lianyungang, Jiangsu, China;
+2. Department of Mathematics and Statistics, Florida International University, FL, USA
+* Author to whom correspondence should be addressed, E-Mail: dzjian@126.com, +8613003463463
+Abstract
+Bayesian approaches to variable selection have been widely used for quantitative trait locus (QTL)
+mapping. The Markov chain Monte Carlo (MCMC) algorithms for that aim are often difficult to be
+implemented for high-dimensional variable selection problems, such as the ones arising in epistatic analysis.
+Variational approximation is an alternative to MCMC, and variational linear regression (VLR) is an effective
+solution for the variable selection problems, but lacks accuracy in some QTL mapping problems where there
+are many more variables than samples. In this paper, we propose an effective method with aim to improve the
+accuracy of VLR in the case of above by dynamically reducing components (variable or markers) with known
+effects (zero or fixed). We show that the proposed method can greatly improve the accuracy of VLR with little
+increase in computational cost. The method is compared with several other variational methods used for QTL
+mapping, and simulation results show that its performance is higher than those methods when applied in
+high-dimensional cases.
+Keywords: QTL mapping; Variational Linear Regression (VLR); Reducing Components
+1. Introduction
+The goal of quantitative trait loci (QTLs) mapping and association studies is to identify certain regions of
+the genome that contain genes involved in specifying a quantitative trait, and to estimate the genetic effects of
+these loci. The relationship between the genetic effects of QTLs and the phenotypic value of quantitative traits
+can be described by a linear model [1, 2]. There are usually a large number of markers across the whole
+genome, and most of the markers have very little or even no effect on the phenotypes. So the model is sparse,
+and in most cases, the number of markers or variables is bigger than the sample size, especially when
+interactions among markers are considered. Therefore, the model is oversaturated and usually solved by
+shrinkage or variable selection methods.
+The variable selection procedure for QTLs mapping can be seen as one of deciding which subset of
+variables have effects on phenotypes, and identifying out all possible effects of those markers. There are many
+ways of variable selection. For instance, the indicator selection uses a spike (probability distribution of
+variables not included in model) and slab (probability distribution of variables included in model) prior to
+indicate whether each variable is included in one model. Such methods usually adopt Gibbs sampling or
+importance sampling to calculate the weighted average as the inferred results [3-5].
+Shrinkage methods do not use indicators to induce the sparseness of variables, but instead specify a priori
+directly on variables to approximate the “slab” and “spike” shapes and use a penalty function to shrink most
+variables toward zeros. Early Bayesian shrinkage methods employed Markov chain Monte Carlo (MCMC)
+techniques to infer the models [6], which were computationally intensive. Xu et al. proposed an empirical
+Bayes method that used a carefully chosen prior distribution for the variables, which required much less
+1
+
+computation [7]. Furthermore, Cai et al. developed a fast empirical Bayesian LASSO algorithm [8], which
+capitalized the idea of relevance vector machine (RVM) to shrink some unimportant marker effects to zeros by
+using hierarchical sparsity-inducing priors [9]. Shrinkage methods can be seen as adaptive in the sense that the
+degree of sparseness of the model can be adjusted by changing the hyper parameters of a prior distribution
+[10].
+Variational approximation techniques have also been extensively studied to solve the linear model [4,
+11-14]. These methods can provide an analytical approximation to the posterior probability for the model. But
+when applied in a case such as QTL mapping with large-scale variables and a relatively small number of
+samples, these methods are either imprecise, or computationally intensive. Among these, the variational linear
+regression (VLR) is a terse method [15], but its accuracy is not good enough for large-scale QTL mapping
+problems. In this paper, we use the basic variational inference technology to infer the linear models, and then
+propose a novel method to improve the performance by reducing components (variables) in VLR dynamically
+(RCVLR). The proposed method is simple, effective, and accurate, especially in the case where there are many
+more variables than observations. Simulations show that RCVLR has satisfied speed and accuracy compared
+with other variational approximation methods. The idea of deleting some elements with very small effects from
+the model was also appeared in [16], but the main aim in it was to avoid numerical break-downs. Because the
+values of elements were related to the diagonal of the variance-covariance matrix, thus it would be singular
+when the elements value approached zeros.
+This paper is organized as follows: we firstly introduce the variational inference of the linear model, and
+then propose the variable reduction technique for the linear model. In example analysis part, we demonstrate
+the effectiveness of the method through four examples by comparing with other algorithms, using the North
+American Barley data [17], the simulated data from Xu [2], and some simulated data sets with different
+variable sizes and different sample sizes. Finally, we briefly discuss the features of our methods and several
+other existing variational methods.
+2. Methods
+2.1 Linear regression model for multiple QTL mapping
+Following standard practice, an interested phenotype is modeled as a linear combination of the genotypes
+plus residual noise[18]
+p
+
+y j   0   x jk  k  e j .
+
+(1)
+
+k 1
+
+th
+
+where y j is the phenotypic value of the j individual, x jk is the genotypic value of individual j at
+marker k ,
+
+ 0 is the population mean,  k is the effect of the k th marker, and e j is the measurement
+
+error of individual j . Considering the epistatic effects, and defining the interaction effect of the maker pair
+
+ u, v 
+
+as
+
+uv , we extend model (1) as
+
+2
+
+p
+
+p
+
+k 1
+
+u v
+
+y j   0   x jk  k   x ju x jv  uv  e j
+
+(2)
+
+Now, considering all elements, and assuming that the predictors and outcomes have been centered, we omit
+the intercept terms in the model and write the model (2) as
+
+Y  Xβ  e
+where Y   y1 , y2 ,..., y N 
+
+T
+
+N
+
+p
+
+,
+
+X is
+
+a
+
+N  N p matrix,
+
+(3)
+and β
+
+is
+
+a
+
+N p  1 vector
+
+with
+
+ p
+p ( p  1) .
+ p 
+2
+2
+ 
+
+2.2 Variational approximation for linear models
+Variational techniques have been extensively studied to infer the linear regression models [4, 11, 15]. In
+this section, we re-derive the basic variational infer technique for the linear regression model, and then give
+our variable reduction technique in Section 2.3.
+In QTL mapping problems, β is sparse, which means that most entries in β are zeros, therefore we
+
+assume that β satisfies Gaussian distribution,
+
+β~ N
+
+ 
+0,
+
+1
+
+
+
+I , and  ~ Gamma (a0 , b0 ) , where a0 , b0 are
+
+two hyper parameters. All residual errors are assumed to be independent and identically distributions [15], so
+
+e ~ N (0,  2 I ) .
+The likelihood function is:
+N
+
+p  Y | β, X  ~  p  yi | β, Xi  ,
+
+(4)
+
+i 1
+
+where Xi is the i
+
+th
+
+row of X , and
+
+p  yi | β, Xi  ~ N  yi | Xi β,  2  .
+
+(5)
+
+The joint distribution is
+
+p  Y , β ,    p  Y | β ,   p  β |   p   .
+
+(6)
+
+The variational approximation inference is to find a tractable distribution that is close to the target posterior.
+According to the approximate factorization theory [19], we have
+
+p  β ,  | X, Y   q  β ,    q  β |   q    .
+
+(7)
+
+We first calculate the approximation of the posterior probability of  . According to the variational
+
+3
+
+approximation theory, ln q   is the expectation of the logarithm of the joint distribution, taking over all
+variables in β .
+
+ln q    Eβ ln p  Y, β,     const.
+1
+2
+
+  a0  N p / 2  1 ln     b0  E β   const.
+2
+
+
+
+(8)
+
+So, q   ~ Gamma ( | an , bn ) , and
+
+ an  a0  N p / 2
+
+
+1
+2
+bn  b0  2 E β
+where E β
+
+2
+
+(9)
+
+ μ n  tr  S n  , μ n , S n are the mean vector and variance matrix of the posterior
+2
+
+distribution of β respectively, and will be calculated later.
+We use the variational theory again to estimate the posterior probability of β .
+
+ln q  β   E  p  Y, β,     const.
+1  1
+1
+
+ βT  2 XT X  E   I  β  2
+
+2
+
+
+
+ y X β  const.
+i
+
+(10)
+
+i
+
+i
+
+We can see that q  β  ~ N  β | μ n , S n  , and
+1
+
+ 1 T
+an 
+S n   2 X X  I 
+
+bn 
+
+
+
+1
+μ n  2 S n XT Y
+
+
+
+There is a matrix inversion operation in (11). Since
+
+(11)
+
+1
+
+
+
+2
+
+XT X 
+
+an
+I is a N p  N p matrix and usually
+bn
+
+N p is much greater than N , The Woodbury matrix identity can be used to reduce the computational
+complexity of S n .
+2
+
+1
+
+b 
+
+
+b
+b
+S n  n I   n  XT   2I  n XXT  X
+an
+an
+ an 
+
+
+
+(12)
+
+4
+
+Here, we only need to calculate the inversion of a matrix whose size is N  N , which is much smaller
+than N p  N p .
+(9) and (11) are combined to constitute a complete iterative process. This iterative process should be
+executed with a sufficient number of times to reach a steady state. A simple stopping condition for the steady
+state is to test the numerical differences between two inferred parameters in two successive iterations, i.e.
+
+S  μ n  μ n 1  . If S is small enough (say smaller than  ), the iteration is considered to reached a
+2
+
+steady state. The choice of
+
+ influences the algorithm accuracy. The smaller  is, the higher the accuracy
+
+is, at the cost of more iterations and more computational time.
+2.3 Reduce the size of linear model to improve accuracy
+When there are many more variables than samples, the variational approximation above has poor
+performance. The reason is that VLR can not regress any variable to zero, and all the inferred values are close
+to zeros. However, from a positive point of view, we believe that the inferred value for each variable can
+reflect its probability (likelihood) of zero; therefore we can use the inferred results of VLR to delete some
+variables with very small absolute values. After deletion, we use VLR again to infer the parameters of the
+reduced-size model. In the case of a fixed number of measurements, VLR with smaller scale data undoubtedly
+has better inference performances. It may require several iterations to obtain better inferred results.
+We first look at what elements should be removed from the model, that is, how to determine the threshold
+of deletion. When the size of variables is much larger than the size of samples, most of the parameter values
+derived by VLR are close to 0, so we need to set a relatively low threshold for deleting elements, say,
+
+1  0.0001 . In general, we should choose the value of 1 by the scale of problem. According to the results
+of the experiment, we set
+
+1
+1
+. After the first run of VLR, A lot of elements in the model
+ 1 
+10  N p
+5 N p
+
+would be deleted. With the reduced-sized model, we perform VLR again. As a whole, the parameter values
+derived by VLR will increase with the decrease of model size, and thus we need to increase the deletion
+threshold adaptively. In the algorithm, we set
+
+h  1   h  1 
+
+6
+as the threshold for the h-th run of
+Np
+
+VLR.
+After determining the deletion threshold, we examine how to remove components or elements. Let β is
+the original parameter vector, and c is corresponding binary-valued indicator vector of β . If ck  0 , then
+is small and can be deleted. If ck  1 , then
+
+k
+
+ k is relatively large and should be retained. Let R   ck ,
+
+5
+
+which represents the number of retained parameters in β , let β   k | ck  1 be a R  1 vector, which
+*
+
+includes all retained parameters in β , and let X
+
+*
+
+be a N  R matrix. Obviously, X
+
+*
+
+is a sub-matrix of
+
+X , which is obtained by deleting all the columns whose corresponding ck  0 . Simply, we check all the
+entries of c , if ck  0 , then delete the kth column of X , k  1, 2,..., N p . In the reduced-size model of
+QTLs mapping, it is obvious that Y
+
+*
+
+is equal to Y . Now the model (3) is simplified now as
+
+Y*  X*β*  e , and can be solved by the standard VLR algorithm again.
+In some specific cases, some parameter values are not 0, and can be obtained in advance or learned by
+other methods. If we want to simplify the model by removing these elements with fixed nonzero values,
+
+Y*   y1* , y2* ,..., y*N 
+
+T
+
+can be calculated as following
+
+yk*  yk   j p1  j xkj 1  c j  .
+N
+
+(13)
+
+2.4. The RCVLR algorithm
+The iteration of RCVLR includes an inner loop and an outer loop. The inner loop is to solve the linear
+model with variational linear regression (VLR), and calculate the difference of inferred parameters between
+two successive iterations to determine whether or not to stop the inner loop. In the outer loop, after getting
+solution from the inner loop, we delete some variables from the model according to some rules; form the
+reduced-size model for the next inner loop.
+For the outer loop, we can determine whether or not to stop the iteration by comparing the sizes of the two
+consecutive reduced-size models. If the two sizes are the same, then we stop the outer loop and the whole
+inference.
+It should be noted that for
+The detail algorithm is listed as follow:
+---------------------------------------------------------------------------------------------------------------Input QTLs matrix X , and phenotypic data Y ; set initial hyper parameters a0  1 , b0  1 . Set a small
+value to
+
+ , which is used to judge whether the inner loop comes to an end or not. Set a small value to  ,
+
+which is the initial threshold for the first model deletion. Set
+
+ as the step length to increase the deletion
+
+threshold gradually.
+Flag=1;
+
+h =0;
+While Flag (outer loop)
+Repeat until convergence (inner loop):
+
+6
+
+1. Calculate S n and μ n by (11);
+2. Calculate an and bn by (9);
+3. Calculate S  μ n  μ n 1 ;
+2
+
+5 If S   ，then end the inner loop, else go to step 1;
+End repeat
+
+h = h +1;
+Calculate the deletion threshold by
+
+h  1  h   ;
+
+Calculate the reduced-size model according to Section 2.3;
+If the size of the reduced-size model is the same as the last time, Flag=0;
+End While
+Output μ n as the inferred β .
+
+The robustness of VLR had been proved [15]. Due to the nature that RCVLR is composed of several
+repetitions of VLR, we think that it is also robust, under the condition that we can remove some redundant
+variables from the model appropriately in each deletion time.
+3. Simulations and Analysis
+We present four simulations to assess the performances of RCVLR. The first one is to compare the
+performances of VLR and RCVLR. In the second study, we follow the example analysis in [18], simulate the
+barley genotype data set [17] to assess RCVLR, and compare it with other methods. The third one compares
+the performance of RCVLR with other two variational inference methods, using simulated data sets with
+different sample sizes and different marker numbers. The last one uses several variational methods to infer the
+main and epistatic effects of QTLs with the simulated data set from Xu [2]. The Xu’s simulated data set and
+the barley data set were downloaded from the website http://www.biometrics.tibs.org/.
+Suppose that there are K QTLs in a true model, and K ' is the QTLs number inferred by a algorithm,
+which includes KTrue QTLs that exist in the true model and K False QTLs that do not existed in the true
+model, and K '  KTrue  K False . For convenience, we use the term, Power of Detection (PD) to signify the
+ability of finding correct QTLs, defined PD as PD  KTrue / K , and use False Detection Rate (FDR) to
+indicate the error ratio caused by false inference of the algorithm, defined as FDR  K False / K ' .
+3.1 Compare RCVLR with VLR
+We first compare RCVLR with VLR by four simulated models with the number of makers 1000, 2000,
+7
+
+3000, 5000 respectively. Averaged N m  20 QTLs are created for each model. Each entry in X takes
+value from set
+
+1, 2,3
+
+QTL, its corresponding
+otherwise
+
+with corresponding probabilities
+
+0.25, 0.5, 0.25
+
+respectively. If a marker is a
+
+ j is sampled from a uniform distribution over the interval  1  0.5    0.5 1 ;
+
+ j is set to 0. Each e j in (3) is sampled from a Gaussian distribution N  0, 0.1 . Y is calculated
+
+by (3). In simulations, a marker j is judged as a QTL, if
+
+ 'j  0.05 .
+
+The performances of basic VLR and RCVLR are shown in Fig.1. The hyper parameters of the Gamma
+distribution in VLR and RCVLR are a0  1 , b0  1 .
+The performance of RCVLR is clearly higher than that of VLR does in the terms of PD and FDR,
+especially when the scale of model is large. The strategy of dynamically reducing the number of variables is
+useful to remove large number of markers with no effect from the model. In Fig.1, some data points of FDR of
+VLR are drawn as zeros, which are actually inferred as Nan (not a number) due to the reason that all
+coefficients inferred by VLR are close to zeros, so
+
+K False , KTure
+
+are both zeros, therefore
+
+FDR  K False /  K False  KTure   Nan .
+
+Figure 1. Performances of RCVLR and VLR for simulated data sets with the size of markers N=1000,
+2000, 3000, 5000.
+3.2 Analysis of barley genotype data
+The barley genotype data set is used as the genotypic data matrix X in model (3). There are some
+missing marker genotypes in the original marker dataset, which can be filled by random draws from Bernoulli
+distribution [18, 20]. We place QTLs exactly on ten markers (1, 10, 20, 30, 40, 50, 60, 70, 80, 90) with effects
+8
+
+of (-1, 1, -0.8, 0.8, -0.5, 0.5, -0.3, 0.3, -1.25, 1.25) respectively, and simulate 60 replicated sets of phenotype
+data Y with residual variance 0.1. X and Y are used to infer QTLs with our RCVLR algorithm, VI-IMP
+(variational inference with importance sampling) [4], Bayesian adaptive shrinkage (MCMC-BAS) and its
+variational solution (VB-BAS) [7, 18], Bayesian Lasso (MCMC-BL) and its variational solution (VB-BL) [18,
+21], extension Bayesian Lasso (MCMC-EBL) and its variational solution (VB-EBL) [18, 22]. All later six
+algorithms can be found in [18]. Due to the fact that VB and MCMC approaches do not shrink any marker
+effect exactly to zero, some criterions should be taken for these algorithms to identify some markers as QTLs.
+RCVLR can not give us a confidence interval, so we use numerical magnitude judgment: if the effect of one
+marker is less than 0.05, it is not a QTL, otherwise it is a QTL. In VI-IMP, a marker is judged as a QTL if it has
+95% posterior inclusion probabilities included in the model. All other six algorithms use the criterion that a
+marker is not a QTL, if the credible interval is 95% for the estimated coefficient being zero.
+The parameters in algorithms are set as following:
+RCVLR: the hyper parameters for the Gamma distribution are a0  1 , b0  1 .
+VI-IMP: residual variance
+
+ 2  [0.08 : 0.01: 0.12] ，the prior variance of the regression coefficients
+
+
+ 2  [0.025:0.025:0.4] , the (base 10) logarithm of the prior inclusion probability, log10
+ [-2.5:0.25:-1] .
+
+The prior sample parameters of the Beta distribution for the prior inclusion probability are a  0.02 , b  1 .
+For VB-BAS, VB-BL, VB-EBL three algorithms, the stopping thresholds and the maximum iteration
+numbers are all set to 10^-6 and 2000 respectively. For MCMC-BAS, MCMC -BL, MCMC -EBL three
+algorithms, the total sample numbers, the burn-in numbers and the maximum iteration numbers are all set to
+15000, 5000 and 1000 respectively. Additionally, hyper prior
+MCMC-BL,
+
+ 2 ~ Ga (1, 0.0001) are set in VB-BL and
+
+ 2 ~ Ga(1, 0.0001) , 2j ~ Ga(1, 0.0001) in VB-EBL and MCMC-EBL [18].
+
+The results are shown in Table 1. We find that: (1) The PD performances of these algorithms are relatively
+good, their values equal 1 except that VI-IMP’s PD is 0.988; (2) there are wide gaps among FDRs of these
+algorithms. RCVLR has better performance than VB-BL, VB-BAS do, and has similar performance as
+VB-EBL does; (3) all variational approximation methods’ running times are lower than those of MCMC
+methods. The VI-IMP is much slower than other variational methods. The reason is that, VI-IMP sets a group
+of combinations of three hyper prior parameters; for each combination in the group, variational algorithm is
+run to infer the parameters, and then the weighted average is calculated as the final inferred results.
+Together, it may suggests that the performance of VB-EBL is the best one among these eight methods, but
+we will see in the second example that the performance of VB-EBL begin to deteriorate in the case of dealing
+with large-scale linear models, and RCVLR outperforms the VB-EBL in both PD and FDR. Note that in QTLs
+mapping study, especially when epistatic effects are considered, the number of variables is usually quite large.
+Table 1. Performances of eight variational methods
+Method
+
+MSE
+
+PD
+
+FDR
+
+Runtime(s)
+
+RCVLR
+
+11.145
+
+1
+
+0.06
+
+0.181
+
+VI-IMP
+
+13.9347
+
+0.988
+
+0.11
+
+31.98
+9
+
+VB-BAS
+
+9.4541
+
+1
+
+0.367
+
+0.884
+
+MCMC-BAS
+
+12.3498
+
+1
+
+0.0004
+
+61.25
+
+VB-BL
+
+7.62
+
+1
+
+0.368
+
+0.13
+
+MCMC-BL
+
+4.6568
+
+1
+
+0.212
+
+63.84
+
+VB-EBL
+
+10.9138
+
+1
+
+0.0138
+
+0.167
+
+MCMC-EBL
+
+8.7219
+
+1
+
+0.099
+
+59.47
+
+MSE represents mean squared error; PD, the power of detection; FDR, the false detection rate.
+3.3 Analysis simulated data sets with different sample sizes and marker sizes
+In this example, we compare RCVLR with other two variational Bayesian methods, VB-EBL and VI-IMP
+to study the performance of these algorithms in different sample sizes and marker sizes.
+We simulate two types of models, one with 1000 markers, the other one with 5000 markers. The
+simulation procedure of the data sets for the two models is the same as the one described in section 3.1.
+In simulations of RCVLR, a marker j is judged as a QTL if
+
+ 'j  0.05 ; in VI-IMP, the criterion is that
+
+it has 95% credible interval included in the model.
+Simulation results for the setups described above are shown in Fig.2 (for p=1000) and Fig.3 (for p=5000).
+It shows that the RCVLR has a better performance than the VB-EBL and the VI-IMP algorithms do in term of
+PD. The RCVLR and the VI-IMP algorithms have close performance in term of FDR. When the sample size is
+small, due to the reason that all coefficients inferred are close to zero, VB-EBL can not find any QTL for the
+model, thus the PD is zero and the FDR is undefined. That is the reason why there is no data point showed in
+the two FDR graphs for the VB-EBL algorithm. Actually, for the size of markers p=1000, the FDRs of
+VB-EBL are (Nan Nan) for sample size (100 200) respectively; for p=5000, the FDRs are (Nan Nan) for
+sample size (100 300).
+
+Figure2. Performances of RCVLR, VB-EBL, VI-IMP for simulated data sets with a size of 1000 markers
+
+10
+
+Figure 3. Performances of RCVLR, VB-EBL, VI-IMP for simulated data sets with a size of 5000 markers
+In the above simulations, the parameters are a0  1, b0  1 . In order to test the impact of hyper
+parameters for the performances of RCVLR, we run the algorithm under different hyper parameter
+combinations. The setting is 1000 markers, 20 QTLs. Noise is sampled from N  0, 0.2  . The results are
+shown in Table 2 and Table 3.
+
+Table 2. PD performance of RCVLR with different hyper parameters
+
+ a0 , b0 
+
+(a0,b0)
+（0.1,0.1）
+
+（0.1,0.5）
+
+（0.1, 1）
+
+（0.5,0.5）
+
+（0.5,1）
+
+（1, 1）
+
+250
+
+0.9715
+
+0.9820
+
+0.9894
+
+0.9853
+
+0.9952
+
+0.987
+
+300
+
+0.9762
+
+0.9875
+
+0.9975
+
+1
+
+0.998
+
+1
+
+350
+
+0.9947
+
+1
+
+1
+
+1
+
+1
+
+1
+
+Number
+of Samples
+
+Table 3. FDR performance of RCVLR with different hyper parameters
+
+ a0 , b0 
+
+(a0,b0)
+（0.1,0.1）
+
+（0.1,0.5）
+
+（0.1, 1）
+
+（0.5,0.5）
+
+（0.5,1）
+
+（1, 1）
+
+250
+
+0.0182
+
+0.0042
+
+0.0280
+
+0.0153
+
+0.0167
+
+0.0150
+
+300
+
+0.0116
+
+0.0087
+
+0.0108
+
+0
+
+0.0138
+
+0.0143
+
+350
+
+0.0108
+
+0
+
+0
+
+0
+
+0.0056
+
+0.0131
+
+Number
+of Samples
+
+From the two tables above, we see that both the performance of PD and FDR are close under various
+combinations of hyper parameters. No significant change occurs in PD and FDR under one same simulation
+setting. For all simulated and real data set in our project, we get good performance with the setting
+
+a0  1, b0  1 . Thus we can safely say that RCVLR is not sensitive to the selection of hyper parameters.
+
+11
+
+3.4 Estimate the epistatic effects
+Here, we use the backcross data set created by Xu [2] to test the RCVLR performance. The data set has
+600 individuals and 121 markers. These makers are evenly distributed through a single chromosome of 1800
+cM, and 9 markers are QTLs with main effects, 13 marker pairs have interaction effects. In simulation, the
+variance of residual errors is 10, and the population mean is 5. We center the marker data and phonetic data
+
+ 121   7381 possible effects.
+
+2
+
+and use (3) as the mode in this study. The model contains a total of 121  
+
+We run the RCVLR and the VI-IMP algorithms to estimate the main and epistatic effects with the
+simulated data set described above, and compare the results of VB-BAS, VB-BL, VB-EBL provided in [18].
+All results are shown in Table 4. The parameter setting of RCVLR and VI-IMP in these algorithms are the
+same as section 3.1, except that the residual variance
+
+ 2  [8 :1:12] in VI-IMP. The code for VI-IMP can be
+
+downed from //github.com/pcarbo/Variational-inference-for-Bayesian-variable-selection, and the codes for
+VB-BAS, VB-BL, VB-EBL are available at
+//www.genetics.org/content/suppl/2011/10/31/genetics.111.134866.DC1.
+These algorithms can detect almost all the correct loci with main and epistatic effects. But some loci are
+failed to be found by some algorithms, such as VB-EBL, VB-BL, RCVLR, VI-IMP failed to find marker pairs
+(41,61), VB-EBL, VB-BL, VI-IMP failed to find marker pairs (21,22). RCVLR fails to find one main effect at
+maker (111,111). The effect of pair (20,46) shown in Table 4 is not the true estimated QTL by RCVLR, but is
+found at the neighboring pair (20, 45), while (56,91) pair’s effect is found at (56,90).
+Table 4: Estimation main and epistatic effects with simulated data set by several algorithms
+Makers
+
+True effects
+
+RCVLR
+
+VB-IMP
+
+VB-BAS
+
+VB-BL
+
+VB-EBL
+
+(1,1)
+
+4.47
+
+4.4720
+
+4.4452
+
+4.5419
+
+2.7849
+
+4.4240
+
+(21,21)
+
+3.16
+
+3.0879
+
+3.1616
+
+3.1603
+
+0.8826
+
+3.1502
+
+(31,31)
+
+2.24
+
+2.2473
+
+2.2040
+
+2.3097
+
+0.6063
+
+2.2495
+
+(51,51)
+
+1.58
+
+1.2783
+
+1.3735
+
+1.3123
+
+0.0530
+
+1.3090
+
+(71,71)
+
+1.58
+
+1.5042
+
+1.5259
+
+1.7562
+
+0.0614
+
+1.5042
+
+(91,91)
+
+1.10
+
+0.8604
+
+0.8859
+
+1.0180
+
+0.0233
+
+0.8849
+
+(101,101)
+
+1.10
+
+1.3072
+
+1.2073
+
+1.2624
+
+0.0727
+
+1.1819
+
+(111,111)
+
+0.77
+
+0
+
+0.7429
+
+0.4752
+
+0.0169
+
+0.6737
+
+(121,121)
+
+0.77
+
+0.6963
+
+0.6915
+
+0.4799
+
+0.0490
+
+0.5565
+
+(1,11)
+
+1.00
+
+0.7797
+
+0.7503
+
+0.6421
+
+0.0199
+
+0.6545
+
+(2,119)
+
+3.87
+
+3.8586
+
+3.8723
+
+3.4860
+
+1.0283
+
+3.8556
+
+(10,91)
+
+1.30
+
+1.2473
+
+1.3438
+
+1.1521
+
+0.0432
+
+1.2087
+
+(15,75)
+
+1.73
+
+1.4988
+
+1.5571
+
+1.2712
+
+0.0810
+
+1.5027
+
+(20,46)
+
+1.00
+
+0.9011*
+
+0.7996
+
+0.7548*
+
+0.0200
+
+0.8834
+
+(21,22)
+
+1.00
+
+0.3416
+
+0
+
+0.7588
+
+0.0139
+
+0
+
+(26,91)
+
+1.00
+
+1.1965
+
+1.1643
+
+1.2658
+
+0.0449
+
+1.2263
+
+0.0038
+
+0
+
+(41,61)
+
+0.71
+
+0
+
+0
+
+*
+
+0.3119
+
+12
+
+(56,91)
+
+3.16
+
+2.9931*
+
+3.0597*
+
+2.8543*
+
+0.6414*
+
+3.0348*
+
+(65,85)
+
+2.24
+
+2.4868
+
+2.4490
+
+2.2781
+
+0.3207
+
+2.4204
+
+(86,96)
+
+0.89
+
+0.9772
+
+1.0489
+
+0.8318
+
+0.0211
+
+0.9601
+
+(101,105)
+
+1.00
+
+0.8778
+
+1.0492
+
+1.0368
+
+0.0516
+
+0.9754
+
+(111,121)
+
+2.24
+
+2.3706
+
+2.3345
+
+2.0512
+
+0.4615
+
+2.3373
+
+*
+
+Means that the estimated QTL effects are not in the position of the true QTL, but in their neighboring
+markers.
+
+4. Conclusions and discussion
+The main goal of this paper is to propose an improved variational linear regression approach for high
+scale variable selection problems such as the ones arising in epistatic analysis. Variational approximation is a
+classic method to solve linear model, but its accuracy is limited in the case of there are many more variables
+than samples. Several improved methods were proposed for the variational approximation, such as hierarchical
+shrinkage, importance sampling and so on. But these methods still lack of efficiency or accuracy. We proposed
+a simple but effective method to improve the performance of VLR by dynamically deleting some specific
+variables, which can greatly improve the accuracy of VLR.
+The reason that RCVLR is more accurate than VB-EBL, VB-BAS, VB-BL may lie in that it can derive
+the approximate marginal distributions of all variables in a single process, while hierarchical shrinkage infers
+each variable separately, therefore some correlation information among variables is lost. The VI-IMP considers
+the correlation among variables, but it uses important sampling and a weighted average method to improve the
+accuracy; therefore the computational cost is higher than other variational approaches.
+RCVLR can obtain good performance in general, and is not sensitive to the choice of hyper parameters,
+while some other variational approaches, such as VB-EBL, rely heavily on selecting appropriate parameters to
+get good performance [18]. VI-IMP averages the inferred results under different prior combinations. But how
+to determine the prior ranges is a problem unsolved [4]. If an inappropriate range is inputted, the performance
+may be poor. But if a very wide range is set to cover the exact parameters, the algorithm will need many more
+samples and thus need much more computational time.
+Acknowledgments
+This work was jointly supported by The National Natural Science Foundation of China (No.61271207,
+No.61174013), and the Jiangsu Overseas Research \& Training Program for University Prominent Young \&
+Middle-aged Teachers and Presidents.
+References
+1.
+
+Collard B, Jahufer M, Brouwer J, Pang E: An introduction to markers, quantitative trait loci (QTL)
+mapping and marker-assisted selection for crop improvement: The basic concepts. Euphytica 2005,
+142(1-2):169-196.
+
+2.
+
+Xu S: An empirical Bayes method for estimating epistatic effects of quantitative trait loci.
+
+Biometrics 2007, 63(2):513-521.
+3.
+
+George EI, McCulloch RE: Variable selection via Gibbs sampling. Journal of the American Statistical
+
+Association 1993, 88(423):881-889.
+13
+
+4.
+
+logarithmCarbonetto P, Stephens M: Scalable Variational Inference for Bayesian Variable Selection
+in Regression, and Its Accuracy in Genetic Association Studies. Bayesian Analysis 2012, 7(1):73-107.
+
+5.
+
+Dellaportas P, Forster JJ, Ntzoufras I: On Bayesian model and variable selection using MCMC.
+
+Statistics and Computing 2002, 12(1):27-36.
+6.
+
+O'Hara RB, Sillanpää MJ: A review of Bayesian variable selection methods: what, how and which.
+
+Bayesian analysis 2009, 4(1):85-117.
+7.
+
+Xu S: Estimating polygenic effects using markers of the entire genome. Genetics 2003, 163(2):789-801.
+
+8.
+
+Cai X, Huang A, Xu S: Fast empirical Bayesian LASSO for multiple quantitative trait locus mapping.
+
+BMC bioinformatics 2011, 12:211.
+9.
+
+Tipping ME, Faul AC: Fast marginal likelihood maximisation for sparse Bayesian models. In:
+
+Proceedings of the ninth international workshop on artificial intelligence and statistics: 2003.
+Jan.
+10.
+
+Hoti F, Sillanpaa MJ: Bayesian mapping of genotype x expression interactions in quantitative and
+qualitative traits. Heredity 2006, 97(1):4-18.
+
+11.
+
+Seeger MW, Wipf DP: Variational Bayesian Inference Techniques. Ieee Signal Proc Mag 2010,
+27(6):81-91.
+
+12.
+
+Sadough SMS, Modarresi M: Improved iterative joint detection and estimation through variational
+Bayesian inference. Aeu-Int J Electron C 2012, 66(5):380-383.
+
+13.
+
+Masada T, Hamada T, Shibata Y, Oguri K: Accelerating Collapsed Variational Bayesian Inference for
+Latent Dirichlet Allocation with Nvidia CUDA Compatible Devices. Lect Notes Artif Int 2009,
+5579:491-500.
+
+14.
+
+Logsdon BA, Hoffman GE, Mezey JG: A variational Bayes algorithm for fast and accurate multiple locus
+genome-wide association analysis. BMC bioinformatics 2010, 11:58.
+
+15.
+
+Bishop CM: Pattern recognition and machine learning, vol. 4: springer New York; 2006.
+
+16.
+
+Armagan A: Variational bridge regression. In: International Conference on Artificial Intelligence
+
+and Statistics: 2009. 17-24.
+17.
+
+Tinker N, Mather D, Rossnagel B, Kasha K, Kleinhofs A, Hayes P, Falk D, Ferguson T, Shugar L, Legge
+W: Regions of the genome that affect agronomic performance in two-row barley. Crop Science 1996,
+36(4):1053-1062.
+
+18.
+
+Li Z, Sillanpää MJ: Estimation of quantitative trait locus effects with epistasis by variational
+Bayes algorithms. Genetics 2012, 190(1):231-249.
+
+19.
+
+Beal MJ: Variational algorithms for approximate Bayesian inference. University of London; 2003.
+
+20.
+
+Haley CS, Knott SA: A simple regression method for mapping quantitative trait loci in line crosses
+using flanking markers. Heredity 1992, 69(4):315-324.
+
+21.
+
+Yi N, Xu S: Bayesian LASSO for quantitative trait loci mapping. Genetics 2008, 179(2):1045-1055.
+
+22.
+
+Mutshinda CM, Sillanpää MJ: Extended Bayesian LASSO for multiple quantitative trait loci mapping
+and unobserved phenotype prediction. Genetics 2010, 186(3):1067-1075.
+
+14
+
+

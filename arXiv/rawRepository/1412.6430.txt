@@ -1,0 +1,1494 @@
+1
+
+Topological Data Analysis of Biological Aggregation Models
+
+arXiv:1412.6430v3 [q-bio.QM] 11 Mar 2015
+
+Chad M. Topaz1,∗ , Lori Ziegelmeier1 , Tom Halverson1,
+1 Department of Mathematics, Statistics, and Computer Science, Macalester College,
+Saint Paul, Minnesota, United States of America
+∗ E-mail: ctopaz@macalester.edu
+
+Abstract
+We apply tools from topological data analysis to two mathematical models inspired by biological aggregations such as bird flocks, fish schools, and insect swarms. Our data consists of numerical simulation output
+from the models of Vicsek and D’Orsogna. These models are dynamical systems describing the movement
+of agents who interact via alignment, attraction, and/or repulsion. Each simulation time frame is a point
+cloud in position-velocity space. We analyze the topological structure of these point clouds, interpreting
+the persistent homology by calculating the first few Betti numbers. These Betti numbers count connected
+components, topological circles, and trapped volumes present in the data. To interpret our results, we
+introduce a visualization that displays Betti numbers over simulation time and topological persistence
+scale. We compare our topological results to order parameters typically used to quantify the global behavior of aggregations, such as polarization and angular momentum. The topological calculations reveal
+events and structure not captured by the order parameters.
+
+Introduction
+Biological aggregations are groups of organisms such as fish schools, bird flocks, insect swarms, and
+mammal herds [1–3]. Social interactions between members can play a crucial role in the formation
+and behavior of these groups [4–6]. Social interactions are behaviors like attraction, repulsion, and
+alignment, which are activated when one organism senses another via sight, sound, smell, touch, or
+perhaps some combination of senses [7]. Aggregations take on a vast array of morphologies: advancing
+fronts of running wildebeest, branched dendritic structures of bacteria, tornado-like vortices of swimming
+anchovy, and much more. Beyond serving as examples of emergent pattern formation, organisms moving
+in groups can affect resource consumption, disease transmission, and at the longest spatiotemporal scales,
+evolution itself [8]. Beyond the realm of biology, the understanding of biological aggregations has inspired
+applications from computer algorithms to robotic self-assembly [9].
+Quantitative understanding of aggregations has been developed in part through mathematical modeling. Modeling of aggregations dates back (at least) to the 1950s with the seminal work of [10], which
+describes the motion of individual fish as particles obeying Newton’s law. The forces in the model are
+social forces between two fish – namely attraction and repulsion – and are described by a simple functional form dependent on the distance between individuals, akin to gravitational or intermolecular forces
+in physics. Since then, hundreds of aggregation models have been created; some of the most well-studied
+include [6,11,12]. The common approach is to envision organisms as point particles with motion laws that
+are first or second order in time, and with behavioral rules that are some combination of self-propulsion
+and/or social alignment, attraction, and repulsion. An alternative modeling approach, also the subject
+of a rich literature, is to treat a sufficiently large population as a continuum and describe its dynamics
+with a partial integrodifferential equation as in, e.g., [13–17]. The discrete and continuum models that
+we have mentioned here are largely phenomenological. They are minimal models inspired to greater or
+lesser degree by biological observation, and their minimalism allows one to understand the basic behaviors
+necessary or sufficient for a particular type of aggregation phenomenon.
+Quantitative understanding of aggregations has also been developed through the exploration and
+modeling of rich data sets measured in the field or in experiment. This type of study has a much
+
+2
+more recent history, as the technology necessary to gather and process large, accurate data sets did not
+exist several decades ago. Notable examples include data-based modeling of starlings [18], ducks [19],
+aphids [20], golden shiner fish [21], and desert locusts [22]. In data based studies, one typically collects
+time series of organisms’ positions, and possibly, velocities. One may use this data in two different ways:
+to infer the rules for motion that each individual follows and/or to characterize the collective dynamics
+of the group.
+In a classical approach to characterizing collective dynamics, one begins with N organisms’ positions
+xi and velocities vi , either from biological observation or numerical simulation of a model. One then
+calculates some global metric hoped to give insight into macroscopic dynamics. For instance, [6] simulates discrete swarmers who interact via attraction, repulsion, and alignment, and measures the group
+polarization P and angular momentum Mang ,
+
+P
+
+ P
+ N r ×v 
+ N v 
+i
+ i=1 i
+ i=1 i 
+(1)
+P =  PN
+ , Mang =  PN
+,
+
+
+|vi | 
+|ri ||vi | 
+i=1
+
+i=1
+
+where ri = xi − xcm and xcm is the center of mass of the group. By varying parameters that control
+the social interactions and plotting P and Mang , [6] identifies different regimes of behavior, including
+swarming, motion on a torus, and a highly parallel (polarized) group. A different aggregation model,
+from [12], can produce a rotating annulus of individuals (a “single mill”) or superposed, counterrotating
+annuli (a “double mill”). Metrics P and Mang cannot distinguish a single from a double mill, so [12]
+introduces the absolute angular momentum
+P
+
+ N |r × v | 
+ i=1 i
+i 
+Mabs =  PN
+(2)
+,
+
+|ri ||vi | 
+i=1
+
+whose numerator differs from Mang . Together, Mang and Mabs can distinguish single from double mills.
+Other examples of metrics include the average number of neighbors with whom an individual interacts
+(which requires knowledge of interaction rules) and the mean distance to nearest neighbor [23].
+Our discussion here provides a sampling of metrics in the literature. Most are inspired by order parameters from physics, and many have been constructed a posteriori, based on knowledge of the dynamic
+whose detection was desired. In our present work, we explore whether topology offers a natural way to
+characterize collective behavior. In brief, we use the methods of topological data analysis to compute the
+persistent homology of spatiotemporal aggregation data sets arising from numerical simulation of models.
+We introduce a new visualization to explore homological persistence over spatial scales and over time.
+As we will explain at length, this visualization displays a data point cloud’s Betti numbers in a contour
+diagram. We refer to this plot as the Contour Realization Of Computed k-dimensional hole Evolution
+in the Rips complex (CROCKER). We show that our topological analysis reveals dynamical events not
+captured in time series of the classically studied order parameters. Our primary goal is to demonstrate
+the utility of topological data analysis for biological aggregations and similar applications.
+We note that the term topology has been invoked in the aggregation literature in a different sense
+than we use it here. In both the biological modeling literature and the robotics literature, “topology”
+sometimes refers to the coupling scheme between agents, that is, by which members of the group a given
+individual is influenced [18, 24]. For instance, in some models or algorithms, a given agent might be
+influenced by the closest agent, or the closest two agents, or the closest few agents within an agent’s field
+of view. In this sense, topology is an input of the model. In a different sense, we are using topological
+tools to analyze the outputs of a model.
+The rest of this paper is organized as follows. We begin with an overview of persistent homology.
+This discussion aims to present some of the key concepts to a mathematical reader unfamiliar with
+algebraic topology. Brief descriptions of computational methods and our data visualization follow. Then,
+we proceed to topological analyses of the models of Vicsek, et al. [11] and D’Orsogna, et al. [25] before
+concluding.
+
+3
+
+Figure 1. Oriented k-simplices for k = 0, 1, 2, 3. These k-simplices are the building blocks used to
+construct a simplicial complex from a point cloud of data.
+
+Topological Data Analysis and Persistent Homology
+Homology is a tool from algebraic topology that measures the features of a topological space such as an
+annulus, sphere, torus, or more complicated surface or manifold. In particular, homology can distinguish
+these spaces from one another by quantifying their connected components, topological circles, trapped
+volumes, and so forth. A finite set of data points can be viewed as a (noisy) sampling from an underlying
+topological space. One can measure the homology of the data by creating connections between proximate
+data points, varying the scale over which these connections are made, and looking for features that persist
+across scales. This is called persistent homology. Persistent homology has been used in a wide array of
+applications to uncover the topological structure of data, including neuroscience, language processing,
+natural images, signal analysis, bioinformatics, computer vision, and sensor networks [26–32].
+We explain these ideas in greater detail for the remainder of this section. Our discussions in the first
+two subsections below recapitulate presentations in texts such as [33, 34].
+
+Forming a Simplicial Complex
+To build a global object from a discrete set of N data points, we construct a simplicial complex S. A
+simplicial complex is a set consisting of a finite collection of k-simplices (simple pieces), where a 0-simplex
+is a vertex, a 1-simplex is an edge, a 2-simplex is a triangle, a 3-simplex is a tetrahedon, and so on; see
+Figure 1. These simplices satisfy two properties. First, for every set σ in S, every non-empty subset
+τ ⊆ σ also belongs in S. For instance, if tetrahedron abcd is in S, then the triangles abc, abd, acd, bcd,
+the edges ab, ac, ab and the vertices a, b, c, d are also in S. Second, two k-simplices are either disjoint or
+they intersect in a lower dimensional simplex.
+To form k-simplices, we use the Vietoris-Rips complex, sometimes simply called the Rips complex. To
+build this complex, one first defines a distance metric which can be realized as a symmetric N × N matrix
+of pairwise distances between points. For each ε > 0, called the proximity parameter, we construct a
+simplicial complex Sε in the following way. In Sε , every collection of k + 1 data points is a k-simplex if the
+pairwise distance between points is less than ε. Thus, the 0-simplices are the data points themselves. A
+1-simplex (an edge) is formed whenever two points are within ε of one another. A 2-simplex (a triangle) is
+formed whenever three points are pairwise within ε of one another; this occurs when there is a 3-cycle in
+the underlying graph formed by the vertices and edges in Sε (this graph is sometimes called the 1-skeleton
+of Sε ). A 3-simplex (a tetrahedron) is formed whenever four points are pairwise within ε of one another.
+See Figure 2, in which the yellow circles represent ε/2 balls so that two vertices are connected by an edge
+if their ε/2-balls intersect.
+For purposes of homology, it is necessary to impose an orientation on the vertices of each k-simplex.
+
+4
+
+Figure 2. Example of a Vietoris-Rips complex. The 18 points are 0-simplices. Two 0-simplices
+form a 1-simplex (an edge) if their ε/2-neighborhoods (yellow circles) intersect. Three vertices form a
+2-simplex (a triangle) if they are pairwise connected by edges. Four vertices form a 3-simplex (a
+tetrahedron) if they are pairwise connected by edges.
+A k-simplex [v0 , v1 , . . . , vk ] of k + 1 data points is ordered such that if elements are permuted with an odd
+permutation, the order is negated. Thus, [v0 , . . . , vi , . . . , vj , . . . , vk ] = −[v0 , . . . , vj , . . . , vi , . . . , vl ]. The
+simplices in Figure 1 are illustrated with a given orientation.
+There are other methods one could use to form a simplicial complex. The Rips complex is the flag
+or clique complex that is the maximal simplicial complex built from the underlying graph. Another
+commonly used method is the Čech complex, where k-simplices are formed if the ε/2-balls around k + 1
+vertices have a nonempty intersection. We use the Rips complex since it is more computationally tractable
+than the Čech complex; see the discussion in Section 1.3 of [35]. The witness complex is another method
+to form a simplicial complex. It is particularly useful with large data sets as it subsamples the data in a
+way that uses information from the entire data set; see [36].
+
+Homology
+Homology is a way to uncover k-dimensional “holes” in a simplicial complex. This requires imposing an
+algebraic structure on the simplicial complex Sε . For each k ≥ 0, we create an abstract vector space Ck
+with basis consisting of the set of k-simplices in Sε , so that the dimension of Ck equals the number of
+k-simplices. The elements of Ck are called k-chains. In practical computations, the coefficients of this
+vector space come from a finite field Zp (integers
+P modulo p) for a small prime p. These vector spaces
+consist of all formal linear combinations c = i ai σi , where ai ∈ Zp and the sum is over all k-simplices
+σi in Sε .
+To compute homology, one must be able to describe the boundary of a k-simplex algebraically. The
+boundary of a k-simplex σ is the union of the (k − 1)-subsimplices τ ⊆ σ. For each k ≥ 1, the boundary
+
+5
+
+Figure 3. Example of homologous cycles. The blue 1-cycle and the red 1-cycle are homologous
+(equivalent), because their difference is the boundary of a triangle, shown in green; see text for a
+detailed explanation.
+map ∂k : Ck → Ck−1 is the linear transformation defined on a k-simplex σ = [v0 , v1 , . . . , vk ] by
+∂k ([v0 , v1 , . . . , vk ]) =
+
+k
+X
+
+(−1)i [v0 , . . . , vˆi , . . . , vk ],
+
+(3)
+
+i=0
+
+where [v0 , . . . , vˆi , . . . , vk ] is the (k − 1)-simplex obtained from [v0 , . . . , vk ] by removing the vertex vi . For
+example,
+∂1 ([v0 , v1 ]) = [v1 ] − [v0 ]
+
+and
+
+∂2 ([v0 , v1 , v2 ]) = [v1 , v2 ] − [v0 , v2 ] + [v0 , v1 ].
+
+Observe that for a k-simplex σ, ∂k (σ) is an algebraic representation of its boundary. For instance, in
+the second example above, [v0 , v1 , v2 ] represents a triangle and [v1 , v2 ] − [v0 , v2 ] + [v0 , v1 ] are the oriented
+edges that form its boundary.
+Boundary operators connect the vector spaces Ck into a chain complex,
+∂k+1
+
+∂
+
+∂
+
+∂
+
+∂
+
+0
+1
+2
+k
+0.
+C0 −→
+C1 −→
+Ck−1 −→ · · · −→ C2 −→
+· · · −→ Ck+1 −→ Ck −→
+
+(4)
+
+Consider the following two subspaces of Ck , which are determined by the kernel and the image of the
+boundary operators,
+k-cycles:
+Zk := ker (∂k : Ck → Ck−1 ) ,
+(5)
+k-boundaries: Bk := im (∂k+1 : Ck+1 → Ck ) .
+The boundary operator satisfies the following fundamental property: ∂k ◦ ∂k+1 = 0. That is, “a boundary
+has no boundary”. For example,
+∂1 ◦ ∂2 ([v0 , v1 , v2 ]) = ∂1 ([v1 , v2 ]) − ∂1 ([v0 , v2 ]) + ∂1 ([v0 , v1 ]) = [v2 ] − [v1 ] − [v2 ] + [v0 ] + [v1 ] − [v0 ] = 0.
+It then follows that Bk is a subspace of Zk . Thus, Ck is the vector space of all k-chains in the simplicial
+complex Sε , Zk is the subspace of Ck consisting of k-chains that are also k-cycles, and Bk is the subspace
+of Zk consisting of k-cycles that are also k-boundaries.
+The goal of homology is to “discard” cycles that are also boundaries. To this end, we put an equivalence relation on Zk as follows. Two cycles z1 , z2 ∈ Zk are homologous (equivalent), written z1 ∼ z2 ,
+if they differ by a boundary, i.e., z1 − z2 ∈ Bk . Consider the example in Figure 3. The blue 1-chain
+b = [v0 , v1 ] + [v1 , v2 ] + [v2 , v3 ] + [v3 , v4 ] + [v4 , v0 ] and the red 1-chain r = [v1 , v2 ] + [v2 , v3 ] + [v3 , v4 ] + [v4 , v1 ]
+are cycles because ∂1 (b) = ∂1 (r) = 0. These cycles are homologous because their difference is a (green)
+boundary, g = b − r = [v0 , v1 ] + [v4 , v0 ] − [v4 , v1 ] = [v1 , v4 ] − [v0 , v4 ] + [v0 , v1 ] = ∂[v0 , v1 , v4 ].
+The equivalence relation ∼ defined above partitions the k-cycles Zk into a union of disjoint subsets,
+called homology classes. We let [z] denote the homology class of z ∈ Zk and define the kth homology of
+Sε as the set of homology classes
+
+	
+
+(6)
+Hk := [z]  z ∈ Zk .
+
+6
+
+Figure 4. Example of the topological barcode of a Vietoris-Rips complex. The top four
+figures display the simplicial complex of 18 points for different values of the proximity parameter ε. The
+vertical lines in the barcode correspond to these four levels of ε. The number of horizontal bars
+intersecting each line give the values of b(ε) = (b0 (ε), b1 (ε)). For the parameters selected,
+b(1.5) = (18, 0), b(5.0) = (11, 0), b(7.0) = (4, 1), and b(9.5) = (1, 2). See text for further discussion.
+Algebraically, Hk = Zk /Bk , a quotient of vector spaces. The kth Betti number, bk , is defined as the
+dimension
+bk = dim(Hk ) = dim(Zk ) − dim(Bk ).
+(7)
+In terms of boundary operators, bk = [nk − rank(∂k )] − rank(∂k+1 ), where nk is the dimension of the
+vector space Ck .
+In terms of the topological characteristics one might hope to measure, bk equals the number of
+independent holes of dimension k, and this is the key point for our analysis later in this paper. For
+instance, b0 is the number of connected components, b1 is the number of topological circles, b2 is the
+number of trapped volumes, and so on. The topology of a simplicial complex may be described by the
+sequence of Betti numbers, b = (b0 , b1 , b2 , . . .). For instance, a topological circle has b = (1, 1, 0, . . .), a
+topological torus has b = (1, 2, 1, 0, . . .), and a topological sphere has b = (1, 0, 1, 0, . . .). Betti numbers
+are a topological invariant, meaning that topologically equivalent spaces have the same Betti number.
+See, e.g., [33, 34] for these and other examples.
+
+Persistence
+Given a collection of N data points, the resulting Rips complex and its homology are highly dependent on
+the choice of proximity parameter ε. Figure 4 presents an example. The data pictured in the four small
+snapshots are the same as Figure 2, but different values of ε are chosen for forming connections. Distinct
+simplicial complexes result. For small values of ε, the simplicial complex consists of isolated vertices. At
+the largest value of ε shown, the entire data set is a single connected component. As ε changes, other
+topological events occur which we will describe momentarily. A natural question is what is the optimal ε
+to use for any data set. This can hardly be selected without a priori knowledge of the underlying space.
+To reconcile this ambiguity, one exploits the fact that as ε grows so do the Rips complexes, giving an
+
+7
+inclusion of complexes for small ε into those for larger values. That is, if ε1 ≤ ε2 ≤ · · · ≤ εM , then we
+have an inclusion of simplicial complexes
+Sε1 ⊆ Sε2 ⊆ · · · ⊆ SεM −1 ⊆ SεM .
+
+(8)
+
+This sequence is called a filtration. “Persistent” homology, then, tracks topological features which persist
+across a range of values of ε. Those features which persist over a large range are considered signals of
+the underlying topology, while the short lived features are taken to be noise inherent in approximating a
+topological space with a finite sample. Foundational papers on this methodology include [35, 37, 38].
+A convenient way to visualize persistent homology is through a graphical representation called a
+barcode. There is a distinct barcode for each homology space Hk from which we infer the Betti number
+bk . As an example, see Figure 4. The horizontal axis corresponds to the proximity parameter ε, and
+the vertical axis is an (arbitrary) ordering of the homology generators, i.e., the distinct homology classes
+of dimension k. Each homology class is visualized by a bar that persists for a given range of ε. Its
+leftmost endpoint is at the ε value at which the homology class forms, and its rightmost endpoint is
+the ε value at which it disappears. At any given ε, the Betti number bk (ε) is the number of bars that
+intersect the vertical line through ε. Those bars which persist over longer intervals generally correspond
+to real topological features, whereas short bars are considered noise. In the figure, we see the following
+sequence of Betti numbers. For ε = 1.5, b = (18, 0, . . .) because there are no connections amongst the
+18 vertices. For ε = 5, b = (11, 0, . . .), reflecting the fact that some vertices have joined into larger
+connected components. For ε = 7, b = (4, 1, 0, . . .), reflecting even further joining of components as well
+as the formation of one topological circle. Finally, for ε = 9.5, b = (1, 2, 0, . . .), meaning that all of the
+data has joined into one connected component that contains two topological circles.
+Another method of displaying homological information is through a persistence diagram. Each bar
+in the barcode is represented in the Cartesian plane with the horizontal and vertical axes encoding the
+leftmost and rightmost ε values of the bar. Points near the diagonal are inferred to be noise while points
+further from the diagonal are considered topological signal. Figure 5(D) shows the persistence diagram
+corresponding to two barcodes in panels (B) and (C). This data is generated by a biological aggregation
+model which we discuss later.
+Because our data sets are obtained from numerical simulation, they are noiseless. Still, one might
+wonder whether small perturbations of data would impact the topological features that are measured.
+For biological aggregations, this question would be especially relevant in analyzing experimental data, for
+which measurement error might introduce noise. As shown in [39], small perturbations of data result in
+small perturbations of persistence diagrams, indicating stability of topological features.
+
+Computational Methods and Data Visualization
+In the next two sections, we will present topological analyses of simulation output from the two aggregation models of [11] and [25]. We perform the simulations in Matlab. For the Vicsek model [11], as we
+describe in more detail in the next section, the simulation output consists of the two dimensional position
+and the angular heading of each agent in a group of interacting agents. The physical domain is a square
+with sides of length ℓ and periodic boundary conditions. Heading is defined on [0, 2π). To avoid issues
+arising from disparities between the position coordinates and the heading coordinate, we rescale position
+coordinates, multiplying them by 2π/ℓ. For the D’Orsogna model [25], the simulation output consists of
+the two dimensional position and two dimensional velocity of each agent in an interacting group. The spatial domain is an unbounded plane and velocity is (theoretically) unbounded, so we perform no rescaling
+of coordinates.
+The computational complexity of computing bk depends on the number of k-simplices. For n data
+n
+points, the number of k-simplices is at most k+1
+= O(nk+1 ); of course, the actual number depends on
+the proximity parameter ε and the configuration of the data. Once the simplicial complex is constructed,
+
+8
+computing homology over a field reduces to methods in linear algebra. The boundary operator ∂k :
+Ck → Ck−1 is the linear transformation realized as an integer matrix with entries {−1, 0, 1} over the
+basis elements of each vector space. The null space of this matrix corresponds to Zk , and the range space
+corresponds to Bk−1 . The computational algorithm uses Gaussian elimination over a finite field, which
+is at worst case O(m3 ), where m is the actual number of k-simplices. One needs efficient algorithms
+when computing over large data sets and recording homological information over a range of proximity
+parameter ε. See [40–43] for implementations and algorithms used in computing persistent homology.
+The development of faster algorithms is an active area of investigation.
+To extract topological information, we process simulation data in the statistical computing environment R. Each time step of the simulation consists of a static point cloud of data in position-heading or
+position-velocity space. We use the phom package [44] to construct the Rips complex and calculate the
+topological barcodes of the point cloud. More specifically, we calculate the first two Betti numbers b0 (ε)
+and b1 (ε) where the proximity parameter ε takes on discrete but closely-spaced values. Calculating bk (ε)
+for k ≥ 2 is computationally costly, and we do this only for selected simulation snapshots.
+Because we have a series of simulation time steps, we introduce a visualization that captures homological persistence over both scale ε and time t. That is, we now imagine the kth Betti number as bk (ε, t),
+a function of the proximity parameter ε > 0 and simulation time t ≥ 0. A natural way to display bk (ε, t)
+is as a contour diagram, which we refer to as a Contour Realization Of Computed k-dimensional hole
+Evolution in the Rips complex (CROCKER). To facilitate visual interpretation of the contour diagram,
+we make two simplifications. First, we do not include every time step, but rather only every jth time
+step, where j is chosen to preserve at least several hundred snapshots per simulation. We found that this
+downsampling did not noticeably alter the appearance of our CROCKER plots. Second, focusing only
+on the most coarse and coherent topological structures, we only plot level curves for when bk (ε, t) < 5.
+All of the topological data for which bk (ε, t) ≥ 5 is lumped together in the contour diagram; that is, we
+do not draw distinct contours for bk (ε, t) ≥ 5. For the models we study, these regions of the contour
+diagram typically represent many topological structures that do not persist over scales.
+As an example, consider Figure 7. Panels (B) and (C) show contour diagrams of b0 (ε, t) and b1 (ε, t)
+for a particular simulation of the Vicsek model (described and analyzed later). In these plots, simulation
+time t appears along the horizontal axis and the topological proximity parameter ε appears on the vertical
+axis. Focus first on panel (B), which shows b0 (ε, t). Below the purple (lowest) contour, b0 (ε, t) ≥ 5, and
+thus in this region, the point cloud has many connected components; we interpret these as noise. Above
+the yellow (top) contour, b0 (ε, t) = 1, demonstrating that at large enough ε, the entire point cloud of data
+joins together into one connected component. Less trivially, there are regions between the intermediate
+contours that persist over scale and time. For example, centered near t = 2000 there is a somewhat
+triangular region between the yellow and green contours. In this region, b0 (ε, t) = 2, showing a strong,
+persistent signal of two connected components in the data. Panel (C) is similar, but shows b1 (ε, t).
+Towards the bottom of the diagram, there is an oblong region enclosed by a purple contour. In this
+region, b1 (ε, t) ≥ 5, which we again interpret as topological noise. There are two large regions enclosed
+by a red contour in which b1 (ε, t) = 0, indicating an absence of topological circles. However, there is also
+a region between red and yellow contours in which b1 (ε, t) = 1, showing a strong signal of a persistent
+topological circle.
+In summary, large regions in the contour diagram (excluding bk ≥ 5) represent topological features
+that persist over scale ε and simulation time t. When interpreting the contour diagrams, it is important
+to remember that the function bk (ε, t) inherently takes on only nonnegative integer values.
+
+Analysis of the Vicsek Model
+Using persistent homology, we now analyze data generated by aggregation models. One of the most
+referenced aggregation models is that of Vicsek and collaborators [11], cited thousands of times as of the
+
+9
+writing of this manuscript. A complete discussion of results related to this model is beyond our present
+scope. The review paper [45] provides a broad look, and mentions some of the systems that have been
+described with Vicsek-like models, including cells, bacteria, insects, fish, and birds.
+The Vicsek model is a dynamical system in discrete time and continuous space that describes the
+motion of interacting point particles in a square with periodic boundary conditions. The model appears
+in the literature written in different forms; we write it as
+
+
+X
+1 
+θj (t) + U (−η/2, η/2),
+(9a)
+θi (t + ∆t) =
+N
+|xi −xj |≤R
+
+(9b)
+vi (t + ∆t) = v0 cos θi (t + ∆t), sin θi (t + ∆t) ,
+xi (t + ∆t) =
+
+xi (t) + vi (t + ∆t) ∆t.
+
+(9c)
+
+Here, xi (t) ∈ R2 is the position of particle i = 1, . . . , N at time t, and vi is velocity. We refer to the
+angle of the velocity vector vi as θi , the heading. Additionally, v0 is a constant, U is a uniform random
+variable on the specified interval, and ∆t is the time step.
+For clarity, let us re-state the model in prose. To update the model, each particle must be given a
+new heading. This heading is the average of the previous headings of all other particles within a radius
+R, plus some added noise parameterized by η. With this new heading determined, each particle moves
+a fixed distance v0 ∆t, thus completing the time step. The model is posed on a square with sides of
+length ℓ and periodic boundary conditions. For all simulations performed, the initial particle positions
+and headings are random.
+The parameters in the model are the number of particles N , the particle interaction radius R, the
+noise η, the fixed particle speed v0 , the box size ℓ, and the time step ∆t. One may nondimensionalize the
+problem to reduce the number of free parameters. We adopt the standard convention R = 1 and ∆t = 1.
+This leaves the remaining parameters N , η, v0 , and ℓ. Some studies refer to three effective parameters:
+η, v0 , and ρ = N/ℓ2 , a particle density.
+Two preliminary matters will build understanding prior to a discussion of results. First, we analyze
+the topology of an initial condition. Second, we discuss the classic order parameter used in the physics
+literature to characterize the global dynamics of the system.
+Figure 5(A) shows a random initial condition for N = 300 particles and a square with sides of length
+ℓ = 25. This gives rise to a cloud of 300 points whose coordinates are (x, y, θ). However, since the
+simulation domain is periodic and since θ is an angle, this space is not R3 but rather S 1 × S 1 × S 1 = T3 ,
+the three-torus, which has Betti numbers b = (1, 3, 3, 1, 0, . . .). Panel (B) shows the topological barcode
+for b0 (ε, 0), which has one persistent bar. This topological signature indicates no clusters other than the
+trivial connected component formed by the entire point cloud on the longest scales. Panel (C) shows the
+barcode for b1 (ε, 0). There are three persistent bars (which terminate for larger values of ε not shown)
+representing three topological circles. This signature captures the fact that the point cloud is well-spread
+over the three-torus due to the randomness of the initial condition. We have also calculated the barcode
+(not shown) for b2 (ε, 0), which displays three persistent bars, representing the three trapped volumes of
+the three-torus. Panel (D) shows the persistence diagram, which combines the information captured in (B)
+and (C). The particular initial condition we have analyzed is used to seed our first simulation below. The
+initial conditions of the other two simulations that we will perform are topologically equivalent. Below, we
+will see that key dynamics involve the formation of nontrivial topological connected components and/or
+the destruction of topological circles.
+As discussed in the introduction, a traditional approach is to characterize global behavior via an order
+parameter. For (9), the order parameter most often studied is the normalized average velocity of the
+group,
+
+N
+
+1 X
+
+vi (t) .
+(10)
+ϕ(t) =
+
+
+N v0 
+i=1
+
+10
+
+25
+
+(B)
+
+(A)
+
+0
+
+0.0
+0
+
+25
+
+0.5
+
+1.0
+
+1.5
+
+Proximity Parameter ε
+
+2.0
+
+2.0
+
+Ending ε
+
+1.5
+
+1.0
+Betti Number
+0
+
+0.5
+
+1
+
+(C)
+1.0
+
+1.5
+
+Proximity Parameter ε
+
+2.0
+
+(D)
+
+0.0
+0.0
+
+0.5
+
+1.0
+
+Starting ε
+
+1.5
+
+2.0
+
+Figure 5. A random initial condition used to simulate the Vicsek model (9) and
+topological analysis of this initial state. (A) Random initial positions (x, y) and headings θ of
+N = 300 particles in a square of size ℓ = 25 with periodic boundary conditions. The underlying space in
+which the data lives is a three-torus T3 which has Betti numbers b = (1, 3, 3, 1, 0, . . .). (B) Barcode for
+Betti number b0 (ε, 0), showing topological connected components. The zoomed box shows a single
+persistent bar, corresponding to the entire ensemble of particles. (C) Barcode for Betti number b1 (ε, 0),
+showing topological circles. The zoomed box shows three persistent bars, representing the three circles
+comprising the three-torus. (D) Persistence plot, which displays the information in (B) and (C) by
+encoding each bar’s starting and ending value of ε as a point in the Cartesian plane. Red points show
+b0 and blue points show b1 . The zoomed box shows the three points representing the three persistent
+topological circles of the random initial condition in (A).
+
+11
+
+25
+
+(A)
+
+0
+0
+
+7
+
+25
+
+(B)
+
+0
+0
+
+5
+
+7
+
+(C)
+
+0
+0
+
+5
+
+Figure 6. Simulation snapshots of the Vicsek model (9). These simulations are analogous to
+Figure 1 in [11]. Circles indicate particle positions and line segments represent heading. For all
+simulations, N = 300 particles, the particle speed is v0 = 0.03, and the initial state consists of uniform
+random positions and headings. We vary box size ℓ and noise η. Dotted lines indicate the bounds of the
+periodic domain. (A) Groups moving in different directions with ℓ = 25, η = 0.1, t = 3000. (B) Random
+movement with some correlation with ℓ = 7, η = 2, t = 600. (C) Highly polarized motion with ℓ = 5,
+η = 0.1, t = 300.
+
+12
+The order parameter 0 ≤ ϕ(t) ≤ 1 measures global polarization. For a group of particles moving in
+approximately the same direction, ϕ(t) will be near one. If particle headings are spread out randomly,
+ϕ(t) will be near zero. As a simple additional example, two groups of particles that are highly polarized
+within each group but are traveling in opposite directions will also have ϕ(t) ≈ 0. This simple example
+sheds some light on the limited information the order parameter carries.
+The model (9) can display three qualitatively different global behaviors, depending on parameters.
+We visualize snapshots of these states in Figure 6, which is analogous to Figure 1 of Vicsek’s original
+paper [11]. When noise η is small and particle density ρ is small, the system tends to form clusters each
+of which moves in a different direction, as in (A). For higher η and ρ, particles are somewhat correlated
+but still move randomly, as in (B). Finally, for large ρ but small η, the motion becomes polarized, that
+is, all particles travel in the same direction, as in (C). For the simulations represented by these three
+panels, we will now view the global behavior through the lens of the order parameter ϕ(t) and through
+a topological lens. The topological analysis gives rich information which is detected neither by the order
+parameter nor, as we will show, by the eye.
+
+Vicsek Simulation #1
+Figure 7 displays the analysis of our first set of simulation results, the same simulation that began with
+the initial condition in Figure 5(A) and produced the state in Figure 6(A). Here, N = 300, ℓ = 25, and
+η = 0.1. The order parameter ϕ(t) increases steeply (with two small plateaus) before leveling off to a
+value very close to one, signaling a high degree of alignment. After time t = 1000, ϕ(t) varies little.
+Figure 7(B) shows b0 (ε, t), measuring the number of connected components on the three dimensional
+torus defined by position and heading. Recall that, per our previous discussion, we have displayed only
+contours for levels five and below. In the large region below the purple (bottom) contour, b0 (ε, t) ≥ 5.
+This region represents connected components existing only over small ranges of ε; we interpret these as
+noise. In the region above the yellow (top) contour, b0 (ε, t) = 1, and all the data forms a single connected
+component for large ε. The spaces between the other contours reveal clusters that persist over scale and
+simulation time. For example, there is a triangular region between the green and yellow contours around
+t ≈ 2000, indicating a strong signal of two clusters.
+Further analyzing this region, consider the times marked by the two dashed gray bars, namely t = 2080
+and t = 2150. While the order parameter ϕ(t) (by design) does not detect clusters, at t = 2080, the
+spaces between the contours reveal successive ranges of ε over which there are four, three, two, and
+one connected components in the data, with b0 (ε, 2080) = 2 persistent over the largest range of ε, as
+previously discussed. The corresponding simulation snapshot appears in Figure 8(A). The transition from
+four to three connected components corresponds to the merging of two small, slightly misaligned groups
+in the lower left of Figure 8(A) as ε increases. The transition from three to two connected components
+corresponds to the merging of the two larger groups and so on. The situation for t = 2150 is similar.
+However, the range of ε over which one counts three connected components has shrunk drastically. The
+simulation snapshot in Figure 8(B) suggests why. In Figure 8(A), the distance between the two leftmost
+groups approximately equals the distance between the two rightmost groups. Hence, there does not exist
+a large range of ε over which there are three clusters. It is important to remember that the data has
+three coordinates (x, y, θ), but in the discussion above, the key dynamics are in (x, y), consistent with
+the fact that ϕ(t) ≈ 1.
+Figure 7(C) shows b1 (ε, t), measuring the number of topological circles formed by the data on the
+three-torus. First, we note that the three topological circles present in the initial condition (described
+above) are lost on a very short simulation time scale (nearly immediately). In the bottom, oblong region
+of the graph enclosed by the purple contour, b1 (ε, t) ≥ 5 which, as before, we interpret as noise. There are
+two large regions enclosed by red in which there exist no topological circles. However, for approximately
+t > 1800 and 1.25 ≤ ε ≤ 2.1 we have b1 (ε, t) = 1, consistent with coverage of the data across one of the
+circles of the underlying three-torus. This circle is visible in Figure 8 as the vertical swath of data along
+
+Order Parameter ϕ
+
+13
+
+1.00
+
+(A)
+
+0.75
+0.50
+0.25
+0.00
+0
+
+1000
+
+2000
+
+3000
+
+Proximity Parameter ε
+
+Simulation Time t
+
+2.0
+
+b0 = 1
+
+1.5
+
+level
+
+(B)
+
+2
+
+b0 = 2
+
+1.0
+
+3
+
+b0 ≥ 5
+
+0.5
+
+1
+
+4
+5
+
+0.0
+0
+
+1000
+
+2000
+
+3000
+
+Proximity Parameter ε
+
+Simulation Time t
+
+level
+
+2.0
+
+b1 = 1
+
+1.5
+
+(C)
+
+1
+2
+
+1.0
+
+b1 = 0
+
+3
+
+b1 = 0
+
+4
+
+0.5
+
+5
+0.0
+0
+
+1000
+
+2000
+
+3000
+
+Simulation Time t
+
+Figure 7. Aggregate behavior of the Vicsek model, simulation #1. The simulation that
+generated these data was seeded with the initial condition in Figure 5(A) and a typical snapshot is
+shown in Figure 6(A). (A) Normalized average velocity order parameter ϕ(t). (B) Contour plot of Betti
+number b0 (ε, t). (C) Contour plot of Betti number b1 (ε, t). The topological analysis reveals dynamics
+not captured by the order parameter, namely cluster formation and the loss of topological circles
+consistent with particles aligning and covering only one dimension of the periodic simulation domain.
+See text for a more comprehensive analysis.
+
+14
+
+25
+
+(A)
+
+25
+
+0
+
+(B)
+
+0
+0
+
+25
+
+0
+
+25
+
+Figure 8. Snapshots of the Vicsek model, simulation #1. These states correspond to the
+dashed vertical bars in Figure 7(B). (A) Time t = 2080. (B) Time t = 2150. The topological signature
+in Figure 7(B) picks up subtle differences between these states. For panel (A) here, there are ranges of
+the persistence parameter ε over which one observes four, three, and two connected components before
+coalescing into one. For (B), the transition from four connected components to two happens over a
+much smaller range of ε because the two larger clusters on the right merge into one on approximately
+the same spatial scale that the two smaller clusters on the left do. The topological differences between
+(A) and (B) are not readily visible to the eye in the snapshots, nor are they reflected in the order
+parameter ϕ(t) in Figure 7(A).
+the right side of each panel. The fact that there is a high degree of alignment removes one of the potential
+topological circles of the underlying space, and the lack of coverage horizontally across the spatial domain
+removes the other.
+Taken together, panels (B) and (C) of Figure 7 show the following topology. First, b0 (ε, t) reveals
+that a small number of clusters form persistently over time and scale. The number of clusters is variable
+as merging and fragmenting occur. Second, b1 (ε, t) reveals that topological circles present in the initial
+condition are destroyed, but eventually one circle persists, consistent with coverage across one dimension
+of the simulation domain.
+
+Vicsek Simulation #2
+Figure 9 shows results from the same simulation as the snapshot in Figure 6(B). Here, N = 300, ℓ = 7,
+and η = 2. In panel (A), the order parameter ϕ(t) appears more noisy than in the previous simulation,
+and levels off to a value less than one.
+Figure 9(B) shows b0 (ε, t), measuring the number of connected components. In the large region below
+the purple (bottom) contour, b0 (ε, t) ≥ 5, which we interpret as noise. In the large region at the top,
+above the yellow contour, b0 (ε, t) = 1, indicating one connected component at the largest scales. The
+bottom and top regions in the graph are separated by a noisy boundary of intermediate curves. These
+curves indicate that at scales approximately in the range 0.75 < ε < 1.6 there is sporadic coagulation
+and fragmentation of connected components over short simulation time scales.
+
+Order Parameter ϕ
+
+15
+
+1.00
+
+(A)
+
+0.75
+0.50
+0.25
+0.00
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+Proximity Parameter ε
+
+Simulation Time t
+
+level
+
+b0 = 1
+
+2.0
+
+(B)
+
+1.5
+
+1
+2
+
+1.0
+
+3
+4
+
+0.5
+
+b0 ≥ 5
+
+5
+
+0.0
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+Proximity Parameter ε
+
+Simulation Time t
+
+level
+
+b1 = 2
+
+2.0
+
+(C)
+
+1.5
+1.0
+
+1
+2
+
+b1 = 3
+
+b1 ≥ 5
+
+3
+4
+
+0.5
+
+b1 = 0
+
+0.0
+0
+
+100
+
+5
+200
+
+300
+
+400
+
+500
+
+600
+
+Simulation Time t
+
+Figure 9. Aggregate behavior of the Vicsek model, simulation #2. A typical snapshot is
+shown in Figure 6(B). (A) Normalized average velocity order parameter ϕ(t). (B) Contour plot of Betti
+number b0 (ε, t). (C) Contour plot of Betti number b1 (ε, t). The topological analysis suggests sporadic
+coagulation and fragmentation of short-lived clusters, and the loss of a topological circle, consistent
+with particles aligning. See text for a more comprehensive analysis.
+
+16
+Figure 9(C) shows b1 (ε, t), measuring the number of topological circles. At early times, there is a
+region in which b1 (ε, t) = 3, consistent with the initial condition in which agents cover the spatial domain
+and have low alignment, with headings spread across [0, 2π). This state persists until approximately
+t ≈ 50, at which time we see noisy formation and break up of additional topological circles in the range
+1.5 ≤ ε ≤ 2. At time t ≈ 210, a transition occurs, and we see a clear region where b1 (ε, t) = 2, indicating
+two persistent topological circles. The high (albeit not complete) alignment of particles visible in ϕ(t)
+suggests the lack of a topological circle in the heading coordinate θ. We have calculated for one time
+step that b2 (ε, 600) = 1. This trapped volume tells us that our data has the topology of a two-torus,
+that is, b = (1, 2, 1) for the first three Betti numbers. This topology eliminates the possibility that
+the two topological circles arise from holes in the data, which would have the first three Betti numbers
+b = (1, 2, 0). We conclude that the two topological circles correspond to the periodic spatial domain.
+Neither dimension of this domain is favored, as suggested by the fact that the two topological circles
+close at the same value of ε, demonstrated by the yellow and red contours at the top of the plot being
+nearly coincident.
+
+Vicsek Simulation #3
+Figure 10 shows results from the same simulation as the snapshot in Figure 6(C). Here, N = 300, ℓ = 5,
+and η = 0.1. In panel (A), the order parameter ϕ(t) rises steeply to one with a small intermediate step.
+The order parameter here and in Figure 7(A) share some features, and yet we will see that the topological
+calculations capture the differences in the dynamics already apparent in the snapshots of Figure 6.
+Figure 9(B) shows b0 (ε, t), measuring the number of connected components. In the large region below
+the purple (bottom) contour, b0 (ε, t) ≥ 5, which we interpret as noise. In the large region at the top,
+above the yellow contour, b0 (ε, t) = 1, indicating one connected component at the largest scales. The most
+noticeable intermediate region is in between the yellow and green contours where b0 (ε, t) = 2, indicating
+a strong signal of two connected components at the scale 0.6 ≤ ε ≤ 1. We return to a discussion of these
+two connected components after a discussion of b1 (ε, t).
+Figure 9(C) shows b1 (ε, t), measuring the number of topological circles. At t ≈ 20, there is a marked
+transition to b1 (ε, t) = 2 in the upper portion of the contour diagram. Taking into account that the order
+parameter ϕ(t) indicates alignment – and thus the lack of a topological circle in the heading dimension –
+the data is reduced to living on the two-torus of the periodic spatial domain. For the snapshot t = 300,
+we have computed that b2 (ε, 300) = 0 in the range of ε where b1 (ε, t) = 2. This indicates there are no
+trapped volumes. The first three Betti numbers b = (1, 2, 0) are those of a punctured torus, and this
+interpretation is consistent with the hole in the data seen in the upper right quadrant of Figure 6(C).
+We now return attention to the region of Figure 10(B) in which b0 (ε, t) = 2 over a range of ε, indicating
+two connected components. Once the group has achieved strong alignment, agents do not change their
+relative configuration, and the population travels as a rigid body. Thus, there is potential for any outliers
+to remain outliers terminally. This is indeed the case in our simulation. There is a single agent in
+Figure 6(C) (second from the top along the right hand border) who is isolated. It is only at the scale of
+the distance to its nearest neighbor that the transition to b0 (ε, t) = 1 occurs.
+
+Summary of Vicsek Model Analysis
+For both the first and third simulations, the order parameter ϕ(t) – shown in Figures 7(A) and 10(A) –
+increases rapidly to ϕ(t) ≈ 1 with little variation. However, the topological structures are distinct. The
+first simulation shows cluster formation and eventual coverage across one dimension of the spatial domain.
+The third simulation shows one cluster (with an outlier) and coverage across both dimensions of the spatial
+domain. Curiously, this is the same topological signature as the second simulation, even though the order
+parameter in 9(A) is noisy and achieves a lower degree of alignment. Thus, the persistent homology
+computations capture the fact that in some sense, the second and third simulations are topologically
+
+Order Parameter ϕ
+
+17
+
+1.00
+
+(A)
+
+0.75
+0.50
+0.25
+0.00
+0
+
+100
+
+200
+
+300
+
+Proximity Parameter ε
+
+Simulation Time t
+
+level
+
+2.0
+
+(B)
+
+b0 = 1
+
+1.5
+
+1
+2
+
+1.0
+
+3
+
+b0 = 2
+
+0.5
+
+4
+
+b0 ≥ 5
+
+0.0
+0
+
+5
+100
+
+200
+
+300
+
+Proximity Parameter ε
+
+Simulation Time t
+
+level
+
+2.0
+
+b1 = 2
+
+1.5
+
+(C)
+
+1
+2
+
+1.0
+
+3
+
+b1 ≥ 5
+
+0.5
+
+4
+5
+
+0.0
+0
+
+100
+
+200
+
+300
+
+Simulation Time t
+
+Figure 10. Aggregate behavior of the Vicsek model, simulation #3. A typical snapshot is
+shown in Figure 6(C). (A) Normalized average velocity order parameter ϕ(t). (B) Contour plot of Betti
+number b0 (ε, t). (C) Contour plot of Betti number b1 (ε, t). The topological analysis shows essentially
+no cluster formation; the narrow region in which b0 (ε, t) = 2 arises from an isolated agent. The two
+persistent topological circles are consistent with highly aligned particles covering both dimensions of the
+periodic spatial domain. Topological features become fairly stagnant once the entire group forms a
+large, aligned cluster traveling as a rigid body early in the simulation. See text for a more
+comprehensive analysis.
+
+18
+equivalent. Also, as previously discussed, these computations reveal dynamical events not discernible in
+the order parameter, and we find them to be a helpful complement.
+
+Analysis of the D’Orsogna Model
+Another model is that of D’Orsogna and collaborators [12, 25], cited over 300 times as of the writing of
+this manuscript, and itself a refinement of [46]. In contrast to the alignment-driven Vicsek model, the
+D’Orsogna model hinges on attractive-repulsive interactions between particles and produces many patterns including rotating rings, traveling swarms, and vortex states – sometimes called mills – reminiscent
+of fish schools.
+The D’Orsogna model is a continuous-time dynamical system that describes the motion of interacting
+point particles in an unbounded plane. The model takes the form of Newtonian force equations and thus
+is second order in time. The equations are
+ẋi
+mv̇i
+Qi
+
+= vi ,
+
+(11a)
+2
+
+
+
+α − β|vi | vi − ∇i Qi ,
+X
+=
+Cr e−|xi −xj |/Lr − Ca e−|xi −xj |/La .
+
+=
+
+(11b)
+(11c)
+
+j6=i
+
+Here, xi (t) ∈ R2 is the position of particle i = 1, . . . , N at time t, and vi (t) ∈ R2 is velocity. The first
+equation simply defines velocity as the derivative of position. The second equation is Newton’s law, stating
+that mass times acceleration is equal to a sum of forces. These forces include self-propulsion of strength α,
+friction of strength β, and interaction forces described by the potential Q. The first term in Q describes
+repulsion of strength Cr and characteristic length scale Lr . The second term is similar, but describes
+attraction of strength Ca and characteristic length scale La . Put together, these two terms are similar
+to potentials used in molecular physics. In biological scenarios, typically Lr < La and Cr > Ca , meaning
+that repulsion occurs over shorter distances and is stronger. For an isolated pair of particles interacting
+solely according to this attractive-repulsive rule, and for appropriately chosen parameters, the potential
+has a unique minimum, and there exists an equilibrium distance at which attraction and repulsion balance.
+When one deals with an ensemble of N particles each experiencing pairwise interactions, the behavior
+is highly nontrivial. Restated in brief, (11) prescribes that each particle obeys Newton’s law, with the
+relevant forces being self-propulsion, friction, and pairwise attraction-repulsion with all other particles.
+Arguably, one of the most intriguing behaviors of the model is the formation of mills, occurring in
+certain parameter regimes. These structures are annular in shape, with particles rotating around a hollow
+core. In a single mill, all particles travel with the same orientation (clockwise or counterclockwise). In
+a double mill, some particles travel clockwise and some travel counterclockwise. It is helpful to think
+about the topology of these states. A mill and a double mill have distinct topologies in four dimensional
+position-velocity space. The single mill is one connected component and one topological circle, that is,
+b = (1, 1, 0, . . .). The double mill is two connected components each of which is a topological circle, that
+is, b = (2, 2, 0, . . .). The two circles are concentric, nonplanar, and nonintersecting in four dimensional
+space.
+We conduct a simulation of (11) with N = 500 particles, and model parameters α = 1.5, β = 0.5,
+Ca = 0.5, Cr = 1, La = 2, Lr = 0.5. Figure 11 shows selected simulation snapshots. For convenience,
+we color blue all particles traveling clockwise with respect to the center of mass of the group; particles
+traveling counterclockwise are red. In panel (A), at t = 5, the particles occupy a disk-like region with
+somewhat disorganized velocities. At t = 23, we see that a hollow core has begun to form. At t = 45,
+the mill structure has a well defined core. The group favors the clockwise direction, though there is a
+minority group of particles traveling counterclockwise.
+
+19
+
+0.6
+
+(A)
+
+t=5
+
+−0.6
+
+−0.6
+
+0.6
+
+(B)
+
+−0.6 t
+
+= 23
+
+−0.6
+
+0.6
+
+0.6
+
+0.6
+
+(C)
+
+−0.6 t
+
+= 34
+
+−0.6
+
+0.6
+
+Figure 11. Simulation snapshots of the D’Orsogna model (11). Circles indicate positions of
+the N = 500 particles in an unbounded plane, line segments represent heading, and blue (red) agents
+are traveling (counter)clockwise. Over time, the group develops a hollow core and a double-mill
+structure in which a majority of agents travel clockwise, but a minority persists in the counterclockwise
+orientation. (A) Time t = 5. (B) Time t = 23. (C) Time t = 34. The other model parameters used in
+this simulation are α = 1.5, β = 0.5, Cr = 1, Lr = 0.5, Ca = 0.5, La = 2.
+
+Order Parameters
+
+20
+
+1.00
+
+(A)
+
+0.75
+
+Order Parameter
+P
+
+0.50
+
+M
+0.25
+
+Mabs
+
+0.00
+0
+
+10
+
+20
+
+30
+
+40
+
+50
+
+Proximity Parameter ε
+
+Simulation Time
+
+(B)
+
+level
+
+1.5
+
+b0 = 1
+
+1
+2
+
+1.0
+
+3
+0.5
+
+4
+
+b0 ≥ 5
+
+5
+
+0.0
+0
+
+10
+
+20
+
+30
+
+40
+
+50
+
+Proximity Parameter ε
+
+Simulation Time t
+
+(C)
+1.5
+
+level
+
+b1 = 0
+
+b1 = 1
+
+1
+2
+
+1.0
+
+3
+
+b1 ≥ 5
+
+0.5
+
+4
+
+b1 = 2
+
+5
+
+0.0
+0
+
+10
+
+20
+
+30
+
+40
+
+50
+
+Simulation Time t
+
+Figure 12. Aggregate behavior of the D’Orsogna model. Snapshot of the time evolution are
+shown in Figure 11. (A) Three order parameters: polarization P (red), angular momentum M (green),
+and absolute angular momentum Mabs (blue). (B) Contour plot of Betti number b0 (ε, t). (C) Contour
+plot of Betti number b1 (ε, t). At times below t ≈ 20, there is little topological structure. For t > 20, we
+have one or – intermittently – two connected components of data points. There are two discernible
+topological circles for smaller ε and one circle for larger ε. These circles survive for long periods of
+simulation time. The topological signature of the first two Betti numbers, b = (2, 2), is consistent with
+a double mill structure. See text for a more comprehensive analysis.
+
+21
+Figure 12(A) shows time series of three order parameter metrics used in [12] to characterize the
+global behavior of the system. Polarization P , defined in (1), is similar to ϕ(t) for the Vicsek model; it
+measures the degree to which agents are aligned. Because the group is traveling around a circle, P (red
+curve) remains low for the duration of the simulation. Angular momentum M , also defined in (1), helps
+quantify the rotation of the group. For a perfect mill structure, M = 1. For our simulation, we see an
+evolution from M ≈ 0 early in time to M ≈ 0.93 for later times (green curve). However, as mentioned
+previously, the metric M cannot distinguish between single and double mills, and so [12] introduces the
+absolute angular momentum Mabs , defined in (2). The fact that Mabs approaches unity signals that the
+asymptotic behavior of the group is rotational. The fact that M approaches a number close to but less
+than unity signals that a small minority of the group members are rotating counter to the majority.
+Figure 12(B) shows b0 (ε, t), measuring the number of connected components in the four dimensional
+space defined by position and velocity. In the large region below the purple (bottom) contour, b0 (ε, t) ≥ 5.
+The connected components in this region persist only for very short ranges of ε; this is a noisy topological
+signal which we disregard. In the large region at the top, above the yellow contour, b0 (ε, t) = 1, indicating
+one connected component at the largest scales, that is, a component consisting of all the data points. The
+bottom and top regions in the graph are separated by a noisy boundary of intermediate curves. These
+curves indicate that at scales approximately in the range 0.5 < ε < 1.0 there is, over time, sporadic
+coagulation and fragmentation of connected components. For example, at times near t ≈ 30 and t ≈ 46,
+the region between the yellow and green contours is thicker, indicating a more persistent signal of two
+connected components.
+Panel (C) shows b1 (ε, t), measuring the number of topological circles in four dimensional space. In
+the bottom region of the graph enclosed by the purple contour, b1 (ε, t) ≥ 5 which, as before, we interpret
+as noise. At early times, the only non-noisy signal is the large b1 (ε, t) = 0 region above the red contour,
+indicating an absence of topological circles. Starting at t ≈ 20, a marked transition occurs, and becomes
+persistent by t ≈ 30. This transition detects the formation of a hole in the simulation, as shown in
+Figure 11(B). For t ≥ 30, there is a discernible region of the contour diagram in which b1 (ε, t) = 2,
+indicating two topological circles in four dimensional position-velocity space. For these same times, over
+larger values of ε, b1 (ε, t) = 1, indicating the loss of a circle. A topological circle could disappear by
+closing across its diameter or by merging with another circle. For our data, antipodal points in the mill
+with opposite orientations of travel are approximately 0.5 units apart (as seen in Figure 11) and this is
+(approximately) the proximity scale at which b1 transitions from two to one, indicating that the two mills
+merge into one at this scale. The remaining topological circle will be lost when it closes on itself across
+its diameter for sufficiently large values of ε (not shown).
+Pulling together the information from panels (B) and (C), we conclude the following. At times below
+t ≈ 20, there is little topological structure. Then, a clear topological transition occurs. For later times,
+we have one or – intermittently – two connected components of data points. There are two discernible
+topological circles for smaller ε and one circle for larger ε. These circles survive for long periods of
+simulation time. The topological signature of the first two Betti numbers, b = (2, 2), is consistent with
+a double mill structure. The noisiness of the second connected component arises from the sparsity of the
+counterclockwise mill in four dimensional space.
+
+Conclusions
+Inspired by physics, order parameters such as polarization and angular momentum have been useful for
+characterizing the global behavior of biological aggregations. We propose topological data analysis as an
+additional, valuable technology for understanding their group behavior.
+We have performed numerical simulations of two well-known mathematical models of biological aggregations, resulting in point clouds of data that evolve in time. To understand the global behavior of each
+model, we study the topological structure of the point clouds by calculating their persistent homology.
+
+22
+More specifically, we compute Betti numbers, which count connected components, topological circles,
+trapped volumes, and so forth.
+To interpret the topological computations, we introduce a new visualization tool, namely a Contour
+Realization Of Computed k-dimensional hole Evolution in the Rips complex (CROCKER), which track
+Betti numbers across both proximity scale and simulation time. In topological data analysis, persistent
+features in a static point cloud correspond to long bars in a topological barcode. In our analysis, features
+persisting over scale and simulation time appear as large regions in the contour plot.
+In Vicsek’s model of aligning particles, the homological measures distinguish simulations that the
+usual alignment order parameter cannot. They also find topological similarity between simulations with
+different order parameter time series. In D’Orsogna’s model of self-propelled, attracting-repelling particles, the topological calculations recognize the presence of a double mill state. In our study we have,
+for tutorial purposes, sought to explain our CROCKER plots by a subsequent manual examination of
+the data. That said, though phenomena such as group alignment, clustering, and double mills could be
+seen upon detailed examination of our raw simulation data, we would not have found them by eye if the
+topological methods had not first detected them.
+One limitation of our work is that we have only calculated the first two Betti numbers, b0 and b1 ,
+except for a small number of isolated cases in which we have also calculated b2 . Calculating higher Betti
+numbers of our point clouds would yield additional information, but is computationally costly. Another
+limitation is that topological persistence over scale is different from persistence over time. For a fixed
+simulation time, the topological barcode is guaranteed to measure the same topological features through
+multiple proximity scales because nested sequences of simplicial complexes form a filtration over which
+homology persists. However, this guarantee does not hold over simulation time. For example, if b0 = 4
+indicating four connected components in two successive frames of a simulation, there is no mathematical
+guarantee that these are the same four connected components. Nonetheless, because the aggregation
+models we study evolve smoothly in time, we expect persistent topological features to do so as well.
+One attempt to address time evolution of topological features uses vineyards, which have been applied
+to protein folding in the context of level set persistence [47]. Another attempt might involve multidimensional persistence, which allows a persistence computation simultaneously over multiple parameters [48].
+It could be useful to apply these two tools to biological aggregations. It could also be useful to consider
+another topological approach, namely braids, which have yielded insight into other dynamical systems
+applications such as fluids and crowd dynamics [49, 50]. Finally, our main goal has been to demonstrate
+the utility of topological data analysis for biological aggregations and similar applications. We have used
+the Vicsek and D’Orsogna models as convenient examples, and focused on a small number of simulations.
+That said, it could be revealing to conduct large numbers of randomly-seeded simulations for fixed parameters, compute the persistent homology of each one, and average this topological data. Doing so would
+allow more precise quantification of the timescales and persistence scales of the topological transitions.
+Topological data analysis is an active and growing area of current research. We hope that our work
+above contributes to the toolkit that applied mathematicians might bring to bear on models they study.
+
+References
+1. Parrish JK, Hamner WM, editors (1997) Animal Groups in Three Dimensions. Cambridge, UK:
+Cambridge University Press.
+2. Okubo A, Levin SA, editors (2001) Diffusion and Ecological Problems, volume 14 of Interdisciplinary Applied Mathematics: Mathematical Biology. New York: Springer, second edition.
+3. Camazine S, Deneubourg JL, Franks NR, Sneyd J, Theraulaz G, et al. (2001) Self-Organization in
+Biological Systems. Princeton Studies in Complexity. Princeton, NJ: Princeton University Press.
+
+23
+4. Parrish JK, Edelstein-Keshet L (1999) Complexity, pattern, and evolutionary trade-offs in animal
+aggregation. Science 284: 99-101.
+5. Sumpter DJ (2010) Collective Animal Behavior. Princeton, NJ: Princeton University Press.
+6. Couzin ID, Krause J, James R, Ruxton GD, Franks NR (2002) Collective memory and spatial
+sorting in animal groups. J Theor Biol 218: 1-11.
+7. Eftimie R, de Vries G, Lewis MA (2007) Complex spatial group patters result from different animal
+communication mechanisms. Proc Natl Acad Sci 104: 6974-6979.
+8. Okubo A, Grünbaum D, Edelstein-Keshet L (2001) The dynamics of animal grouping. In: Okubo
+A, Levin SA, editors, Diffusion and Ecological Problems, New York: Springer, volume 14 of Interdisciplinary Applied Mathematics: Mathematical Biology, chapter 7. Second edition, pp. 197-237.
+9. Passino KM (2005) Biomimicry for Optimization, Control, and Automation. London: Springer.
+10. Breder CM (1954) Equations descriptive of fish schools and other animal aggregations. Ecol 35:
+361-370.
+11. Vicsek T, Czirok A, Ben Jacob E, Cohen I, Shochet O (1995) Novel type of phase-transition in a
+system of self-driven particles. Phys Rev Lett 75: 1226-1229.
+12. Chuang YL, D’Orsogna MR, Marthaler D, Bertozzi AL, Chayes LS (2007) State transitions and
+the continuum limit for a 2D interacting, self-propelled particle system. Physica D 232: 33-47.
+13. Mogilner A, Edelstein-Keshet L (1999) A non-local model for a swarm. J Math Bio 38: 534-570.
+14. Topaz CM, Bertozzi AL, Lewis MA (2006) A nonlocal continuum model for biological aggregation.
+Bull Math Bio 68: 1601-1623.
+15. Bernoff AJ, Topaz CM (2011) A primer of swarm equilibria. SIAM J Appl Dyn Sys 10: 212-250.
+16. Bernoff AJ, Topaz CM (2013) Nonlocal aggregation equations: A primer of swarm equilibria. SIAM
+Rev 55: 709-747.
+17. Potts JR, Mokross K, Lewis MA (2014) A unifying framework for quantifying the nature of animal
+interactions. J Roy Soc Interface 11.
+18. Ballerini M, Calbibbo N, Candeleir R, Cavagna A, Cisbani E, et al. (2008) Interaction ruling animal
+collective behavior depends on topological rather than metric distance: Evidence from a field study.
+Proc Natl Acad Sci 105: 1232-1237.
+19. Lukeman R, Li YX, Edelstein-Keshet L (2010) Inferring individual rules from collective behavior.
+Proc Natl Acad Sci 107: 12576-12580.
+20. Nilsen C, Paige J, Warner O, Mayhew B, Sutley R, et al. (2013) Social aggregation in pea aphids:
+Experiment and random walk modeling. PLOS One 8: e83343.
+21. Tunstrom K, Katz Y, Ioannou CC, Huepe C, Lutz MJ, et al. (2013) Collective states, multistability
+and transitional behavior in schooling fish. PLOS Comp Bio 9: e1002915.
+22. Bazazi S, Bartumeus F, Hale J Joseph, Couzin D Iain (2012) Intermittent motion in desert locusts:
+Behavioural complexity in simple environments. PLOS Comp Bio 8: e1002498.
+23. Huepe C, Aldana M (2008) New tools for characterizing swarming systems: A comparison of
+minimal models. Phys A 387: 2809-2822.
+
+24
+24. Olfati-Saber R, Murray RM (2004) Consensus problems in networks of agents with switching
+topology and time-delays. IEEE Trans Auto Control 49: 1520-1533.
+25. D’Orsogna MR, Chuang YL, Bertozzi AL, Chayes L (2006) Self-propelled particles with soft-core
+interactions: Patterns, stability, and collapse. Phys Rev Lett 96: 104302.
+26. Singh G, Memoli F, Ishkhanov T, Sapiro G, Carlsson G, et al. (2008) Topological analysis of
+population activity in visual cortex. J Vision 8: 11.1-18.
+27. Zhu X (2013) Persistent homology: An introduction and a new text representation for natural language processing. In: Proceedings of the Twenty-Third international joint conference on Artificial
+Intelligence. AAAI Press, pp. 1953-1959.
+28. Carlsson G, Ishkhanov T, De Silva V, Zomorodian A (2008) On the local behavior of spaces of
+natural images. Int J Comp Vis 76: 1-12.
+29. Perea JA, Harer J (2013) Sliding windows and persistence: An application of topological methods
+to signal analysis. Found Comp Math : 1-40.
+30. Kasson PM, Zomorodian A, Park S, Singhal N, Guibas LJ, et al. (2007) Persistent voids: A new
+structural metric for membrane fusion. Bioinformatics 23: 1753-1759.
+31. Freedman D, Chen C (2009) Algebraic topology for computer vision. Technical report, Hewlett
+Packard.
+32. de Silva V, Ghrist R (2007) Coverage in sensor networks via persistent homology. Alg Geom Topol
+7: 339-358.
+33. Hatcher A (2002) Algebraic Topology. Cambridge University Press.
+34. Crossley MD (2006) Essential Topology. Springer.
+35. Ghrist R (2008) Barcodes: The persistent topology of data. Bull Am Math Soc 45: 61-75.
+36. De Silva V, Carlsson G (2004) Topological estimation using witness complexes. In: Proceedings
+of the First Eurographics conference on Point-Based Graphics. Eurographics Association, pp. 157166.
+37. Edelsbrunner H, Harer J (2008) Persistent homology: A survey. Contemp Math 453: 257-282.
+38. Carlsson G (2009) Topology and data. Bull Am Math Soc 46: 255-308.
+39. Cohen-Steiner D, Edelsbrunner H, Harer J (2007) Stability of persistence diagrams. Disc Comp
+Geom 37: 103-120.
+40. Zomorodian A, Carlsson G (2005) Computing persistent homology. Disc Comp Geom 33: 249-274.
+41. Kaczynski T, Mischaikow K, Mrozek M (2004) Computational Homology, volume 157. Springer.
+42. Edelsbrunner H, Letscher D, Zomorodian A (2002) Topological persistence and simplification. Disc
+Comp Geom 28: 511-533.
+43. Bauer U, Kerber M, Reininghaus J, Wagner H (2014) PHAT – Persistent homology algorithms
+toolbox. In: Mathematical Software – ICMS 2014, Springer. pp. 137-143.
+44. Tausz A (2011). phom: Persistent homoloy in R. Available at CRAN http://cran.r-project.org.
+
+25
+45. Vicsek T, Zafeiris A (2012) Collective motion. Phys Rep 517: 71-140.
+46. Levine H, Rappel WJ, Cohen I (2001) Self-organization in systems of self-propelled particles. Phys
+Rev E 63: 017101.
+47. Cohen-Steiner D, Edelsbrunner H, Morozov D (2006) Vines and vineyards by updating persistence
+in linear time. In: Proceedings of the Twenty-Second Annual Symposium on Computational
+Geometry. pp. 119-126.
+48. Carlsson G, Zomorodian A (2009) The theory of multidimensional persistence. Disc Comp Geom
+42: 71-93.
+49. Allshouse MR, Thiffeault JL (2012) Detecting coherent structures using braids. Physica D 241:
+95-105.
+50. Ali S (2013) Measuring flow complexity in videos. In: 2013 IEEE International Conference on
+Computer Vision. IEEE, pp. 1097-1104.
+
+

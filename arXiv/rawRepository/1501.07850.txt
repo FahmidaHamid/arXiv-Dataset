@@ -1,0 +1,1703 @@
+Predoi
+
+COMPUTATIONAL VIROLOGY - PARAMETER ESTIMATION
+
+Estimating viral infection parameters using
+Markov Chain Monte Carlo simulations
+arXiv:1501.07850v2 [q-bio.QM] 7 Feb 2015
+
+Valeriu Predoi*
+
+1 Introduction
+
+Abstract
+Given a mathematical model quantifying the viral
+infection of pandemic influenza H1N1pdm09-H275
+wild type (WT) and H1N1pdm09-H275Y mutant
+(MUT) strains, we describe a simple method of
+estimating the model’s constant parameters using
+Monte Carlo methods. Monte Carlo parameter
+estimation methods present certain advantages
+over the bootstrapping methods previously used in
+such studies: the result comprises actual parameter
+distributions (posteriors) that can be used to
+compare different viral strains; the recovered
+parameter distributions offer an exact method to
+compute credible intervals (similar to the
+frequentist 95% parametric confidence intervals
+(CI)), that, in turn, using a suitable analysis
+statistic, will be narrower than the ones obtained
+from bootstrapping; given an appropriate
+computational parallelization, Monte Carlo
+methods are also faster and less computationally
+intensive than bootstrapping. We fit Gaussian
+distributions to the parameter posterior
+distributions and use a two-sided
+Kolmogorov-Smirnoff test to compare the two
+strains from a parametric point of view; our
+example result shows that the two strains are 94%
+different. Furthermore, based on the obtained
+parameter values, we estimate the reproductive
+number R0 for each strain and show that the
+infectivity of the mutant strain is larger than the
+wild type strain.
+Keywords: mathematical virology; Monte Carlo;
+parameter estimation; likelihood;
+Kolmogorov-Smirnoff
+
+The World Health Organization (WHO) declared the
+first influenza pandemic of the 21st century in 2009
+and described the virus (H1N1pdm09) as naturally
+resistant to adamantanes but susceptible to the neuraminidase (NA) inhibitors oseltamivir and zanamivir
+[1, 2]. The H275Y mutation within the NA gene was
+reported to be associated with the drug resistance over
+the past three years although the overall level of resistance has remained relatively low The pandemic
+strain completely displaced the prior seasonal H1N1
+strain (A/Brisbane/59/2007) [1], which, in the 20082009 season, was nearly 100% resistant to oseltamivir
+[3]. It was initially thought that the mutation usually
+compromised strain fitness (30), therefore the dominance of an oseltamivir-resistant strain is rather surprising. A return to widespread oseltamivir resistance,
+with a mutated H1N1pdm09 virus, could have significant public health consequences [1].
+The H275Y amino acid substitution of the neuraminidase gene is the most common mutation conferring oseltamivir resistance in the N1 subtype of the
+influenza virus. Using a mathematical model to analyze a set of in vitro experiments that allow for the
+full characterization of the viral replication cycle, [4]
+show that the primary effects of the H275Y substitution on the pandemic H1N1 (H1N1pdm09) strain are
+to lengthen the mean eclipse phase of infected cells
+(from 6.6 to 9.1 h) and decrease (by 7–fold) the viral
+burst size, i.e. the total number of virions produced per
+cell; [4] also find, however, that the infectious–unit–
+to–particle ratio of the H275Y mutant strain is 12-fold
+higher than that of the oseltamivir-susceptible strain
+(0.19 versus 0.016 per RNA copy). The multicompartment mathematical model presented in [4] makes use
+of ordinary differential equations (ODE) to describe
+the virus as a dynamical system that undergoes different phases of evolution; the model is characterised
+by a set of model parameters θi that [4] estimate using bootstrapping. We will use the same mathematical
+Correspondence: valeriu.predoi@astro.cf.ac.uk
+Physics and Astronomy, Cardiff University, The Parade, CF24 3AA Cardiff,
+United Kingdom
+Full list of author information is available at the end of the article
+*
+Equal contributor
+
+Predoi
+
+model approach (albeit with a changed set of ODEs)
+and data set used in [4] but employ a different parameter estimation method – we will use a set of Markov
+Chain Monte Carlo (MCMC) codes to robustly estimate θi parameter values and credible intervals from
+posterior distributions obtained from the MCMC simulations. Our results, combined with a minimal number of prior assumptions about the data, provide a
+more precise set of values for the viral parameters θi
+and the method could be standardized and used in the
+future as a stand-alone parameter estimation package
+for viral infectious disease modelling purposes.
+The primary aim of this work is to show the benefits
+of using MCMC parameter estimation techniques over
+the traditional bootstrapping methods presented in,
+e.g. [4]; secondary aims, connected to the primary, are
+to introduce the reader to the theoretical support of
+the analysis method, present a number of steps taken
+to optimize the MCMC analysis process (resolving
+computational issues with the numerical ODE solver,
+changing the ODE model to a more computationallyrobust form) and to re-state and refine the results presented in [4] as obtained from using a different and
+more precise analysis method. As a whole, this work
+presents an easily standardizable analysis method for
+any given biological data set that can be described by a
+mathematical model whose parameters need to be estimated robustly and fast; the theoretical framewrok is
+mostly Bayesian - with the only exception of the use of
+a frequentist test comparing parametric distributions.
+This article is divided as follows: in Section 2 we
+will present the theoretical fundamentals that we use
+throughout – the mathematical model that describes
+the viral infection dynamics together with its parameters are described in [4], what we will outline is the
+Bayesian support of the MCMC method and the statistic used for the proposed method of estimation; in
+Section 4 we describe the computational challenges
+poised by the MCMC method – corrections applied
+to the numerical integration of the model’s ODE set
+and a rewritten, more computationally-robust, ODE
+model; in Section 5 we present the results of the study
+and formulate a discussion around the main concluding points, presented in the last section, Section 6.
+
+2 Theoretical aspects
+A virus undergoes a number of phases in its trajectory
+towards infection and replication: (in brief) it will attach and enter the host cell, inject its genetic material
+and convert the cell to become a virus producer and
+then it will exit the host and repeat the cycle [5]; these
+phases can be modelled mathematically looking at the
+virus and host cells as two distinct populations. Mathematical models have been applied to simulate viral
+
+Page 2 of 11
+
+disease spread characteristics before [6, 4, 5] – approximating the virus with a dynamical system that can
+be characterised by a set of state variables and a set of
+parameters, an ODE system will quantify the relation
+between the state variables and their rate of change
+with time. For this work in particular, viral yield measurements may be simulated by using the following
+multicompartment ODE model, as described in [4]:
+
+V̇PFU
+
+
+
+nI
+X
+= ρp 
+Ij  − (c + cRNA )VPFU
+
+V̇RNA
+
+
+
+nI
+X
+= p
+Ij  − cRNA VRNA
+
+j=1
+
+j=1
+
+Ṫ
+
+= −βT VPFU
+
+Ė1
+
+= βT VPFU − kE0 , where k = nE /τE
+
+Ėi
+I˙1
+
+= −k∆E
+
+I˙j
+
+= −δ∆I
+
+Ḋ
+
+= −δInI D
+
+= kEnE − δI0 , where δ = nI /τI
+(1)
+
+with E0 and I0 the values of E and I in the first
+eclipse and infectious compartments respectively and
+∆E = Ei − Ei−1 and ∆I = Ij − Ij−1 and that describes the infection of a population of N susceptible target cells T at a rate βVPFU , here VPFU is the
+quantity of infectious virus. Newly infected cells first
+undergo an eclipse phase E of average duration τE before becoming infectious I and producing virus at a
+constant rate p for an average time τI ; VRNA represents the total (number of RNA copies/ml) virus concentration, controlled by the virus production rate p
+(number of RNA copies/ml/h), the conversion factor
+between virus produced and virus observed by titration ρ (no of PFU/RNA copies), the rate at which infectious virus lose infectivity c (virus decay rate, 1/h),
+and a rate of virus particle loss cRNA . Here nE and nI
+are the numbers of eclipse and respectively infectious
+compartments and the virus particle production rate
+per cell, pRNA is defined as from [4]
+pRNA = 0.5 × 106 × p
+
+(2)
+
+To determine the in vitro infectivity of a particular
+strain, [4] used the infecting time
+r
+tinfect =
+
+2
+ρpβ
+
+(3)
+
+which is the amount of time required for a single infectious cell to cause the latent infection of one more,
+
+Predoi
+
+Page 3 of 11
+
+within a completely susceptible population. In the
+same framework we define the reproductive number
+R0 , the number of cases one case generates on average
+over the course of its infectious period, in an otherwise
+uninfected environment:
+R0 =
+
+ρpβ
+c + cRNA
+
+(4)
+
+The model in equation (1) (composed of the timedifferential equations Ẋk (θi , t) = 0 with k state variables Xk and constant model parameters θi ) describes
+the virus; we would like to test if this model describes a
+certain data set of discrete time points xj (t). In doing
+so we solve the differential equations and fit the solutions to the data; this process makes use of minimizing
+the error function:
+
+SSR
+
+=
+
+X
+
+2
+
+(X0k f (θi , tj ) − xj )
+
+(5)
+
+j
+
+or the sum of the squared residuals (SSR) rj =
+X0k f (θi , tj ) − xj with respect to the parameter set
+θi , where Xk (tj ) = X0k f (θi , tj ) ≡ qj is a solution of
+the Ẋk (θi , t) = 0 differential system in the vicinity of
+the jth data point and X0k is the state variable Xk ’s
+initial value. We see immediately that both the nature
+of any given minimum of the SSR for a given parameter set and that very same recovered parameter set θi
+will depend on the initial conditions X0k
+
+
+
+
+∂SSR
+∂f (θ, X0k )
+=0→
+=0
+(6)
+∂θ
+∂θ
+i
+i
+Lest to say, initial values represent themselves a field
+of its own and how they are treated is very important
+to the final analysis outcome – for brevity, we will state
+that all our initial parameter values are to be chosen
+within physically and biologically motivated intervals;
+we will update the reader as to our choice of initial
+values for each of the experiments described here.
+Our data xj is composed of four data sets for which
+the two measured (explicit) state variables Xk (tj ) are
+the infectious viral load VPFU = VPFU (tj ) and the total
+amount of virus VRNA = VRNA (tj ). All other state variables (number of cells T (t), number of cells in eclipse
+phase E(t) etc.) are derived from the system (1) with
+appropriate physical initial conditions e.g. T0 = 106 ,
+E0 = I0 = D0 = 0. The system’s fixed parameters θi
+are to be estimated using a fitting-to-data algorithm
+that will sample values for θi from a parameter space
+with the aim of minimizing the error function (5) by
+means of (6); specifically, our set of parameters
+θi ⊂ [τE , τI , nE , nI , β, c, cRNA , ρ, p]
+
+(7)
+
+The sampling process and minimization of the SSR can
+be efficiently done by using a Monte Carlo method.
+The principle behind any given Monte Carlo analysis
+[7, 8] is the Markov Chain (MC) – a memoryless chain
+that can be easily represented by a particle jumping
+through a set of consecutive states towards the state
+of lowest potential energy; in this process, the particle
+will retain only the information describing the current
+and immediately previous states in order to decide if
+the step is viable or not, all other information is forgotten. The particle will decide to jump states only
+based on these two pieces of information: if the energy
+of the next state is lower than the previous one, the
+particle will jump states. More generally, we want to
+generate random draws from a target parametric distribution Γ(θi ). We then identify a way to construct
+a Markov Chain such that its equilibrium probability distribution is the target distribution Γ. If we can
+construct such a chain then we arbitrarily start from
+some point in the parameter space and iterate the MC
+many times. Eventually, the draws we generate would
+appear as if they are coming from our target distribution. We then approximate the quantities of interest
+(e.g. mean) by taking the sample average of the draws
+after discarding a few initial draws (“burn-in” draws)
+which is the Monte Carlo component. There are several
+ways to construct Markov Chains (e.g., Gibbs sampler,
+Metropolis-Hastings algorithm [8]).
+In the absence of noise, given a set of MCMC “walkers” (an elementary particle undergoing a “random
+walk”, a physical approximation of the exploration
+of the Markov state space) exploring the parameter
+space θi , the MCMC engine will minimize the residuals rj i.e. solve the ODE system Ẋk (θi , t) = 0 given
+by (1), obtain values for the error function SSR from
+equation (5) for θi and the walkers will converge towards a parametric position where the SSR has a minimum (whether it be local or global); in terms of distributions, assuming no major physical noise source affecting the measurements in a systematic manner and
+an almost perfect mathematical model across all data
+sets, residuals rj are normally distributed and the SSR
+has a χ2 distribution with p degrees of freedom. Using
+the probability distribution function (PDF) of a χ2 distributed variable and the empirical condition that
+the lower the SSR the better the model fit to the data,
+the likelihood in a maximum likelihood estimation case
+may be given by equation (8)
+`(SSR) = Ce−SSR/2
+
+(8)
+
+where C is a constant for a given p degrees of freedom. By definition, equation (8) gives the likelihood
+of a walker transitioning from a given state, characterised by a certain parameter set, to a current state
+
+Predoi
+
+Page 4 of 11
+
+characterised by a parameter set θi and a fitting error
+SSR(θi ).
+From the Bayesian perspective, there are known and
+unknown quantities: the known quantity is the data,
+represented by the number of discrete time points
+xj (tj ) (evidence); the unknown quantity is the probability P (θi |xj , z) – the posterior distribution of parameters θi given evidence xj and a model z (e.g. system
+(1)). Using Bayes’ rule, this probability function can
+be written:
+
+P (θi |xj , z)
+
+=
+=
+=
+
+P (θi )P (xj , z|θi )
+P (xj , z)
+P (xj , z|θi )P (θi )
+R1
+P (xj , z|θi )P (θi )dθi
+0
+`(SSR)P (θi )
+R1
+0
+
+(9)
+
+`(SSR(θi ))P (θi )dθi
+
+Assuming a flat prior i.e. P (θi ) = 1, and a finite conR1
+stant value for the integral h0 = 0 `(SSR(θi ))P (θi )dθi ,
+it follows from equation (9)
+P (θi |xj , z) →
+=
+
+`(SSR)
+= Ae−SSR/2
+h0
+
+(10)
+
+or
+P (θi |xj , z) ∝ `(SSR)
+
+(11)
+
+It is easy to understand P (θi |xj , z) now, as the posterior distribution of parameters θi , the very same above
+mentioned distribution Γ(θi ) ≡ P (θi |xj , z) in which
+the MCMC walkers will walk through i.e. which the
+MCMC analysis will repeatedly sample to obtain a set
+of values for the SSR. The walkers will aim towards
+regions of low SSR (valleys) and there they will explore the parameter space in a more thorough manner
+(higher sampling rate) until they will reach an SSR
+minimum, where the sampling will cease and the chain
+will end. There is one danger to this process: certain
+walkers may have the tendency, highly dependent on
+the initial parameter values, to converge to a local minimum that is sometimes rather far from the global minimum. The global minimum needs to be reached since
+a local minimum can often present us with relatively
+small fitting errors (SSRs) but a completely different
+set of parameter values from the true values given by
+reaching the global minimum. This is why it is necessary to “aid” the MCMC walkers to step over these
+local valleys, by setting a correct analysis statistic, following in the next section.
+
+3 Weighted analysis statistic
+Let’s introduce now the four independent experiments
+that we have data for (the data for this work was taken
+from [4], publicly available in the form of viral load
+time evolution curves); all four data sets are modelled
+by the same ODE system (1) that uses the same set
+of parameters θi as presented in [4] and in equation
+(7). These four experiments are called single-cycle viral
+load measurement (SC), multiple-cycle viral load measurement (PFUMC), multiple-cycle RNA load measurement (RNAMC) and mock yield viral load measurement (MY); for an in-depth description of each of
+these experiments and how they were carried, consult
+[4], it is not the purpose of this work to describe the
+experiments from a methodological point of view since
+the author has not conducted any of the experiments,
+nor he had he any involvement in the data collection
+procedure. It is, however, important to mention that,
+from a statistical point of view, some parameters are
+better recovered by fitting the model to only a certain subset of the four data sets than the entire set.
+In [4] the same ODE model is applied to all four data
+sets, and it is assumed that the SSR values have similar distributions across the data sets (χ2 with equal
+degrees of freedom p or log-normal distributions with
+equal means and variances), therefore the sum of the
+SSR values of the individual SC, PFUMC, RNAMC
+and MY experiment components was used as overall
+analysis statistic
+SSR
+
+= SSRSC + SSRPFUMC +
++ SSRRNAMC + SSRMY
+
+(12)
+
+In reality, due to high levels of experimental noise (that
+we do not account for here and [4] does not analyze
+either) and due to the mathematical model performing in an uneven manner in describing the data sets,
+these SSR components do not have log-normal distributions but rather are χ2 distributed with different degrees of freedom p. For simplicity, we will approximate
+these distributions as log-normal but we will apply
+weights to each SSR component in the following manner: from performing 10,000 fitting trials with parameters randomly sampled from a 10-dimensional parametric “box” (see Table 2), we obtain the SSR component distributions shown in Figure 1. Fitting normal
+distributions in log-normal space, we obtain a set of
+reference numbers in Table 1. We must stress upon
+the fact that the log-normal approximation does not
+play any other role in the likelihood formulation apart
+from assigning weights to the different SSR components. From Table 1 we see an approximately twofold
+contribution from the PFUMC component to the overall SSR sum. This is an average effect, for a given
+
+Predoi
+
+Page 5 of 11
+
+SSR component
+SC
+PFUMC
+RNAMC
+MY
+Combined
+
+Mean
+136.0
+308.0
+98.0
+12.7
+689.0
+
+Std. Dev.
+3.2
+4.0
+3.6
+2.9
+3.0
+
+Table 1 Measures of SSR component means and variances,
+when assuming log-normal distributions, from running 10,000
+fitting trials with parameters randomly sampled from the
+parameter “box” in Table 2.
+
+uniformly sampled parameter box with large sampling
+boundaries, and does not reflect any local behaviour
+of the SSR components w.r.t. the additive overall SSR
+(12).
+SSR components/SSR cummulative distributions
+
+SSR(SC)
+
+1
+
+1
+
+2
+
+log(SSR(SC))
+
+3
+
+4
+
+5
+
+SSR(PFUMC)
+
+2
+3
+log(SSR(PFUMC))
+
+4
+
+SSRnew
+
+a=4
+X
+
+SSRa
+=
+na
+a=1
+
+
+
+SSRa
+1+
+SSR0,a
+
+
+(13)
+
+where a = 4 is the number of components – PFUSC,
+PFUMC, RNAMC and MY, na is the number of points
+per data set a, and SSR0,a is a fixed threshold value
+for each of the data sets, that aids the MCMC walkers
+to move rapidly away from a parameter region that
+yields relatively low SSR values but poor parameter
+values (a “steep valley” of a local minimum). For a
+fixed SSR0,a = 250 the new SSR compared to the
+simple additive SSR, will have the same profile for low
+values and a much stronger profile for high values, see
+Figure 2. Thus, from equation (13) the likelihood (8)
+
+5
+
+SSR(RNAMC)
+
+106
+
+newSSR
+
+105
+1
+
+2
+3
+log(SSR(RNAMC))
+
+4
+
+104
+
+5
+
+SSR all
+SSR/newSSR
+
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0.00
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0.00
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0.00
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0.00
+
+Weighting the SSR components has to be done based
+on each component’s χ2 distribution parameters (number of effective degrees of freedom), but because it is
+quite difficult to account for effective degrees of freedom in order to weigh the likelihood components (defined as number of data points minus number of effective model parameters), we could devise a simple
+method to weigh by component by re-writing the total SSR:
+
+1
+
+2
+
+log(SSR(all))
+
+3
+
+4
+
+5
+
+103
+102
+101
+100
+
+Figure 1 SSR components distributions; last panel – additive
+overall SSR (the sum of components, equation (12))
+distribution; normal distributions are fitted (dashed lines) and
+their means and variances are shown in Table 1.
+
+This effect has implications when performing a parameter estimation analysis: if there are no weights
+applied on the SSR components, on average, the parameter subset that optimally describes the PFUMC
+data set will always be dominant. Poorly constrained
+parameters, in the case of using an additive unweighed
+likelihood from four data sets, have a very low recoverability for certain regions of the parameter space where
+one or more components of the likelihood can not constrain effectively the others. In terms of error analysis,
+in these regions, the Gaussian-stationary distribution
+of the residuals (mean zero and variances equal for all
+four data sets) is not effective any more.
+
+10-1 -1
+10
+
+100
+
+101
+
+SSR
+
+102
+
+103
+
+104
+
+Figure 2 New weighted SSR (from equation (13), continuous
+line) compared to standard unweighed additive SSR (from
+equation (12), dashed line), as used in previous works as
+analysis statistic.
+
+will be rewritten to
+a=4
+X
+
+SSRa
+` = Cexp −
+2na
+a=1
+
+
+
+SSRa
+1+
+SSR0,a
+
+!
+(14)
+
+By definition, equation (14) gives the likelihood of a
+walker transitioning from a given state, characterised
+by a certain parameter set, to a current state characterised by a parameter set θi and a weighted and
+
+Predoi
+
+4 Computational aspects: optimal
+integrator settings and functional
+expression of the model
+Now that we have the four data sets, a model (1) with
+parameters (7) to be estimated, and a likelihood (14)
+function, we are ready to use an MCMC engine to
+obtain posterior distributions (11) of our parameters.
+For an MCMC engine we used emcee, presented in [9].
+emcee is a Python-based, fully-parallelizable, MCMC
+engine that takes a likelihood expression ((14) in our
+case) and a set of initial values to sample the parameter
+posteriors. emcee is becoming a preferred tool to data
+analysis from different fields, see [10, 11] for examples
+of its practical use.
+In order to simulate the full set of MCMC production
+runs with emcee, and since at each iteration, to be
+able to compute the likelihood, the SSR function (13)
+needs to be computed, we ran a set of 20,000 fitting
+trials with parameters randomly sampled from a 10dimensional “box” with dimensions listed in Table 2.
+The dimensions for this “box” were chosen based on
+phenomenology of the viral data – the “box” is large
+enough to comprise most possible parameter values hit
+by the MCMC walkers
+As a result of these test runs, we have noticed failure
+rates of 16-18% of the ODE solver, a rather significant
+fraction when performing a full production MCMC
+analysis. A few of the failed cases are shown in Figure
+3, where the dots represent the actual data points and
+the lines represent the solutions offered by the solver.
+These are consequences of system (1) being a stif f
+ODE system. In mathematics, a stiff differential equation is an equation for which certain numerical methods for solving it are unstable, unless the step size is
+taken to be extremely small [12]. It has been proven
+difficult to formulate a precise definition of stiffness,
+but the principal idea is that the equation includes
+some terms that can lead to rapid variations in the
+solution. While simulating the MCMC runs, we have
+noticed the failure of the employed numerical integrator – Scientific Python’s scipy.integrate.odeint() – to
+give exact solutions to the ODE system and initially
+there was no simple rule or pattern to where the integrator failed. These failures are grouped as follows,
+depending on the type of exit output:
+• The most frequent exit case of the integration process was associated with Python’s “math domain
+
+error”, a typical computing error that occurs when
+(in our case) the routine tries computing a logarithm of a negative real number – in this case, the
+computation of the SSR value was not completed
+due to negative values of the PFUMC viral load;
+this error would be recorded for another case as
+well: the integrator would fail due to the need for
+a larger number of integration steps (larger than
+the default maximum of 500) – in this case the
+integration would be done up to a certain point
+where a steep change in the V (t) curve, the integrator would exit and the rest of the viral load
+values would be of order 10−300 , below the machine precision of numpy.log10;
+• On occasions, we noticed ’NaN’ values of the SSR,
+produced by positive but infinitesimally small values of viral output, referring us to the previous
+case;
+
+Negative Viral Load: PFUMC - Y275
+
+1011
+10
+
+9
+
+107
+105
+Virus load (PFU/ml)
+
+thresholded fitting error SSR(θi ). By weighting and
+thresholding the standard additive SSR and constructing likelihood (14), we will aid the MCMC walkers to
+converge faster to the low SSR region and find the
+global minimum corresponding to min(SSR).
+
+Page 6 of 11
+
+103
+101
+10-1
+10-3
+10-5
+10-7
+10-9
+10-11
+10-13 20
+
+0
+
+20
+
+40
+
+60
+Time (h)
+
+80
+
+100
+
+120
+
+140
+
+Figure 3 Failed integrations with scipy.integrate.odeint()
+exiting with Python’s “math domain error” (solutions obtained
+using the parameter sets drawn from the “box” given in Table
+2; we notice a series of problematic behaviour types of the
+solutions – oscillations (with different amplitudes and
+frequencies) at artificially very low values of viral load
+VPFUMC (t), typical cases of solver’s incapacity to reach a
+stable solution.
+
+The scipy.integrate.odeint(f (t), t, y0, ∗args) ODE
+integrator (see documentation available here http://
+docs.scipy.org/doc/scipy/reference/generated/
+scipy.integrate.odeint.html) uses an adaptive
+timestep Runge-Kutta 4-5 method written inside its
+Fortran solver library (see http://docs.scipy.org/
+doc/numpy/user/install.html for included compiler
+instructions) to integrate systems of ordinary differential equations. The number of time steps taken
+by the integrator varies but is capped by default at
+mxstep=500. Also, the odeint function takes a list
+of output timesteps, but the Fortran routine is called
+
+Predoi
+
+Page 7 of 11
+
+Parameter
+p(1/h)
+β(1/h)
+c(1/h)
+cRN A (1/h)
+ρ
+τE (h)
+τI (h)
+∗∗ (PFU/ml)
+V0MC
+
+Min. value
+max(VPFUMC )∗
+104
+max(V
+)
+10−3 × (max(V RNAMC))2
+PFUMC
+
+0.01
+0.001
+10−5
+3.0
+0.1
+
+V0PFUMC
+105
+
+Max. value
+102 ×
+103 ×
+
+max(VPFUMC )
+max(VRNAMC )
+(max(VPFUMC ))2
+
+1.0
+0.1
+1.0
+30.0
+60.0
+102 × V0PFUMC
+
+* max(VPFUMC ) represents the maximum viral load from the PFUMC data set;
+** V0MC represents the initial value for the PFUMC viral load, parameter to be estimated as well.
+Table 2 The parametric 10-dimensional “box” from wich we randomly sampled parameters for the 20k ODE solving trials.
+
+once for each desired output and uses the previous
+call as the initial conditions for the next one. This can
+prove detrimental in cases where the specified time
+points where the integral should be evaluated is small
+(order 12-16, as in our data sets). The problem arises
+from the fact that, unlike more stable but slower MATLAB integrators, odeint does not use only the initial
+and final time points to generate a smooth, continuous integral and further on use interpolation to get the
+function values at each time point; it rather integrates
+piecewise for each segment determined by the specified
+time points series, process that is prone to breaking if
+there are too few time points to allow for continuity.
+One solution to this problem is to increase the parameter mxstep - the number of integration steps –
+that is capped by default at 500. Increasing mxstep to
+5000 or 10000 would insure that even for order 12-16
+data points the integrator will solve the system for all
+the specified time points, and will not exit without
+reaching a stable solution.
+Unfortunately, increasing the maximum number of
+integration steps mxstep will affect the time it takes
+scipy.odeint to solve a system: if the system is solvable with the default maximum mxstep ≤ 500, by increasing mxstep to, say, 10000, will not increase the
+solving time, as seen from Table 3; increasing mxstep
+will only increase the integration time for systems that
+scipy.odeint can not solve for a given number of time
+points and will exit after the first one or two integration points, most of the cases we are faced with. Table
+3 shows the time it took the solver to integrate 100
+times the same ODE system, with the same parameters, same initial conditions, same initial and final
+time, only with different numbers of integration time
+points and mxsteps. Thus, using a larger mxstep than
+the system default one is a necessary option for an
+MCMC production run, but it will, in turn, increase
+the processing time.
+One could apply corrections for accuracy by changing the default values for tolerances rtol and atol (internal ODE solver error handling parameters, see documentation at http://docs.scipy.org/doc/scipy/
+
+12 time points
+mxstep=5e2
+mxstep=1e3
+mxstep=1e4
+mxstep=1e6
+100 time points
+mxstep=5e2
+mxstep=1e3
+mxstep=1e4
+mxstep=1e6
+
+Time/100 runs
+dt= 51.8s
+dt= 169.8s
+dt= 167.9s
+dt= 221.9s
+Time/100 runs
+dt= 188.6s
+dt= 188.9s
+dt= 189.9s
+dt= 206.4s
+
+Table 3 Time it took scipy.odeint() to integrate 100 times the
+same ODE system, with the same parameters, initial conditions,
+initial and final time, only with different numbers of time points
+and mxstep’s. The reason why for 12 time points and
+mxstep=500 the run time is short is that the integrator exits
+after the second or third time point with no valid solution.
+
+reference/integrate.html) to orders of 10−30 . The
+problem with reducing the tolerance to very small values is that the solving for an otherwise exact within the
+default tolerance solution will take much longer time
+(of order 15-20 times longer than the solving without
+adjusting tolerance) – this, in light of a set of numerous
+MCMC simulations, could be a very much unwanted
+behaviour.
+There is, however, an alternative solution to the
+ODE incapacity problem: by effecting a change of
+state variable, we rewrite the ODE’s from system (1)
+in an exponential manner. Our state variables are
+T, Ei , Ij , VPFU , VRNA and D with i, j the number of
+eclipse and infectious compartments respectively. Consider Φ any of these real and positive defined state
+variables. We will operate a change of variable that
+will map Φ to a different real (both positive and negative defined) variable Ω with the following functional
+relation:
+Φ → Φ := eΩ
+
+(15)
+
+and this way the differential forms, by applying the
+chain rule, will be:
+
+ 
+
+dΦ
+∂Φ
+∂Ω
+=
+dt
+∂Ω t ∂t Φ
+
+Predoi
+
+Page 8 of 11
+
+≡ Φ
+
+dΩ
+dt
+
+(16)
+
+1010
+109
+
+EXP ODE system solved for best fit parameters
+works only with mxstep ≥ 4000
+EXP ODE
+regular ODE
+
+EXP ODE system solved for high R0 param. set that failed regular ODE
+mxstep=4e6
+EXP ODE
+regular ODE
+
+108
+Virus load (PFU/ml)
+
+107
+VPFU MC
+
+With this in mind we rewrite the computational form
+of our ODE system (1) as:
+
+106
+105
+104
+103
+
+V̇PFU
+
+= ρpe
+
+−VPFU
+
+
+
+
+
+
+
+Ij 
+
+j=n
+XI
+
+e
+
+102
+101
+
+− (c + cRNA )
+
+100 20
+
+0
+
+20
+
+40
+
+60
+t(h)
+
+80
+
+100
+
+120
+
+140
+
+1011
+1010
+109
+108
+107
+106
+105
+104
+103
+102
+101
+100
+-1000
+
+-101
+-102 0
+
+20
+
+40
+
+60
+80
+Time (h)
+
+100
+
+120
+
+140
+
+j=1
+
+
+V̇RNA
+
+j=n
+XI
+
+= pe−VRNA 
+
+
+eIj  − cRNA
+
+j=1
+
+Ṫ
+
+= −βe
+
+VPFU
+
+Ė1
+
+= βe(T +VPFU −E0 ) − k
+
+Ėi
+I˙1
+
+= ke−∆E − k
+= keEnE −I0 − δ
+
+I˙j
+
+= δe−∆I − δ
+
+Ḋ
+
+= δeInI e−D
+
+(17)
+
+with E0 and I0 the values of E and I in the first eclipse
+and infectious compartments respectively and ∆E =
+Ei − Ei−1 and ∆I = Ij − Ij−1 .
+The integration initial conditions are straightforward from (1) and (17): natural logarithms of the
+(17)
+original, non-exponential ODE system, i.e. VPFU =
+(1)
+(17)
+(1)
+ln(VPFU ), VRNA = ln(VRNA ), T (17) = 0.0, E (17) =
+(17)
+(17)
+I
+=D
+= −n where n is a relatively large natural number (30-100). The reason why E (17) = I (17) =
+D(17) = −n is that we need a good approximation for
+null initial conditions from E (1) and I (1) and these do
+not introduce errors in the solver due to too small a
+number.
+We have tested the re-written ODE system (17)
+against the one already in use (1) in [4]. Figure 4 (left)
+shows system (17) finds the exact same solution for a
+favourable best fit parameter set (the SSR was identical between the two systems (1) and (17) to precision order 10−5 ); the system (17) is more computationally intensive and needs longer time to solve than the
+non-exponentiated system (1); it also needs a larger
+number of the maximum step value (we have obtained
+the best fit curve with mxstep ≥ 4000). The time it
+took system (17) to integrate with best fit parameters
+was 48.9s (for 50 trials) whereas the non-exponentiated
+system (1) took 29.6s for the same number of trials.
+Figure 4 (right) shows the same comparison but with
+a set of unfavourable parameters that would induce
+the non-exponentiated system (1) to produce numerically unstable solutions (hence damped oscillatory behaviour); system (17) produces the correct solution
+and in a shorter time - 55.3s (for 50 trials) whereas
+the non-exponentiated system took 159.2s for the same
+
+Figure 4 (left) shows system 17 finds the exact same solution
+for a favourable best fit parameter set (the SSR was identical
+between the two systems (1) and (17) to precision order
+10−5 ); the system (17) is more computationally intensive and
+needs longer time to solve than the non-exponentiated system
+(1); it also needs a larger number of the maximum step value
+(we have obtained the best fit curve with mxstep ≥ 4000).
+The time it took system 17 to integrate with best fit
+parameters was 48.9s (for 50 trials) whereas the
+non-exponentiated system (1) took 29.6s for the same number
+of trials. (right) shows the same comparison but with a set of
+unfavourable parameters that would induce the
+non-exponentiated system (1) to produce numerically unstable
+solutions (hence damped oscillatory behaviour); system (17)
+produces the correct solution and in a shorter time - 55.3s (for
+50 trials) whereas the non-exponentiated system took 159.2s
+for the same number of trials, with a high percentage of
+unstable solutions
+
+number of trials, with a high percentage of unstable
+solutions.
+We repeated the 20,000 trials with parameters randomly sampled from the “box” of Table 2 above but
+using the system given by equation (17) this time. All
+solutions were stable, so failure rate in computing a
+numerical value for the SSR due to non-physical negative V (t) values is 0%.
+
+5 Analysis and results
+In order to obtain a set of “best fit” parameters i.e. a
+set of parameters for which model (17) best describes
+the data, we performed a number of ∼1500 bootstrap
+runs. Any given bootstrap run is characterised by a
+set of initial conditions (initial parameter values, randomly chosen from the parametric “box” (Table 2), an
+ODE system (17) and an error function that quantifies how well the solution fits the data, given in equation (13); for the thresholds we chose values of order
+3 times larger than the “best fit” values i.e. SSRa in
+equation (13) we chose SSRSC = 10, SSRPFUMC = 8,
+SSRRNAMC = 6 and SSRMY = 3 (‡). This ensemble
+is passed to a least squares engine that walks the system through a large combination of parameter values,
+with each iteration coming closer to the global minimum position in parameter space i.e. minimizing the
+SSR. We then chose the single parametric combination
+with the lowest SSR from these bootstrap runs. Such
+
+Predoi
+
+Page 9 of 11
+
+a global minimum “best fit” to the data is shown in
+Figure 5 for three of our four data sets (SC, PFUMC
+and RNAMC); the parameters for this case are used
+to construct the intervals to start the MCMC walkers
+from: the “best fit” parameter set is used as the center
+of the interval with boundaries given by the mean of
+all the bootstrap parameter values.
+The bootstrapping process randomly samples the fitting errors with replacement; this set is usually assumed to be from an independent and identically distributed population, and it is implemented by constructing a number of resamples with replacement of
+the same size as the initial set. The main problem of
+using bootstrapping to estimate biological parameters
+is that the mathematical model errors are not sampled
+from the same distribution - the model is applied to
+different data sets that it describes differently; there
+is also the experimental noise that introduces fluctuations in the fitting errors, but this we can not model in
+this work. In our situation, using bootstrapping to estimate parametric confidence intervals will introduce a
+bias towards the data set(s) that are worse described
+by the model and the parametres will have broader
+distributions, usually with heavy tails in the regions
+where the model constrains poorly those data sets. On
+the other hand, the MCMC analysis will not assume
+all error samples are drawn from the same distribution
+and will most often reject those parameter regions producing the bootstrap distribution tails. This bing said,
+using bootstrapping is a good way to obtain “best fit”
+parameter intervals that can be further used as initial
+values for the MCMC runs.
+Y275 V (PFU/ml) vs. time (hours)
+SC tinnoc=0 SSR=3.58 V0m=24.01 PFU/ml
+
+100
+
+Y275 Vi/Vr (PFU/RNA/ml) vs. time (hours)
+MC tinnoc=0 SSR=3.58 V0m=24.01 PFU/ml
+
+1011
+
+V PFU/ml
+Data PFU
+
+Data RNA
+Vi PFU/ml
+Data PFU
+Vr RNA/ml
+
+1010
+
+specifically MP4Py); the computational load has been
+divided and managed on Compute Canada’s SHARCNET academic and scientific-usage computer clusters (https://www.sharcnet.ca/). The analysis procedure comprised the following specifications:
+• According to emcee’s user manual [13] it is desired
+to start each of the walkers from a favourable position in the parameter space – as such, we started
+all the walkers on a tight ball centered at the “best
+fit” parameters of each of the four experiments.
+The “best fit” parameters are seen in Table 4 together with the walkers’ start intervals, labelled
+as (1) columns;
+• We ran 2000 iterations for each of the 100 walkers
+per combined data sets (SC, PFUMC, RNAMC
+and MY) with 200 iterations for burn-in; sampling was performed in linear parameter space.
+The emcee package needs just a few inputs to be
+able to handle the MCMC simulations, the most
+important input being the an expression for the
+likelihood of accepting or rejecting the parameter
+set of any given walker’s position in the parameter space. This likelihood is given by equation (14)
+and is directly coded in, making use of the SSR
+thresholds (‡);
+• Chains had average acceptance rates of 30-40%;
+convergence and chain mixing was checked using
+a Gelman-Rubin diagnostics test and chains that
+did not reach convergence were discarded (the
+Gelman-Rubin test [14] is used to check the convergence of multiple MCMC chains run in parallel; it compares the within-chain variance to the
+between-chain variance);
+• Only parameter sets from walkers with SSR¡5.0
+were kept for final parameter estimation, the rest
+of the sets being discarded.
+
+109
+10-1
+
+108
+
+Virus (PFU/ml)
+
+Virus (PFU/ml)
+
+107
+
+10-2
+
+106
+105
+104
+103
+
+10-3
+
+102
+101
+-4
+
+10 0
+
+5
+
+10
+Time (h)
+
+15
+
+20
+
+100 0
+
+20
+
+40
+
+60
+Time (h)
+
+80
+
+100
+
+120
+
+Figure 5 “Best fit” curves of model (17) for the SC, PFUMC
+and RNAMC data sets; parameters for these curves have been
+used as centers for the intervals from which the MCMC
+walkers have been started from, as their initial conditions.
+
+The MCMC simulations have been run on multiple CPU’s using the OpenMPI (Open Message Passing Interface http://www.open-mpi.org/) implementation in emcee package (see [9] and the guide at
+[13] for instructions on how this mode is configured,
+
+The numerical results are presented in Table 4; the
+listed parameter value (2) is the mean of posterior distributions obtained from the MCMC simulations; the
+credible interval (3) is obtained from fitting a Gaussian
+distribution to the posterior distribution, see Figure 6.
+The Gaussian fit agrees very well with the actual posterior distributions obtained from the MCMC simulations.
+In order to quantify the difference between the two
+strains, WT-H275 and MUT-H275Y, from a parametric point of view, we construct the distance in parameter space Γ
+v
+u i=N 
+u 1 X KSi 2
+λΓ = t
+(18)
+N i=1 wi
+where N is the number of estimated parameters, KSi
+is the result of a two-sided Kolmogorov-Smirnoff test
+
+Predoi
+
+Page 10 of 11
+
+(1)
+
+WT-H275 and MUT-H275Y data: emcee MCMC Simulations Results for ODE Model (17)
+- initial value interval; (2) - obtained median value; (3) - obtained credible interval from posterior distribution
+
+Parameter
+Mean eclipse period, τE (h)
+Eclipse period SD, σE (h)
+Infecting time, tinfect 1 (min)
+Infectious life span, τI (h)
+Depletion rate, c (h−1 )
+Production rate/cell, pRNA (RNA copies/h)
+Viral burst size, b 2 (RNA copies)
+Reproductive number, R0 3
+1
+
+Computed using equation (3);
+
+2
+
+(1) WT-H275
+
+(2) WT-H275
+
+(3) WT-H275
+
+(1) MUT-H275Y
+
+(2) MUT-H275Y
+
+(3) MUT-H275Y
+
+6.6±3.0
+1.2±2.0
+31.0±15.0
+49.0±15.0
+0.1±0.05
+2,200±1,000
+110±50
+2000±1500
+
+6.6
+1.3
+22.2
+35.2
+0.078
+3,355
+118
+3582
+
+6.3–7.1
+1.1–1.5
+19.7–23.8
+34.6–36.2
+0.069–0.086
+3,071–3,700
+109–131
+3101–4085
+
+9.1±3.0
+1.6±2.0
+22.0±15.0
+41.0±15.0
+0.1±0.05
+370±1,000
+15±50
+3000±1500
+
+9.3
+1.6
+18.6
+32.0
+0.087
+459
+15
+4243
+
+9.1–9.6
+1.5–1.8
+17.8–19.8
+31.4–32.3
+0.076–0.097
+425–498
+13–16
+3906–4572
+
+Burst size b = pRNA × τI ;
+
+3
+
+Computed using equation (4).
+
+Table 4 Viral infection parameters obtained from MCMC simulations with the emcee engine: initial values, median values, credible
+intervals obtained from posterior distributions for both the wild type WT-H275 and the mutant MUT-H275Y H1N1pdm09 strains.
+
+0.012Mean production rate per cell for WT-H275 and MUT-H275Y
+
+WT-H275
+MUT-H275Y
+
+0.010
+
+Mean eclipse phase times for WT-H275 and MUT-H275Y
+WT-H275
+1.4
+MUT-H275Y
+1.6
+
+1.2
+
+0.008
+
+1.0
+
+0.006
+
+0.8
+0.6
+
+0.004
+
+0.4
+
+0.002
+0.0000
+
+0.2
+
+1000
+
+2000
+
+3000
+
+pRNA (RNA copies/h)
+
+4000
+
+5000
+
+Mean infectious phase times for WT-H275 and MUT-H275Y
+WT-H275
+MUT-H275Y
+0.7
+
+0.04
+
+0.8
+
+0.40
+
+0.6
+
+0.30
+
+0.5
+
+0.25
+
+0.4
+
+0.20
+
+0.3
+
+0.15
+
+0.2
+
+0.10
+
+0.1
+
+0.05
+
+0.030
+
+32
+
+34
+
+tauI (h)
+
+36
+
+38
+
+0.35
+
+40
+
+0.0014
+
+5
+
+7
+
+6
+
+tauE (h)
+
+8
+
+9
+
+10
+
+11
+
+Mean infection times for WT-H275 and MUT-H275Y
+WT-H275
+MUT-H275Y
+
+16
+
+18
+
+20
+
+22
+
+tinfect(h)
+
+24
+
+26
+
+28
+
+30
+
+Figure 6 Posterior distributions for four viral parameters: production rate/cell, pRNA (RNA copies/h, top left corner), mean eclipse
+period, τE (h, top right corner), infectious life span, τI (h, bottom left corner) and infecting time, tinfect (min, bottom right corner)
+for both WT-H275 and MUT-H275Y strain data; these distributions have been obtained by running a set of MCMC simulations
+(emcee engine, 100 walkers, 2000 iterations) and Gaussian distributions have been fitted over (dashed lines) – the parameters of the
+fitted distributions are listed in Table 4.
+
+(see documentation at http://docs.scipy.org/doc/
+scipy-0.14.0/reference/generated/scipy.stats.
+ks_2samp.html) with inputs the two ith parameter
+distributions for WT-H275 and MUT-H275Y (the null
+distribution of this statistic is calculated under the
+null hypothesis that the samples are drawn from the
+same distribution; this test is used to determine how
+
+“similar” two parametric distributions are, assuming
+they are normal distributions; the choice of use of a
+frequentist test over a Byesian one is that there already exists a scipy simple-to-use package that can
+be called with ease when constructing a parameterestimation package) and wi is a set of weights that
+are chosen function of the recoverability of ith param-
+
+Predoi
+
+Page 11 of 11
+
+eter (for simplicity we use wi = 1 here). We apply a
+two-sided Kolmogorov-Smirnoff test using the fitted
+Gaussian distributions. The KSi test results are listed
+in Table 5. The statistic λΓ is a percentage that tells
+us how different the two compared strains are, in our
+case, from the MCMC estimated four parameters in
+Table 5, the two strains are 94% different. Of course,
+this rationale could be extended for a larger set of parameters, whichever are deemed as significant in the
+case of comparison, here we are using equation (18)
+with four parameters as an example only.
+WT-H275 and MUT-H275Y data: Kolmogorov-Smirnoff test
+results
+From equation (18), λΓ = 0.94%
+Parameter
+Mean eclipse period, τE
+Infecting time, tinfect
+Infectious life span, τI
+Production rate/cell, pRNA
+
+KSi (%)
+0.99
+0.79
+0.96
+1.00
+
+Assuming a flat prior, the MCMC analysis method
+we present here does not make use of any assumptions with regards to data, and, albeit the data is
+very small (order 60 data points in total), the results are not only consistent with the ones presented
+in [4] but parametric credible intervals are narrower
+and we could obtain an analytic measure to distinguish the two H1N1pdm09 strains. The use of emcee
+[9] is very easy and, if correctly configured in multiprocessor mode, the program runs very fast – we could
+obtain the results we present here in a matter of one
+day. If this analysis method is correctly packaged, one
+could obtain this type of results in a matter of hours.
+Using a generic mathematical model and this analysis
+package could lead to results being obtained very fast,
+matter that might be very useful in the future in the
+case of a major pandemic.
+
+6 Conclusions
+
+Acknowledgements
+This work was supported by STFC grant No. ST/L000342/1. The author
+would also like to thank Drs. Tinevimbo Shiri, Eric Paradis and Eric da
+Silva (Ryerson University, Toronto, Canada) for the numerous discussions
+and very useful suggestions they offered him. Many thanks also go to the
+members of the Gravitational Waves group at Cardiff University, UK, whose
+member the author is, for support and very useful suggestions. Special
+thanks go to the author’s mom that cooked the best food in the world
+while writing this article on the occasion of a visit home.
+
+We used the data from [4] in a bid to refine the
+results presented there and formulate new concepts
+to analytically compare virus strains; we used a different analysis method to estimate the viral dynamics parameters of model (1) – Markov Chain Monte
+Carlo simulations. We modified the model to a more
+computationally-robust model (17), formulated a likelihood (14) and used an existing MCMC computer
+package (emcee presented in [9]) to obtain parameter distributions (posteriors). The MCMC results offer
+much narrower credible intervals than bootstrapping
+95% confidence intervals (see [4] for a result using
+bootstrap replicates); they also offer true parameter
+probability distribution functions (PDFs) in the form
+of the posterior distributions: full parameter results
+can be found in Table 4 and distributions are shown in
+Figure 6. We used these distributions and fitted Gaussian distributions to extract the credible intervals, the
+Gaussian fit being rather good. In a novel approach, we
+used a frequentist two-sided Kolmogorov-Smirnoff test
+to compare the two viral strains, comparison yielding
+a 94% difference from a parametric point of view. By
+computing the reproductive number R0 we show that
+the infectivity of the mutant strain is higher than the
+wid type; this has been shown in [4] as well but our
+values for R0 differ and suggest a smaller difference in
+infectivity between the two strains; this is supported
+by narrow credible intervals for R0 , see 4.
+
+References
+1. Abed, Y., Goyette, N., Boivin, G.: A reverse genetics study of
+resistance to neuraminidase inhibitors in an influenza a/h1n1 virus.
+Antivir. Ther 9:577–581 (2004)
+2. Centers for Disease Control and Prevention: Update: Drug
+Susceptibility of Swine-origin Influenza A (H1N1) Viruses. (2009).
+Centers for Disease Control and Prevention
+3. Dharan, N., et al.: Infections with oseltamivir-resistant influenza
+a(h1n1) virus in the united states. JAMA 301:1034 –1041 (2009)
+4. Pinilla, L., Holder, B., Abed, Y., Boivin, G., Beauchemin, C.:
+Neuraminidase mutation of the pandemic a/h1n1 influenza virus
+lengthens the eclipse phase and reduces viral output of infected cells,
+potentially compromising fitness in ferrets. Journal of Virology
+86(19):10651-10660 (2012)
+5. Nowak, M.: Virus dynamics: Mathematical principles of immunology
+and virology. Oxford University Press (2000)
+6. Baccam, P., Beauchemin, C., Macken, F., Hayden, G., Perelson, A.:
+Kinetics of influenza a virus infection in humans. J.Virol 80(15
+7590-7599) (2006). doi:10.1128/JVI.01623-05
+7. Sivia, D., Skilling, J.: Data analysis: A bayesian tutorial. Oxford
+University Press (2006)
+8. Newman, M.: Monte carlo methods in statistical physics. Clarendon
+Press (1999)
+9. Foreman Mackey, D., Hogg, D., Lang, D., Goodman, J.: emcee: The
+MCMC Hammer. PASP 125, 306–312 (2013). doi:10.1086/670067
+10. Akeret, J., Seehars, S., Amara, A., Refregier, A., Csillaghy, A.:
+CosmoHammer: Cosmological parameter estimation with the MCMC
+Hammer. ArXiv e-prints (2012). 1212.1721
+11. van Haasteren, R., Mingarelli, C.M.F., Vecchio, A., Lassus, A.:
+Analysis of the first IPTA Mock Data Challenge by the EPTA timing
+data analysis working group. ArXiv e-prints (2013). 1301.6673
+12. Stanoyevitch, A.: Introduction to numerical ordinary and partial
+differential equations using matlab (pure and applied mathematics: A
+wiley series of texts, monographs and tracts). Wiley-Blackwell (2005)
+13. Foreman Mackey, D.: The emcee api.
+http://dan.iel.fm/emcee/current/
+14. Gelman, A., Rubin, D.: Inference from iterative simulation using
+multiple sequences. Statistical Science (4), 457–472 (1992)
+
+Table 5 Kolmogorov-Smirnoff test results for four (example)
+parameters.
+
+

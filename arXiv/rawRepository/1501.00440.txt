@@ -1,0 +1,1363 @@
+Efficient reduction of Kappa models by static inspection of
+the rule-set
+Andreea Beica
+
+Calin Guet
+
+Tatjana Petrov
+
+ENS Paris
+Rue d’Ulm 45
+Paris, France
+
+IST Austria
+Am Campus 1
+Klosterneuburg, Austria
+
+IST Austria
+Am Campus 1
+Klosterneuburg, Austria
+
+calin.guet@ist.ac.at
+
+tatjana.petrov@ist.ac.at
+
+andrea.beica@ens.fr
+
+arXiv:1501.00440v1 [cs.CE] 2 Jan 2015
+
+ABSTRACT
+When designing genetic circuits, the typical primitives used
+in major existing modelling formalisms are gene interaction
+graphs, where edges between genes denote either an activation or inhibition relation. However, when designing experiments, it is important to be precise about the low-level
+mechanistic details as to how each such relation is implemented. The rule-based modelling language Kappa allows
+to unambiguously specify mechanistic details such as DNA
+binding sites, dimerisation of transcription factors, or cooperative interactions. However, such a detailed description
+comes with complexity and computationally costly execution. We propose a general method for automatically transforming a rule-based program, by eliminating intermediate
+species and adjusting the rate constants accordingly. Our
+method consists of searching for those interaction patterns
+known to be amenable to equilibrium approximations (e.g.
+Michaelis-Menten scheme). The reduced model is efficiently
+obtained by static inspection over the rule-set, and it represents a particular theoretical limit of the original model.
+The Bhattacharyya distance is proposed as a metric to estimate the reduction error for a given observable. The tool is
+tested on a detailed rule-based model of a λ-phage switch,
+which lists 96 rules and 16 agents. The reduced model has
+11 rules and 5 agents, and provides a dramatic reduction in
+simulation time of several orders of magnitude.
+
+1.
+
+INTRODUCTION
+
+One of the main goals of synthetic biology is to design and
+control genetic circuits in an analogous way to how electronic circuits are manipulated in human made computer
+systems. The field has demonstrated success in engineering
+simple genetic circuits that are encoded in DNA and perform
+their function in the cellular environment [20], [24]. However, there remains a need for rigorous quantitative characterisation of such small circuits and their mutual compatibility [33], which in electronic circuits is easily guaranteed
+by impedance matching. The important ingredient towards
+such characterisation is having an appropriate language for
+
+capturing model requirements, for prototyping the circuits,
+and for predicting their quantitative behaviour before committing to the time-intensive experimental implementation.
+Quantitative modelling of biomolecular systems is particularly challenging, because one deals with stochastic, highly
+dimensional, non-linear dynamical systems. For these reasons, modellers often immediately apply ad-hoc simplifications which neglect the mechanistic details, but allow to predict (simulate) the system’s behaviour as a function of time.
+For example, the fact that protein A activates protein P is
+often modelled immediately in terms of a reaction A → A+P
+k[A]n
+with the Hill kinetic coefficient (e.g. 1+k[A]
+n ), while the
+mechanism in fact includes the formation of a macromolecular complex and its binding to a molecular target. While
+such models are easier to execute, the simplification makes
+models hard to edit or refine. For example - a new experimental insight about an interaction mechanism cannot be
+easily integrated properly into the model, since several mechanistic steps are merged into a single kinetic rate. Moreover,
+an abstract model does not provide precise enough design
+guide for circuit synthesis, and sometimes, only the more
+detailed models explain certain behaviours (e.g., in [15], it is
+shown that only when incorporating the mRNA, the model
+explains certain experimentally observed facts).
+Rule-based languages, such as Kappa [18] or BioNetGen [4],
+are designed to naturally capture the protein-centric and
+concurrent nature of biochemical signalling: the internal
+protein structure is maintained in form of a site-graph, and
+interactions can take place upon testing only patterns, local
+contexts of molecular species. A site-graph is a graph where
+each node contains different types of sites, and edges can
+emerge from these sites. Nodes typically encode proteins
+and their sites are the protein binding-domains or modifiable residues; the edges indicate bonds between proteins.
+Then, every species is a connected site-graph, and a reaction
+mixture is a multi-set of connected site-graphs. The executions of rule-based models are traces of a continuous-time
+Markov chain (CTMC), defined according to the principles
+of chemical kinetics. In general, rule-based models are advantageous to the classical reaction models (Petri nets) for
+two major reasons. First, the explicit graphical representation of molecular complexes makes models easy to read,
+write, edit or compose (by simply merging two collections
+of rules). For example, the reaction of dimerization between
+two lambda CI molecules is classically written 2CI → CI2,
+where the convention is that CI represents a free monomer,
+
+and CI2 represents a free dimer. On the other hand, the
+same reaction written in Kappa amounts to:
+
+T
+
+’CI2:’ CI(ci,or), CI(ci,or) ↔ CI(ci!1,or), CI(ci!1,or)@k2+ , k2− ,
+
+T
+
+where the binding sites ci and or are binding sites of the
+protein CI, and CI(ci!1,or) denotes that the identifier of the
+rule-based bond account for the physical interaction between
+the two CI monomers, is 1. Secondly, a rule set can be executed, or subjected to formal static analysis: for example, it
+provides efficient simulations [11], [29] automated answers
+about the reachability of a particular molecular complex
+[13], or about causal relations between rule executions [10].
+The downside of incorporating too many mechanistic details
+in the model, is that they lead to computationally costly
+execution. For this reason, we define and implement an efficient method for automatically detecting and applying equilibrium approximations. As a result, one obtains a smaller
+model, where some species are eliminated, and the kinetic
+rates are appropriately adjusted. In this way, the experimentalist can choose to obtain the predictions more efficiently
+but less accurately, however without losing track of the underlying low-level mechanisms.
+To the best of our knowledge, there exist no efficient methods to quantify the error induced by time-scale separation
+approximations for biochemical reaction networks. The bottleneck is the complexity of the original system, whose behaviour is computationally costly to analyse - often even
+to run a single simulation trace. The correctness of our approach relies on the fact that the approximate model is equal
+to the original one, in the artificial limit where certain reactions happen at a sufficiently larger time-scale than others,
+and they are seemingly equilibrated shortly upon the reactions initiate. Faced with designing or modelling biological
+circuits with many connections and highly heterogeneous
+hardware, the ability of predicting solutions that lack a precise error measurement is of secondary importance. What
+is desirable is to have a prototype or model of a circuit that
+displays the desired behaviour at a qualitative level, which
+later on can be further improved. Furthermore, most kinetic rates are rarely precisely determined experimentally,
+and hence precise quantitative error estimates are not necessarily relevant and on top are time consuming, when faced
+with imprecise input characteristics of the underlying prototype model.
+Implementation and testing. The tool is implemented
+in OCaml, and it is tested on a detailed rule-based model of
+a λ-phage switch [37], [38]. Simulations were carried out on
+the complete chemical reaction genetic circuit model which
+contains 96 rules, 16 agents and 61 species. The model is
+reduced to only 11 rules and 5 agents. It is worthwhile emphasising that our reduction method is general – applicable
+to any rule-set, and that the reduced model is obtained almost instantaneously.
+Related work. Our method is inspired from the work presented in [36] and [32], with the adaptations which arise
+due to the differences between the reaction lists and the
+rule-based language. Apart from rule-based models, other
+formalisms were proposed for characterisation of synthetic
+devices, such as, e.g., linear temporal logic [2]. In a broader
+
+a
+
+a
+
+x
+
+x
+
+Op
+Op
+
+k1
+k2
+k3
+
+T
+
+a
+
+x
+
+Op
+
+T
+
+a
+
+x
+
+Op
+
++
+
+P
+
+T(a),Op(x) $ T(a!1), Op(x!1)
+T(a!1),Op(x!1) $ T(a!1), Op(x!1), P()
+Figure 1: An example of a rule-based model. The
+transcription factor T binds to the operator and initiates the production of protein P .
+context, the principle of obtaining conclusions about system’s dynamics by analyzing their model description, originates from, and is exhaustively studied in the field of formal
+program verification and model checking [7], [6], while it
+is recently gaining recognition in the context of programs
+used for modeling biochemical networks. An example is the
+related work of detecting fragments for reducing the deterministic or stochastic rule-based models [16], [19], [17], detecting the information flow for ODE models of biochemical
+signaling [26, 5], or the reaction network theory [8]. Related
+works on systematic model reduction techniques are based
+on separating time-scales [28, 39, 30, 23, 29], or they propose
+numerical algorithms which focus of efficiently obtaining the
+evolution of the probability distribution over time (the master equation) [34, 27].
+Paper outline. Section 2 introduces two concepts: (i) the
+classical stochastic and deterministic model of chemical reaction networks, and (ii) the rule-based modelling language
+Kappa. Section 3 illustrates the equilibrium approximation
+schemes (the generalized Michaelis-Menten and fast dimerisation) and discusses the theoretical guarantees about the
+approximate system. In Section 4, we outline the algorithms
+for detecting the approximation schemes (operator site reduction and dimerisation reduction). Finally, in Section 5,
+we describe the λ-phage model and we compare the results
+and the CPU time for the original and approximate model.
+
+2. PRELIMINARIES
+2.1 Stochastic chemical reaction networks
+For a well-mixed reaction system with molecular species S =
+{S1 , . . . , Sn }, the state of a system can be represented as a
+multi set of those species, denoted by x = (x1 , ..., xn ) ∈ Nn .
+The dynamics of such as system is determined by a set of
+reactions R = {r1 , . . . , rr }. Each reaction is a triple rj ≡
+(aj , ν j , cj ) ∈ Nn × Nn × R≥0 , written down in the following
+form:
+kj
+
+a1j S1 , . . . , anj Sn → a01j S1 , . . . , a0nj Sn ,
+such that a0ij = aij + νij .
+The vectors aj and a0j are often called respectively the consumption and production vectors due to reaction rj , and kj is
+the kinetic rate of reaction rj . If the reaction rj occurs, after
+being in state x, the next state will be x0 = x+ν j . This will
+be possible only if xi ≥ aji for all i = 1, . . . , n. Under certain
+physical assumptions [21], the species multiplicities follow
+a continuous-time Markov chain (CTMC) {X(t)}, defined
+
+over the state space S = {x | x is reachable from x0 in R}.
+Hence, the probability of moving to the state x + ν j from x
+after time ∆ is
+P(X(t + ∆) = x + νk | X(t) = x) = λj (x)∆ + o(∆),
+with λj the propensity of jth reaction, assumed
+to follow
+Q
+xi
+the principle of mass-action: λj (x) = kj n
+i=1 aij . The
+
+binomial coefficient axiji reflects the probability of choosing
+aij molecules of species Si out of xi available ones.
+
+2.2
+
+Deterministic limit
+
+In the continuous, deterministic model of a chemical reaction
+network, the state z(t) = (z1 , . . . , zn )(t) ∈ Rn is represented
+by listing the concentrations of each species. The dynamics
+is given by a set of differential equations in form
+r
+n
+X
+Y
+d
+zi = νij
+cj
+zi (t)aij ,
+dt
+j=1
+i=1
+
+(1)
+
+where cj is a deterministic rate constant, computed from
+the stochastic one and the volume N from cj = kj N |aj |−1
+(|x| denotes the 1-norm of the vector x). The deterministic
+model is a limit of the stochastic model when all species in a
+reaction network are highly abundant. Denote by Rj (t) the
+number of times that the j-th reaction had happened until
+the time t. Then, the state of the stochastic model at time
+t is
+r
+X
+Rj (t)ν j .
+(2)
+X(t) = X(0) +
+j=1
+
+The value of Rj (t) is a random variable, that can be described
+with parameR t by a non-homogenous Poisson Rprocess,
+t
+ter 0 λj (X(s))ds, that is, Rj (t) = ξj ( 0 λj (X(s))ds). Then,
+the evolution of the state X(t) is given by the expression
+Z t
+
+r
+X
+ξj
+λj (X(s))ds ν j .
+(3)
+X(t) = X(0) +
+j=1
+
+0
+
+By scaling the species multiplicities with the volume: Zi (t) =
+Xi (t)/N , adjusting the propensities accordingly, in the limit
+of infinite volume N → ∞, the scaled process Z(t) follows
+an ordinary differential equation (1) [31].
+It is worth mentioning here that the above scaling from
+stochastic to the deterministic model is a special case of
+a more general framework presented in [30], referred to as
+the multiscale stochastic reaction networks. Intuitively, the
+deterministic model is a special case where all species are
+scaled to concentrations and reaction rates are scaled always
+in the same way, depending on their arity. The reductions
+shown in this paper will be based on a variant of multiscale
+framework, where some species are scaled to concentrations
+and others are kept in copy numbers, and where reaction
+rates have varying scales as well.
+
+2.3
+
+Rule-based Models
+
+In this section, we introduce the rule-based modeling language Kappa, which is used to specify chemical reaction
+networks, by explicitly denoting chemical species in form
+of site-graphs. A simple example of a Kappa model is presented in Fig. 1.
+
+For the stochastic semantics of Kappa, that is a continuoustime Markov chain (CTMC) assigned to a rule-based model,
+we refer to [12] or [17]. Intuitively, any rule-based system can
+be expanded to an equivalent reaction system (with potentially infinitely many species and reactions). The stochastic
+semantics of a Kappa system is then the CTMC {X(t)} assigned to that equivalent reaction system. Even though the
+semantics of a Kappa system is defined as the semantics
+of the equivalent reaction system, in practice, using Kappa
+models can be advantageous for several reasons - they are
+easy to read, write, edit or compose, they can compactly
+represent potentially infinite set of reactions or species, and,
+most importantly, they can be symbolically executed.
+We present Kappa in a process-like notation. We start with
+an operational semantics.
+Given a set X, ℘(X) denotes the power set of X (i.e. the set
+of all subsets of X). We assume a finite set of agent names
+A, representing different kinds of proteins; a finite set of sites
+S, corresponding to protein domains; a finite set of internal
+states I, and Σι , Σβ two signature maps from A to ℘(S),
+listing the domains of a protein which can bear respectively
+an internal state and a binding state. We denote by Σ the
+signature map that associates to each agent name A ∈ A
+the combined interface Σι (A) ∪ Σβ (A).
+Definition 1. (Kappa agent) A Kappa agent A(σ) is defined by its type A ∈ A and its interface σ. In A(σ),
+the interface σ is a sequence of sites s in Σ(A), with internal states (as subscript) and binding states (as superscript). The internal state of the site s may be written as
+s , which means that either it does not have internal states
+(when s ∈ Σ(A) \ Σι (A)), or it is not specified. A site that
+bears an internal state m ∈ I is written sm (in such a case
+s ∈ Σι (A)). The binding state of a site s can be specified as
+s , if it is free, otherwise it is bound (which is possible only
+when s ∈ Σβ (A)). There are several levels of information
+about the binding partner: we use a binding label i ∈ N
+when we know the binding partner, or a wildcard bond −
+when we only know that the site is bound. The detailed
+description of the syntax of a Kappa agent is given by the
+following grammar:
+a
+N
+σ
+s
+n
+ι
+λ
+
+::=
+::=
+::=
+::=
+::=
+::=
+::=
+
+N (σ)
+(agent)
+A∈A
+(agent name)
+ε | s,σ
+(interface)
+nλι
+(site)
+x∈S
+(site name)
+ | m∈I
+(internal state)
+ | − | i ∈ N (binding state)
+
+We generally omit the symbol .
+Definition 2. (Kappa expression) Kappa expression E is
+a set of agents A(σ) and fictitious agents ∅. Thus the syntax
+of a Kappa expression is defined as follows:
+E ::= ε | a , E | ∅ , E.
+The structural equivalence ≡, defined as the smallest binary
+equivalence relation between expressions that satisfies the
+
+rules given as follows
+E , A(σ,s,s0 ,σ 0 ) , E 0 ≡ E , A(σ,s0 ,s,σ 0 ) , E 0
+E , a , a0 , E 0 ≡ E , a0 , a , E 0
+E ≡ E, ∅
+i, j ∈ N and i does not occur in E
+E[i/j] ≡ E
+i ∈ N and i occurs only once in E
+E[/i] ≡ E
+
+a)
+
+b)
+
+stipulates that neither the order of sites in interfaces nor the
+order of agents in expressions matters, that a fictitious agent
+might as well not be there, that binding labels can be injectively renamed and that dangling bonds can be removed.
+Definition 3. (Kappa pattern,mixture and species)
+A Kappa pattern is a Kappa expression which satisfies the
+following five conditions: (i) no site name occurs more than
+once in a given interface; (ii) each site name s in the interface
+of the agent A occurs in Σ(A); (iii) each site s which occurs
+in the interface of the agent A with a non empty internal
+state occurs in Σι (A); (iv) each site s which occurs in the
+interface of the agent A with a non empty binding state
+occurs in Σλ (A); and (v) each binding label i ∈ N occurs
+exactly twice if it does at all — there are no dangling bonds.
+A mixture is a pattern that is fully specified, i.e. each agent
+A documents its full interface Σ(A), a site can only be free
+or tagged with a binding label i ∈ N, a site in Σι (A) bears an
+internal state in I, and no fictitious agent occurs. A species
+is a connected mixture, i.e. for each two agents A0 and A
+there is a finite sequence of agents A1 , . . . , Ak s.t. there is a
+bond between a site of Ak and of A and for i = 0, 1, . . . , k−1,
+there is a site of agent Ai and a site of agent Ai+1 .
+
+c)
+Figure 2:
+Example shown in Fig. 1. The mean
+protein expression for one hundred sampled traces,
+before and after the enzymatic catalysis reduction.
+a) Parameters k1 = 0.2156, k2 = 1, k3 = 0.014 and there
+are initially 50 transcription factors. The mean and
+standard deviation (not shown) are computed for
+each time point, for the original (full line) and reduced model (dotted line). b) Parameters k2 , k3 ,
+and the initial number of transcription factors T are
+scaled up by factor N = 10. Same notation as for a)
+c) The Bhattacharyya distance between the distributions of the protein level with a model before and
+after the reduction. Red plot refers to the parameter values shown in a), and the green plot to the
+scaled parameter values shown in b).
+
+Definition 4. (species occurring in a pattern) Given Kappa
+patterns Es and Ep , if Es defines a Kappa species, and Es
+is a substring of Ep , we say that a species Es occurs in a
+pattern Ep .
+
+• a reactant, if it occurs in pattern El and does not occur
+in pattern Er ,
+• a modifier, if the number of occurrences in pattern El
+equals the number of occurrences in pattern Er ,
+
+Definition 5. (Kappa rule) A Kappa rule r is defined by
+two Kappa patterns E` and Er , and a rate k ∈ R≥0 , and is
+written: r = E` → Er @k.
+A rule r is well-defined, if the expression Er is obtained
+from E` by finite application of the following operations:
+(i) creation (some fictitious agents ∅ are replaced with some
+fully defined agents of the form A(σ), moreover σ documents
+all the sites occurring in Σ(A) and all site in Σι (A) bears
+an internal state in I), (ii) unbinding (some occurrences of
+the wild card and binding labels are removed), (iii) deletion
+(some agents with only free sites are replaced with fictitious
+agent ∅), (iv) modification (some non-empty internal states
+are replaced with some non-empty internal states), (v) binding (some free sites are bound pair-wise by using binding
+labels in N).
+In our static inspection of rules, we will test species (fully
+defined connected mixtures). To this end, we adopt the
+terminology of reactant, modifier and product from [32].
+Definition 6. (reactant, modifier, product) Given a rule
+(El , Er ), a Kappa species s is called
+
+• a product, if it does not occur in pattern El , and it
+occurs in pattern Er .
+Definition 7. (Kappa system) A Kappa system R(x0 , O,
+{r1 , . . . , rn }) is given by an initial mixture x0 , a set of Kappa
+patterns O called observables, and a finite set of rules {r1 , . . . , rn }.
+
+3.
+
+MODEL APPROXIMATION
+
+In this section, we present the mathematical analysis underlying the approximation algorithms presented in Section 4.
+Our reductions will be based on three reduction schemes:
+enzymatic catalysis reduction, generalized enzymatic catalysis reduction and fast dimerization reduction.
+
+3.1
+
+Enzymatic reduction
+
+Assume the elementary enzymatic transformation from a
+substrate S to a product P , through the intermediate complex E : S:
+k
+
+1
+k3
+E + S −*
+)− E : S → E + P,
+
+k2
+
+(4)
+
+which our algorithm will convert to the well-known MichaelisMenten form
+S
+
+k3 ET K
+1+KxS
+
+→
+
+P,
+
+(5)
+
+where ET = xE (t) + xE:S (t) denotes the total concentration
+1
+of the enzyme, and K = k2k+k
+.
+3
+The above approximation is generally considered to be sufficiently good under different assumptions, such as, for example, that the rate of dissociation of the complex to the
+substrate is much faster than its dissociation to the product
+(i.e. k2  k3 ), also known as the equilibrium approximation. Even if the equilibrium condition is not satisfied, it
+can be compensated in a situation where the total number
+of substrates significantly outnumbers the enzyme concentration - xS (0) + K  ET , known as the quasi-steady-state
+assumption.
+Whenever one of the above assumptions holds, the quantity
+of the intermediate complex can be assumed to be rapidly
+d
+xE:T (t) = 0. Then, it is
+reaching equilibrium, that is, dt
+straightforward to derive the rate of direct conversion from
+substrate to product:
+
+(as a consequence of being related to the bimolecular, and
+not unimolecular reaction).
+A complete proof is provided in [30]. We here outline the
+general idea. Let N > 0 be a natural number, and let
+ZS (t) = XS (t)/N , ZE (t) = XE (t), ZS:E (t) = XS:E (t),
+ZP (t) = XP (t)/N . Writing out the scaled random timechange model for the substrate gives:
+
+ZS (t) = ZS (0) − N −1 ξ1 (N
+
+t
+
+Z
+
+γ1 ZS (s)ZE (s)ds)
+0
+
++ N −1 ξ2 (N
+
+t
+
+Z
+
+γ2 ZS:E (s)ds),
+0
+
+and writing out the scaled random time-change model for
+the complex gives:
+
+Z
+
+t
+
+ZE:S (t) = ZE:S (0) + ξ1 (N
+
+γ1 ZS (s)ZE (s)ds)
+0
+
+Z
+
+k3 E T K
+d
+xP =
+xS ,
+dt
+1 + KxS
+
+− ξ2 (N
+
+which exactly corresponds to the equation for the rule (5).
+
+− ξ3 (N
+
+t
+
+γ2 ZS:E (s)ds)
+0
+
+Z
+
+t
+
+γ3 ZS:E (s)ds).
+0
+
+The informal terminology of being ‘significantly faster’, motivated the rigorous study of the limitations of the approximations based on separating time scales. While the enzymatic (Michaelis-Menten) approximation has been first introduced and subsequently studied in the context of deterministic models (e.g. [35], Ch.6), it was more recently that
+the time-scale separation was investigated in the stochastic
+context [39], [25], [9], [28], [40], [22]. Notably, the following
+result from [14] (also shown as a special case of the multi
+scale stochastic analysis from [30]), shows that, under an appropriate scaling of species’ abundance and reaction rates,
+the original model and the approximate model converge to
+the same process.
+Theorem 1. (Darden [14], Kang [30]). Consider the reaction network (4) (equivalently the rule-based system depicted in Fig. 2), and denote by XS (t), XE (t), XE:S (t) and
+XP (t) the copy numbers of the respective species due to the
+random-time change Rmodel (2). Denote by ET = XE:S (t) +
+t
+XE (t) and VE (t) = 0 N −1 XE (s)ds and assume that N =
+O(XS ). Assume that k1 → γ1 , k2 /N → γ2 , k3 /N → γ3 ,
+N → ∞, and XSN(0) → xS (0). Then ( XSN(t) , VE (t)) converges to (xS (t), vE (t)) and
+d
+ET
+vE (s) =
+dt
+1 + K̂xE (s)
+where K̂ =
+
+and
+
+ET γ3 K̂xS (t)
+d
+xS = −
+,
+dt
+1 + K̂xS (t)
+
+γ1
+.
+γ2 +γ3
+
+The assumptions listed in the theorem capture the that: (i)
+XS and XP are scaled to concentrations, while XE and XE:S
+remain in copy numbers; (ii) the stochastic reaction rate k1
+is an order of magnitude smaller than the rates k2 and k3
+
+After dividing the latter with N , and applying the law of
+large numbers, we obtain the balance equations analogous
+to assuming that the complex is at equilibrium. This equad
+vE (s). The equation for
+tion implies the expression for dt
+d
+x
+follows
+from
+the
+model
+of
+Z
+(t): we first use the conS
+S
+dt
+servation law ZS:E (s) = N −1 ET −ZE (t) and then substitute
+d
+the obtained value of dt
+vE (s).
+In order to confirm that the reduction is appropriate, our
+goal is now to show that the scaled versions of the original
+model (4) and the reduced model (5) are equivalent in the
+limit when N → ∞. Let ZP (t) := N −1 XP (t) be the scaled
+random time change for the product in the original model,
+and ẐP (t) := N −1 X̂P (t) in the reduced model. Notice that,
+d
+d
+xP = − dt
+xS . According to
+from the balance equations, dt
+the reduced system (5), the random time change for the
+product is given by
+Z t
+k3 ET K
+−1
+N ẐS (s)ds)
+ẐP (t) = ẐP (0) + N ξ(
+1
++
+KN ẐS (s)
+0
+Z t
+γ3 ET K̂
+= ẐP (0) + N −1 ξ(
+N
+ẐS (s)ds).
+1
++
+K̂ ẐS (s)
+0
+Passing to the limit, we obtain the desired relation
+d
+z (t).
+dt P
+
+d
+zˆ (t)
+dt P
+
+=
+
+The above Theorem does not provide the means of computing the approximation error, or an algorithm which suggests which difference in time-scales is good enough for an
+approximation to perform well. Rather, this result shows
+that the enzymatic approximation is justified in the limit
+when the assumptions about the reaction rates and species’
+abundance are met. In other words, when N → ∞, the
+
+scaled versions of the original and reduced models – e.g.
+ZP (t) = N −1 XP (t) and ẐP = N −1 X̂P – both converge to
+at the same, well-behaved process. This provides confidence
+that the actual process X̂P is a good approximation of the
+process XP .
+
+1
+2
+3
+4
+
+In our reduction algorithm (Section 4), we will apply the
+reduction whenever the pattern (4) is detected. In order to
+ensure the validity of the approximation in the context of
+other rules, we will additionally check that the enzyme E
+(resp. complex E : S) have initially low copy number (zero
+resp.), and that they don’t appear in any other rule (unless
+it is another enzymatic catalysis scheme).
+
+Example 1. To illustrate the meaning of the Theorem 1,
+we apply our reduction method on a small example shown
+in Fig. 1. We plot the mean and we compute the standard
+deviation of the protein level for the original and for the reduced model. Then, we scale up the parameters k2 and k3 ,
+as well as the initial concentration of transcription factor T ,
+in order to mimic the effect of choosing a larger N in Theorem 1. The deviation between the curves is decreased, as
+can be seen in Fig. 2. In order to obtain the error of using
+the reduced system instead of the original one, we compute
+the Bhattacharyya distance for each time point, for the actual parameter set and for the scaled parameter set. As expected, the distance is overall smaller in the scaled system.
+Especially in the scaled system (green line), we can observe
+that initially, the distance is larger, and then it decreases
+with time. This is because the original system takes time to
+reach the equilibrium state which is, in the reduced system,
+assumed immediately.
+
+3.2
+
+Generalised enzymatic reduction
+
+The enzymatic approximation can be generalized to a situation where many sets of substrates compete for binding
+to the same enzyme. Consider a sub-network of n reactions
+where the i-th such reaction reads:
+
+5
+
+Input : A Kappa system R = (x0 , O, {r1 , . . . , rn }).
+0
+Output: A Kappa system R0 = (x00 , O, {r10 , . . . , rm
+}).
+R ←− ME(R), R ←− SRC(R)
+R ←− Fast dimerization reduction(R)
+R ←− ME(R), R ←− SRC(R)
+R ←− Generalized enzymatic catalysis reduction (R)
+R ←− ME(R), R ←− SRC(R)
+Algorithm 1: Approximation algorithm. ‘ME’ is a shorthand for ‘modifier elimination’ and ‘SRC’ is shorthand for
+similar rule composition. The exact reductions are performed before and after each of the two other reductions.
+the reaction is equilibrated, that is, kxM (t)2 −k− xM 2 (t) = 0,
+where xM (t) and xM 2 (t) denote the copy number at time t,
+of monomers and dimers respectively. Such assumption allows us to eliminate the dimerization reactions, and only
+the total amount of molecules M needs to be tracked in the
+system. The respective monomer and dimer concentrations
+can be expressed as fractions of the total concentration:
+
+1 p
+8KMT (t) + 1 − 1 , and
+xM (t) =
+4K
+MT (t)
+1
+xM2 (t) =
+− xM (t),
+2
+2
+where K =
+
+k
+k−
+
+and MT (t) = xM (t) + 2xM2 (t).
+
+The correctness of the generalized enzymatic and dimerization reduction can be shown with the same technique as
+Theorem 1. In the context of multiscale stochastic reaction
+networks, both reaction rates should be treated as fast.
+
+4.
+
+REDUCTION ALGORITHM
+
+The idea of the reduction is to transform a Kappa system
+R to a Kappa system R0 with fewer rules and fewer agents,
+while still capturing the observables and the relevant dynamics. Our algorithm statically analyzes the rule-set, in
+search for one of the following mechanistic schemes:
+
+ˆ
+
+k
+
+i
+ki
+E + Si,1 + . . . + Si,mi −*
+)− E : Si,1 : . . . : Si,mi → E + Pi .
+
+ki−
+
+The resulting approximation is
+kˆi ET K1 xS
+i
+Z
+
+• the modifier elimination and similar rule composition,
+that are the patterns amenable to the exact reduction
+(providing the equivalent rule-based model with fewer
+rules), as well as
+
+→
+Pi ,
+Si,1 + . . . + Si,mi
+Q
+P
+where xSi = j∈{1,...,mi } xSi,j , Z = 1 + j∈{1,...,n} xSj and
+P
+ET = xE (t) + n
+i=1 xE:Si,1 :...:Si,mi (t). The latter expression
+d
+follows from dt
+xE:Si,1 :...:Si,mi (t) = 0 for all i = 0, . . . , n.
+
+• the generalized enzymatic catalysis, enzymatic catalysis and fast dimerization reductions, three interaction
+patterns amenable to approximate reduction based on
+time-scale separation (Section 3).
+
+The correctness of the generalized enzymatic reduction can
+be shown with the same technique as Theorem 1. Each
+substrate and product should be scaled to concentrations,
+while all intermediate complexes and the enzyme remain in
+copy numbers. The relations between the reaction rates are
+equivalent.
+
+Recall that the generic framework for time-scale separation
+in biochemical reaction networks is shown in [30]. A special
+case of this framework is Theorem 1, which confirms that
+using the classical enzymatic approximation in stochastic
+setting is adequate. After detecting one of the five interaction patterns, our algorithms, similarly as in [32], perform
+additional checks, in order to avoid the situations where the
+equilibrium assumptions are violated due to interleavings
+with the rest of the reaction network.
+
+3.3
+
+Fast dimerization reduction
+k
+
+Consider now the dimerisation reaction M +M −*
+)− M2 . Ask−
+
+suming that both rates k and k− are fast comparing to other
+reactions involving M or M2 , it is common to assume that
+
+The top-level algorithm is shown in Alg. 1. We next describe
+each of the five interaction patterns in more detail.
+
+4.1
+
+Similar rule composition
+
+In similar rule composition scheme, rules have the same reactants, modifiers and products, but different rates. Our
+algorithm combines them into a single rule, by summing
+their rate laws. Notice that this reduction is exact, that is,
+applying the similar rule composition does not change the
+semantics of the rule-based system.
+
+4.2
+
+Modifier elimination
+
+This reduction can be applied when a species only appears
+as a modifier throughout a rule-based system. Such a species
+will never change its copy number throughout the dynamics,
+and therefore, its quantity will be constant. The species being always a modifier does affect the dynamics of the system,
+and all the rule rates where the species was involved need
+to be adapted. Concretely – after the species is eliminated,
+each rate law will be multiplied by the initial copy number
+of this species. Notice that modifier elimination reduction
+is exact, that is, applying the modifier elimination does not
+change the semantics of the rule-based system.
+
+4.3
+
+Fast dimerization reduction
+
+The algorithm searches for dimerisation rules. Suppose that
+a pair of reversible reactions M + M ↔ M2 is detected. Before proceeding to the reduction, we check whether a dimer
+is produced elsewhere, or if the monomer is a modifier elsewhere. These checks are necessary because they prevent
+from deviating from the assumed equilibrium. Finally, if
+all checks passed, the dimerization reaction can be eliminated. A new species MT is introduced, and, wherever the
+monomer M or dimer M2 were involved, they are replaced
+by the species MT , and the rate is adapted accordingly, by
+the expressions shown in Section 3.3.
+
+4.4
+
+Example 2. We illustrate the competitive enzymatic transformation on a small subnetwork of the λ-phage model, which
+will be introduced in Section 5. The four rules presented below model the binding of the agent RNAP to the operator site
+of the agent PRE and subsequent production of protein CI.
+Agent PRE binds either only RNAP (at rate k1+ and k1− ), or
+simultaneously with CII (at rate k2+ and k2− ). The protein can be produced whenever PRE and PRE are bound, but
+the rates will be different depending on whether only RNAP is
+bound to the operator (rate kb ), or, in addition, CII is bound
+to the operator (rate ka ):
+
+PRE(cii,rnap), RNAP(p1,p2)
+↔ PRE(cii,rnap!1), RNAP(p1!1,p2)@k1+ , k1−
+PRE(cii,rnap), CII(pre), RNAP(p1,p2)
+↔ PRE(cii!1,rnap!2), CII(pre!1), RNAP(p1!2,p2)@ka+ , ka−
+PRE(cii,rnap!1), RNAP(p1!1,p2)
+→ PRE(cii,rnap!1), RNAP(p1!1,p2), 10CI(ci,or)@kb
+PRE(cii!1,rnap!2), CII(pre!1), RNAP(p1!2,p2)
+→ PRE(cii!1,rnap!2), CII(pre!1), RNAP(p1!2,p2), 10CI(ci,or)@ka
+After the competitive enzymatic reduction, the operator PRE
+is eliminated from each of the two competing enzymatic catalysis patterns. Finally, the production of CI is modelled only
+as a function of RNAP and CII, and the rate is appropriately
+modified:
+
+Generalised enzymatic reduction
+
+RNAP(p1,p2), CII(pre)
+
+The algorithm searches for the scheme described in Section 3.2, by searching for candidate enzymes. Each pattern
+is tested as to whether it is catalyzing some enzymatic reduction. If a pattern s indeed is an enzyme (operator) in
+an enzymatic reaction scheme, a set of all patterns c which
+compete to bind to s is formed, as well as the set of their
+complexes sc. Then, before proceeding with the reduction,
+additional tests must be performed: (i) pattern s must be a
+species, and it is not an observable, (ii) s must be small in
+copy number, that is, its initial copy number is smaller than
+a threshold, (iii) s can neither be produced, nor degraded,
+(iv) complex sc is not an observable and is never appearing
+in another rule of R and has initially zero abundance. Then,
+the patterns s and sc can be eliminated from the rule-set and
+the reaction rates are adjusted according to the description
+in Section 3.2.
+
+CASE STUDY: λ-PHAGE
+The phage λ is a virus that infects E.coli cells, and replicates
+using one of the two strategies: lysis or lysogeny. In the lysis strategy, phage λ uses the machinery of the E.coli cell
+to replicate itself and then lyses the cell wall, killing the cell
+and allowing the newly formed viruses to escape and infect
+other cells, while in the lysogeny scenario, it inserts its DNA
+into the host cell’s DNA and replicates through normal cell
+division, remaining in a latent state in the host cell (it can
+always revert to the lysis strategy). The decision between
+lysis and lysogeny is known to be influenced by environmental parameters, as well as the multiplicity of infection and
+variations in the average phage input [1].
+
+Often times, enzymatic catalysis reduction is appropriate to
+eliminate the binding of the transcription factor to the operator site. In this context, the operator site takes the role
+of the enzyme, and transcription factor(s) the role of the
+substrate. Whenever a candidate enzyme is detected, and
+the other algorithm checks pass, the rates are appropriately
+scaled. The competitive enzymatic reduction is suitable in a
+situation when more transcription factors compete for binding the enzyme, each in a different reaction. In other words,
+the algorithm finds k rules where k different substrates compete for the same enzyme.
+
+The key element controlling the decision process is the OR
+operator (shown in Fig. 5), which is composed of three operator sites (OR1 , OR2 , OR3 ) to which transcription factors
+can bind, in order to activate or repress the two promoters
+(PRM and PR ) overlapping the operator sites. When RNAP
+(RNA polymerase, an enzyme that produces primary transcript RNA) binds to PRM , it initiates transcription to the
+left, to produce mRNA transcripts from the cI gene; RNAP
+bound to the PR promoter, on the other hand, initiates transcription to the right, producing transcripts from the cro
+gene. The two promoters form a genetic switch, since tran-
+
+→ RNAP(p1,p2), CII(pre), 10CI(pr,ci)@ knew .
+
+5.
+
+Figure 3: Average trace of 10 simulations of the original model (red) and the reduced model (green) after
+the reduction, for initially 10 λ phage cells (multiplicities of infection – MOI’s). The simulation time
+for one simulation trace of the original model is ≈ 40
+minutes of CPU time, and of the reduced model is 5
+seconds of CPU time. The initial number of proteins
+CI, Cro, CII and CIII and N is set to 100.
+
+Figure 4:
+Comparison of the probability of
+lysogeny before and after the reduction of the
+model (lysogeny profile is detected if there are 328
+molecules of CI before there are 133 molecules of
+Cro). The profile was obtained by running 1000 simulations of the model for one cell cycle (2100 time
+units), for MOIs ranging from 1 to 10. Simulation
+times are as reported in Fig. 3.
+
+scripts can typically only be produced in one direction at a
+time.
+The cI gene codes for the CI protein, also known as the λ
+repressor : in its dimer form (two CI monomers react to form
+a dimer, CI2 ), it is attracted the the OR operator sites in the
+phage’s DNA, repressing the PR promoter from which Cro
+production is initiated and further activating CI production.
+Similarly, the cro gene codes for the Cro protein, which also
+dimerizes in order to bind to OR operator sites and prevent
+production from PRM , or even its own production.
+While CI2 and Cro2 can bind to any of the three operator
+sites at any time, they have a different affinity to each site.
+The CI2 has its strongest affinity to the OR1 operator site,
+next to the OR2 site, and finally to the OR3 site (in other
+words, CI2 first turns off PR , then activates PRM , and
+finally, represses its own production), while Cro2 has the
+reverse affinity (it first turns off CI production, then turns
+off its own production).
+The feedback through the binding of the products as transcription factors coupled with the affinities described makes
+the OR operator behave as a genetic bistable switch. In
+one state, Cro is produced locking out production of CI.
+In this state, the cell follows the lysis pathway since genes
+downstream of Cro produce the proteins necessary to construct new viruses and lyse the cell. In the other state, CI is
+produced locking out production of Cro. In this state, the
+cell follows the lysogeny pathway since proteins necessary to
+produce new viruses are not produced. Instead, proteins to
+insert the DNA of the phage into the host cell are produced.
+What’s more, in the lysogeny state, the cell develops an im-
+
+Figure 5: CI monomers are produced from the cI
+gene; two monomers can form a dimer, that can
+bind to one of the OR operator sites (the Figure is
+taken from [36]).
+munity to further infection: the cro genes found on the DNA
+inserted by further infections of the virus are also shut off by
+CI2 molecules that are produced by the first virus to commit to lysogeny. Once a cell commits to lysogeny, it becomes
+very stable and does not easily change over to the lysis pathway. An induction event is necessary to cause the transition
+from lysogeny to lysis. For example, lysogens (i.e., cells with
+phage DNA integrated within their own DNA) that are exposed to UV light end up following the lysis pathway.
+
+5.1
+
+Results and discussion
+
+We applied our reduction algorithm to a Kappa model of
+the phage λ decision circuit that we built using the reactionbased model presented in [36], [32].
+
+5.1.1
+
+Intermediate tests
+
+Intermediate tests were carried out on the portion of the
+circuit that is involved in CI production from the he PRE
+
+promoter and in CII production from the PR promoter. Initially, this model contained 10 rules, 5 proteins and 4 species;
+after applying the reduction algorithm, it was reduced to 4
+rules and 3 proteins.
+
+Simulation events (phage model)
+140000
+
+Simulation events (EGFR signaling)
+6e+06
+Total events
+EGFR dimerization events
+
+Total events
+Dimerization events
+
+120000
+
+5e+06
+
+100000
+4e+06
+
+80000
+3e+06
+
+5.1.2
+
+Full model
+
+60000
+2e+06
+
+Simulations were carried out on the complete chemical reaction genetic circuit model which contains 96 rules, 16 proteins and 61 species (the contact map is shown in Fig. 7).
+After applying the reduction, the Kappa model is reduced
+to 11 rules and 5 proteins.
+In Fig. 3, we plot the mean for the CI copy number obtained
+from 10 runs of the original and of the reduced model, and
+the graphs show agreement.
+In Fig. 4, we compared the probability of lysogeny before
+and after the reduction of the model (lysogeny profile is detected if there are 328 molecules of CI before there are 133
+molecules of Cro). The graphs show overall agreement in
+predicting the lysogeny profile. More precisely, for two and
+less MOI’s (multiplicities of infection), the probability of
+lysogeny is almost negligible; For three MOIs, both graphs
+show that lysogeny and lysis are equally probable (the reduced model reports slightly larger probability), and for five
+or more MOI’s, both graphs show that lysogeny is highly
+probable. While one simulation of the original model takes
+about 40 mins, one simulation of the abstracted model takes
+about 5 seconds. Once again, the results are similar, with a
+significant improvement in simulation speed.
+The tool is available for download [3].
+
+6.
+
+CONCLUSION AND FUTURE WORK
+
+In this paper, we presented a method for automated reduction of rule-based models. The reduction is based on equilibrium approximations: certain rules and species are eliminated and the rates are approximated accordingly. More
+concretely, a number of reaction patterns known to be amenable
+to equilibrium approximations are recognised by static inspection of the rules. The crucial aspect of the presented
+approach is that each approximation step can be retrieved
+at any time, and no information about the original, detailed
+model is lost. The presented method can be seen as the first
+step towards a systematic time-scale separation of stochastic
+rule-based models. The guarantees of the presented reduction method are given for the asymptotic behaviour. Bhattacharyya distance is proposed as a metric to quantify the
+reduction error with respect to the observable. We plan to
+further investigate how to practically access the approximation error. To this end, the error can be measured with
+respect to a given observable, or, more generally, with respect to a given property specified in, for example, linear
+temporal logic (LTL).
+We implemented the tool and evaluated it on a case study
+of a lambda phage bistable switch. The simulation of one
+cell cycle was improved from 40min CPU time to 5sec, and
+the profiles of the observables show agreement. We plan
+to extend the set of approximation patterns so to obtain
+good reductions for complex models of signaling pathways.
+More precisely, while our tool is applicable to any rule-based
+model, the chosen set of approximation patterns are tailored
+
+40000
+1e+06
+
+20000
+
+0
+
+0
+
+0
+
+500
+
+1000
+Biological time
+
+1500
+
+2000
+
+0
+
+500
+
+1000
+
+1500
+
+2000
+
+Biological time
+
+Figure 6:
+a) The ratio of dimerisation events
+vs. total events in lambda phage model. The
+number of dimerisation events takes roughly half
+of the total events over the whole cell cycle. b)
+The ratio of dimerisation events vs. total events in
+EGFR/insulin model. The number of dimerisation
+events takes only a small fraction of the total events
+over the whole cell cycle.
+
+Figure 7: The contact map of the full λ-phage model.
+The model consists of 96 rules, 16 proteins and 61
+species. The reduced model has 11 rules and 5 proteins.
+for GRNs and may not provide significant reductions when
+applied to the signaling pathways. To illustrate this, we
+applied the reduction to the EGF/insuling crosstalk model,
+and we observe that the number of dimerisation events does
+not take the significant portion of all events (see Fig. 6), at
+least not as radically as it was the case with the lambda
+phage example. To this end, we plan to include more patterns for reducing signaling pathways, by, for example, approximating multiple phosphorylation events.
+
+Acknowledgements
+The authors would like to thank to Jérôme Feret, for the
+inspiring discussions and useful suggestions.
+
+7.
+
+REFERENCES
+
+[1] A. Arkin, J. Ross, and H. H. McAdams. Stochastic
+kinetic analysis of developmental pathway bifurcation
+in phage λ-infected escherichia coli cells. Genetics,
+149(4):1633–1648, 1998.
+[2] E. Bartocci, L. Bortolussi, and L. Nenzi. A temporal
+logic approach to modular design of synthetic
+biological circuits. In Computational Methods in
+Systems Biology, pages 164–177. Springer, 2013.
+[3] A. Beica and T. Petrov. Kared, 2014.
+http://pub.ist.ac.at/~tpetrov/KappaRed.tar.gz.
+
+[4] M. L. Blinov, J. R. Faeder, B. Goldstein, and W. S.
+Hlavacek. Bionetgen: software for rule-based modeling
+of signal transduction based on the interactions of
+molecular domains. Bioinformatics, 20(17):3289–3291,
+2004.
+[5] N. M. Borisov, N. I. Markevich, J. B. Hoek, and B. N.
+Kholodenko. Signaling through receptors and scaffolds:
+independent interactions reduce combinatorial
+complexity. Biophysical journal, 89(2):951–966, 2005.
+[6] J. R. Burch, E. M. Clarke, K. L. McMillan, D. L. Dill,
+and L.-J. Hwang. Symbolic model checking: 1020
+states and beyond. Information and computation,
+98(2):142–170, 1992.
+[7] P. Cousot. Abstract interpretation based formal
+methods and future challenges. In Informatics - 10
+Years Back. 10 Years Ahead., pages 138–156, London,
+UK, 2001. Springer-Verlag.
+[8] G. Craciun and M. Feinberg. Multiple equilibria in
+complex chemical reaction networks: Ii. the
+species-reaction graph. SIAM Journal on Applied
+Mathematics, 66(4):1321–1338, 2006.
+[9] A. Crudu, A. Debussche, and O. Radulescu. Hybrid
+stochastic simplifications for multiscale gene networks.
+BMC systems biology, 3(1):89, 2009.
+[10] V. Danos, J. Feret, W. Fontana, R. Harmer, and
+J. Krivine. Rule-based modelling of cellular signalling.
+In CONCUR 2007–Concurrency Theory, pages 17–41.
+Springer, 2007.
+[11] V. Danos, J. Feret, W. Fontana, and J. Krivine.
+Scalable simulation of cellular signaling networks,
+invited paper. In Z. Shao, editor, Proceedings of the
+Fifth Asian Symposium on Programming Systems,
+APLAS ’2007, Singapore, volume 4807 of Lecture
+Notes in Computer Science, pages 139–157, Singapore,
+29 November – 1 December 2007. Springer, Berlin,
+Germany.
+[12] V. Danos, J. Feret, W. Fontana, and J. Krivine.
+Abstract interpretation of cellular signalling networks.
+Lecture Notes in Computer Science, 4905:83–97, 2008.
+[13] V. Danos, J. Feret, W. Fontana, and J. Krivine.
+Abstract interpretation of reachable complexes in
+biological signalling networks. In Proceedings of the
+9th International Conference on Verification, Model
+Checking and Abstract Interpretation (VMCAI’08),
+volume 4905, pages 42–58, 2008.
+[14] T. A. Darden. A pseudo-steady-state approximation
+for stochastic chemical kinetics. PhD thesis, University
+of California, Berkeley, 1979.
+[15] D. Del Vecchio. Design and analysis of an
+activator-repressor clock in e. coli. In American
+Control Conference, 2007. ACC’07, pages 1589–1594.
+IEEE, 2007.
+[16] J. Feret, V. Danos, J. Krivine, R. Harmer, and
+W. Fontana. Internal coarse-graining of molecular
+systems. Proceedings of the National Academy of
+Sciences, 106(16):6453–6458, April 2009.
+[17] J. Feret, T. Henzinger, H. Koeppl, and T. Petrov.
+Lumpability abstractions of rule-based systems.
+Theor. Comput. Sci., 431:137–164, May 2012.
+[18] J. Feret and J. Krivine. Kasim: a simulator for kappa,
+2008-2013. http://www.kappalanguage.org.
+[19] A. Ganguly, T. Petrov, and H. Koeppl. Markov chain
+
+[20]
+
+[21]
+
+[22]
+
+[23]
+
+[24]
+
+[25]
+
+[26]
+
+[27]
+
+[28]
+
+[29]
+
+[30]
+
+[31]
+
+[32]
+
+[33]
+[34]
+
+[35]
+
+aggregation and its applications to combinatorial
+reaction networks. Journal of mathematical biology,
+November 2013.
+T. S. Gardner, C. R. Cantor, and J. J. Collins.
+Construction of a genetic toggle switch in escherichia
+coli. Nature, 403(6767):339–342, 2000.
+D. Gillespie. Exact stochastic simulation of coupled
+chemical reactions. Journal of Physical Chemistry,
+81:2340–2361, 1977.
+D. T. Gillespie, Y. Cao, K. R. Sanft, and L. R.
+Petzold. The subtle business of model reduction for
+stochastic chemical kinetics. The Journal of chemical
+physics, 130(6):064103, 2009.
+A. N. Gorban and O. Radulescu. Dynamical
+robustness of biological networks with hierarchical
+distribution of time scales. arXiv preprint
+q-bio/0701020, 2007.
+C. C. Guet, M. B. Elowitz, W. Hsing, and S. Leibler.
+Combinatorial synthesis of genetic networks. Science,
+296(5572):1466–1470, 2002.
+E. L. Haseltine and J. B. Rawlings. Approximate
+simulation of coupled fast and slow reactions for
+stochastic chemical kinetics. The Journal of chemical
+physics, 117(15):6959–6969, 2002.
+H.Conzelmann, J.Saez-Rodriguez, T.Sauter,
+B.N.Kholodenko, and E. Gilles. A domain-oriented
+approach to the reduction of combinatorial complexity
+in signal transduction networks. BMC Bioinformatics,
+7, 2006.
+T. A. Henzinger, M. Mateescu, and V. Wolf. Sliding
+window abstraction for infinite Markov chains. In
+CAV, pages 337–352, 2009.
+B. Hepp, A. Gupta, and M. Khammash. Adaptive
+hybrid simulations for multiscale stochastic reaction
+networks. arXiv preprint arXiv:1402.3523, 2014.
+J. S. Hogg, L. A. Harris, L. J. Stover, N. S. Nair, and
+J. R. Faeder. Exact hybrid particle/population
+simulation of rule-based models of biochemical
+systems. PLoS computational biology, 10(4):e1003544,
+2014.
+H.-W. Kang, T. G. Kurtz, et al. Separation of
+time-scales and model reduction for stochastic
+reaction networks. The Annals of Applied Probability,
+23(2):529–583, 2013.
+T. G. Kurtz. Limit theorems for sequences of jump
+Markov processes approximating ordinary differential
+processes. Journal of Applied Probability,
+8(2):344–356, 1971.
+H. Kuwahara, C. J. Myers, M. S. Samoilov, N. A.
+Barker, and A. P. Arkin. Automated abstraction
+methodology for genetic regulatory networks. In
+Transactions on computational systems biology VI,
+pages 150–175. Springer, 2006.
+R. Kwok. Five hard truths for synthetic biology.
+Nature, 463(7279):288–290, 2010.
+B. Munsky and M. Khammash. The finite state
+projection algorithm for the solution of the chemical
+master equation. The Journal of chemical physics,
+124:044104, 2006.
+J. D. Murray. Mathematical biology i: An
+introduction, vol. 17 of interdisciplinary applied
+
+mathematics, 2002.
+[36] C. J. Myers. Engineering genetic circuits. CRC Press,
+2011.
+[37] M. Ptashne. A genetic switch: Gene control and phage
+lambda. 1986.
+[38] M. A. Ptashne. Genes & signals. 2001.
+[39] C. V. Rao and A. P. Arkin. Stochastic chemical
+kinetics and the quasi-steady-state assumption:
+application to the gillespie algorithm. The Journal of
+chemical physics, 118(11):4999–5010, 2003.
+[40] K. Sanft, D. Gillespie, and L. Petzold. Legitimacy of
+the stochastic michaelis-menten approximation.
+Systems Biology, IET, 5(1):58–69, 2011.
+
+

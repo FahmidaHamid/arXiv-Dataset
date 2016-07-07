@@ -1,0 +1,4110 @@
+Landscape genomic tests for associations between loci and
+environmental gradients
+Eric Frichot1
+
+Sean Schoville1
+
+Guillaume Bouchard2
+
+Olivier François1
+
+arXiv:1205.3347v3 [q-bio.PE] 26 Sep 2013
+
+(1) Université Joseph Fourier Grenoble, Centre National de la Recherche Scientifique, TIMC-IMAG
+UMR 5525, 38042 Grenoble, France.
+(2) Xerox Research Center Europe, F38240 Meylan, France.
+Abstract
+Adaptation to local environments often occurs through natural selection acting on a large number of alleles, each having a weak phenotypic effect. One way to detect these alleles is to identify
+genetic polymorphisms that exhibit high correlation with environmental variables used as proxies
+for ecological pressures. Here we propose an integrated framework based on population genetics,
+ecological modeling and statistical learning techniques to screen genomes for signatures of local
+adaptation. These new algorithms introduce latent factor mixed models to population genetics,
+employing an approach based on probabilistic principal component analysis in which population
+structure is introduced via unobserved variables. These fast, computationally efficient algorithms
+detect correlations between environmental and genetic variation while simultaneously inferring
+background levels of population structure. Comparing these new algorithms with related methods
+provides evidence that latent factor models can efficiently estimate random effects due to population history and isolation-by-distance patterns when computing gene-environment correlations, and
+decrease the number of false-positive associations in genome scans. We then apply these models
+to plant and human genetic data, identifying several genes with functions related to development
+that exhibit unusual correlations with climatic gradients.
+
+1
+
+Introduction
+
+Local adaptation through natural selection plays a central role in shaping the variation of natural
+populations [1, 2] and is of fundamental importance in evolutionary, conservation, and global-change
+biology [3–7]. The intensity of natural selection commonly varies in space, and can result in geneenvironment interactions that have measurable effects on fitness (e.g. [8]). Adaptive divergence can
+then cause local populations to evolve traits that provide advantage under local environmental conditions.
+In principle, identifying chromosomal regions involved in adaptive divergence can be achieved by
+scanning genome-wide patterns of DNA polymorphism [9,10]. Usually, the aim of screening procedures
+is to detect locus specific signatures of positive selection. In populations inhabiting spatially distinct
+environments, loci that underlie adaptive divergence can be detected by comparing relative levels
+of differentiation among large samples of unlinked markers [11, 12] and by using empirical tests to
+compare levels of differentiation to the genomic background [13, 14].
+An alternative way to investigate signatures of local adaptation, especially when beneficial alleles
+have weak phenotypic effects, is by identifying polymorphisms that exhibit high correlation with
+environmental variables [3, 15–18]. In natural populations, quantitative traits that exhibit continuous
+geographic variation are often associated with specific variables reflecting selective pressures acting on
+individual phenotypes [19] . This type of variation is then reflected in geographic clines or in sympatric
+populations that exploit different ecological niches [20]. Evidence for local adaptation to continuous
+environments can be detected if there is highly significant association with the environmental variables
+at some loci compared to the background genomic variation.
+However the geographical basis of both environmental and genetic variation can confound interpretation of the tests [21], as local adaptation can be hindered by gene flow [22], and can be difficult
+to distinguish from the effects of genetic drift and demographic history [14]. As a consequence, when
+no corrections for the effects of population structure or isolation-by-distance are considered, tests for
+associations between loci and environmental variables using classical regression models are prone to
+high rates of false-positives [23]. Recent studies have used the background patterns of allele frequencies
+to build a null model which accounts for the effects of drift and demographic history [15,18,24,25]. To
+
+correct for population stratification, [15] used an empirical approach that estimates the covariance of
+allele frequencies among populations. These authors assessed the evidence for local adaptation of each
+allele by testing whether or not environmental variables explained more variance than a null model
+with this particular covariance structure.
+Here we argue that, unless a list of a priori selectively neutral loci are used to build the empirical
+covariance matrix, empirical tests may face a problem of circularity. The need to identify neutral loci
+from the genomic background before testing implies that these tests lack power to reject neutrality.
+In this study, we address this problem by introducing new statistical models, called latent factor
+mixed models. Using these models, we test correlations between environmental and genetic variation
+while estimating the effects of hidden factors that represent background residual levels of population
+structure. To perform parameter estimation, we extend probabilistic principal component analysis
+and recent statistical learning approaches [26–28]. Based on low rank approximation of the residual
+covariance matrix, we implement algorithms to deal with hundreds of thousands of polymorphisms
+with very rapid computing times. We show that our algorithms control for random effects due to
+population history and spatial autocorrelation when estimating gene-environment association, and we
+provide examples of how our approach can be used to detect local adaptation in plants and humans.
+
+2
+
+Method
+
+Consider the data matrix, (Gi` ), where each entry records the allele frequency in population or individual i at the genomic locus `, 1 ≤ i ≤ n, 1 ≤ ` ≤ L, and n and L represent the total sample size
+and number of loci, respectively. For simplicity, we assume our loci are biallelic, e.g. single nucleotide
+polymorphisms (SNPs), and data are avaiable for each individual. In this case, for each marker, there
+is an ancestral and a derived allele, and Gi` is the number of derived alleles for locus ` and individual i.
+For diploid data, Gi` is thus equal to 0, 1 or 2, and corresponds to the genotype at locus `. In addition
+to the genotypic data, we have a vector of d geographic and environmental variables, (Xi ), for each
+individual. The vector of covariates could include latitude and longitude, habitat and other ecological
+information, climatic variables, etc, that serve as proxies for unknown environmental pressures (For
+example, see [15, 21]).
+
+Model. To evaluate associations between allele frequencies and environmental variables while
+correcting for background levels of population structure, we regard the matrix G as being a response
+variable in a regression mixed model
+Gi` = µ` + β`T Xi + UiT V` + i` ,
+
+(1)
+
+where µ` is a locus specific effect, β` is a d-dimensional vector of regression coefficients, Ui and V`
+are scalar vectors with K dimensions (1 ≤ K ≤ n). The residuals i` are statistically independent
+Gaussian variables of mean zero and variance σ 2 . We use Bayesian analysis to estimate the regression
+coefficients and their standard deviations. We assume Gaussian prior distributions on µ` and β`j with
+means equal to zero and variances σµ2 and σβ2j (β`j ∼ N(0, σβ2j )). Prior distributions on Ui and V`
+are Gaussian distributions with means equal to zero and constant variance for each component (the
+components are independent random variables). The variance of V` is set to σV2 = 1, and all other
+prior distributions on variances are non-informative. We refer to the above statistical model as a
+Latent Factor Mixed Model (LFMM).
+In LFMMs, environmental variables are introduced as fixed effects while population structure is
+modeled via latent factors. To separate neutral variation from adaptive variation, the matrix term
+U T V models the part of genetic variation that cannot be explained by the environmental pressures.
+Note that the use of factorization methods is closely related to estimating population structure via
+singular value decomposition, a well-established technique for identifying scores and loadings in principal component analysis (PCA, [29]). Recently, matrix factorization methods have been generalized
+to include probabilistic PCA [26] and probabilistic matrix factorization algorithms [27], which have
+proven useful in analyzing population genetic data [28]. To clarify the connection between LFMM and
+PCA, assume that no environmental variable is available. In this case, we set β` = 0 for all locus `.
+In matrix factorization algorithms, a data matrix G with n rows and L columns can be decomposed
+into a product of two matrices U and V , where U has n rows and K columns, and V is a K-by-L
+matrix. Following [30], we assume that the genotypic data are centered. We consider the matrix
+P
+Yi` = Gi` − Ḡ.` , where we have substracted the mean value of each column, Ḡ.` = ni=1 Gi` /n. For
+
+each individual i and locus `, the decomposition is
+Yi` = UiT V` =
+
+K
+X
+
+Uik Vk` .
+
+(2)
+
+k=1
+
+To estimate the factor vectors Ui and V` , the squared error is minimized on the set of observed data
+min
+U,V
+
+K
+X
+
+(Yi` − Uik Vk` )2 .
+
+(3)
+
+k=1
+
+With K = L, this approach is similar to computing PCA loadings and scores [29]. The number
+of components K can, however, be chosen much lower than the number of loci or individuals. In
+simulations, we based our choice of K on Tracy-Widom theory [30]. In real applications, this choice
+of K may be replaced by other estimates of population genetic structure. When values are lower than
+50, our algorithm is essentially a low-rank approximation of the covariance structure [31], which leads
+to computationally fast estimation algorithms.
+To simultaneously estimate scores and loadings, environmmental effects and biases, we implemented a Gibbs sampler algorithm for LFMMs (File S1). The Gibbs sampler is based on computing
+products of matrices of low dimension (typically, K ≤ 50), and its speed scales with the current size
+of SNP data sets, around n ≈ 1, 000 and L ≈ 500, 000. In addition, we implemented a stochastic algorithm to compute standard deviations and |z|-scores for the environmental effects. Using the empirical
+distribution of |z|-scores obtained from all L loci, we compared each locus to the genomic background
+and retained loci with |z|-scores exhibiting the highest absolute values. From a preliminary set of
+experiments using data simulated from the model defined in equation (1), we found that the estimates of fixed effects stabilized quickly, after 1,000 to 10,000 sweeps for n = 100 − 1, 000 individuals
+and L = 1, 000 − 100, 000 loci. A 10-fold increase in the number of sweeps, however, was necessary
+to recover the true values of the latent factors. Additionally, we developed numerical optimization
+methods to compute maximum a posteriori (MAP) estimates for the LFMM. One of these methods,
+the alternate least square method uses deterministic steps that are similar to our stochastic Gibbs
+sampler [32]. When checking for convergence of the MCMC algorithm, we also found that least square
+estimates of regression coefficients were close to the point estimates computed by the Gibbs sampler
+method.
+Theoretical considerations. Incorporating population genetic structure via estimates of admixture
+proportions or principal component analysis is common in genome-wide association studies [33, 34]).
+
+[18] developed an alternative approach to identify loci underlying local adaptation in the computer
+program Bayenv. To explain the difference between our approach and Bayenv, suppose that we start
+by computing PCA scores from the matrix Y for all individuals, and denote by Ũi the PCA scores for
+individual i. The product matrix Ũ Ũ T is thus equal to the empirical covariance matrix
+Ũ Ũ T = Y Y T/n .
+
+(4)
+
+Now using the scores as covariates in a Bayesian regression model, we obtain
+G = µ + β T X + Ũ T V + .
+
+(5)
+
+By a change of variables, this is equivalent to fitting the model
+G = µ + β T X + ˜
+
+(6)
+
+where the distribution of ˜ is a multivariate Gaussian distribution of the covariance matrix equal to
+σ 2 Id + σV2 Y Y T /n (Id is the n-dimensional identity matrix). Setting σV2 = 1 and considering small
+values of the scaling parameter σ 2 , the model defined in equation (6) is nearly equivalent to the model
+implemented in Bayenv. In a Bayesian Gaussian regression framework, incorporating PCA scores
+as covariates in an association model is equivalent to modeling residuals as Gaussian vectors with
+covariance depending on the empirical covariance matrix of the genotypic data. Though the Bayenv
+model uses a different link function, its residual term has the same covariance matrix as the genotypic
+data. From a theoretical point of view, the main difference between the Bayenv model and LFMM is
+the inference of the factor matrix U which is done in a fully Bayesian algorithm in LFMMs and in an
+empirical Bayes algorithm in Bayenv (see Discussion).
+
+3
+
+Simulation Study
+
+We designed experiments based on simulated data to answer the following questions: 1) Are tests
+based on LFMMs conservative or liberal? 2) How does the LFMM algorithm perform compared to
+existing methods such as logistic or standard regression models [3], principal components regression
+and other existing mixed models [18]?
+
+Distribution of P -values under the null hypothesis. We used equation (1) with β = 0 to
+generate data under a null hypothesis of no association with any environmental variables. In these
+experiments, we set the number of individuals to n = 100, and the number of loci to L = 1, 000.
+We used 6 values, K = 1, 3, 5, 7, 10 and 20, for the rank of the factor matrix, V . For each series of
+experiments, we generated 10 replicates of this generative model, and we studied the distributions of
+P -values for tests using LFMMs. In these tests, we set the rank of the factor matrix equal to the
+values we used to generate simulations.
+
+ECDF
+
+A
+
+B
+
+K=5
+
+1.0
+
+1.0
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+K = 20
+
+0.0
+
+0.0
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+P-values
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+P-values
+
+Figure 1: Empirical cumulative distribution function (ECDF) for LFMM tests for simulations from a
+generative model using A) K=5, B) K=20 latent factors.
+
+Figure 1 reports the empirical cumulative distribution function (ecdf) for K = 5 and K = 20.
+Plots for the other values of K are shown in Figure S1. For values of K lower than 5, the ecdf was
+close to a uniform distribution. For K = 20, the tests were slightly conservative. Thus, for moderate
+and for large values of the number of latent factors, the tests produced small numbers of false positive
+associations.
+Next we used equation (1) to generate data showing various levels of population structure and
+association with an environmental variable. The environmental variable was uniformly generated
+in the range (0, 1). Here we used 3 values for the rank of the factor matrix, K = 2, 20 and 100,
+
+representing low, moderate and high levels of underlying population genetic structure. For each series
+of experiments, we generated 20 replicates of the generative model and compared the distribution of
+statistical errors for three estimation approaches: 1) LFMM, 2) standard linear regression model, 3)
+PC regression model. With the notations from section 2, these models were defined as follows. The
+LFMM was defined by equation
+Gi` = µ` + β`T Xi + UiT V` + i`
+where we set the rank of the factor matrices equal to the values we used to generate simulations. The
+standard regression model was defined as
+Gi` = µ` + β`T Xi + i` .
+
+(7)
+
+The PC regression model was defined as
+Gi` = µ` + β`T Xi + ŨiT V` + i` ,
+
+(8)
+
+where (Ũi ) are the first K PCs computed from the matrix G. To compute point estimates of environmental effects and their |z|-scores, Gibbs sampler algorithms were run for 1,000 sweeps after a burnin
+period of 100 sweeps. For these particular run length parameters, we checked that similar estimates
+were obtained for distinct initializations of the algorithm. For each locus, we recorded both the true,
+B` , and estimated environmental effects, B̂` , and evaluated the absolute error
+
+
+
+
+E` = β` − β̂`  .
+
+A
+Quantiles of absolute errors
+
+C
+
+B
+
+1.4
+
+Linear Regression Model
+PC Regression Model
+Latent Factor Mixed Model
+
+1.2
+
+Linear Regression Model
+PC Regression Model
+Latent Factor Mixed Model
+
+3.0
+
+Linear Regression Model
+PC Regression Model
+Latent Factor Mixed Model
+
+8
+
+2.5
+1.0
+
+6
+
+2.0
+
+0.8
+
+1.5
+
+0.6
+
+4
+
+1.0
+
+0.4
+0.2
+
+0.5
+
+0.0
+
+0.0
+0.0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+0.5
+
+0.6
+
+2
+
+0
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+Quantiles of absolute errors (LFMM)
+
+Figure 2: Quantiles of absolute errors for the standard linear regression, PC regression and LFM
+models using simulations from the LFM model with A) K=2, B) K=20 and C) K=100 latent factors.
+
+Figure 2 reports the quantiles of absolute errors for the LFMM, the standard linear regression and
+PC regression models. For the LFMM, absolute errors ranged between 0 and 0.6 for K = 2 − 20,
+and between 0 and 1.0 for K = 100. Mean squared errors indicated that the bias and variance
+of estimates were small (Table 1). Compared to LFMMs, the relative errors of the linear and PC
+regression estimates increased with the rank of the hidden factor matrix. The absolute errors of these
+algorithms ranged between 0 and 1.4 for K = 2, between 0 and 3.2 for K = 20, and between 0
+and 9.2 for K = 100. When linear or PC regression models were fitted to the data, the quantiles of
+errors shifted to values ≈ 1.74-fold higher for K = 2, ≈ 3.8 to 4.1-fold higher for K = 20, and ≈ 5.5
+to 7.7-fold higher for K = 100. Mean squared errors provide additional evidence of relatively poor
+performances of the linear regression and PC regression estimates when levels of underlying structure
+increase (Table 1).
+
+Spatial coalescent simulations.
+
+In another series of experiments, we compared the LFMM esti-
+
+mation algorithm against two methods that do not correct for population stratification, and against
+two methods that use the empirical covariance matrix as a correction. The first set of methods include a linear model and generalized linear model (LM and GLM, [3]), and the second set of methods
+include a PC regression model (PCRM) and the mixed model Bayenv [18]. To enable comparisons, we
+
+simulated genotypic data from spatial coalescent models with the computer program ms [35]. Ten data
+sets were generated according to a linear stepping-stone model with 40 demes, setting the effective
+migration rate between pairs of adjacent demes to the value 4N m = 25. Sampling 5 individuals in
+each deme, each data set included a total of n = 200 haploid individuals genotyped at L = 1, 000
+SNP loci. Using Tracy-Widom tests implemented in SmartPCA, we found that the number of principal
+components with P -values smaller than 0.01 was around KTW = 7. We ran the Gibbs sampler algorithm during 100 sweeps for burnin, and we used the next 900 sweeps to compute points estimates,
+variances and |z|-scores.
+
+Distribution of P -values.
+
+To examine the outcome of tests when genetic variation is neutral at all
+
+loci, we computed the distributions of P -values under a LM, GLM, PCRM and LFMM with different
+values for the number of latent factors (K ranging from 1 to 20). The distributions of P -values for
+tests based on LM and GLM showed a strong departure from the uniform distribution (Figure 3A-B).
+In those cases, the tests were too liberal, and produced a large number of false positive results. Using
+K = 7 latent factors or PCs, the distribution of P -values for tests based on an LFMM or PCRM was
+much closer to a uniform distribution (Figure 3C-D). In addition, we found that choosing K based on
+Tracy-Widom theory led to slightly conservative tests for the particular simulation settings used here.
+Ecdf for all values of K are shown in Figures S2 and S3, respectively.
+
+ECDF
+
+A
+
+B
+
+LM
+
+1.0
+
+1.0
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+0.0
+
+0.0
+
+0.0
+
+0.2
+
+C
+
+ECDF
+
+GLM
+
+0.4 0.6 0.8
+P-values
+
+1.0
+
+0.0
+
+0.2
+
+0.4 0.6 0.8
+P-values
+
+D
+
+LFMM
+
+1.0
+
+1.0
+
+0.8
+
+0.8
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+0.2
+
+1.0
+
+PCRM
+
+0.0
+
+0.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+P-values
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+P-values
+
+Figure 3: Empirical cumulative distribution function (ECDF) for A) the linear regression model (LM),
+B) the generalized linear model (GLM), C) the LFM model using K = 7 latent factors (LFMM), and
+D) the PC regression model using K = 7 principal components (PCRM).
+
+Next we evaluated the ability of LFMMs to detect loci exhibiting correlations with particular
+environmental gradients, and compared tests based on an LFMM with methods based on linear models
+and the computer program Bayenv [18]. An environmental variable, x, was defined for each population
+as the geographic identifier of the population in the linear stepping-stone model. We created an
+environmental gradient using a logistic function, s(x), of x as follows
+s(x) =
+
+1
+1+
+
+eθ(x−20)
+
+,
+
+θ > 0.
+
+(9)
+
+For each of the 10 previously generated neutral stepping-stone simulations, we simulated binary alleles
+for each deme x at 50 loci with frequency s(x), with the slope of the gradient θ = 0.2. We then obtained
+10 data sets with L = 1050 loci including 50 loci correlated with the environmental gradient, s(x).
+Across these datasets, smartPCA estimates between 5 and 7 significant eigenvectors (P < 0.01 in the
+
+Tracy-Widom test). For the simulated data sets, we evaluated the percentage of false negative (FN)
+and of false positive (FP) tests based on LM, GLM, PCRM and LFMM, for two values of the type I
+error (Table 2).
+Using θ = 0.2 in simulations of non-neutral loci, we found that linear models exhibited high
+percentages of FP. In contrast, tests based on PCRMs exhibited very large percentages of FN, and
+had no power to reject neutrality. Tests based on LFMM produced low numbers of FP, and had
+reasonable power to reject the null hypothesis of no association.
+
+Comparisons with Bayenv.
+
+For each of the 10 previously generated neutral stepping-stone sim-
+
+ulations, we simulated binary alleles for each deme x at 50 loci with frequency s(x), using θ = 0.1.
+To enable comparision with the program Bayenv, which returns Bayes factors instead of P -values, we
+considered ranked lists recording the M loci corresponding to the strongest (true) associations (M
+between 1 and 1,050). For each M , we computed the number of true positives and the number of
+false negatives. Locus ranking was performed on the basis of |z|-scores in LFMM, and on the basis of
+Bayes factors in Bayenv. The LFMM tests used values of K equal to K = 1, 3, 5, 7, 10 and 20, and we
+used the default parameters of the Bayenv algorithm to compute Bayes factors (run length of 30,000
+sweeps). Experiments were assessed by measuring the area under the receiver-operating characteristic
+curve (AUC) averaged over 10 replicates. The mean AUC for tests based on LFMM with K = 5 − 7
+factors were around 0.95 − 0.96 whereas the AUC for Bayenv was equal to 0.88. In the linear stepping
+stone model simulations, the tests based on LFMM obtained better performances than Bayenv for all
+values of K (Figure 4).
+
+50
+
+Number of True Positive
+
+40
+
+30
+
+Bayenv
+
+20
+
+LFMM (Tracy-Widom)
+LFMM (All Ks)
+
+10
+
+0
+50
+
+100
+
+200
+
+500
+
+1000
+
+Number of False Positive
+
+Figure 4: Detection of outlier loci. Number of true positives for the Bayenv model and the Latent
+Factor Mixed Model for K = 7 (Tracy-Widom value) and for K = 1, 3, 5, 10, 20 for spatial coalescent
+simulations including loci under selection.
+
+4
+
+Data Analysis
+
+To illustrate the application of LFMMs, we analyzed genomic data sets of Loblolly Pines (Pinus taeda,
+Pinaceae, [21]) and humans (Human Genome Diversity Panel, [36]).
+
+Loblolly Pine
+The Loblolly Pine is distributed throughout the southeastern USA, ranging from the arid Great Plains
+to the humid Eastern Temperate Forest ecoregion. The data consisted of 1,730 SNPs selected in
+expressed sequence tags (EST) for 682 individuals [21]. Following [21], we considered 5 environmental
+variables representing the five first components of a PCA for 60 climatic variables. The first component
+(PC1) was mainly described by latitude, longitude, temperature and winter aridity. PC2 was described
+by longitude, spring-fall aridity and precipitation [21].
+For each of the 5 environmental variables, we applied the LFMM algorithm using 100 sweeps
+for burnin and 400 additional sweeps to compute |z|-scores for all loci. Based on a prior analysis
+of the genotypic data with the program SmartPCA, we used K = 10 latent factors. A total of 392,
+
+113 and 30 SNPs obtained |z|-scores greater than 3, 4 or 5 for at least one environmental variable,
+respectively. Based on this result, we considered that a SNP effect was significant when its |z|-score
+was greater than 4 (two-sided test). Among the 50 loci with the highest |z|-scores, 17 were shared with
+those detected by [21] using Bayenv. Seven of the 10 SNPs with Bayes factors greater than 103 were
+confirmed by the LFMM analysis. For the first and second enviromnental variables, the two SNPs
+which obtained the highest Bayes factors using Bayenv were recovered by the LFMM analysis. Table 3
+provides a list of SNPs associated with climatic gradients and their functional annotation. Compared
+to the analysis of [21], the LFMM analysis discovered new significant and interesting associations
+with climatic gradients, for example, the chloroplast lumen 19 kDA protein involved in photosynthesis
+(|z| = 6.42), a pentatricopeptide repeat protein involved in oxidative stress and salt stress (|z| = 5.90),
+and the heat shock transcription factor hsf5 (|z| = 5.60) involved in regulation of transcription and
+response to temperature stress (Table 3 and Table S1).
+
+Human data analysis
+We applied an LFMM analysis to a worldwide sample of genomic DNA from 1,043 individuals in
+52 populations, referred to as the Human Genome Diversity Project – Centre Etude Polymorphism
+Humain (HGDP-CEPH) Human Genome Diversity Cell Line Panel (hagsc.org/hgdp/). The genotypes
+were generated on Illumina 650K arrays [36], and the data were filtered to remove low quality SNPs
+included in the original files.
+We extracted climatic data for each of the 52 population samples using the WorldClim data set
+at 30 arcsecond (1km2 ) resolution [37]. These data include 11 bioclimatic variables interpolated from
+global weather station data collected during a 50 year period (1950-2000). The climatic variables
+included annual mean temperature, mean diurnal range, maximum temperature of warmest month,
+minimum temperature of coldest month, annual precipitation, etc (Table S2). We summarized the
+climatic variables by using the first axis of a principal component analysis. For this first principal
+component, we applied the LFMM algorithm to compute |z|-scores for each locus with K = 50 latent
+factors, using 100 sweeps for burnin and 900 additional sweeps to warrant convergence.
+A total of 2,624 (0.4%), 508 (0.08%) and 65 (0.007%) SNPs obtained |z|-scores greater than 5, 6
+or 7, respectively (Figure S3). Among loci with |z|-scores greater than 5, 28 GWAS-SNPs with known
+
+disease or trait association were found [38]). These include several SNPs discovered by [24]. For
+example the SNPs rs12913832 and rs28777, |z|-scores greater than 6, are associated with genes OCA2
+and SLC45A2 (Table 4). Among the SNPs significantly correlated with climatic gradients, several
+notable examples include genes associated with celiac disease (ICOSLG), height (LHX3-QSOX2 and
+IGF1), and vitamin D synthesis or activation (NADSYN1 encoding nicotinamide adenine dinucleotide
+synthetase and DHCR7 the gene encoding 7-dehydrocholesterol reductase, an enzyme catalyzing the
+production in skin of cholesterol from 7-dehydrocholesterol (Table 4). Among the 65 SNPs with |z|scores greater than 7, 31 were located within genes (Table S3). One interesting result is that several
+genes are associated with multicellular organismal development. EPHB4 (|z| = 8.90) is involved in
+heart morphogenesis and angiogenesis, NRG1 (|z| = 7.15) involved with nervous system development
+and cell proliferation, RBM19 (|z| = 7.04) involved with positive regulation of embryonic development,
+EYA2 (|z| = 7.09) involved with eye development and DNA repair, and POLA1 (|z| = 7.63) involved
+with the mitotic cell cycle and cell proliferation [39, 40].
+
+5
+
+Discussion
+
+Interpretation of LFMM results and other methods.
+
+Based on a matrix factorization ap-
+
+proach, LFMMs incorporate a unified framework for estimating effects of environmental and demographic factors on genetic variation. Without environmental variables, LFMMs are equivalent to
+performing a probabilistic PCA of allele frequencies [26]. When environmental variables are included,
+hidden factors capture the part of genetic variation that cannot be explained by the set of measured
+environmental variables. This fraction of genetic variation could result from the demographic history
+of the species, unknown environmental pressures or from IBD patterns.
+While a plethora of statistical tests have been proposed for detecting genes evolving under positive
+selection and local adaptation [10, 14], the development of tests based on correlations with habitat or
+landscape variables is still recent [3, 15]. Compared to methods based on summary statistics, tests
+based on environmental association have increased power to detect selection from standing genetic
+variation and soft sweeps in a species genome [6, 17]. However, simple implementation of these tests,
+for example simple linear or logistic regression models, can be misleading in the presence of IBD
+
+patterns [23]. Our simulation results provide clear evidence that tests based on LFMMs significantly
+reduce the rates of false positive associations in the presence of IBD.
+While both the mixed model approach of the computer program Bayenv and the LFMM approach
+includes a covariance structure in a regression model, there are important differences between the two
+approaches. A first improvement is that LFMMs estimate latent factors and regression coefficients
+simultaneously, while Bayenv first estimates a covariance matrix, and then uses it when estimating
+(random) environmental effects. To apply Bayenv, the authors suggest utilizing selectively neutral
+SNPs to estimate the covariance matrix. This approach requires separating neutral from adaptive
+variation a priori, and is difficult to apply when selection acts on phenotype at a large number of loci.
+Inclusion of adaptive markers in the ”neutral set” is sometimes unavoidable, and in this case, Bayenv
+may overlook interesting associations. This distinction between approaches explains the observed
+differences in the lists of outlier loci for Loblolly pines, where 1,730 SNPs were genotyped in expressed
+sequences. For these data it was extremely difficult to select neutral SNPs from the background a priori.
+Another distinction between LFM and Bayenv approaches is our use of low rank approximations of the
+covariance matrix. LFMMs actually estimate correlations between environmental predictors and allele
+frequencies while K hidden factors explain residual genetic variation, where K is much smaller than
+the sample size. The low rank approximation is computationally faster than Bayenv when analyzing
+large data sets.
+
+Number of latent factors.
+
+In the LFM modeling approach, the choice of low values for K is
+
+important for optimizing the computational performances of the estimation algorithm. This choice is
+reminiscent of selecting the number of components in PCA or in Bayesian clustering programs, and it
+has also an impact on test outcomes. For values of K taken too large, the tests are highly conservative,
+and the power to reject neutrality declines. Values of K that minimize the trade-off between the bias
+and variance for our statistical estimates could be obtained by using cross-validation procedures, but
+cross-validation procedures are computationally intensive, so instead we use Tracy-Widom theory to
+select K [30]. We evaluated this choice during our simulation analysis, and found that it led to slightly
+conservative tests. Although the choice of Tracy-Widom estimates is suboptimal, the performances
+of LFMMs were still superior to those of Bayenv in simulations of IBD patterns. In the analysis of
+
+human data, we restricted K to be less than 50 (approximately the number of population samples).
+We suggest that, when there is a reasonable estimate of the number of genetic cluster for a species, it
+can be used in LFMM tests directly. While finer grain population structure could be evaluated [41],
+our choice was again motivated by a trade-off between accuracy and run-time. A future development
+of our LFMM approach will be to develop fast numerical optimization procedures based on variational
+approximations of the likelihood, which will allow us to implement cross-validation algorithms and
+increase the power of tests.
+
+Plant and human data. For Pinus taeda, the LFMM results confirmed that several ESTs previously discovered with Bayenv had functions linked to climate [21]. In addition, the LFMM analysis
+discovered new interesting candidate SNPs. Those variants include functions associated with wound
+repair and immunity, photosynthetic activity and carotenoid biosynthesis, cellular respiration and carbohydrate metabolism, heat, salt and oxidative stress responses (Table 3). Applying LFMMs to the
+HGDP data, we found that a total of 0.4% of all polymorphisms (2,624 SNPs) exhibited significant
+associations with temperature gradients (|z| > 5). For example, we identified SNPs associated with
+the gene OCA2 that may be functionally linked to blue or brown eye color and the gene SLC45A2 that
+may be associated with skin pigmentation [24]. This list also contained SNPs associated with height
+and vitamin D synthesis and diseases such as gluten intolerance and Crohn’s disease. Our list of genic
+SNPs with |z|-scores greater than 7 (|z| > 7) was enriched in genes involved in organismal development. For example, the genes EPHB4, BOK, and NRG1 −with functions related to heart and brain
+development− were associated with climatic gradients. Overall, the analysis confirmed that many loci
+are associated with climatic gradients or to correlated evolutionary pressures (for example, pathogenic
+environment). This result supports the hypothesis that soft sweeps may have been common in recent
+human evolution [17].
+
+Conclusion.
+
+With ever increasing amounts of genetic data generated by high-throughput sequenc-
+
+ing technologies, population genetic methods have shifted from traditional statistical approaches to
+approaches that use statistical learning techniques. Estimates of ancestry and other population parameters are commonly obtained from mixture models [42–44], principal component analyses [30], hidden
+
+Markov models [45] and factor analysis [28]. Our study contributes to the machine learning toolbox
+for population and landscape genomic analysis by implementing new gene-environment association
+tests based on matrix factorization methods.
+
+Software availability.
+
+Source codes and computer programs for fitting LFMMs are available from
+
+the authors web-sites.
+
+Acknowlegments.
+
+This work was supported by a grant from la Région Rhône-Alpes to Eric Fri-
+
+chot and Olivier François, and by an NSF grant to Sean Schoville (OISE-0965038). Olivier François
+acknowledges support from Grenoble INP.
+
+References
+[1] C Darwin. On the Origin of Species by Means of Natural Selection, or the Preservation of Favoured
+Races in the Struggle for Life. John Murray, 1859.
+[2] G C Williams. Adaptation and Natural Selection, volume 1996. Princeton University Press, 1966.
+[3] S Joost, A Bonin, M W Bruford, L Després, C Conord, G Erhardt, and P Taberlet. A spatial
+analysis method (SAM) to detect candidate loci for selection: Towards a landscape genomics
+approach to adaptation. Molecular Ecology, 16(18):3955–3969, 2007.
+[4] S Manel, S Joost, B K Epperson, R Holderegger, A Storfer, M S Rosenberg, K T Scribner,
+A Bonin, and M-J Fortin. Perspectives on the use of landscape genetics to detect genetic adaptive
+variation in the field. Molecular Ecology, 19(17):3760–3772, 2010.
+[5] R D Barrett and H E Hoekstra. Molecular spandrels: tests of adaptation at the genetic level.
+Nature Reviews Genetics, 12(11):767–780, 2011.
+[6] S D Schoville, A Bonin, O François, S Lobreaux, C Melodelima, and S Manel. Adaptive genetic variation on the landscape: Methods and cases. Annual Review of Ecology, Evolution and
+Systematics, in press 2012.
+
+[7] F Jay, S Manel, N Alvarez, E Y Durand, W Thuiller, R Holderegger, P Taberlet, and O François.
+Forecasting changes in population genetic structure of alpine plants in response to global warming.
+Mol Ecol, 21(10):2354–68, 2012.
+[8] J F Storz and C W Wheat. Integrating evolutionary and functional approaches to infer adaptation
+at specific loci. Evolution, 64(9):2489–2509, 2010.
+[9] R Nielsen. Molecular signatures of natural selection. Annual Review of Genetics, 39(1):197–218,
+2005.
+[10] J F Storz. Using genome scans of DNA polymorphism to infer adaptive population divergence.
+Molecular Ecology, 14(3):671–688, 2005.
+[11] M A Beaumont and R A Nichols. Evaluating loci for use in the genetic analysis of population
+structure. Proceedings of the Royal Society B Biological Sciences, 263(1377):1619–1626, 1996.
+[12] M A Beaumont and D J Balding. Identifying adaptive genetic divergence among populations
+from genome scans. Molecular Ecology, 13(4):969–980, 2004.
+[13] J M Akey. Constructing genomic maps of positive selection in humans: where do we go from
+here? Genome Research, 19(5):711–722, 2009.
+[14] J Novembre and A Di Rienzo. Spatial patterns of variation due to natural selection in humans.
+Nature Reviews Genetics, 10(11):745–755, 2009.
+[15] A M Hancock, D B Witonsky, A S Gordon, G Eshel, J K Pritchard, G Coop, and A Di Rienzo.
+Adaptations to climate in candidate genes for common metabolic disorders. PLoS Genetics,
+4(2):13, 2008.
+[16] B N Poncet, D Herrman, F Gugerli, P Taberlet, R Holderegger, L Gielly, D Rioux, W Thuiller,
+S Aubert, and S Manel. Tracking genes of ecological relevance using a genome scan in two
+independent regional population samples of Arabis alpina. Molecular ecology, 19(14):2896–2907,
+2010.
+
+[17] J K Pritchard, J K Pickrell, and G Coop. The genetics of human adaptation: hard sweeps, soft
+sweeps, and polygenic adaptation. Current Biology, 20(4):R208–R215, 2010.
+[18] G Coop, D Witonsky, A Di Rienzo, and J K Pritchard. Using environmental correlations to
+identify loci underlying local adaptation. Genetics, 185(4):1411–1423, 2010.
+[19] J A Endler. Geographic variation, speciation, and clines. Princeton University Press, 1977.
+[20] J B S Haldane. The theory of a cline. Journal of Genetics, 48(3):277–284, 1948.
+[21] A J Eckert, A D Bower, S C Gonzàlez-Martı̀nez, J L Wegrzyn, G Coop, and D B Neale. Back
+to nature: Ecological genomics of loblolly pine (Pinus taeda, pinaceae). Molecular Ecology,
+19(17):3789–3805, 2010.
+[22] T Lenormand. Gene flow and the limits to natural selection. Trends in Ecology & Evolution,
+17(4):183–189, 2002.
+[23] P G Meirmans. The trouble with isolation by distance. Molecular Ecology, 21(12):2839–46, 2012.
+[24] A M Hancock, D B Witonsky, G Alkorta-Aranburu, C M Beall, A Gebremedhin, R Sukernik,
+G Utermann, J K Pritchard, G Coop, and A Di Rienzo. Adaptations to climate-mediated selective
+pressures in humans. PLoS Genetics, 7(4):16, 2011.
+[25] M Fumagalli, M Sironi, U Pozzoli, A Ferrer-Admettla, L Pattini, and R Nielsen. Signatures
+of environmental genetic adaptation pinpoint pathogens as the main selective pressure through
+human evolution. PLoS Genetics, 7(11):e1002355, 2011.
+[26] M E Tipping and C M Bishop. Probabilistic principal component analysis. BMC Bioinformatics,
+61(3):611–622, 1999.
+[27] R Salakhutdinov and A Mnih. Bayesian probabilistic matrix factorization using Markov chain
+Monte Carlo. Proceedings of the 25th International Conference on Machine Learning (2008),
+25(6):880–887, 2008.
+[28] B E Engelhardt and M Stephens. Analysis of population structure: A unifying framework and
+novel methods based on sparse factor analysis. PLoS Genetics, 6(9):12, 2010.
+
+[29] I T Jolliffe. Principal Component Analysis. Springer Verlag New York, 1986.
+[30] N Patterson, A L Price, and D Reich. Population structure and eigenanalysis. PLoS Genetics,
+2:20, 2006.
+[31] C Eckart and G Young. The approximation of one matrix by another of lower rank. Psychometrika,
+1(3):211–218, 1936.
+[32] R M Bell and Y Koren. Scalable collaborative filtering with jointly derived neighborhood interpolation weights. Seventh IEEE International Conference on Data Mining ICDM 2007, 07(1):43–52,
+2007.
+[33] Alkes L Price, Nick J Patterson, Robert M Plenge, Michael E Weinblatt, Nancy A Shadick, and
+David Reich. Principal components analysis corrects for stratification in genome-wide association
+studies. Nature Genetics, 38(8):904–909, 2006.
+[34] J Yu, G Pressoir, W H Briggs, I Vroh Bi, M Yamasaki, J F Doebley, M D McMullen, B S Gaut,
+D M Nielsen, J B Holland, S Kresovich, and E S Buckler. A unified mixed-model method for
+association mapping that accounts for multiple levels of relatedness. Nature Genetics, 38(2):203–
+208, 2006.
+[35] R R Hudson. Generating samples under a wright-fisher neutral model of genetic variation. Bioinformatics, 18(2):337–338, 2002.
+[36] J Z Li, D M Absher, H Tang, A M Southwick, A M Casto, S Ramachandran, H M Cann, G S
+Barsh, M Feldman, L L Cavalli-Sforza, and Feldman M. Worldwide human relationships inferred
+from genome-wide patterns of variation. Science, 319(5866):1100–1104, 2008.
+[37] R J Hijmans, S E Cameron, J L Parra, P G Jones, and A Jarvis. Very high resolution interpolated
+climate surfaces for global land areas. International Journal of Climatology, 25(15):1965–1978,
+2005.
+[38] L A Hindorff, P Sethupathy, H A Junkins, E M Ramos, J P Mehta, F S Collins, and T A Manolio.
+Potential etiologic and functional implications of genome-wide association loci for human diseases
+
+and traits. Proceedings of the National Academy of Sciences of the United States of America,
+106(23):9362–9367, 2009.
+[39] S F Saccone, J Quan, G Mehta, R Bolze, P Thomas, E Deelman, J A Tischfield, and J P Rice.
+New tools and methods for direct programmatic access to the dbSNP relational database. Nucleic
+Acids Research, 39(Database issue):D901–D907, 2011.
+[40] P V Hornbeck, J M Kornhauser, S Tkachev, B Zhang, E Skrzypek, B Murray, V Latham, and
+M Sullivan. Phosphositeplus: a comprehensive resource for investigating the structure and function of experimentally determined post-translational modifications in man and mouse. Nucleic
+Acids Research, 40(D1):D261–D270, 2012.
+[41] D J Lawson, G Hellenthal, S Myers, and D Falush. Inference of population structure using dense
+haplotype data. PLoS Genetics, 8(1):e1002453, 2012.
+[42] J K Pritchard, M Stephens, and P Donnelly. Inference of population structure using multilocus
+genotype data. Genetics, 155(2):945–959, 2000.
+[43] E Durand, F Jay, O E Gaggiotti, and O François. Spatial inference of admixture proportions and
+secondary contact zones. Molecular Biology and Evolution, 26(9):1963–1973, 2009.
+[44] D H Alexander and K Lange. Enhancements to the admixture algorithm for individual ancestry
+estimation. BMC Bioinformatics, 12(1):246, 2011.
+[45] A L Price, A Tandon, N Patterson, K C Barnes, N Rafaels, I Ruczinski, T H Beaty, R Mathias,
+D Reich, and S Myers. Sensitive detection of chromosomal segments of distinct ancestry in
+admixed populations. PLoS Genetics, 5(6):e1000519, 2009.
+
+Supplementary Text 2
+FIGURE S1: Empirical cumulative distribution function for LFMM tests for simu- lations from generative models with K = 1, 3, 5, 10, and 20 latent factors.
+
+0.4
+
+0.6
+
+0.8
+
+0.2
+
+0.2
+
+0.4
+
+0.6
+
+LFMM K=20
+
+0.4
+
+0.6
+
+p−values
+
+0.8
+
+1.0
+
+0.4
+
+ecdf
+
+0.6
+
+0.8
+
+1.0
+
+LFMM K=10
+
+0.8
+
+1.0
+
+0.2
+
+0.4
+
+0.6
+
+p−values
+
+1.0
+0.8
+0.6
+ecdf
+0.4
+0.2
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+p−values
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.0
+
+1.0
+0.8
+0.6
+ecdf
+0.4
+
+0.0
+
+p−values
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.2
+
+1.0
+
+LFMM K=5
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+p−values
+
+0.2
+
+1.0
+0.8
+0.6
+ecdf
+0.4
+0.2
+
+0.2
+
+0.0
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.0
+
+LFMM K=3
+
+0.0
+
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+0.6
+
+0.8
+
+1.0
+
+LFMM K=1
+
+0.8
+
+1.0
+
+0.8
+
+1.0
+
+FIGURE S2: Empirical cumulative distribution function for the LFMM using K = 1, 3, 5, 7, 10, and
+20 latent factors.
+
+0.4
+
+0.0
+
+0.4
+
+1.0
+0.8
+0.6
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+1.0
+0.8
+0.6
+0.4
+0.2
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+LFMM K=5
+
+0.8
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.4
+
+0.8
+
+p−values
+
+LFMM K=7
+
+LFMM K=10
+
+LFMM K=20
+
+0.4
+p−values
+
+0.8
+
+0.0
+
+0.4
+p−values
+
+0.8
+
+0.8
+0.6
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+0.8
+0.6
+0.4
+0.2
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+1.0
+
+p−values
+
+1.0
+
+p−values
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.0
+
+0.8
+
+0.0
+
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+ecdf
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+LFMM K=3
+
+ecdf
+
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+0.6
+
+0.8
+
+1.0
+
+LFMM K=1
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.4
+p−values
+
+0.8
+
+FIGURE S3: Empirical cumulative distribution function for the PC regression model using K =
+1, 3, 5, 7, 10, and 20 latent factors.
+
+0.4
+
+0.0
+
+0.4
+
+1.0
+0.8
+0.6
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+PC regression K=5
+
+0.8
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.4
+
+0.8
+
+p−values
+
+PC regression K=7
+
+PC regression K=10
+
+PC regression K=20
+
+0.4
+p−values
+
+0.8
+
+0.0
+
+0.4
+p−values
+
+0.8
+
+0.8
+0.6
+0.4
+0.2
+0.0
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+ecdf
+
+0.8
+0.6
+0.4
+0.2
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+1.0
+
+p−values
+
+1.0
+
+p−values
+
+0.0
+
+Tables
+
+0.8
+
+0.0
+
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+ecdf
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+PC regression K=3
+
+ecdf
+
+0.0
+
+0.2
+
+0.4
+
+ecdf
+
+0.6
+
+0.8
+
+1.0
+
+PC regression K=1
+
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+●
+
+0.0
+
+0.4
+p−values
+
+0.8
+
+K
+2
+20
+100
+
+LM
+0.20
+1.27
+6.13
+
+PCRM
+0.21
+1.42
+12.41
+
+LFMM
+0.15
+0.08
+0.20
+
+TABLE 1: Mean squared errors for estimates of environmental effects.
+
+TABLE 2: Percentage of false negative, FN and false positive (FP) for linear, PCR and LFM models and type I error α.
+FN (FP)
+LM
+GLM
+PCRM
+LFMM
+type I error:
+− log10 α = 3 0% (33%) 0% (24%) 100 % (3%) 4% (5%)
+− log10 α = 4 0% (27%) 0% (19%) 100 % (0%) 14% (3%)
+
+Annotation
+Thylakoid lumenal 19 kda chloroplast
+Pentatricopeptide repeat protein
+Conserved hypothetical protein
+Chalcone synthase
+Heat shock
+Dirigent protein pdir18
+Heat shock transcription factor hsf5
+Zinc finger
+Probable n-acetyltransferase hookless 1
+Calcium-binding pollen allergen
+Geranylgeranyl diphosphate synthase
+Hypothetical protein OsI 04393
+Potassium proton antiporter
+DNA mismatch repair
+Gene Ontology
+Oxygen evolving complex; Photosystem II
+Oxidative stress; Salt stress
+Ubiquitin-specific protease
+Flavonoid biosynthesis; Wound response; Oxidative stress
+Temperature stress
+Â Disease response
+Regulation of transcription; Response to stress
+Transcription; DNA binding; Zinc ion binding
+Auxin signaling; Photomorphogenesis; Ethylene response
+Polcalcin; Calcium ion binding
+Cholesterol Biosynthesis; Isoprenoid biosynthesis
+Trehalose-6-phosphate phosphatase
+Potassium ion transport; Solute:hydrogen antiporter
+DNA repair; Regulation of DNA recombination
+
+− log10 (P -value)
+9.87
+8.44
+8.28
+7.80
+7.67
+6.56
+6.15
+5.84
+5.78
+4.61
+4.59
+4.59
+5.54
+5.44
+
+TABLE 3: Loblolly Pines. Annotation and gene ontology for some interesting SNPs with z-scores with absolute value greater than 4
+for the first two components of 60 climatic variables.
+
+Height
+Other
+
+Cardiovascular
+
+Metabolism
+
+Immune and
+autoimmune
+
+Landscape-Trait
+category
+Pigmentation
+and tanning
+
+KLK3
+RPL3P2
+Intergenic between SUMO4 and ZC3H12D
+Intergenic between TRIB1 and LOC100130231
+CTSH
+ICOSLG
+CYP27B1/METTL1
+MAP2K5
+PLA2R1
+Intergenic MUC7
+Intergenic between PAPD7 and MIR4278
+MANBA
+ADRA2A
+CR1
+HLA-DRA
+MEIS1
+NCAPG-LCORL
+BOK
+
+rs2735839
+rs9264942
+rs2179367
+rs1551398
+rs2289700
+rs4819388
+rs703842
+rs12593813
+rs4664308
+rs10908907
+rs1566039
+rs7665090
+rs869244
+rs12034383
+rs3129882
+rs11897119
+rs7678436
+rs12479254
+
+DHCR7
+HLA-DRA
+SLC45A2
+
+rs11234027
+rs3129882
+rs28777
+ZMIZ1
+
+PPARGC1
+OCA2/HERC2
+
+rs32579
+rs12913832
+
+rs1250550
+
+Nearby gene
+
+Ref SNP ID
+Tanning
+Eye color, Eye color traits, Hair color,
+Black vs. blond hair color,
+Black vs. red hair color
+Vitamin D levels
+Parkinson’s disease
+Black vs. blond hair color
+Black vs. red hair color
+Crohn’s disease
+Inflammatory bowel disease (early onset)
+Prostate cancer
+HIV-1 control
+Dupuytren’s disease
+Crohn’s disease
+Bipolar disorder
+Celiac disease
+Multiple sclerosis
+Restless legs syndrome
+Nephropathy (idiopathic membranous)
+Alcoholism (heaviness of drinking)
+Sphingolipid levels
+Primary biliary cirrhosis
+Platelet aggregation
+Erythrocyte sedimentation rate
+Systemic sclerosis
+PR interval
+Height
+Brain structure
+
+Disease or trait association
+
+8.16
+8.02
+7.57
+7.45
+6.98
+6.67
+6.59
+6.40
+6.28
+8.91
+6.89
+6.48
+7.20
+7.15
+6.97
+6.71
+9.43
+9.43
+
+8.77
+
+7.78
+6.97
+6.90
+
+9.42
+9.15
+
+− log10 (P -value)
+
+TABLE 4: Human data. HGDP SNPs with the highest z-scores among those associated with phenotypic traits in GWAS.
+
+SNP
+2-4107-01-438
+0-10719-01-95
+2-1087-01-86
+2-1818-01-168
+CL17Contig1-03-443
+0-9449-02-292
+0-18317-01-495
+UMN-CL194Contig1-04-130
+0-17238-01-294
+0-17776-01-96
+0-8823-01-306
+2-4856-01-162
+0-4838-01-307
+2-3236-01-225
+0-768-02-400
+UMN-5299-01-201
+2-4724-01-136
+0-18887-02-633
+CL996Contig1-03-68
+2-3884-02-413
+UMN-CL148Contig1-02-220
+CL3851Contig1-05-68
+CL2121Contig1-05-658
+CL763Contig1-06-141
+0-16664-01-58
+UMN-1598-02-647
+2-7619-01-193
+2-2125-01-274
+CL3162Contig1-02-257
+0-13722-01-343
+0-8922-01-655
+0-18317-01-495
+UMN-CL194Contig1-04-130
+CL1381Contig1-01-188
+CL3851Contig1-05-68
+2-2125-01-274
+Annotation
+thylakoid lumenal 19 kda chloroplast
+pentatricopeptide repeat protein
+conserved hypothetical protein [Ricinus communis]
+chalcone synthase
+heat shock
+dirigent protein pdir18
+potassium proton antiporter
+dna mismatch repair
+Nodulin MtN21 family protein
+heat shock transcription factor hsf5
+squamosa promoter-binding
+zinc finger
+probable n-acetyltransferase hookless 1
+arabinogalactan-like protein
+protein kinase family protein
+importin-alpha reprotein kinase
+amino acid transporter
+af448201 1 alpha-xylosidase
+sf21d1 splice variant protein
+Histone 2
+proliferating cell nuclear antigen
+glycolipid transfer
+calcium-binding pollen Polcalcin
+geranylgeranyl diphosphate synthase
+hypothetical protein OsI 04393 [Oryza sativa Indica Group]
+target of myb1
+nodulation receptor kinase
+small gtp-binding protein
+dirigent-like protein
+TIFY domain containing protein
+potassium proton antiporter
+dna mismatch repair
+aintegumenta-like protein
+proliferating cell nuclear antigen
+nodulation receptor kinase
+
+− log10 (P-value)
+9.87
+8.44
+8.28
+7.80
+7.67
+6.56
+6.46
+6.24
+6.20
+6.15
+5.91
+5.84
+5.78
+5.76
+5.72
+5.33
+4.98
+4.94
+4.93
+4.92
+4.82
+4.81
+4.74
+4.61
+4.59
+4.59
+4.57
+4.40
+4.32
+4.22
+6.01
+5.54
+5.44
+5.26
+4.52
+4.27
+
+TABLE S1: Loblolly pines. SNP identifier and annotation for SNPs with z-scores with absolute value greater than 4 for the first two
+components of 60 climatic variables.
+
+BIO1
+BIO2
+BIO3
+BIO4
+BIO5
+BIO6
+BIO7
+BIO8
+BIO9
+BIO10
+BIO11
+
+Annual Mean Temperature
+Mean Diurnal Range (Mean of monthly (max - min)
+Isothermality (BIO2/BIO7)
+Temperature Seasonality (standard deviation * 100)
+Max Temperature of Warmest Month
+Min Temperature of Coldest Month
+Temperature Annual Range (BIO5-BIO6)
+Mean Temperature of Wettest Quarter
+Mean Temperature of Driest Quarter
+Mean Temperature of Warmest Quarter
+Mean Temperature of Coldest Quarter
+
+TABLE S2: Climatic variables used in the analysis of the HGDP data set.
+
+CHR
+1
+
+2
+
+3
+3
+3
+3
+7
+
+7
+7
+
+7
+7
+8
+
+8
+
+9
+
+10
+10
+10
+
+SNP
+7529482
+
+3816186
+
+4681618
+9784335
+10935800
+11708779
+144173
+
+3807496
+4729616
+
+6942733
+10953303
+989465
+
+10096233
+
+10756461
+
+1538677
+12415051
+10998340
+
+72543579
+72543913
+70383593
+
+13185149
+
+32115256
+
+100350763
+100365613
+32105334
+
+16821355
+100462565
+
+150146026
+150159767
+150149696
+55934939
+100416250
+
+42936547
+
+BP
+203659355
+
+C10orf27/intron
+C10orf27/intron
+TET1/intron
+
+MPDZ/intron
+
+NRG1/intron
+
+ZAN/missense
+ZAN/missense
+NRG1/intron
+
+TSPAN13/intron
+SLC12A9/intron
+
+TSC22D2/intron
+TSC22D2/intron
+TSC22D2/intron
+ERC2/intron
+EPHB4/cds-synon
+
+MTA3/nearGene-3
+
+Gene
+ATP2B4/intron
+
+8.11
+8.36
+8.24
+
+7.79
+
+7.15
+
+7.41
+7.37
+7.04
+
+7.46
+7.35
+
+7.25
+7.21
+7.36
+7.40
+8.90
+
+7.35
+
+—z—-score
+7.15
+
+(Mol) oxidoreductase activity, acting on single donors with incorporation of molecular oxygen,
+incorporation of two atoms of oxygen; structure-specific DNA binding; zinc ion binding; iron
+ion binding; metal ion binding; oxidoreductase activity
+(Bio) inner cell mass cell differentiation; regulation of transcription, DNA-dependent; stem
+cell maintenance; chromatin modification
+
+(Mol) protein binding; transmembrane receptor protein tyrosine kinase activator activity;
+growth factor activity; ErbB-3 class receptor binding; cytokine activity; transcription cofactor
+activity; protein tyrosine kinase activator activity; receptor tyrosine kinase binding; receptor
+binding
+(Bio) nervous system development; regulation of protein heterodimerization activity; Notch
+signaling pathway; positive regulation of cell adhesion; transmembrane receptor protein tyrosine kinase activation (dimerization); neural crest cell development; cellular protein complex
+disassembly; wound healing; regulation of protein homodimerization activity; ventricular cardiac muscle cell differentiation; positive regulation of striated muscle cell differentiation; positive regulation of cell growth; cardiac muscle cell differentiation; cell proliferation; embryonic
+development; mammary gland development; anti-apoptosis; cell communication; negative
+regulation of secretion; negative regulation of transcription, DNA-dependent; transmembrane
+receptor protein tyrosine kinase signaling pathway; positive regulation of cardiac muscle cell
+proliferation
+(Mol) protein C-terminus binding; protein binding
+(Bio) interspecies interaction between organisms
+(Bio) multicellular organismal development; spermatogenesis; cell differentiation
+
+(Mol) protein binding
+(Mol) protein binding; protein-tyrosine kinase activity; ephrin receptor activity; nucleotide
+binding; transmembrane receptor protein tyrosine kinase activity; receptor activity; ATP
+binding
+heart morphogenesis; cell migration during sprouting angiogenesis; protein amino acid autophosphorylation; multicellular organismal development; ephrin receptor signaling pathway;
+angiogenesis; cell adhesion
+–
+(Mol) cation:chloride symporter activity
+(Bio) transmembrane transport
+(Bio) cell-cell adhesion; binding of sperm to zona pellucida
+
+Gene function
+(Mol) calmodulin binding; protein binding; hydrolase activity; calcium-transporting ATPase
+activity; metal ion binding; nucleotide binding; ATP binding; hydrolase activity, acting on
+acid anhydrides, catalyzing transmembrane movement of substances; PDZ domain binding
+(Bio) platelet activation; transport; ATP biosynthetic process; blood coagulation; transmembrane transport; cation transport
+(Mol) zinc ion binding; sequence-specific DNA binding; metal ion binding; transcription
+factor activity
+(Mol) transcription factor activity
+(Bio) response to osmotic stress
+
+TABLE S3: Human data. HGDP SNPs with z-scores with absolute value greater than 7 in genes with molecular (Mol), and biological
+(Bio) functions associated with these genes.
+
+114264827
+
+20844859
+
+45737763
+
+12
+
+13
+
+14
+
+20
+
+22
+
+22
+
+22
+22
+22
+X
+
+X
+
+X
+
+11066776
+
+9543476
+
+1760907
+
+6063071
+
+2294352
+
+3827382
+
+6001912
+6001913
+17002034
+5917471
+
+5944708
+
+6643647
+
+153086372
+
+25000842
+
+40828361
+40836753
+40996367
+37652518
+
+40881403
+
+40827319
+
+74425228
+
+11311743
+
+11
+
+4910295
+
+BP
+9852475
+
+CHR
+11
+
+SNP
+2403221
+
+PDZD4/intron
+
+POLA1/intron
+
+MKL1/intron
+MKL1/intron
+MKL1/intron
+CYBB/intron
+
+MKL1/intron
+
+MKL1/intron
+
+EYA2/intron
+
+TEP1/intron
+
+KLF12/intron
+
+RBM19/intron
+
+GALNTL4/intron
+
+Gene
+SBF2/intron
+
+7.95
+
+7.63
+
+7.26
+7.51
+8.01
+7.04
+
+7.73
+
+7.96
+
+7.09
+
+7.15
+
+7.16
+
+7.04
+
+7.27
+
+—z—-score
+8.33
+
+(Mol) protein binding; FAD binding; electron carrier activity; protein heterodimerization
+activity; metal ion binding; superoxide-generating NADPH oxidase activity; heme binding;
+voltage-gated ion channel activity; oxidoreductase activity
+(Bio) respiratory burst; superoxide metabolic process; innate immune response; ion transport;
+inflammatory response; superoxide release; hydrogen peroxide biosynthetic process
+(Mol) DNA primase activity; metal ion binding; nucleotide binding; DNA-directed DNA polymerase activity; nucleotidyltransferase activity; transferase activity; protein binding; DNA
+binding; protein heterodimerization activity; purine nucleotide binding; double-stranded
+DNA binding; nucleoside binding; chromatin binding; pyrimidine nucleotide binding
+(Bio) DNA replication initiation; M/G1 transition of mitotic cell cycle; interspecies interaction between organisms; DNA replication, synthesis of RNA primer; DNA strand elongation
+during DNA replication; leading strand elongation; DNA repair; lagging strand elongation;
+double-strand break repair via nonhomologous end joining; telomere maintenance via semiconservative replication; G1/S-specific transcription in mitotic cell cycle; cell proliferation;
+DNA synthesis during DNA repair; telomere maintenance via recombination; nucleobase,
+nucleoside, nucleotide and nucleic acid metabolic process; mitotic cell cycle; DNA replication checkpoint; S phase of mitotic cell cycle; DNA replication; telomere maintenance; G1/S
+transition of mitotic cell cycle
+–
+
+Gene function
+(Mol) protein binding; protein homodimerization activity; phosphatase regulator activity;
+phosphoinositide binding; phosphatase binding
+(Bio) myelination; protein tetramerization
+(Mol)
+transferase
+activity,
+transferring
+glycosyl
+groups;
+polypeptide
+Nacetylgalactosaminyltransferase activity; sugar binding
+(Mol) RNA binding; nucleotide binding
+(Bio) positive regulation of embryonic development; multicellular organismal development
+(Mol) DNA binding; zinc ion binding; metal ion binding; transcription corepressor activity;
+transcription factor activity
+(Bio) regulation of transcription from RNA polymerase II promoter; positive regulation of
+transcription from RNA polymerase II promoter; negative regulation of transcription from
+RNA polymerase II promoter
+(Mol) telomerase activity; RNA binding; nucleotide binding; ATP binding
+(Bio) telomere maintenance via recombination
+(Mol) protein binding; hydrolase activity; magnesium ion binding; protein tyrosine phosphatase activity
+(Bio) istone dephosphorylation; striated muscle development; regulation of transcription,
+DNA-dependent; apoptosis; multicellular organismal development; mesodermal cell fate specification; chromatin modification; DNA repair
+(Mol) actin monomer binding; leucine zipper domain binding; protein binding; nucleic acid
+binding; transcription coactivator activity
+(Bio) positive regulation of transcription, DNA-dependent; anti-apoptosis; smooth muscle
+cell differentiation; positive regulation of transcription from RNA polymerase II promoter
+
+TABLE S3: (bis)
+
+Gibbs Sampling algorithm for the LFMM
+5.1
+
+Prior Distribution
+
+Let D is the number of environmental variables. Ii,` is the indicator variable equal to 0 if the data are missing
+and 1 otherwise. N(µ, Σ) is the normal distribution of mean µ and of covariance matrix Σ. Γ−1 (a, b) is the
+inverse-gamma distribution of shape a and of rate b (ie of scale 1b ).
+The prior distributions on the LFMM parameters are given by:
+Gi,` |Ui , V` , β` , µ` , σ 2 ∼ N(Xi β` + µ` + UiT V` , σ 2 )Ii,`
+
+for all i, `
+
+for all i
+
+2
+2
+Ui |σU
+∼ N(0, σU
+IK )
+
+(11)
+
+for all `
+
+V` |σV2 ∼ N(0, σV2 IK )
+
+(12)
+
+2
+2
+)
+∼ N(0, σβ(d)
+βd,` |σβ(d)
+
+(13)
+
+for all `, d
+for all `
+σV2
+
+µ` |σµ2 ∼ N(0, σµ2 )
+
+(14)
+
+2
+
+= 1 and σ is updated at each iteration by the current residual variance.
+
+for all d
+
+5.2
+
+(10)
+
+2
+2
+σβ(d)
+, σµ2 and σU
+follow an inverse-gamma distribution Γ−1 (η, η) where η = 103 .
+
+Conditional Distribution
+
+The LFM Model is a hierarchical model which conditional distributions can be described as follows:
+2
+p(σU
+|U, η) = Γ−1 (η +
+
+NK 1 X T
+,
+U Ui + η)
+2 2 i i
+
+2
+p(σβ(d)
+|β, η) = Γ−1 (η +
+
+(15)
+
+M 1X 2
+,
+βd,` + η)
+2 2
+
+(16)
+
+M 1X 2
+,
+µ` + η)
+2 2
+
+(17)
+
+l
+
+p(σµ2 |µ, η) = Γ−1 (η +
+
+`
+
+2
+p(Ui |G, V, β, µ, σU
+, σ 2 ) = N(µiU , ∆iU
+
+where
+2
+∆iU = σU
+
+−1
+
+IK + σ 2
+
+−1
+
+X
+
+V` V`T and µiU = σ 2
+
+−1
+
+−1
+
+X
+
+(∆iU )−1
+
+`
+
+∆`V = σV2
+
+−1
+
+IK + σ 2
+
+−1
+
+X
+
+(18)
+(Gi,` − Xi β` − µ` )V`
+
+(19)
+
+`
+
+p(V` |G, U, β, µ, αG ) = N(µ`V , ∆`V
+where
+
+)
+
+Ui UiT and µ`V = σ 2
+
+−1
+
+−1
+
+(∆`V )−1
+
+i
+
+)
+
+(20)
+
+X
+
+(Gi,` − Xi β` − µ` )Ui
+
+(21)
+
+i
+
+p(β` |G, U, V, µ, σβ (1)2 , . . . , σβ (d)2 , σ 2 ) = N(µ`β , ∆`β
+
+−1
+
+)
+
+(22)
+
+where
+∆`β = diag(σβ (1)2
+
+−1
+
+, . . . , σβ (d)2
+
+−1
+
+) + σ2
+
+−1
+
+X
+
+XiT Xi and µ`β = σ 2
+
+−1
+
+(∆`β )−1
+
+i
+
+∆`µ = σµ2
+
+−1
+
++ σ2
+
+−1
+
+N and µ`µ = σ 2
+
+(Gi,` − UiT V` − µ` )XiT
+
+(23)
+
+i
+
+p(µ` |G, U, V, β, σµ2 , σ 2 ) = N(µ`µ , ∆`µ
+where
+
+X
+
+−1
+
+(∆`µ )−1
+
+X
+i
+
+−1
+
+)
+
+(Gi,` − UiT V` − Xi β` )
+
+(24)
+(25)
+
+5.3
+
+Main algorithm
+
+nIter is the number of iterations and burn is the number of iterations for burning.
+1. Initialize model parameters
+U = 0K,N
+V = 0K,M
+β = 0M,D
+µ = 0M,1
+2. For n = 1 . . . nIter
+• input missing values at locus ` for individu i,
+T
+
+(n−1)
+
+Gi,` ← Ui (n−1) V`
+
+(n−1) (n−1)
+β`
+
++ Xi
+
+• update the residual variance
+σ2
+
+T
+
+(n)
+
+= var(G − U (n−1) V (n−1) − X (n−1) β (n−1) )
+
+• sample the hyperparameters
+(n)
+
+2
+∼ p(σU
+|U (n−1) , η)
+
+σβ2
+
+(n)
+
+∼ p(σβ2 |β (n−1) , η)
+
+σµ2
+
+(n)
+
+∼ p(σµ2 |µ(n−1) , η)
+
+2
+σU
+
+• for each locus `, sample
+(n)
+
+∼ p(µ` |U (n−1) , V (n−1) , β (n−1) , σµ2
+
+µ`
+(n)
+
+β`
+
+∼ p(β` |U (n−1) , V (n−1) , µ(n) , σβ (1)2
+
+(n)
+
+(n)
+
+, σ2
+
+(n)
+
+, . . . , σβ (d)2
+
+)
+
+(n)
+
+, σ2
+
+(n)
+
+• for each individu i, sample
+(n)
+
+Ui
+
+2
+∼ p(Ui |µ(n) , V (n−1) , β (n) , σU
+
+(n)
+
+, σ2
+
+(n)
+
+)
+
+• for each locus l, sample
+(n)
+
+V`
+
+∼ p(V` |µ(n) , U (n) , β (n) , σ 2
+
+(n)
+
+)
+
+3. compute the parameters
+U = mean(U (burn+1) , . . . , U (nIter) )
+V = mean(V (burn+1) , . . . , V (nIter) )
+β = mean(β (burn+1) , . . . , β (nIter) )
+µ = mean(µ(burn+1) , . . . , µ(nIter) )
+1
+
+Z = mean(β (burn+1) , . . . , β (nIter) )/var(β (burn+1) , . . . , β (nIter) ) 2
+
+)
+
+

@@ -1,0 +1,1533 @@
+A New Approach to the Small Phylogeny
+Problem
+(Technical Report)
+
+arXiv:1012.0935v1 [q-bio.PE] 4 Dec 2010
+
+Jakub Kováč1 , Broňa Brejová1 , and Tomáš Vinař2
+1
+
+Department of Computer Science, Faculty of Mathematics, Physics, and
+Informatics, Comenius University, Mlynská Dolina,
+842 48 Bratislava, Slovakia, e-mail: kuko@ksp.sk, brejova@dcs.fmph.uniba.sk
+2
+Department of Applied Informatics, Faculty of Mathematics, Physics, and
+Informatics, Comenius University, Mlynská Dolina,
+842 48 Bratislava, Slovakia, e-mail: vinar@fmph.uniba.sk
+
+Abstract. In the small phylogeny problem we, are given a phylogenetic
+tree and gene orders of the extant species and our goal is to reconstruct
+all of the ancestral genomes so that the number of evolutionary operations is minimized. Algorithms for reconstructing evolutionary history
+from gene orders are usually based on repeatedly computing medians of
+genomes at neighbouring vertices of the tree. We propose a new, more
+general approach, based on an iterative local optimization procedure. In
+each step, we propose candidates for ancestral genomes and choose the
+best ones by dynamic programming. We have implemented our method
+and used it to reconstruct evolutionary history of 16 yeast mtDNAs and
+13 Campanulaceae cpDNAs.
+
+Keywords: genome rearrangement, small phylogeny, DCJ, dynamic programming
+
+1
+
+Introduction
+
+Phylogeny is an evolutionary history of a group of organisms, and is usually
+represented by a phylogenetic tree, where leaves represent extant species and
+internal nodes represent their ancestors.
+During the evolution, the genomes of species undergo various mutations.
+Large-scale mutations, such as inversions or transpositions, change positions of
+genes. Other evolutionary events may change the number of chromosomes or
+their topology (linear to circular and vice versa). Since these large-scale mutations are much rarer than the point mutations, they constitute a valuable source
+of information for phylogenetic analysis.
+We can define a distance between two genomes as the minimum number of
+evolutionary operations needed to transform one genome into the other. Then a
+parsimony approach to phylogeny reconstruction is to minimize the total number
+of evolutionary operations throughout the evolution. More precisely: Given the
+
+gene orders of extant species, the goal is to find a phylogenetic tree together with
+gene orders of the ancestral species, that minimizes the number of evolutionary
+operations – this is the large phylogeny problem.
+In this paper, we are interested in the small phylogeny problem, where the
+phylogenetic tree is given, and the goal is only to reconstruct the ancestral
+genomes. This problem is interesting in its own right. Furthermore, the small
+phylogeny problem is a subproblem that needs to be solved when solving large
+phylogeny problem. The existing programs reconstruct the phylogenetic tree
+either by listing all tree topologies and solving the small phylogeny problem (as
+in GRAPPA software [1]) or by incrementally (heuristically) adding new branches
+and solving the small phylogeny problem (as in MGR software [2]).
+In Section 2, we define our problem and summarize the previous work on the
+problem. Section 3 describes our new method for reconstructing evolutionary
+histories. In Section 4, we present results on real datasets – yeast mitochondrial
+and plant chloroplast genomes, and we draw conclusions in Section 5.
+
+2
+2.1
+
+Preliminaries
+Genome Models
+
+Various genome models have been proposed:
+– Do we know on which strand the markers (genes, synteny blocks) are located?
+(Unsigned vs. signed models)
+– Do the species in consideration have a single chromosome or multiple chromosomes? (Unichromosomal vs. multichromosomal models)
+– Do the species have linear chromosomes, circular chromosomes, or a mix of
+both? (Linear vs. circular vs. mixed models)
+– What are the operations that rearrange the genomes throughout the evolution? Reversals? Transpositions? Translocations? Fusions and fissions? Some
+combination of the former?
+Definition 1 (Genome model). Genome model is a pair (G, d), where G is
+the set of all possible genomes and d is a distance measure on G.
+Example #1: One simple option is to model (unsigned unichromosomal)
+genome as a permutation π of markers {1, 2, . . . , n}. Let π, ρ be two genomes
+(permutations). For convenience, let us define π0 = ρ0 = 0 and πn+1 = ρn+1 =
+n + 1. Now, if πi and πi+1 are two consecutive markers in π, which are not
+consecutive in ρ, we call the pair (πi , πi+1 ) a breakpoint. The breakpoint distance
+between π and ρ is simply the number of breakpoints in π.
+Example #2: If we know the orientation of markers, we can model genomes
+−
+−
+as signed permutations, where each marker g has orientation ←
+g or →
+g . By −g
+−
+−
+−
+−
+we denote marker with the opposite orientation (i.e., −←
+g =→
+g and −→
+g =←
+g ).
+Let π = (π1 , π2 , . . . , πn ) be a signed permutation. Reversal operation rev(i, j)
+transforms π into
+π 0 = (π1 , . . . , πi−1 , −πj , −πj−1 , . . . , −πi , πj+1 , . . . , πn ).
+
+In the reversal model, G is the set of all signed permutations and the distance
+d between genomes π, ρ with the same marker content is the minimum number
+of reversals needed to transform π into ρ. Reversal distance can be computed in
+linear time [3].
+Example #3: In the double-cut and join (DCJ) model [4, 5], we represent
+a genome as a graph consisting of cycles and paths (representing circular and
+linear chromosomes, respectively). Each (oriented) marker is represented by two
+vertices, called extremities of the marker; the ends of linear chromosomes are
+represented by special vertices called telomeres. The edge set of this graph consists of the marker edges, joining the two extremities of each marker, and the
+adjacencies, joining two consecutive extremities in the genome or an extrimity
+with a telomere.
+A DCJ operation takes two adjacencies, {p, q} and {r, s}, and replaces them
+by either {p, r} and {q, s}, or {p, s} and {q, r}. This operation is quite general.
+A single DCJ operation can represent a reversal, translocation, fusion, fision,
+excision, or integration of a circular chromosome. Two operations can simulate
+a transposition. The DCJ distance is defined as the minimum number of DCJ
+operations needed to transform one genome into another. The distance can be
+computed in linear time [5].
+Example #4: In the Hannenhalli-Pevzner (HP) model [6], only genomes
+with linear chromosomes are allowed. The evolutionary operations are reversals,
+translocations, fusions and fissions. This model can be seen as a DCJ model
+restricted to linear chromosomes (with operations that do not create circular
+chromosomes). HP-distance can also be computed in linear time [7, 8].
+
+2.2
+
+Rearrangement Phylogenies
+
+In the small phylogeny problem, we are given genomes of the extant species
+together with a phylogenetic tree, and the goal is to compute genomes of their
+ancestors. According to the parsimony principle, the best reconstruction is such
+that involves the smallest number of rearrangement operations in the evolution.
+More specifically, we choose some representation of genomes and genomic
+distance, and we try to find such ancestral genomes that the sum of the distances
+along the edges of the phylogenetic tree is minimized.
+More formally, let T = (V, E) be a phylogenetic tree with the set of leaves L.
+For each leaf, we are given a genome of the corresponding species, i.e., we are
+given a function g : L → G. An evolutionary history is a function h : V → G
+extending g that maps a genome to each vertex.
+Problem 1 (Small phylogeny problem). Given a phylogenetic tree T =
+(V, E) and genomes of the extant species, find an evolutionary history h with
+the minimum score
+X
+d(h) =
+d(h(u), h(v)).
+{u,v}∈E
+
+A special case of a phylogeny problem with only three extant species is called
+median problem. For three species, there is only one unrooted phylogenetic tree
+– a star with three edges. The only ancestor is called median.
+Problem 2 (Median problem). Given three genomes Π1 , Π2 , and Π3 , find
+the median genome ΠM , such that the sum of distances from ΠM to each genome
+d(Π1 , ΠM ) + d(Π2 , ΠM ) + d(Π3 , ΠM )
+is minimized.
+Median problem has been shown to be NP-hard for almost every considered
+genome model (unichromosomal reversal distance [9], unichromosomal breakpoint distance [10, 11], multichromosomal linear breakpoint distance [12], unichromosomal [9] and multichromosomal [12] DCJ distance) and is conjectured to be
+NP-hard for other genome models. One notable exception is the breakpoint distance on multiple circular or mixed chromosomes for which a median can be
+computed in polynomial time [12].
+Note that NP-hardness of the median problem also implies NP-hardness of
+the small phylogeny problem. (The complexity of the small phylogeny problem
+under the breakpoint distance is unknown.)
+2.3
+
+Previous Work
+
+Despite the fact that median problem has been proven to be NP-hard, the prevailing approach to solving small phylogeny problem is based on solving the median problem exactly or heuristically. The so called steinerization method [13]
+iteratively improves the evolutionary history until a local optimum is reached.
+In each iteration, we go through all internal vertices v. We take an ancestral
+genome Πv and its three neighbours Πa , Πb , Πc , we compute a median ΠM of
+these neighbours, and if it has a better score than Πv , we replace Πv by ΠM . If
+no vertex can be improved by taking the median of its neighbours, we have a
+locally optimal evolutionary history.
+This approach was initiated by Blanchette, Bourque, and Sankoff [14, 15] and
+the method was implemented in the BPAnalysis software. BPAnalysis solves
+the large phylogeny problem under the breakpoint distance by generating all tree
+topologies and solving the small phylogeny problem. Blanchette, Bourque, and
+Sankoff [14, 15] reduce breakpoint median problem to travelling salesman problem and then use a branch-and-bound algorithm to solve the resulting instance
+of TSP exactly.
+GRAPPA software by Moret et al. [16–18] solves both breakpoint phylogeny
+and reversal phylogeny problem. Breakpoint median problem is solved using
+an approximate TSP solver. For the reversal median problem solvers, Siepel
+and Moret [19] and Caprara [20] are used. The package also contains an exact
+exponential algorithm by Tang and Moret [21] and a heuristic solver by Arndt
+and Tang [22]. An extension for transposition phylogeny problem was proposed
+by Yue et al. [23]
+
+Another approach to the large phylogeny problem by Bourque and Pevzner
+[2] is the sequential addition heuristic. Instead of generating all topologies, the
+method tries to build one or several trees with a small score. In this heuristic,
+we build the tree incrementally by adding new species. In each step, we choose
+an edge to be split and replaced by a 3-star with the new species. We choose the
+best edge greedily so that the resulting intermediate tree has minimum score.
+This method is implemented in the MGR software. The reversal median problem is solved heuristically by moving genomes closer to each other. The program
+was also reimplemented by Adam and Sankoff [24] using the DCJ model and
+heuristic DCJ median solver.
+More recently, Xu and Sankoff [25] proposed a fast exact DCJ median solver.
+
+3
+
+Iterative Local Optimization
+
+Here, we propose a new general approach based on iterative local optimization.
+The basic idea is that in each step, we propose candidates for ancestral genomes
+and choose the best combination of the candidates by dynamic programming.
+In particular, consider a phylogenetic tree T = (V, E) with the set of leaves
+L and genomes of extant species g : L → G. Let H be the set of all possible
+evolutionary histories. We start with some history h0 . For a particular history h
+and each internal vertex v, we propose a set of candidates cand(h, v). We define
+a neighbourhood of history h as N (h) = {h0 | ∀v ∈ V : h0 (v) ∈ cand(h, v)}, i.e.,
+we consider all the possible combinations of candidate genomes as neighbouring
+histories. We then find the best history in the neighbourhood by a dynamic
+programming algorithm and if the new history is better than the previous one,
+we take it and repeat the iteration. Otherwise, we have found a local minimum
+and the algorithm terminates.
+
+Algorithm 1: Local optimization
+Data: evolutionary history h
+Result: local optimum
+0
+1 s ← score(h), s ← ∞ ;
+0
+2 while s < s do
+3
+cand ← generate lists of candidates (neighbourhood of h);
+4
+h ← best(cand);
+5
+s ← s0 , s0 ← score(h);
+6 end
+7 return h
+Example #1: For each internal vertex v, the set of candidates can be all the
+genomes within the distance 1 from h(v). The neighbourhood of h is the set of
+all histories we can obtain from h by performing at most one operation to each
+ancestral genome. (Note that the size of N (h) is exponential in the number of
+
+internal vertices, but as we will see later, we will never require to enumerate the
+whole neighbourhood.)
+Example #2: The steinerization approach mentioned in Section 2.3 is a
+special case of our method: Here, cand(h, v) = {h(v)} for all vertices except for
+one vertex w with neighbours a, b, c, for which cand(h, w) = {h(w), median(h(a),
+h(b), h(c))}.
+3.1
+
+Finding the Best History in a Neighbourhood
+
+Q
+Even though the size of the neighbourhood can be exponential (it has v | cand(v)|
+elements), the best history can be found in polynomial time using dynamic programming.
+(u)
+Let ci be the i-th candidate from cand(h, u) and let M [u, i] be the lowest
+(u)
+score we can achieve for the subtree rooted at u if we choose the candidate ci
+as an ancestor. M [u, i] = 0 if u is a leaf. If u is an internal vertex with children
+v and w, we first compute values M [v, j], M [w, k] for all j, k. Then
+(u)
+
+(v)
+
+(u)
+
+(w)
+
+M [u, i] = min{M [v, j] + d(ci , cj )} + min{M [w, k] + d(ci , ck )}.
+j
+
+k
+
+This could be easily generalized for phylogenetic trees that are not binary.
+If n is the number of species, m is the number of markers in genomes, and k is
+the number of candidates for each ancestor, the best history can be found in time
+O(nmk 2 ) (provided that the distance between two genomes can be computed in
+O(m) time).
+3.2
+
+Strategies for Proposing Candidates
+
+There are many methods for proposing candidates. In general, by proposing
+more candidates we explore larger neighbourhood, but finding the best choice of
+candidates is slower. Furthermore, if we propose only candidates that are close
+to the genomes in the current history, the convergence to the local optimum may
+be slow. Here, we list several strategies for proposing candidates.
+Descendants. In the initialization step, we can take genomes of the extant
+species as candidates to get an evolutionary history to begin with.
+Neighbours. We already mentioned that we can include neighbourhoods of
+individual genomes, i.e. N (Π) = {Γ | d(Π, Γ) ≤ 1}, in the set of candidates. For
+most models the size of N (Π) is roughly quadratic in the number of markers.
+Scenarios. For vertex v with neighbouring vertices u and w, we can take
+intermediate genomes as candidates, i.e. if Π, Γ are genomes at u and w, we can
+sample genomes Θ such that d(Π, Θ) + d(Θ, Γ) = d(Π, Γ).
+Medians. In the steinerization method, we have a median of genomes in the
+neighbouring vertices as a candidate. Note that often there are many medians
+with the same score. In our method, we do not need to decide which median to
+use, but instead we can consider all medians as candidates.
+
+If we compute median by branch-and-bound technique, the time to list all
+medians is comparable to the time to find just one. If we try to find median
+heuristically by moving the given genomes closer and closer to each other, we
+can take the intermediate genomes as candidates. Another option is to find just
+a single median and then search its neighbourhood.
+Layers. Our method runs in time quadratic in the size of candidate sets.
+That means, that the algorithm is slow for large sets of candidates. However,
+the O(nmk 2 ) bound is tight only when all the candidate sets contain k genomes.
+Another variation of our method is to divide the vertices into layers by their
+depth. We can generate large sets of candidates for the odd layers and small sets
+of candidates for even layers (or vice versa). If the corresponding sizes are k1
+and k2 , the running time will be O(nmk1 k2 ).
+Best histories. We can take locally optimal histories and put the reconstructed ancestors into the sets of candidates. This way we can “crossbreed”
+locally optimal solutions discovered previously.
+3.3
+
+Dealing with Unequal Gene Content
+
+Genome models usually do not account for duplications or losses since the distance is then difficult to compute. In our method, it is easy to deal with a few
+duplications or losses by considering different forms of genomes of the extant
+species. Instead of running the algorithm many times for different choices of
+extant genomes, we can just put the alternative genomes in sets of candidates.
+One of the alternative gene orders is then chosen in each leaf as a representative,
+so as to minimize the overall parsimony cost.
+For example, if a few of the genomes contain only a few duplications, we
+can consider all forms where we delete all but one of the copies as candidates
+in the corresponding leaves. On the other hand, if all of the genomes contain a
+few duplications, we can consider all the differentiated genomes, where we treat
+each copy as a different marker.
+
+4
+4.1
+
+Experiments on Real Data
+The Hemiascomycetes mtDNA Dataset
+
+We have implemented our method using the most general DCJ model and used
+it to study evolution of gene order in 16 mitochondrial genomes from the CTG
+clade of hemiascomycetes. The phylogenetic tree was calculated by PhyloBayes
+(Fig. 1) and is supported by high posterior probabilities on most branches. The
+tree is also consistent with the study of Fitzpatrick et al. [26].
+The genomes in the dataset consisted of 25 markers (synteny blocks) comprising 14 protein-coding genes, two ribosomal RNA genes and around 24 tRNAs.
+Genomes of C. subhashii, C. parapsilosis, and C. orthopsilosis are linear; C.
+frijolesensis has two linear chromosomes; other considered species have circularmapping chromosomes – thus a general model such as DCJ was needed.
+
+Fig. 1. Phylogenetic tree of CTG clade of hemiascomycetes
+
+The DCJ model does not handle genomes with duplicated genes. To resolve
+recent duplications in some of the genomes (C. albicans, C. maltosa, C. sojae,
+C. viswanathii ), we removed the duplicated genes, and included both possible
+forms of the genomes as alternatives in the corresponding leaves as described in
+Section 3.3. Similarly, both isomers are allowed in the genomes that include long
+inverted repeats (C. alai, C. albicans, C. maltosa, C. neerlandica, C. sojae, L.
+elongisporus).
+We penalized occurrences of multiple circular chromosomes, or combinations
+of linear and circular chromosomes in ancestral genomes.
+We found evolutionary history with 78 DCJ operations (Fig. 2) which agrees
+with manually reconstructed events among closely related species [27]. This
+study shows practical applicability of our approach to real biological datasets.
+4.2
+
+The Campanulaceae cpDNA Dataset
+
+To compare our method with existing ones, we also applied our program to a
+well-studied dataset of Campanulaceae chloroplast genomes [28]. This dataset
+consists of 13 species, each genome consists of one circular chromosome with 105
+markers.
+Using GRAPPA software, Moret et al. [17] found 216 tree topologies and
+evolutionary histories with 67 reversals. Bourque and Pevzner [2] using MGR
+later found a solution with 65 reversals. Their phylogenetic tree is shown in
+Fig. 3.
+
+Fig. 2. Reconstructed evolutionary history of hemiascomycetes’ mitochondrial DNA
+
+4
+
+1
+
+4
+
+2
+
+2
+
+2
+
+5
+
+0
+
+11
+
+0
+
+2
+
+5
+
+1
+
+9
+
+3
+
+1
+
+0
+
+0
+
+0
+
+3
+
+5
+
+3
+
+5
+
+0
+
+2
+
+5
+
+2
+
+0
+
+1
+
+P. sorbitophila
+
+D. hansenii
+
+C. subhashii
+
+C. alai
+
+C. maltosa
+
+C. albicans
+
+C. neerlandica
+
+C. frijolesensis
+
+C. viswanathii
+
+C. sojae
+
+C. tropicalis
+
+L. elongisporus
+
+C. jiufengensis
+
+C. orthopsilosis
+
+C. orthopsilosis
+
+C. parapsilosis
+
+nad3
+
+nad4
+
+rns
+nad2
+
+cob
+
+atp9
+
+nad2
+
+cox3
+
+cob
+
+nad3
+
+nad1
+
+rnl
+
+cob
+
+nad3
+
+cox2
+
+nad4
+
+nad2
+
+cob
+
+cox1
+
+cox1
+
+cox2
+
+cox1
+
+cox1
+
+cox1
+
+nad3
+
+nad3
+
+atp9
+
+nad2
+
+rnl
+
+nad2
+
+nad4
+
+nad2
+
+nad2
+
+nad2
+
+nad2
+
+nad2
+
+nad2
+
+nad2
+
+cox1
+
+cox1
+
+cox1
+
+cox3
+
+cox3
+
+rnl
+
+cox3
+
+cox3
+
+cox3
+
+cox1
+
+nad4
+
+rns
+
+nad3
+
+cob
+
+nad3
+
+cox1
+
+nad3
+
+nad3
+
+nad3
+
+nad3
+
+nad3
+
+nad3
+
+nad4
+
+cox1
+
+nad3
+
+rns
+
+nad5
+
+nad6
+
+cox1
+
+cox1
+
+cob
+
+nad3
+
+rns
+
+cob
+
+cob
+
+nad6
+
+cob
+
+cob
+
+cob
+
+nad2
+
+nad2
+
+nad2
+
+cob
+
+cox2
+
+cob
+
+rns
+
+cob
+
+cob
+
+cob
+
+cob
+
+cob
+
+cob
+
+rns
+
+rnl
+
+nad2
+
+nad4
+
+nad4L
+
+cox2
+
+nad4
+
+nad4
+
+rns
+
+cob
+
+atp9
+
+rns
+
+rns
+
+nad1
+
+rns
+
+rns
+
+rns
+
+atp9
+
+atp9
+
+nad3
+
+atp9
+
+nad6
+
+atp9
+
+atp9
+
+atp9
+
+cox2
+
+cox2
+
+cox2
+
+cox2
+
+cox2
+
+cob
+
+cox2
+
+nad1
+
+nad1
+
+rnl
+
+nad4
+
+rns
+
+nad1
+
+atp9
+
+rns
+
+nad2
+
+atp9
+
+atp9
+
+cox3
+
+atp9
+
+atp9
+
+atp9
+
+rns
+
+rns
+
+cob
+
+rns
+
+nad1
+
+rns
+
+cob
+
+rns
+
+rnl
+
+rnl
+
+rnl
+
+rnl
+
+rnl
+
+cox3
+
+nad6
+
+nad6
+
+nad6
+
+cox2
+
+rnl
+
+atp9
+
+nad6
+
+nad2
+
+nad4L
+
+nad3
+
+nad2
+
+nad2
+
+nad4L
+
+nad1
+
+cox2
+
+cox2
+
+nad6
+
+cox3
+
+cob
+
+atp6
+
+nad3
+
+nad5
+
+cox3
+
+nad3
+
+nad3
+
+rnl
+
+nad4
+
+rnl
+
+rnl
+
+rnl
+
+rns
+
+rns
+
+rns
+
+rns
+
+rns
+
+nad5
+
+atp9
+
+rnl
+
+rnl
+
+nad1
+
+cox1
+
+nad2
+
+atp8
+
+cox3
+
+nad4
+
+rnl
+
+nad5
+
+nad5
+
+rns
+
+nad5
+
+nad5
+
+nad5
+
+rnl
+
+nad5
+
+cox2
+
+cob
+
+nad3
+
+nad3
+
+nad3
+
+cox2
+
+nad4L
+
+rnl
+
+cox1
+
+nad3
+
+cox1
+
+nad3
+
+cox1
+
+nad4
+
+nad4
+
+nad4
+
+nad4
+
+nad4
+
+cox1
+
+nad2
+
+nad2
+
+nad2
+
+cob
+
+cob
+
+cox1
+
+nad4
+
+nad2
+
+nad4
+
+nad2
+
+nad4
+
+cox1
+
+cox1
+
+cox1
+
+cox1
+
+cox1
+
+cox1
+
+atp8
+
+rns
+
+nad4L
+
+cox3
+
+atp6
+
+nad3
+
+cox2
+
+rnl
+
+cox3
+
+cox2
+
+nad4L
+
+nad4L
+
+atp9
+
+nad4L
+
+nad4L
+
+nad4L
+
+nad6
+
+cox1
+
+nad6
+
+cox2
+
+rns
+
+cox2
+
+cox2
+
+cox2
+
+atp9
+
+atp9
+
+atp9
+
+atp9
+
+atp9
+
+rnl
+
+atp6
+
+nad4
+
+nad5
+
+cox1
+
+atp8
+
+atp8
+
+rnl
+
+cox2
+
+rnl
+
+nad6
+
+nad4
+
+nad4
+
+nad2
+
+nad4
+
+nad4
+
+nad4
+
+nad1
+
+rnl
+
+nad1
+
+nad6
+
+atp9
+
+nad6
+
+nad6
+
+nad6
+
+nad6
+
+nad6
+
+nad6
+
+nad6
+
+nad6
+
+cox2
+
+nad2
+
+cox1
+
+cox1
+
+nad4
+
+atp9
+
+atp6
+
+cob
+
+nad6
+
+cox2
+
+nad1
+
+atp8
+
+atp8
+
+nad3
+
+atp8
+
+atp8
+
+atp8
+
+cox2
+
+cox2
+
+cox3
+
+nad1
+
+cox1
+
+nad1
+
+nad1
+
+nad1
+
+nad1
+
+nad1
+
+nad1
+
+nad1
+
+nad1
+
+nad6
+
+nad3
+
+atp9
+
+cox3
+
+rns
+
+rns
+
+nad5
+
+nad5
+
+nad1
+
+nad6
+
+nad4L
+
+atp6
+
+atp6
+
+nad1
+
+cob
+
+atp8
+
+nad2
+
+atp9
+
+nad4L
+
+nad4L
+
+cox3
+
+nad4
+
+atp6
+
+atp9
+
+cox3
+
+atp6
+
+nad3
+
+cob
+
+nad5
+
+cox3
+
+rns
+
+nad5
+
+cox3
+
+nad4
+
+cox2
+
+cox2
+
+atp8
+
+atp8
+
+atp8
+
+atp8
+
+atp8
+
+atp8
+
+atp8
+
+atp8
+
+atp8
+
+nad4L
+
+nad4L
+
+atp8
+
+atp6
+
+nad2
+
+nad1
+
+atp9
+
+atp6
+
+atp9
+
+atp6
+
+nad6
+
+nad6
+
+atp8
+
+nad5
+
+nad4L
+
+nad4L
+
+atp6
+
+atp6
+
+atp6
+
+atp6
+
+atp6
+
+atp6
+
+atp6
+
+atp6
+
+atp6
+
+nad5
+
+nad5
+
+atp6
+
+atp8
+
+nad3
+
+nad6
+
+cox3
+
+atp8
+
+atp6
+
+atp8
+
+nad1
+
+nad1
+
+atp8
+
+atp8
+
+nad4
+
+atp6
+
+nad1
+
+nad1
+
+nad1
+
+nad3
+
+atp8
+
+nad6
+
+nad6
+
+nad6
+
+nad2
+
+atp6
+
+nad4L
+
+nad5
+
+nad5
+
+nad4
+
+cox2
+
+cox2
+
+cox2
+
+atp9
+
+nad4L
+
+nad4L
+
+nad1
+
+nad5
+
+rnl
+
+rnl
+
+nad5
+
+nad5
+
+nad5
+
+nad5
+
+nad5
+
+nad5
+
+nad5
+
+nad5
+
+cox3
+
+nad4L
+
+rnl
+
+rnl
+
+rnl
+
+nad1
+
+atp8
+
+atp8
+
+atp6
+
+nad4L
+
+nad4L
+
+nad4L
+
+nad4L
+
+nad4L
+
+nad4L
+
+nad4L
+
+nad4L
+
+rns
+
+nad5
+
+atp6
+
+atp6
+
+atp6
+
+cob
+
+nad6
+
+atp6
+
+cox3
+
+atp8
+
+cox3
+
+cox3
+
+cox3
+
+cox3
+
+cox3
+
+cox3
+
+cox3
+
+cox3
+
+atp6
+
+cox3
+
+atp8
+
+atp6
+
+nad4L
+
+nad5
+
+Fig. 3. Phylogenetic tree of Campanulaceae
+
+Adam and Sankoff [24] used the more general DCJ model and the phylogenetic tree by Bourque and Pevzner. They found an evolutionary history with 64
+DCJ operations if the ancestral species were required to have a single chromosome and a history with 59 DCJ operations if the ancestral species were unconstrained. However, as Adam and Sankoff note: “There is no biological evidence
+in the Campanulaceae, or other higher plants, of chloroplast genomes consisting
+of two or more circles.” The additional circular chromosomes are an artifact of
+the DCJ model, where a transposition or a block interchange operation can be
+simulated by circular excision and reincorporation.
+We ran our program on this data set penalizing multiple chromosomes and
+we have found several evolutionary histories with 59 DCJ operations, where all
+the ancestral species had single circular chromosomes.
+
+5
+
+Conclusion
+
+In this paper, we have developed a new method for reconstructing evolutionary
+history and ancestral gene orders, given the gene orders of the extant species and
+their phylogenetic tree. We have implemented our method using the double-cut
+and join model and used it to study evolution of gene order in 16 mitochondrial yeast genomes. The study shows practical applicability of our approach to
+real biological datasets. We have also analyzed the well-studied Campanulaceae
+dataset and we have improved upon the results of Adam and Sankoff [24].
+Acknowledgements. This research was supported by Marie Curie reintegration grants IRG-224885 and IRG-231025 to Tomáš Vinař and Broňa Brejová,
+and VEGA grant 1/0210/10.
+
+References
+1. Moret, B., Warnow, T.: Toward new software for computational phylogenetics.
+Computer 35 (2002) 55–64
+2. Bourque, G., Pevzner, P.: Genome-scale evolution: reconstructing gene orders in
+the ancestral species. Genome Research 12 (2002) 26
+3. Bader, D.A., Moret, B.M.E., Yan, M.: A linear-time algorithm for computing inversion distance between signed permutations with an experimental study. Journal
+of Computational Biology 8 (2001) 483–491
+4. Yancopoulos, S., Attie, O., Friedberg, R.: Efficient sorting of genomic permutations
+by translocation, inversion and block interchange. Bioinformatics 21 (2005) 3340–
+3346
+5. Bergeron, A., Mixtacki, J., Stoye, J.: A unifying view of genome rearrangements.
+In: Proc. of WABI. (2006) 163–173
+6. Hannenhalli, S., Pevzner, P.A.: Transforming men into mice (polynomial algorithm
+for genomic distance problem). In: FOCS. (1995) 581–592
+7. Bergeron, A., Mixtacki, J., Stoye, J.: HP distance via double cut and join distance.
+In: CPM. (2008) 56–68
+8. Bergeron, A., Mixtacki, J., Stoye, J.: A new linear time algorithm to compute the
+genomic distance via the double cut and join distance. Theor. Comput. Sci. 410
+(2009) 5300–5316
+9. Caprara, A.: The reversal median problem. INFORMS Journal on Computing 15
+(2003) 93
+10. Pe’er, I., Shamir, R.: The median problems for breakpoints are NP-complete.
+Electronic Colloquium on Computational Complexity (ECCC) 5 (1998)
+11. Bryant, D.: The complexity of the breakpoint median problem. Centre de
+recherches mathematiques (1998)
+12. Tannier, E., Zheng, C., Sankoff, D.: Multichromosomal median and halving problems under different genomic distances. BMC bioinformatics 10 (2009) 120
+13. Sankoff, D., Cedergren, R., Lapalme, G.: Frequency of insertion-deletion, transversion, and transition in the evolution of 5S ribosomal RNA. Journal of Molecular
+Evolution 7 (1976) 133–149
+14. Blanchette, M., Bourque, G., Sankoff, D.: Breakpoint phylogenies. Genome Informatics (1997) 25–34
+15. Sankoff, D., Blanchette, M.: The median problem for breakpoints in comparative
+genomics. In: COCOON. (1997) 251–264
+16. Moret, B., Wyman, S., Bader, D., Warnow, T., Yan, M.: A new implementation and
+detailed study of breakpoint analysis. In: Proc. 6th Pacific Symp. Biocomputing
+PSB 2001, Citeseer (2001) 583–594
+17. Moret, B., Wang, L., Warnow, T., Wyman, S.: New approaches for reconstructing
+phylogenies from gene order data. Bioinformatics 17 (2001) S165
+18. Moret, B., Tang, J., Wang, L., Warnow, T.: Steps toward accurate reconstructions
+of phylogenies from gene-order data. Journal of Computer and System Sciences
+65 (2002) 508–525
+19. Siepel, A.C., Moret, B.M.E.: Finding an optimal inversion median: Experimental
+results. In: WABI. (2001) 189–203
+20. Caprara, A.: On the practical solution of the reversal median problem. In: WABI.
+(2001) 238–251
+21. Tang, J., Moret, B.: Linear programming for phylogenetic reconstruction based
+on gene rearrangements. In: Combinatorial Pattern Matching, Springer (2005)
+406–416
+
+22. Arndt, W., Tang, J.: Improving reversal median computation using commuting
+reversals and cycle information. Journal of Computational Biology 15 (2008) 1079–
+1092
+23. Yue, F., Zhang, M., Tang, J.: Phylogenetic reconstruction from transpositions.
+BMC genomics 9 (2008) S15
+24. Adam, Z., Sankoff, D.: The ABC of MGR with DCJ. Evol. Bioinformatics 4 (2008)
+69–74
+25. Xu, A.W., Sankoff, D.: Decompositions of multiple breakpoint graphs and rapid
+exact solutions to the median problem. In: WABI. (2008) 25–37
+26. Fitzpatrick, D., Logue, M., Stajich, J., Butler, G.: A fungal phylogeny based on
+42 complete genomes derived from supertree and combined gene analysis. BMC
+evolutionary biology 6 (2006) 99
+27. Valach, M., Farkas, Z., Fricova, D., Kovac, J., Brejova, B., Vinar, T., Pfeiffer, I.,
+K.J., Tomaska5, L., Lang, B.F., Nosek, J.: Evolution of linear chromosomes and
+multipartite genomes in yeast mitochondria. (2010) submitted to Nucleic Acids
+Research.
+28. Cosner, M., Jansen, R., Moret, B., Raubeson, L., Wang, L., Warnow, T., Wyman,
+S.: An empirical comparison of phylogenetic methods on chloroplast gene order
+data in Campanulaceae. Comparative Genomics: Empirical and Analytical Approaches to Gene Order Dynamics, Map Alignment, and the Evolution of Gene
+Families (2000) 99–121
+
+

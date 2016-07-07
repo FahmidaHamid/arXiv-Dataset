@@ -1,0 +1,890 @@
+arXiv:1502.07907v1 [q-bio.NC] 27 Feb 2015
+
+Closed Form Jitter Analysis
+of Neuronal Spike Trains
+Daniel M. Jeck1,2 and Ernst Niebur1,3
+1
+
+Zanvyl Krieger Mind/Brain Institute, Johns Hopkins
+University, Baltimore, MD
+2
+Department of Biomedical Engineering, Johns Hopkins
+University, Baltimore, MD
+3
+Solomon Snyder Department of Neuroscience, Johns Hopkins
+University, Baltimore, MD
+March 2, 2015
+
+1
+
+Closed Form Jitter Analysis
+Running Title
+Closed Form Jitter Analysis
+Address correspondence to
+Daniel Jeck
+The Johns Hopkins University
+Krieger Mind/Brain Institute
+3400 N. Charles Street
+Baltimore, MD 21218
+(email: djeck1@jhu.edu)
+Keywords
+Jitter, Spike timing, Synchrony, Cross Correlation
+Abstract
+Interval jitter and spike resampling methods are used to analyze
+the time scale on which temporal correlations occur. They allow
+the computation of jitter corrected cross correlograms and the performance of an associated statistically robust hypothesis test to decide whether observed correlations at a given time scale are significant. Currently used Monte Carlo methods approximate the probability distribution of coincidences. They require generating NMC simulated spike trains of length T and calculating their correlation with
+another spike train up to lag τmax . This is computationally costly
+O(NMC × T × τmax ) and it introduces errors in estimating the p value.
+Instead, we propose to compute the distribution in closed form, with
+a complexity of O(Cmax log(Cmax )τmax ), where Cmax is the maximum
+possible number of coincidences. All results are then exact rather
+than approximate, and as a consequence, the p-values obtained are
+the theoretically best possible for the available data and test statistic. In addition, simulations with realistic parameters predict a speed
+increase over Monte Carlo methods of two orders of magnitude for
+hypothesis testing, and four orders of magnitude for computing the
+full jitter-corrected cross correlogram.
+
+2
+
+Closed Form Jitter Analysis
+
+1
+
+Introduction
+
+Though there are many means by which neurons communicate, using both
+chemical and electrical mechanisms, most attention has been paid to series
+of action potentials (spikes). It is known that in some cases the detailed
+time structure of these spike trains is used for information transmission
+while in others, only the overall number of spikes in some interval seems
+to be important but not their position in the interval. Examples of the first
+type are various kinds of “temporal coding” schemes proposed for different
+neural system and for different functional roles, e.g. refs Abeles (1991);
+Singer and Gray (1995); Riehle et al. (1997); Niebur et al. (1993); Softky
+(1995); Steinmetz et al. (2000), while the latter is the well-known rate-code
+mechanism, e.g. refs. Adrian and Zotterman (1926); Shadlen and Newsome
+(1998). To distinguish between these two possibilities, it is necessary to find
+whether reproducible correlations at the relevant time scale are present in
+neuronal data. One common way to approach this problem is to use autoor cross-correlation functions as test statistics. Then one can (a) search for
+non-trivial structure in the function, like deviations from uniformity, and
+(b) detect whether there are differences between these functions in different
+experimental (e.g. behavioral) conditions.
+The situation is complicated by the influence of rate variations on the raw
+correlations. To increase the signal-to-noise ratio, correlations are typically
+computed as averages over many trials. Changes in the behavioral state
+of an animal, e.g. due to onset of sensory stimuli or motor responses that
+occur always at the same time during a trial, typically result in changes in
+neural firing rates which are common to many neurons. While these are
+genuine correlations, they are unrelated to the neuronal coding question.
+Different techniques have been developed to remove them, e.g. subtraction
+of a “shuffle predictor” Perkel et al. (1967), the average of cross correlations
+between spike trains from permuted trials1 . While this correction removes
+correlations that are time-locked to trial onset, it was later pointed out that
+peaks in the correlation function that may be taken as indicative of correlated
+firing (e.g. at zero lag) can also be caused by slow rate covariations Brody
+(1998, 1999). After finding a significant peak in the cross correlation function,
+this ambiguity can be addressed by analyzing the time scale at which the
+1
+
+A “shift predictor” is very similar but the correlation function is computed from trials
+that immediately follow each other, rather than from randomly selected trials.
+
+3
+
+Closed Form Jitter Analysis
+measured correlation arises.
+It was pointed out more recently Amarasingham et al. (2012) that the
+null hypothesis of spike trains being independent in earlier work Perkel et al.
+(1967) is useless if their mean rates co-vary. Rate co-variation of means the
+spike trains are not independent which leads to its immediate rejection of the
+null without providing any further insight. Amarasingham and his colleagues
+instead proposed a more detailed null hypothesis, namely that within an interval of width ∆, the exact location of spikes does not matter. Then, under
+the null hypothesis, simulated spike trains can be generated by modifying
+the spike times of an original measured spike train within a range of ∆. The
+cross correlations obtained from these modified (“jittered”) spike trains are
+then compared to those obtained from the original. If significant differences
+are found, the null hypothesis is rejected and it is likely that non-random
+correlations at time scales ≤ ∆ are present in the data. Additionally, this
+method gives rise to the computation of jitter-corrected cross correlograms,
+which have been used to compare changes in synchrony across experimental conditions (Hirabayashi et al., 2013a,b; Smith et al., 2013). Because the
+method relies on repeated simulation of spike trains, it will be referred to as
+the Monte Carlo jitter method for the purposes of this paper.
+While the Monte Carlo jitter method (described fully in Section 2.1) is
+useful and easily generalized to complex statistical tests and hypotheses,
+its practical utility is limited by the inherent trade-off between accuracy and
+computation time in all Monte Carlo methods. As we will show in Section 3.2,
+the computation time may be prohibitively long, and even at this cost, it will
+only be a numerical approximation of the true solution. In the case where
+the test statistic is the cross-correllation value at a single lag, the p value
+can be computed exactly, as was shown by Harrison (2013). In the present
+study, we therefore explore the benefits of computing in closed form the
+distribution which is only approximated by the Monte Carlo simulations.
+Accordingly we refer to this method, described in Section 2.2, as the closed
+form jitter method. In addition to computing the p value for rejecting the
+null hypothesis exactly we show that the computation of the jitter-corrected
+cross correlogram follows readily from that derivation. The computational
+performance of the closed form jitter and Monte Carlo jitter methods are
+compared theoretically (as computational complexity) in Section 3.1 and
+practically (as computational time) in Section 3.2.
+
+4
+
+Closed Form Jitter Analysis
+
+T
+X, Y
+τ
+C(τ )
+∆
+i
+j
+N(X, j)
+XiMC
+NMC
+CiMC
+Rτ
+pτ
+JCCG(τ )
+Pτ (C MC )
+Cjint
+Pτ (C(τ ))
+τmax
+Nmax
+Cmax
+
+Length of binned spike trains
+Two spike trains
+Correlation Lag
+Correlation of X and Y
+Jitter interval width
+Index over Monte Carlo simulated signals
+Index over jitter intervals
+Number of spikes in X in interval j
+ith Monte Carlo simulated signal
+Number of Monte Carlo simulated signals
+Correlation of XiMC and Y
+Number of cases where CiMC (τ ) > C(τ )
+p Value for correlation at lag τ
+Jitter-corrected Cross Correlogram
+Monte Carlo estimate of the distribution of correlations at lag τ
+Number of coincidences in the jth interval
+True distribution of correlations at lag τ
+Maximum τ value processed
+Maximum value of N(X, j) or N(Y, j)
+Maximum possible number of coincidences
+
+Table 1: Glossary. Variables are listed in the order in which they are
+introduced.
+
+5
+
+Closed Form Jitter Analysis
+
+2
+
+Materials and Methods
+
+2.1
+
+The Monte Carlo Jitter Method
+
+Utilizing the Monte Carlo jitter method (Amarasingham et al., 2012), it is
+possible to determine whether correlations arise from fine temporal structure
+or larger scale variations, sometimes referred to as rate covariations. This
+determination is made by comparing a test statistic (in this case cross correlations) of an original pair of spike trains against those computed from a
+set of jittered spike trains as described below. The jitter method, like cross
+correlation, operates on binned spike trains which we take as binary signals
+with values 0 and 1 and integer arguments 0 to T − 1, where T is the number
+of bins in the spike train. The binary assumption implies that the bin size is
+small enough (typically 1ms or so) such that two spikes cannot be recorded
+in a single time bin. A sufficiently small bin size can always be chosen since
+there are limits on the minimal inter-spike interval time due to the refractory
+period of the neurons in question.
+Let X(t) and Y (t) be two such binned spike trains. The processing then
+consists of the following steps:
+1. Compute the cross correlation C(τ ) between the original X and Y ,
+X
+C(τ ) =
+X(t − τ )Y (t)
+t
+
+where the sum runs from 0 to T − 1 and X is assumed to be 0 if its
+argument is outside that range.
+
+2. Subdivide one of the signals, say X, into intervals of width ∆.
+3. Count the number of spikes in each interval of X. In interval j this is,
+(j+1)∆−1
+
+N(X, j) =
+
+X
+
+X(k)
+
+(1)
+
+k=j∆
+
+4. For X generate NMC Monte Carlo simulated signals {XiMC }, in which
+the spike counts for each interval are the same as in the corresponding
+interval in X, such that N(XiMC , j) = N(X, j) for all i, j. However,
+now spike times within the interval are all equally likely. Spike times
+should be sampled without replacement to ensure that the spike count
+stays constant without putting multiple spikes in a single bin.
+6
+
+Closed Form Jitter Analysis
+5. Compute the cross correlation CiMC (τ ) for lag time τ between each
+XiMC and the second spike train Y to get an estimate of the distribution
+Pτ (C MC ) of cross correlation values for each time lag τ .
+X
+CiMC (τ ) =
+XiMC (t − τ )Y (t)
+t
+
+6. Let Rτ be the number of simulations where CiMC (τ ) ≥ C(τ ). Then the
+p value for a given lag τ is computed as
+pτ =
+
+Rτ + 1
+NMC + 1
+
+7. If desired, a jitter-corrected cross correlogram (JCCG), defined using
+the expectation operator E[·], can be computed as
+JCCG(τ ) = C(τ ) − E[CMC (τ )] ≈ C(τ ) −
+
+1 X MC
+C (τ )
+NMC i i
+
+(2)
+
+where the approximation approaches equality with NM C → ∞.
+Jittering the spikes within an interval of size ∆ destroys all correlations
+at time scales within this interval. The cross correlations computed from the
+jittered spike trains therefore are not correlated on time scales ∆ or smaller,
+and Pτ (C MC ) is the distribution of correlations at time lag τ obtained under
+the null hypothesis that correlations at time scales ≤ ∆ are indistinguishable
+from random correlations. If the measured cross correlation C(τ ) is significantly outside this distribution, we have to reject the null hypothesis and
+we conclude that nonrandom correlations at lag τ with time scales ≤ ∆ are
+found in the observed spike trains. If, on the other hand, the observed correlation is consistent with what is seen in the distribution of jittered spike
+trains, then we cannot reject the null hypothesis. This means we cannot
+exclude that the observed synchrony is caused by correlations on time scales
+outside the jittered range, in other words that the observed correlation at lag
+time τ is caused by rate variations on time scales greater than ∆.
+In practice, X(t) and Y (t) do not have to be gathered from a continuous
+block of time. In the case of multiple trials of the same experimental condition, it may be useful to concatenate the recorded spike trains (possibly
+7
+
+Closed Form Jitter Analysis
+after removing sections of them, like those recorded during stimulus onsets).
+In doing so, a period of no spiking of width τmax (the largest correlation lag
+of interest) should be added between the trials so that correlations between
+trials don’t affect the outcome of the jitter procedure.
+As mentioned in Section 1, the practical utility of the Monte Carlo method
+is limited by the trade-off between accuracy and computation time inherent
+in all Monte Carlo algorithms. Furthermore, in practice a single set of Monte
+Carlo simulations is often generated for many hypothesis tests (i.e. tests at
+multiple lags), introducing potential dependencies between the different tests
+when they should be treated independently 2 . In order to avoid both of these
+issues, the probability distribution Pτ (C MC ) can be computed exactly and
+independently for each time lag as described in the following.
+
+2.2
+2.2.1
+
+Closed Form Computation
+Probability Distribution For One Interval
+
+First, let us consider a single interval consisting of ∆ time bins. For example,
+if spike times have been binned to 2 ms, for an interval of width 20 ms we
+have ∆ = 10. Since time has been discretized, it is still possible to discuss
+this unitless value as a length of time, a time scale, or a interval width for
+a given bin size. As before, we assume that the sequence is binary, so each
+bin has either zero or one spike. This is true even when the spike times
+are jittered because spike times are sampled without replacement. For this
+single interval, the probability of a given number of coincidences occurring is
+determined by three values: ∆, N(X, j) the number of spikes in interval j of
+spike train X, and N(Y, j) the number of spikes in interval j of spike train
+Y.
+As a first step, we count the number of perfect coincidences, in which one
+spike occurs in both X and Y within
+the same time bin, meaning τ = 0.
+
+a
+Using the standard notation of b for the combinatorial operation (a choose
+
+∆
+b), we find that there are N (X,j)
+ways to distribute N(X, j) spikes in ∆
+available bins. The number of empty (spike-less) bins in spike train Y is
+[∆ − N(Y, j)]. The number of ways to distribute N(X, j) spikes
+such that
+
+∆−N (Y,j)
+each of them falls into one of these empty bins is N (X,j) . These are all
+2
+
+The procedure of generating one set of spike trains for multiple lags is appropriate
+inappropriate only if each lag is being tested independently. If the test statistic is the sum
+of C(τ ) over a range of lag values, a single set of simulated spike trains is appropriate.f
+
+8
+
+Closed Form Jitter Analysis
+possible cases in which a coincidence is avoided. The probability that zero
+coincidences occur in the j-th interval is therefore
+
+∆−N (Y,j)
+P (Cjint = 0|∆, N(X, j), N(Y, j)) =
+
+N (X,j)
+
+∆
+N (X,j)
+
+(3)
+
+where Cjint is the number of coincidences in this interval.
+We can generalize equation 3 to a non-zero number c of coincidences
+by breaking the numerator up into the number of ways that c spikes can
+coincide with the spikes in Y , and N(X, j) − c spikes coincide with the gaps
+(or non-spikes) in Y . We can thus compute a probability distribution for
+each interval j,
+
+
+∆−N (Y,j) N (Y,j)
+P (Cjint = c|∆, N(X, j), N(Y, j)) =
+
+N (X,j)−c
+c
+
+∆
+N (X,j)
+
+(4)
+
+where we follow the customary convention of setting the value of a “choose”
+operation to zero if either of its arguments is negative, or if its upper argument is less than the lower. If this happens in the numerator of eq. 4, the
+probability on the left hand side becomes zero. Of course, the denominator
+is always positive since N(X, j) ≤ ∆. This is a hypergeometric distribution.
+Equation 4 is easily generalized to nonzero values of τ by applying the
+analysis leading to it to a shifted version of Y . For the computation of
+N(Y, j), this implies adding τ to the summation limits in eq. 1. As with
+other correlation algorithms, the boundaries of finite spike trains (beginning
+and end) result in fewer intervals to analyze as τ gets further away from
+zero. Thus generalizing eq. 4 to non-zero τ , we denote the resulting number
+of coincidences as Cjint (τ ) and the associated probability distributions as Pτint .
+2.2.2
+
+Jitter-Corrected Cross Correlation
+
+Once we have the analytical probability distribution for the correlations, we
+can obtain all relevant quantities to characterize the pairwise correlations between two spike trains. It is straightforward to compute the commonly used
+jitter-corrected cross correlogram (e.g., Hirabayashi et al., 2013a,b; Smith et al.,
+2013) which shows the correlation function after all correlations on time scales
+longer than ∆ have been removed. It is defined in analogy to equation 2
+where the expectation value of the stochastic solution, E[C MC (τ )], was used.
+9
+
+Closed Form Jitter Analysis
+We can replace this approximation by the exact solution E[C int (τ )]. Furthermore, by the null hypothesis each interval is conditionally independent
+based on the spike counts. Therefore, the JCCG can be computed without
+approximation by
+"
+#
+X
+X 
+
+JCCG(τ ) = C(τ ) − E
+Cint
+(τ
+)
+=
+C(τ
+)
+−
+E Cint
+(5)
+j
+j (τ )
+j
+
+j
+
+which, as should be remembered, is computed for a specific jitter interval
+width ∆. The expectation on the right can either be calculated for each
+window as N(x, j) × N(y, j)/∆.
+The jitter-corrected cross correlogram is used, for instance, when the
+scientific question of interest is whether there are significant changes in synchrony between conditions, rather than a test of the presence or absence of
+synchrony. It is then used as part of a bootstrap statistical test in which
+the observed pairwise correlation is compared with the distribution obtained
+from eq. 5.
+2.2.3
+
+Probability Distribution For Spike Train
+
+One can also obtain the probability distribution for the entire signal Pτ (C(τ ))
+as the convolution of the individual probability distributions for all intervals,
+Pτint . This is identical to computing Pτ (C MC ) from Section 2.1 with an infinite
+number of Monte Carlo simulations for each value of τ . One can then evaluate
+how likely it is that the observed cross correlation C(τ ) is explained by this
+probability distribution. The likelihood p that this is the case is obtained as
+the integral of the probability density function exceeding C(τ ), as in
+pτ =
+
+∞
+X
+
+Pτ (c)
+
+(6)
+
+c=C(τ )
+
+3
+3.1
+
+Results
+Computational Complexity
+
+In many situations, the statistical distributions underlying the phenomena
+under study are complicated or unknown and performing Monte Carlo simulations are the only way to make progress, even though it may be costly and
+10
+
+Closed Form Jitter Analysis
+it introduces additional randomness in the processing. In the case considered
+here (binary spike trains, null hypothesis of uniform spike time distribution
+in fixed interval, cross correlation test statistic), the distribution Pτ (C) can
+be computed directly, using the closed form jitter method described above,
+without the need for repeated simulations. This section will compare the
+computational complexity of using the Monte Carlo jitter method against
+the direct computation using the closed form jitter method.
+3.1.1
+
+Monte Carlo Method
+
+In the Monte Carlo algorithm, the data generation step requires a permutation of ∆ data points for each interval and simulation. Since a single permutation operation has a computational complexity O(∆), and ∆ times the
+number of intervals is the length of the signal T , generating the set of Monte
+Carlo simulations {XiMC } is O(NMC ×T ). The complexity of cross correlation
+or convolution of two signals with lengths T is O(T × log T ), assuming an
+FFT-based method (Cooley and Tukey, 1965) is used. So computing the full
+Monte Carlo probability distribution for all values of τ is O(NMC ×T ×log T ).
+In many cases, not all values of τ are needed. If the correlation is computed
+only for the subset of delay values from 0 to τmax , the complexity for the
+Monte Carlo jitter method is
+O(NMC × T × τmax )
+Computing the jitter-corrected cross correlogram by this method only
+requires one additional sum, with complexity O(NMC × τmax ) so the total
+complexity remains unchanged.
+3.1.2
+
+Closed Form Probability Distribution
+
+To compute the exact probability distribution with the closed form jitter
+method, note that the values of the distribution can be precomputed based
+on the maximum values of N(X, j) and N(Y, j) over all j; call this maximum Nmax . Also, n choose k operations can be as fast as O(min(k, n − k))
+(Manolopoulos, 2002). Therefore, a three dimensional table of all possible
+values of P (Cjint |N(X, j), N(Y, j)) can be precomputed and then looked up
+for each interval. Generating this table requires up to Nmax different values
+of C, Nmax values of N(X, j), and Nmax values of N(Y, j). Computing each
+value requires three n choose k operations, which are on the order of O(Nmax ),
+11
+
+Closed Form Jitter Analysis
+so the total computation of the probability table is O(Nmax 4 ). While the exponent is high, the expression does not have any dependence on the length
+of the signal and, furthermore, Nmax ≤ ∆ is a small number in essentially
+all cases of interest. In practice, for analyzing neurophysiological data it is
+rare that a time resolution finer than 1 ms is needed, or controlling for cross
+correlations at time scales larger than approximately 100 ms (i.e. ∆ ≈ 100).
+The full lookup table is therefore maximally a 100 × 100 × 100 matrix, which
+requires negligible resources to compute and store.
+To compute the combined probability distribution Pτ (C) over all intervals, all interval probability distributions Pτ (Cjint ) must be convolved, and
+the computational complexity of the problem is dominated by these convolution operations. As will be shown, we can improve performance by taking
+advantage of the structure of the problem at hand, since many of the convolution operations are identical. As a result, the convolutions can be grouped
+together based on N(X, j) and N(Y, j) and quickly combined so that O(T )
+convolutions will turn into O(Nmax 2 ) convolutions. This can be done by the
+following procedure:
+1. Take the Fast Fourier Transform (FFT) of Pτ (Cjint |N(X, j), N(Y, j))
+for each encountered value of N(X, j) and N(Y, j).
+2. Raise each complex frequency spectrum value to a power equal to the
+number of times that the (N(X, j), N(Y, j)) pair appears.
+3. Multiply these frequency spectra.
+4. Take the inverse FFT of the result to get the final probability distribution Pτ (C) and compute pτ as in equation 6.
+5. Repeat steps 2 through 4 for each value of τ to be tested.
+The FFT operations in step 1 must be zero-padded up to the maximum
+number of coincident spikes Cmax to account for the highest possible number
+of synchronous spikes in the combined probability distribution. Therefore the
+FFT operation in step 1 is O(Cmax × log(Cmax )). In step 2, exponentiation is
+O(1). However there are O(T × Nmax 2 ) exponents to be taken, repeated τmax
+times in step 5. Step 3 requires O(T ×Nmax 2 ) multiplications, again repeated
+τmax times. In step 4, the length of the spectral signal (to be inverted by FFT)
+is Cmax , so the operation is O(Cmax × log(Cmax )) repeated τmax times. When
+12
+
+Closed Form Jitter Analysis
+combining these steps, note that Cmax is proportional to T . However Cmax
+will be used when relevant because it captures the frequency dependence of
+the computation time. Therefore the total computational complexity is
+O(Cmax × log(Cmax ) × τmax )
+.
+Note that because the zero-frequency component of a probability distribution is always exactly unity, the inverse FFT computation will have accuracy
+limited by the precision of the numerical system. In practice this implies
+that p values less than 10−13 will not be estimated accurately.
+3.1.3
+
+Jitter-Corrected Cross Correlation
+
+Both the complexity analysis and the actual computation of the jitter-corrected
+cross correlogram is much simpler than that
+ of the probability distribution.
+We generate a lookup table of possible E C int values and, from equation 5,
+the jitter-corrected correlogram can be computed at a speed of
+O(T × τmax )
+.
+
+3.2
+
+Computational Execution Time
+
+For practical applications, consumption of resources is an important limitation for any computational method. For the size of problems encountered in
+typical neurophysiological experiments, the only limiting resource is execution time. To compare the performance of the Monte Carlo jitter and the
+closed form method, the two algorithms were run side by side in the MATLAB environment (Mathworks, Natick MA). Synthetic spike trains were generated that varied in both frequency of spiking (5 to 500 Hz) and length (1
+to 91 seconds). For each (time, frequency) condition, 50 spike trains were
+generated, binned to 1 ms, and the average processing time was computed.
+Processing was performed with τmax = 100ms and ∆ = 20. All computations
+were performed on an Intel i7 920 processor with 12 GB of RAM running
+Linux Ubuntu 12.04.
+For the Monte-Carlo method, NMC was set to 1000. This selection of
+NMC is unrealistically low for two reasons. First, it can at best result in a
+13
+
+Closed Form Jitter Analysis
+Bonferroni corrected p value of 0.201 due to the 201 p values being tested
+in the range of −τmax to τmax . As the execution for NMC = 1000 already
+takes 5.7 days to run, increasing NMC is impractical. Second, only a single
+set of Monte-Carlo trials were generated for all lag values computed, inducing potential correlations between the p values. These correlations should
+decrease as more trials are generated. Therefore results are extrapolated to
+NMC = 20, 000 (resulting in a minimum p ≈ 0.01) under the assumption
+that the processing for 20 times as many simulations would take 20 times as
+long. Though the bonferroni correction used here is conservative, it is less
+conservative (by an order of magnitude) than simulating a whole new set of
+spike trains for each p value as would be required to entirely eliminate any
+correlations between the p values.
+For the closed form jitter method, all lookup tables were computed de
+novo for each spike train. This is a conservative approach (favoring the
+Monte Carlo technique) since performance of the closed form jitter method
+could be improved by computing the tables only once and using them for all
+spike trains. This is certainly advised in a “production environment.”
+The results of this simulation, shown in Figure 1, illustrate a number of
+features about the speed of the two algorithms. Plotted is the performance
+gain, defined as the ratio of the computation time between the Monte Carlo
+jitter method and the closed form jitter method. The first observation is
+that the closed form method is substantially faster than the Monte Carlo
+method in all cases considered. Second, while the performance gain depends
+only weakly on spike train length, it does decrease with increasing firing
+rate. This is because the computation time of the closed form jitter method
+increases with firing rate. In practice, however, it is rare to observe firing
+at sustained frequencies exceeding 100 Hz in physiological recordings. In the
+physiological range, the closed form jitter algorithm is faster by a factor of
+approximately 180 to 7200.
+Harrison (2013) uses importance sampling to accelerate the Monte Carlo
+hypothesis testing process which requires drawing fewer samples. In that
+work the number of samples needed, even for a low Bonferroni corrected p
+value, is reduced to 100. However, each sample is reported to take 18 times
+as long to generate and process as before, effectively resulting in a simulation
+about 11 times faster than the Monte Carlo simulation with NMC = 20, 000.
+Therefore, under physiological conditions the closed form computation has an
+expected speed-up of 16 to 650 times compared to the importance sampling
+method. It should be noted that in cases where even lower p values are needed
+14
+
+Closed Form Jitter Analysis
+because of multiple hypothesis constraints, importance sampling will provide
+larger gains in estimating very small p values. In these cases, increasing the
+p value requirements has no effect on the computation speed of the closed
+form method, so the closed form method can be expected to be faster in all
+cases.
+Another improvement mentioned in Section 2.2.2 is the ability of the
+closed form jitter method to compute the jitter corrected correlogram very
+rapidly, without computing the null hypothesis distribution of correlation
+values. To show the magnitude of the improvement, the simulation was
+repeated with only the mean of the null hypothesis distribution computed
+under the closed form jitter method since this is all that is needed for the
+corrected correlation function, eq. 5. We also restricted firing frequencies to
+the range 5–200 Hz. Figure 2 shows the ratio of the time it takes to compute
+equation 2 vs. equation 5. In these cases, the closed form jitter calculation
+is substantially faster (480x–13,000x), with increasing benefits for increasing
+spike train lengths. As discussed previously, the spike train length is typically
+not that of individual trials but of the concatenation of many trials.
+
+4
+
+Discussion
+
+The importance, or absence of it, of precise timing of neural spikes has been
+discussed for the last half-century. Several techniques have been developed
+to characterize neuronal responses at fine time scales and it is clear that
+statistical methods have to be developed with much care to avoid wrong
+conclusions (e.g. Gawne and Richmond, 1993; Roy et al., 2000). One important difficulty is that firing rates can co-vary in the neurons under study. It
+is well-known that such co-variations are observable in quantities like pairwise cross correlation functions but they are typically considered as irrelevant
+from the point of view of neuronal coding or of determining the connectivity
+in the underlying circuitry. For instance, the onset of a stimulus will typically generate a temporary increase in firing rates in sensory cortex but the
+resulting increase in cross correlation is usually not considered of importance
+for neural coding (for an exception see Chase and Young, 2007, who showed
+that spike timing relative to onset-related population activity is informative).
+One common way to subtract such stimulus-locked effects is by subtracting
+a “shuffle predictor” (Perkel et al., 1967), obtained by computing cross correlations between spike trains from permuted trials. It has been pointed out
+15
+
+Closed Form Jitter Analysis
+repeatedly (see references in the Introduction) that this does not eliminate
+spurious correlations, including close to τ = 0 (synchrony).
+Brody (1998, 1999) and Amarasingham et al. (2012) proved that adopting the null hypothesis of independent neurons can not solve the problem.
+Observation of such correlations is, indeed, evidence against the null hypothesis of independence between the two observed spike trains. Rejection of this
+null hypothesis can, however, occur either because spikes in the two spike
+trains are correlated “one-by-one” (synchrony), or because of slow firing rate
+covariations common to both spike trains. The fact that this null hypothesis
+can be rejected does not tell us why it is rejected. If the question is whether
+synchrony exists at less than a given time scale (only), this is the wrong null
+hypothesis. Instead, the time scale needs to be specified explicitly. The null
+hypothesis chosen by Amarasingham et al. (2012) is that changes of spike
+times within a time interval of size ∆ have no effect on the computed statistic, in this case the correlation function. It is this null hypothesis that is
+tested by computer simulation in the Amarasingham et al. (2012) study and
+analytically in this report.
+A key element of the methods discussed here is that the jitter intervals
+are defined without reference to the original spike trains. This ensures that
+if the null hypothesis is true, there is no way to distinguish the original
+spike trains from the Monte Carlo simulated spike trains. This characteristic
+(called exchangeability) ensures that the obtained p values are from a well
+formulated hypothesis test. If, on the other hand, the resampling method
+was changed so that each spike was jittered about it’s original spike time,
+then even under the null hypothesis the original spike train would stand out
+from the rest because all of its spikes would be at the center of the jitter
+intervals. Therefore the resulting test would not be a proper statistical test
+and should be avoided (Amarasingham et al., 2012).
+We have discussed two ways one can choose to characterize the correlations between two spike trains. One is a strict hypothesis testing approach.
+A null hypothesis is formulated, namely that the observed correlations are
+indistinguishable from correlations between spike trains whose spikes have
+been distributed randomly within intervals of length ∆, without changing
+the number of spikes in each interval. By comparing the observed correlation with those in the distribution generated under the null hypothesis, it is
+then decided for a given α whether the null hypothesis can be rejected.
+The alternative is to compute the time-resolved correlation function and
+“correct” for the correlations as observed under the null hypothesis, by sub16
+
+Closed Form Jitter Analysis
+tracting the expectation value of the latter. This is the more commonly chosen approach, perhaps because the time-resolved correlation function is both
+intuitive and familiar. The distribution of JCCG values can be compared
+between experimental conditions (indicating a change in ’excess synchrony’)
+using a bootstrap test to test for significance. Also, its shape (e.g. the location of peaks) may provide insight that goes beyond the yes-no answer
+whether the null hypothesis can be rejected or not.
+In the Amarasingham et al. (2012) study, the Monte Carlo procedure is
+further developed to account for more potential causes of fine timing effects
+besides synchrony such as ramping spike rates within an interval or interspike interval distribution effects. These methods are straightforward and
+statistically well-defined. Like any Monte Carlo method, however, they only
+generate an approximation to the underlying distribution whose quality depends on the number of surrogate spike trains. In practice what is more problematic is that the method can be computationally very costly. For instance,
+as discussed in section 3.2, our example problem using the simplest of the
+null hypotheses discussed (50 spike trains of a few seconds long each, mean
+rates between 1 and 100 Hz, maximal time lag of 100 ms, α = 0.01 with Bonferroni correction applied) would have required a simulation several months
+long on a reasonably fast machine. We therefore only simulated NM C = 1000
+trials and extrapolated to the execution time needed for NM C = 20, 000 but
+even that abbreviated Monte Carlo run took nearly six days. Some progress
+can be made by using much faster machines or many machines (the problem
+parallelizes easily) but execution time is clearly a problem.
+In contrast, the closed form jitter methods this report focuses on are exact, rather than approximate. More important for practical applications may
+be that they are extremely efficient, with a speed-up of at least two orders of
+magnitude for the hypothesis testing approach, and four orders of magnitude
+for the full correlation functions. Even over importance sampling methods
+(Harrison, 2013), they have been shown to provide a substantial increase in
+speed. For the hypothesis testing examples used in our study (whose scope is
+quite comparable to that of typical neurophysiological experiments, assuming a proper Bonferroni correction is applied), computation time is reduced
+from more than 100 days under the original Monte Carlo method to about
+one night. Computational time required for the full correlation function is
+reduced from over 100 days to a few minutes. An increase in performance on
+this scale is more than merely a quantitative improvement. For instance, it is
+essentially impossible to explore variations in the analyses (like the influence
+17
+
+Closed Form Jitter Analysis
+of the jitter time scale ∆) if each computational run takes a few months, but
+it is easy to do if it takes minutes.
+So far we were only concerned with correlations between two spike trains.
+Modern recording techniques are already increasing the number of simultaneously recorded spike trains to tens or hundreds. Unfortunately, the closedform jitter method is limited in the ability to analyze large ensembles. This
+is because the correlation functions of some pairs in an ensemble will restrict
+the possible correlation values of other pairs. For example, if there are three
+neurons X, Y , and Z, and the pairs XY and Y Z have perfect correlation,
+then the pair XZ must also have perfect correlation. A Monte-Carlo jitter
+analysis that jitters an entire ensemble of neurons and then performs a hypothesis test on the ensemble can be performed relatively simply, but no such
+closed-form method exists yet. In order to avoid the constraints of the type
+described above, only N − 1 pairs of neurons can be analyzed with closed
+form methods when N neurons are recorded.
+Additionally, the nature of the exact solutions provides an opportunity
+for further exact analysis. Having a closed form solution allows questions
+about the effects of spike sorting errors, the value of ∆, or the structure of
+JCCG(τ ) to be addressed rigorously and more precisely than is possible with
+any numerical method.
+In conclusion, we study a statistical framework for quantifying correlations between spike trains at given time scales. It can be applied both for
+hypothesis testing and for correcting observed correlation functions for correlations at these time scales. Results are exact, and both computational
+complexity and computational time for realistic examples are several orders
+of magnitude lower than related approaches based on Monte Carlo simulations.
+Matlab code will be made available by the authors upon request.
+
+Acknowledgments
+This work was supported by the Office of Naval Research under MURI grant
+N000141010278 and by NIH under R01EY016281-02. We acknowledge discussions with Drs. Rüdiger von der Heydt and Anne Martin who also gave
+us access to unpublished data.
+
+18
+
+Closed Form Jitter Analysis
+
+References
+M. Abeles. Corticonics – Neural circuits of the cerebral cortex. Cambridge
+University Press, 1991.
+E. D. Adrian and Y. Zotterman. The impulses produced by sensory nerve
+endings. Part 2. The response of a single end organ. J. Physiol., 61:151–
+171, 1926.
+A. Amarasingham, M. T. Harrison, N. G. Hatsopoulos, and S. Geman. Conditional modeling and the jitter method of spike resampling. Journal of
+Neurophysiology, 107(2):517–531, 2012. PMC3349623.
+C. D. Brody. Slow covariations in neuronal resting potentials can lead to artefactually fast cross-correlations in their spike trains. J. Neurophysiology,
+80(6):3345–51, December 1998.
+C. D. Brody. Correlations without synchrony. Neural Comput, 11(7):1527–
+1535, Oct 1999.
+S. M Chase and E. D Young. First-spike latency information in single neurons
+increases when referenced to population onset. Proceedings of the National
+Academy of Sciences (USA), 104(12):5175–5180, 2007.
+J. W. Cooley and J. W. Tukey. An algorithm for the machine calculation
+of complex Fourier series. Mathematics of computation, 19(90):297–301,
+1965.
+T. J. Gawne and B. J. Richmond. How independent are the messages carried
+by adjacent inferior temporal cortical neurons? J. Neurosci., 13(7):2758–
+2771, 1993.
+M. T. Harrison. Accelerated spike resampling for accurate multiple testing
+controls. Neural Computation, 25(2):418–449, 2013.
+T. Hirabayashi, D. Takeuchi, K. Tamura, and Y. Miyashita. Functional microcircuit recruited during retrieval of object association memory in monkey perirhinal cortex. Neuron, 77(1):192–203, January 2013a.
+T. Hirabayashi, D. Takeuchi, K. Tamura, and Y. Miyashita. Microcircuits
+for hierarchical elaboration of object coding across primate temporal areas.
+Science, 341(6142):191–5, July 2013b.
+19
+
+Closed Form Jitter Analysis
+Y. Manolopoulos. Binomial coefficient computation: recursion or iteration?
+ACM SIGCSE Bulletin, 34(4):65–67, 2002.
+E. Niebur, C. Koch, and C. Rosin. An oscillation-based model for the neural
+basis of attention. Vision Research, 33:2789–2802, 1993.
+D. H. Perkel, G. L. Gerstein, and G. P. Moore. Neuronal spike trains and
+stochastic point processes. II: Simultaneous spike trains. Biophys. J., 7:
+419–440, 1967.
+A. Riehle, S. Grün, M. Diesmann, and A. Aertsen. Spike synchronization and
+rate modulation differentially involved in motor cortical function. Science,
+278:1950–1953, December 1997.
+A. Roy, P. N. Steinmetz, and E. Niebur. Rate limitations of unitary event
+analysis. Neural Computation, 12(9):2063–2082, 2000.
+M. N. Shadlen and W. T. Newsome. The variable discharge of cortical neurons: implications for connectivity, computation, and information coding.
+J. Neurosci., 18:3870–3896, 1998.
+W. Singer and C. M. Gray. Visual feature integration and the temporal
+correlation hypothesis. Annu. Rev. Neurosci., 18:555–586, 1995.
+M. A. Smith, X. Jia, A. Zandvakili, and A. Kohn. Laminar dependence of
+neuronal correlations in visual cortex. Journal of Neurophysiology, 109(4):
+940–7, March 2013.
+W. Softky. Simple codes versus efficient codes. Current Opinion in Neurobiology, 5:239–247, 1995.
+P. N. Steinmetz, A. Roy, P. Fitzgerald, S. S. Hsiao, K. O. Johnson, and
+E. Niebur. Attention modulates synchronized neuronal firing in primate
+somatosensory cortex. Nature, 404:187–190, 2000.
+
+20
+
+Closed Form Jitter Analysis
+
+P value Computation
+
+4
+
+10
+
+5 Hz
+10 Hz
+
+Performance Gain
+
+20 Hz
+3
+
+10
+
+40 Hz
+50 Hz
+100 Hz
+
+2
+
+10
+
+200 Hz
+400 Hz
+500 Hz
+
+1
+
+10
+
+0
+
+20
+
+40
+60
+80
+Spike Train Length [s]
+
+100
+
+Figure 1: Performance gain in implementing the closed form jitter method
+for p value computations. Gain is defined as the ratio in computation time
+between the Monte Carlo Jitter method and the closed form jitter method.
+Processing parameters used are τmax = 100ms, ∆ = 20, and NMC = 20, 000
+(see text for details).
+
+21
+
+Closed Form Jitter Analysis
+
+JCCG Computation
+5 Hz
+50 Hz
+100 Hz
+
+4
+
+Performance Gain
+
+10
+
+200 Hz
+
+3
+
+10
+
+0
+
+20
+
+40
+60
+80
+Spike Train Length [s]
+
+100
+
+Figure 2: Performance gain in implementing the closed form jitter method
+for Jitter Corrected Correlogram computations. Gain is defined as the ratio
+in computation time between the Monte Carlo Jitter method and the closed
+form jitter method. Processing parameters used are τmax = 100ms, ∆ = 20,
+and NMC = 20, 000 (see text for details). The lowered performance gain at
+signal length of 1 second is due to the overhead of computing the probability
+table de novo for each spike train.
+
+22
+
+

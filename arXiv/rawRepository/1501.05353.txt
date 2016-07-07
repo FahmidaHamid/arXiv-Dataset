@@ -1,0 +1,1339 @@
+Rapid Sequence Identification of Potential Pathogens
+Using Techniques from Sparse Linear Algebra
+Stephanie Dodson, Darrell O. Ricke, Jeremy Kepner, Nelson Chiu, and Anna Shcherbina
+
+arXiv:1501.05353v1 [q-bio.QM] 21 Jan 2015
+
+MIT Lincoln Laboratory, Lexington, MA, U.S.A
+Abstract—The decreasing costs and increasing speed and
+accuracy of DNA sample collection, preparation, and sequencing
+has rapidly produced an enormous volume of genetic data.
+However, fast and accurate analysis of the samples remains
+a bottleneck. Here we present D4 RAGenS, a genetic sequence
+identification algorithm that exhibits the Big Data handling and
+computational power of the Dynamic Distributed Dimensional
+Data Model (D4M). The method leverages linear algebra and
+statistical properties to increase computational performance while
+retaining accuracy by subsampling the data. Two run modes, Fast
+and Wise, yield speed and precision tradeoffs, with applications
+in biodefense and medical diagnostics. The D4 RAGenS analysis
+algorithm is tested over several datasets, including three utilized
+for the Defense Threat Reduction Agency (DTRA) metagenomic
+algorithm contest.
+
+I.
+
+I NTRODUCTION
+
+With advances in biological and chemical knowledge as
+well as increased world travel, bioterrorism and deadly disease
+outbreaks are real concerns. The mitigation of these threats lies
+in accurate source and organism identification, making rapid
+genetic sequencing and organism identification of particular
+interest in homeland defense.
+Bioterror attacks made headlines in 2001 with the mailing
+of anthrax containing letters to notable media and political
+figures that resulted in 17 cases and 5 deaths. The timing of
+the first letter, shortly after the September 11th terror attacks,
+increased public anxiety of the possibility of a foreign attack
+[1]. A nine-year F.B.I. investigation ensued that dismissed the
+idea of a foreign assailant when analysis linked the anthrax
+strain and concentration to those previously developed by the
+United States biowarfare defense program [2]. Finally, a U.S.
+government scientist was indicted for the crimes [3].
+An example of widespread food borne illness lies in the
+2011 virulent Germany E. coli outbreak. A slightly pathogenic
+organism, E. coli typically has minor gastrointestinal effects
+and little chance of lasting damage or death. The Germany
+outbreak however was much more serious and over the course
+of almost three months, the bacteria swept through Germany
+affecting over 4,000 individuals and resulting in 53 fatalities
+[4]. Genetic sequencing did play a role in the discovery of a
+bacteriophage insertion carrying the Shiga toxin in the E. coli
+strain O104:H4 that accounted for the severity [4].
+This work is sponsored by the Assistant Secretary of Defense for Research
+& Engineering under Air Force Contract #FA8721-05-C-0002. Opinions,
+interpretations, recommendations and conclusions are those of the authors and
+are not necessarily endorsed by the United States Government.
+
+Despite the sequencing, the source was not correctly identified as sprouts until 41 days after the first hospitalized case,
+and in the mean time the media and critics ran wild with
+the possibility that the bacteria was a genetically engineered
+bioattack [5]. Additionally, the misidentification of the source
+as Spanish cucumbers caused European Union farmers weekly
+losses up to $611 million [6].
+In 2001 and 2011 genetic sequencing machines existed, but
+the lack of widely available fast analysis techniques inhibited
+the identification of the source of the E. coli and anthrax. Since
+the anthrax attacks the United States has developed federal
+laboratories to counter biological terrorism, but fast detection
+and characterization methods are still inadequate [7].
+Sequencing machines continue to be upgraded. At a fraction of the previous cost, new Next Generation Sequencers
+(NGS) have the capability of sequencing an entire human
+genome in mere days, with smaller genomes in minutes to
+hours. These sequencers combined with fast analytic methods
+will allow for fast detection methods with endless application
+in homeland protection as well as infectious disease, inherited
+disease, cancer genomics, and individualized medicine.
+In general, metagenomics algorithms seek to tackle four
+analysis problems: (1) organism identification, (2) correct
+classification of sequences, (3) gene identification, and (4)
+variant identification. With the goal of finding an algorithm that
+would allow DNA sequencing to become a rapid diagnostic
+medical tool, the Defense Treat Reduction Agency (DTRA)
+sponsored a challenge to find a fast and accurate method [8].
+Several metagenomic algorithms are currently available, some
+as a result of the DTRA challenge. Each algorithm uses a
+wide range of techniques, with trade-offs between time and
+accuracy.
+Many algorithms utilize existing tools, such as the “goldstandard” BLAST (Basic Local Alignment Search Tool), and
+modify the results to achieve better identification levels [9]
+[10] [11]. These algorithms, including MetaPhlyer [9] and
+MetaPhlAn [10], can achieve faster speeds by running BLAST
+searches on reduced datasets of marker genes. Other algorithms
+test sequence similarity through the use of computationally
+expensive hidden-Markov-models (HMMs) and creation of
+phylogenetic trees [12] [13].
+To avoid cumbersome external programs, HMMs, and
+phylogenetic trees, [14] instead segments the sequences into
+short k-mers, and performs sequence comparisons by matching
+the k-mers in a sorted list. The methods MetaCV [15], LMAT
+[16], and Kraken [17] employ a similar k-mer segmenting
+strategy in combination with phylogenetic trees to discover
+the least common ancestors.
+
+2%
+
+50%
+
+3
+
+Normalized Run Time
+
+!"#$%&
+N(degree)
+
+10
+
+2
+
+10
+
+1
+
+1
+
+1
+
+10
+
+Normalized Common Words
+
+'((&&&&&&&&&&&&&&&&&&&&'('&&&&&&&&&&&&&&&&&&&&&&&&'()&&&&&&&&&&&&&&&&&&&&&&&&'(*&&&&&&&&&&&&&&&&&&&&'(+&&&&&&&&
+
+!"#$%&'(#''%
+
+4
+
+10
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+Non Matches
+Family Matches
+Genus Matches
+Species Matches
+
+0.2
+0.1
+0
+
+0
+
+10
+0
+0
+1
+2
+3
+4
+,&5
+10
+10 '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'(
+10 )&&&&&&&&&&&&&&&&&&&&&&&&&&&'(
+10 *&&&&&&&&&&&&&&&&&&&&&&&&&&&'(
+10 +&&&&&&&&&&&&&&&&&&&&&&&'(
+10
+'((&&&&&&&&&&&&&&&&&&&&&&&&&&&'(
+degree
+-./0..&
+
+Fig. 1. Degree distribution of the unique k-mers in the unique bacterial RNA
+sequences. Vertical lines indicate the percent of data distribution. The data is
+dominated by few common words, or “super-nodes.” Increasing the percentage
+of data used drastically increases the run time as shown by the red curve.
+
+In this paper we present D4 RAGenS, a simplified kmer comparison style algorithm that leverages the sparse
+linear algebra and computational power of the Dynamic Distributed Dimensional Data Model (D4M). First defined in [18],
+D4 RAGenS (D4M Rapid Analysis of Genetic Sequences) has
+been modified to include the data subsampling performance
+techniques described in [19]. The key idea is the segmentation
+of genetic sequences into short k-mers for easy and efficient
+string comparison with a basic matrix multiplication in D4M.
+Furthermore, with two run modes, Fast and Wise,
+D4 RAGenS undertakes the problems of organism identification
+and read classification resulting in a simple, but rigorous
+detection method that scales with increasing data volume.
+Results from several in silico test datasets are compared with
+current algorithms.
+II.
+
+M ETHODS
+
+A. D4M
+Developed at MIT Lincoln Laboratory, D4M is an environment for Matlab that blends techniques from sparse linear
+algebra, graph theory, and abstract algebra to create triplestore format associative arrays. In the triple-store format, arrays
+can have strings and/or numerics as the row, column, and
+value keys, allowing for easy data querying. The structure
+of arrays allows for easy parallelization and increased computation capacity with minimal extra code. Additionally, all
+standard mathematical operations of multiple associative arrays
+are composable, and result in an associative array [20].
+The architecture of D4M provides the tools necessary
+to create a rapid sequence alignment algorithm that takes
+advantage of simple mathematical properties.
+B. Sequence comparison
+During processing, NGS systems segment input DNA
+sequences into a relatively short length (typically 150-450 base
+pairs (bp) long). The short segments, called reads, are amplified
+to increase concentration, and then the DNA sequence is
+determined. Sequences are then characterized by comparisons
+
+8
+
+10
+
+12
+
+14
+
+16
+
+18
+
+20
+
+22
+
+24
+
+26
+
+28
+
+Common Words Using the Least Common 2% of the Data
+
+30
+
+Fig. 2. Normalizing the hit counts by the subsampled sequence length acts as
+a filter for signal and noise. Matches resulting in true organism identification
+(green points) have high normalization values, while false positives (red points)
+are clustered around low normalized values.
+
+to known DNA, RNA, and protein sequences. DNA and RNA
+sequence comparisons are the focus of this paper.
+Comparing just two sequences as strings is typically an
+order N2 computational problem. An alternative to string
+comparison is converting sequences into sparse vector representations and using the mathematical dot product operation as
+a measure of identity. Sequences are split into non-redundant
+overlapping 10 base pair (bp) k-mers, or words and used as
+vector indices. A vector dot produce yields the number of
+exact word matches between the two sequences. Furthermore,
+parallel comparisons between K unknown sequences of length
+N to M reference sequences (order (K x M) x N2 ) is computed
+with only a sparse matrix multiplication.
+Word length is chosen to optimize the algorithm sensitivity
+and array sparseness. The four DNA bases and 10 bp per word
+leads to a domain of 410 (1,048,576) unique words. Long DNA
+sequences are divided into segments of 1,000 bp with a 100
+bp overlap prior to word formation. This maximum segment
+length and domain size leads to a 1 in 1,000 chance of random
+word matches between unrelated sequences.
+C. Subsampling of k-mers
+The D4M graph-linear algebra duality allows for the creation of a bipartite graph between unique words and sequence
+identifiers. An edge exists between the vertex sets if that word
+is contained in the sequence, and the word degree identifies
+the frequency of use. In random sequences, all words occur
+with the same frequency. DNA however, is not random and
+common words represent highly conserved sequences that are
+present in many organisms (e.g. ribosomal RNA genes). The
+nonrandom and repetitive nature of DNA is highlighted in the
+degree distribution of the words (Figure 1), which shows the
+data is dominated by few words of high frequency.
+Frequent word use hampers the identification performance
+with extraneous data, numerous false positives, and long
+computation times. Removal of these supernodes results in
+the dramatic reduction of comparisons between the reference
+dataset and unknown sample, resulting in decreased run time.
+The red curve in Figure 1 shows the algorithm run time as
+a function of the percent of data. Run time increases quickly
+with data usage. Results of in silico generated datasets show
+
+the organism identification power is retained by measuring
+sequence identity (performing the sparse matrix multiplication)
+with the least common 2% of the data [21].
+D. Sequence normalization
+Sequence similarity computed with the least common
+words discovers the truth organisms (based on the addition of
+FastqSim [22] in silico generated sequences to the datasets),
+but the results are plagued by false positive identifications
+caused by the reduced sample space. Normalizing the number
+of common words by the length of the subsampled sequence
+acts a second noise filter, as shown in Figure 2.
+III.
+
+A LGORITHMS
+
+A. Fast
+The Fast algorithm combines the data subsampling with
+sequence length normalization to rapidly identify the organisms present in the sample. After subsampling, the unknown
+sequences and reference database are compared with a sparse
+matrix multiplication.
+The words in common are first thresholded to eliminate
+chance k-mer matches, before selecting matches with normalization above 0.9. In the case of multiple alignments, the
+sample is classified to the least common taxonomic similarity
+between all strong reference matches.
+The two filters work together to remove extraneous false
+matches. Weaker true matches are also removed, but the
+strongest matches remain and allow organism detection even
+for low read numbers. Computational performance is increased
+by parallelizing the sequence comparisons and length normalizations.
+B. Wise
+The Wise algorithm expands upon Fast mode to identify
+the organism and correctly classify reads. Fast mode is used
+as a first pass filter to identify target organisms. Then, through
+a second matrix multiplication, the sample is compared to the
+identified target organisms, this time using the full distribution
+of words to maximize the matching power. Common words
+are again thresholded to reduce noise.
+Preselecting target organisms condenses the reference set,
+allowing for a quick multiplication with the full word domain
+and minimizing noise caused by chance matches. The final
+common word threshold helps to reduce noise caused by
+family and genus level matches detected by Fast mode. Again,
+sequence comparison multiplications are performed in parallel
+to increase the comparison rate.
+For both Fast and Wise comparisons, the reference
+databases are built from data in the GenBank database. The
+RNA data is selected to provide a reduced dataset by selecting
+only the longest gene sequence for each organism by genus
+species. The selection eliminates redundancy and optimizes
+algorithm performance.
+
+IV.
+
+R ESULTS
+
+The Fast and Wise modes were tested on several in silico
+datasets and results compared with six competing algorithms.
+Organism identification and read mapping was tested using
+three in silico samples of human data spiked with bacterial
+data (samples A, B, and C) and one in silico viral sample.
+D4 RAGenS was run using 60 cores on a Linux cluster with
+D4M. The other metagenomic algorithms were all run using
+60 cores on an HP SMP server.
+Sample A was processed on an Ion Torrent sequencer,
+and contains 379,027 total unknown sequences (reads) with
+an average length of 160 bp. Sample B was sequenced on
+the Roche platform and has a longer average read length of
+363 bp and a total of 399,670 reads. Sample C is Illumina
+data, with 6,038,556 reads of length 150 bp. The data size
+is predominately influenced by the number of reads, making
+sample C the largest. In addition to the human background,
+the three bacterial samples contain in silico spiked bacterial
+organisms.
+These samples were used in the DTRA challenge, and the
+spiked organisms all have pathogenic properties that can be
+exploited by bioterrorists. Klebsiella pneumonia in sample A
+has multi-drug resistance and is common within health care
+facilities [23]. The bacterial organisms in sample B and C have
+been identified as possible biological weapons that can threaten
+the food supply [24] [25]. Brucellosis, a disease caused by
+species in the Brucella genus, including the Brucella abortus
+present in sample B, is easily transmissible between humans
+and livestock, and causes undulant fever in humans [24].
+Sample C contains Bacillus anthracis, the organism responsibe
+for the potentially fatal anthrax infection [25].
+The in silico viral sample was created with FastqSim [22]
+to simulate Illumina Sequencing data. The test set contains
+22 known viruses at various concentrations, with average read
+length of 160 bp. Again, all viruses present commonly infect
+humans, some with fatal consequences, such as the Sudan
+ebolavirus.
+A. Bacterial Organism Identification
+In organism identification, the goal is to rapidly distinguish
+the bacterial organisms from the human background and
+maintain a low rate of false positives. The algorithms were
+scored using five criteria: number of true positives to species,
+false positives to species and genus, false negatives, as well as
+total run time. Results of the seven algorithms on the bacterial
+samples A, B, and C are shown in the radar plots in Figure 3.
+The arrangement is such to showcase the stronger algorithms
+along the perimeter of the chart.
+Five of the seven algorithms correctly identified the spiked
+bacterial organisms in the three samples and received highest
+marks for the true positive and false negative to species. The
+other two, MetaCV v2.3.0 and MetaPhlyer 1.25, are designed
+to identify only to the genus level and thus receive zero false
+positive species by default. The usefulness of the top five
+algorithms is shown in the scores for the remaining categories:
+false positives to genus and species as well as run time.
+The Kraken v0.10.4-beta algorithm consistently has the
+fastest run time and identified the spiked organism, but reports
+
+FN
+FNtotoSpecies
+Species
+FN to
+00 Species
+
+200
+200
+
+220
+220
+0.55
+150
+450
+0.5 0.55
+300450
+670
+0.83
+4506700.750.83
+
+TP to Species
+
+TP
+to Species
+220
+Species
+0.18 0.45
+0.73TP
+1 1to
+1500220
+0.250.18
+0.5 0.45
+0.75 0.73
+1
+150
+4800
+1000150
+4800
+3200
+74
+500 74
+3200
+0
+2100
+0 0
+3200
+
+FP to Species
+FP
+FPtotoSpecies
+Species
+
+150
+150
+
+False Positives
+
+FP to Genus
+FP
+FP to Genus 1
+
+0.28
+0.28
+0.25
+
+False Positives
+
+0
+
+11
+
+100
+100
+
+5050
+
+00
+00
+
+1600
+1100
+1600
+9 99 Time
+Time
+
+50
+50
+
+100
+100
+
+50
+50
+
+100
+100
+
+150
+150
+
+200
+200
+
+250
+250
+
+300
+300
+
+150
+
+200
+200
+
+250
+250
+
+300
+300 350
+350
+
+Run Time
+Time (s)
+Run
+(s)
+
+350
+350
+
+(a) Sample A
+
+Time
+
+350
+350
+
+FN to Species
+
+FN to Species
+0
+0
+
+300
+300
+
+0.28
+0.25
+
+250
+250
+
+170
+140
+0.50.55
+350
+290
+430
+520 0.75
+0.83
+
+400
+
+98
+
+0
+
+0
+
+FP to Species
+
+FP to Species
+
+200
+200
+
+TP to
+TPSpecies
+to Species
+
+1200
+300
+800
+200 5600
+6800
+
+False Positives
+False Positives
+
+00
+
+FP
+Genus
+FP to
+to Genus
+
+0.25
+0.5 0.45
+0.750.73
+1 1
+0.18
+
+150
+150
+100
+100
+5050
+
+3800
+
+4500
+00
+00
+
+1900
+
+2300
+14
+
+14Time
+
+(b) Sample B
+
+Time
+
+FNSpecies
+to Species
+FN to
+0
+
+600
+
+0
+
+0.25 0.28
+
+500
+
+130160
+0.5 0.55
+270320
+4004800.750.83
+
+TP toTP
+Species
+to Species
+
+1500560
+0.250.18
+0.5 0.45
+0.75 1
+0.73 1
+1000
+370 49000
+58000
+500
+190
+32000
+0
+
+FP to Species
+
+0
+
+FP to Species
+
+16000
+
+300
+200
+
+0
+0
+
+19000
+
+Time
+54
+
+Time
+
+Kraken v0.10.4-beta
+MetaScope
+
+400
+
+100
+
+39000
+
+54
+
+False Positives
+
+FPtotoGenus
+Genus 0 0
+FP
+
+Run
+Run Time
+Time (s)
+(s)
+
+500
+
+1000
+
+1500
+
+2000
+
+2500
+
+Run Time (s)
+
+3000
+
+3500
+
+4000
+
+(c) Sample C
+
+Metaphlan v1.7.7
+MetaCV v2.3.0
+
+Fast D⁴RAGenS
+MetaPhyler 1.25
+
+LMAT v1.2.1
+
+Fig. 3. Organism identification results for samples A, B, and C. The left plots display the identification power of the algorithms. Each axis represents a testing
+parameter used in the comparison. The charts are designed with each axis radiating outwards from poor to good results. For example, high numbers of true
+positives are desired, thus the true positive axes begin with 0 at the center and increase along the axis length. False positives are the opposite, and begin with
+high numbers at the center and decrease outward to 0. Thus, strongest candidates lie on the perimeter of the chart. The number of false positive species versus
+run times for the fastest five algorithms are highlighted in the figures on the right.
+
+an excessive amount of false positives. An additional 200-600
+organisms were identified, yielding a non-specific answer.
+The run times and false positives to species of the top five
+algorithms are highlighted in the plots on the right of Figure 3.
+The four methods Metaphlan v1.7.7, Fast D4 RAGenS, MetaScope [8], and LMAT v1.2.1 have reasonable run times and false
+positives. The Fast D4 RAGenS algorithm consistently places
+in the top three for both categories (excluding Kraken v0.10.4beta due to high false positives).
+B. Bacterial Read Mapping
+The correct classification of reads to the organism, or read
+mapping, is a difficult task made especially challenging by
+
+the similarities of species within the same genus. Often, such
+species can have greater than a 95% identity. In these instances,
+the majority of reads have equally strong matches to several
+species within the true genus, and are thus categorized by
+D4 RAGens as the common genus.
+The species within the genus of the spike sample A organism are distinct enough that the bulk of reads are correctly
+classified to the species level. Samples B and C however were
+created to test the precision of the algorithms and there are
+species within the genus with a high percentage identity. The
+Bacillus anthracis present in sample C is one of three highly
+genetic similar pathogens in the Bacillus genus [25].
+The number of reads classified to each truth organism
+
+Virus Identification
+
+TABLE I.
+
+N UMBER OF READS CLASSIFIED AS EACH TRUTH ORGANISM
+BY THE SIX DETECTION ALGORITHMS THAT REPORT READ MAPPING . T HE
+LAST ROW GIVES THE RESULTS OF RUNNING W ISE MODE ON A GDNA
+REFERENCE DATABASE FOR SAMPLES A AND B.
+Algorithm
+Truth
+
+SampleA
+Species
+Genus
+
+Sample B
+Species
+Genus
+
+Sample C
+Species
+Genus
+
+58,707
+
+49,948
+
+39,996
+
+58,707
+
+49,948
+
+39,996
+
+FN to Species
+
+TP to Genus
+
+0
+
+11
+6.6
+13
+
+37,486
+
+37,486
+
+961
+
+24,558
+
+4,107
+
+21,261
+
+MetaScope
+
+53,999
+
+54,109
+
+48,675
+
+49,517
+
+39,613
+
+39,867
+
+Kraken
+v0.10.4-beta
+
+49,158
+
+51,995
+
+9,287
+
+49,948
+
+9,444
+
+40,184
+
+LMAT
+v1.2.1
+
+9,767
+
+36,339
+
+106
+
+36,253
+
+2,369
+
+12,492
+
+MetaPhyler
+1.25
+
+0
+
+45
+
+0
+
+71
+
+0
+
+188
+
+MetaCV
+
+0
+
+75,749
+
+0
+
+49,936
+
+0
+
+5,847
+
+(gdna) Wise
+D4 RAGenS
+
+58,707
+
+58,707
+
+35,018
+
+49,303
+
+are shown in Table I. As predicted, algorithms perform significantly better on sample A than B or C, and are able
+to assign greater portions of the data to the species level.
+Kraken v0.10.4-beta again performs well, but the usefulness
+is still undermined by the extreme numbers of false positives.
+Again, MetaCV finds no species level matches by design,
+and MetaPhyler 1.25 maps under 0.5% of the reads to the
+genus level. MetaScope performs exceptionally well with a
+read mapping rate greater than 90%. Wise D4 RAGenS and
+LMAT v1.2.1 have similar read mapping performance.
+As mentioned, the D4 RAGenS methods use an optimized,
+smaller reference database built from RNA sequences. Since
+RNA is only the coding portion of the genome (i.e. the genes),
+and the bacterial samples contain the coding and non-coding
+portions, all of the unknown sequences will not be detected
+using the RNA database. Considering that 10-15% of bacterial
+genomes are non-coding regions [26] and that many reads
+span coding and non-coding regions, the Wise D4 RAGenS read
+mappings are very reasonable.
+To exhibit the read identification power of the Wise mode,
+the algorithm was run using the full genomic sequences (gdna)
+of the truth organisms as the reference database. The tallies of
+read mapping using the gdna are shown in the last row of
+Table I. Over 93% of sample A reads are correctly classified
+to the species level, and 98% of sample B reads to the genus
+level, bringing the results level with MetaScope. The low
+false positives, reasonable run times and mapping abilities
+place MetaScope, D4 RAGenS, and LMAT above the other
+algorithms.
+C. Virus Identification and Read Mapping
+All seven algorithms were again run on the generated
+virus dataset, and results analyzed for identification and read
+mapping. The virus RNA dataset is about 15 times smaller than
+the bacterial reference. In order to account for the decreased
+size, the percentage of data used in Fast mode is increased from
+2 to 8%. Despite the increase in data usage, the computation
+times remain fast due to the smaller number of viral organisms.
+Organism detection results displayed in Figure 4 show that
+Fast D4 RAGenS, MetaScope, and Kraken v0.10.4-beta suc-
+
+5
+20
+
+FP to Genus
+
+0
+
+2
+
+61 120 180
+2.7
+
+Wise
+D4 RAGenS
+
+8
+
+1.8
+0.9
+0
+
+FP to Species
+
+4.8 11
+
+16
+
+TP to Species
+
+22
+
+390
+260
+140
+17
+
+Time
+
+Kraken v0.10.4-beta
+Fast D⁴RAGenS
+LMAT v1.2.1
+MetaScope
+MetaCV v2.3.0
+
+Fig. 4. Results of organism identification on the 22 virus in silico Illumina
+test set. The Fast D4 RAGenS algorithm scores perfect marks.
+
+cessfully identify all 22 organisms without any false positives.
+LMAT v1.2.1 reported 2 false negatives and 3 false positives.
+MetaPhyler 1.25 and MetaPhlan v1.7.7 failed to run on the
+virus test set, and MetaCV v2.3.0 only identified bacterial
+matches.
+Read mapping results in Table II reveal the four algorithms
+that produced results have similar scores on this test set.
+Compared to bacteria, viral DNA is gene dense, with fewer
+non-coding regions, allowing for high read identification using
+only RNA. In this case, Kraken v0.10.4-beta is believed to have
+no false positives due to the absence of a human background.
+V.
+
+C ONCLUSION
+
+Along with NGS tools, D4 RAGenS can aid in homeland
+security by detecting bioterror threats and disease outbreaks. In
+2001 and 2011, faster analysis would have resulted in quicker
+implication of the source of the E. coli and anthrax, fewer
+fatalities, reduced public anxiety, and less economic damage.
+The analysis can also be performed on an individual basis at
+health facilities to determine the cause of an illness before
+administering medications.
+The techniques applied in Wise D4 RAGenS naturally lead
+to strain-level identification of pathogens. The pipeline can be
+modified to use a larger, strain specific dataset after initial
+identification of target organisms with Fast mode. Such an
+enhanced dataset would allow for detection of the minute
+differences between strains, leading to increased benefits for
+medical and threat response. Similar extensions can lead to
+gene detection.
+Additionally, the simple string comparisons using matrix
+multiplications and parallel capabilities can be exploited to
+create an ultra-fast multiple sequence aligner. Sequence aligners show relatedness of multiple sequences and are useful in
+locating mutations between healthy and diseased cells (such
+as those associated with genetic disease and cancer).
+The basic mathematical filters used in D4 RAGenS simplify
+the current algorithms while maintaining a high level of
+accuracy. Results show the algorithm to report comparable
+results to MetaScope and the publicly available LMAT v1.2.1
+analysis tools. The high identification rate along with low run
+time and number of false positives places D4 RAGenS as a top
+competitor for the best genetic analysis algorithm.
+
+TABLE II.
+
+S PECIES - LEVEL READ MAPPING RESULTS FOR THE 22 VIRUS in silico DATASET.
+
+Organism
+South American hemorrhagic fever viruses
+Chapare
+Guanarito
+Junin
+Machupo
+Sabia
+Tick-borne enchephalitis complex (flavi) viruses
+Omsk hemorrhagic fever virus
+Alkhumra hemorrhagic fever virus
+Langat Virus
+Influenza
+Influenza A virus
+Influenza B virus
+Influenza C virus
+Filoviridae
+Sudan ebolavirus
+Marburg marburgvirus
+Papillomaviridae
+Human papillomavirus type 32
+Human papillomavirus type 5
+Canine papillomavirus 3
+Delta papillomavirus 1
+HIV and similar
+Human immunodeficiency virus 1
+Human immunodeficiency virus 2
+Simian immunodeficiency virus
+SARS and similar
+Severe acute respiratory syndrome-related coronavirus
+Human coonavirus HKU1
+False Negatives
+False Positives
+
+VI.
+
+Truth
+
+Wise D4 RAGenS
+
+MetaScope
+
+Kraken v0.10.4-beta
+
+LMAT v1.2.1
+
+961
+481
+291
+196
+97
+
+614
+454
+287
+190
+70
+
+947
+473
+291
+195
+97
+
+958
+481
+291
+195
+97
+
+952
+342
+204
+183
+97
+
+495
+294
+100
+
+327
+296
+111
+
+495
+294
+100
+
+494
+294
+100
+
+486
+0
+100
+
+655
+411
+120
+
+560
+337
+91
+
+605
+381
+115
+
+624
+401
+118
+
+0
+186
+75
+
+17,277
+175
+
+16,809
+175
+
+16,804
+175
+
+17,274
+175
+
+16,976
+135
+
+1,457
+354
+71
+7
+
+1,270
+329
+67
+4
+
+1,457
+350
+71
+7
+
+1,457
+354
+71
+7
+
+1,405
+377
+71
+7
+
+839
+475
+88
+
+790
+319
+18
+
+737
+473
+88
+
+839
+475
+88
+
+2
+312
+85
+
+273
+137
+
+271
+137
+0
+0
+
+273
+137
+0
+0
+
+273
+136
+0
+0
+
+134
+133
+2
+3
+
+ACKNOWLEDGEMENTS
+
+[15]
+
+The authors are indebted to the following individuals for
+their technical contributions to this work: Chansup Byun,
+Ashley Conard, and Dylan Hutchinson.
+
+[16]
+
+R EFERENCES
+
+[17]
+
+[1]
+
+[2]
+[3]
+[4]
+
+[5]
+[6]
+[7]
+[8]
+[9]
+[10]
+[11]
+[12]
+[13]
+
+[14]
+
+D. Canedy and A. Kuczynski, “A Nation Challenged: A Medical Mystery; Second Case of Anthrax Leads F.B.I to Inquiry,” The New York
+Times, Oct. 9, 2001.
+W. Broad, “A Nation Challenged: The Spores; Terror Anthrax Resembles
+Type Made by U.S.,” The New York Times, Dec 3, 2001.
+“Timeline: How the Anthrad Terror Unfolded,” NPR Online, Feb 15,
+2011.
+Robert Koch Institute. Report: Final presentation and evaluation of
+epidemiological findings in the EHEC O104:H4 outbreak, Germany
+2011. Berlin 2011.
+Conservative Critics Blog, “European E-coli outbreak likely caused by
+Genetic Engineering run amok,” June 3, 2011.
+“Cucumbers suspected again in European E. coli outbreak,” The Associated Press, Jun 8, 2011.
+D. Vergano, “Strides in biodefense follow 2001anthrax scare,” USA
+Today, Sep 30, 2011.
+Rosenzweig, et al. 2014 in preparation
+B. Liu, et. al., “Accurate and fast esitmation of taxonomic profiles from
+metagenomic shotgun sequences,” BMC Genomics, 12:S4, 2011.
+N. Segata, et. al., “Metagenomic microbial community profiling using
+unique cladespecific marker genes,” Nature Methods, vol 9. no. 8, 2012.
+D. H. Huson, et. al., “MEGAN analysis of metagenomic data,” Genome
+Res, 17:377-386, 2007.
+K. Horan, C. R. Shelton, and T. Girke, “Predicting conserved protein
+motifs with Sub-HMMs,” BMC Bioinformatics, 11:205, 2010.
+M. Stark, et. al., “MLTreeMap - accurate Maximum Likelihood placement of environmental DNA sequencesinto taxonomic and functional
+reference phylogenies,” BMC Genomics, 11:461, 2010.
+J. Berendzen, et. al, “Rapid phylogenetic and functional classification of
+short genomic fragments with signature peptides,” BMC Research Notes
+2012, 5:460.
+
+[18]
+
+[19]
+[20]
+
+[21]
+[22]
+[23]
+
+[24]
+
+[25]
+
+[26]
+
+J. Liu, et. al, “Composition-based classification of short metagenomic
+sequences elucidates the landscapes of taxonomic and funcational enrightment of microorganisms,” Nucleic Acids Research, vol 41. no. 1,
+2013.
+S. Ames, et. al., “Scalable metagenomic taxonomy classification using
+a reference genome database,” Oxford University Press, 2013.
+D. E. Wood and S. L. Salzberg, “Kraken: ultrafast metagenomic sequence classification using exact alignments,” Genome Biology, 15:R46,
+2014.
+S. Dodson, D. 0. Ricke, and J. Kepner, “Genetic Sequence Matching
+Using D4M Big Data Approaches”, IEEE High Performance Computing
+(HPEC) conference, 2014.
+J. Kepner, D. O. Ricke and D. Hutchinson, “Taming Biological Big Data
+with D4M,” Lincoln Laboratory Journal, vol 20. no. 2, p. 82, 2013.
+J. Kepner, et. al., “Dynamical Distributed Dimensional Data Model
+(D4M) Database and Computation System,” ICASSP (International
+Conference on Accoustics, Speech, and Signal Processing), Special
+session on Signal and Information Processing for ”Big Data”, March
+25-30, 2012, Kyoto, Japan.
+J. Kepner, et. al. 2014 in preparation.
+Shcherbina, “FASTQSim: Platform-Independent Data Characterization
+and in Silico Read Generation for NGS Datasets,” 2014 submitted.
+G. .V. Sanchez, et. al, “Klebsiella pneumoniae Antimicrobial Drug
+Resistance, United States, 1998-2010,” Emerg Infect Dis [Internet], Jan
+2013.
+S. M. Halling, et. al., “Completion of the Genome Sequence of Brucella
+abortus and Comparison to the Highly Similar Genomes of Brucella
+melitensis and Brucella suis,” J. Bacteriol., Apr 2005; 187(8): 27152726.
+E. Helgason, et. al, “Bacillus anthracis, Bacillus cereus and Bacillus
+thuringiensis – One Speices on the Basis of Genetic Evidence,” Appl
+Environ Micorbiol., Jun 2000; 66(6): 2627-2630.
+E. Westhof, “The amazing world of bacterial structured RNAs”, Genome
+Biology 2010, 11:108.
+
+

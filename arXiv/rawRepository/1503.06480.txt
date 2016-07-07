@@ -1,0 +1,1192 @@
+Model Checking Tap Withdrawal in C. Elegans
+Md. Ariful Islam1 , Richard DeFrancisco1 , Chuchu Fan3 , Radu Grosu1,2 , Sayan
+Mitra3 , and Scott A. Smolka1
+1
+
+Stony Brook University
+Vienna University of Technology
+University of Illinois Urbana Champaign
+
+arXiv:1503.06480v1 [cs.LO] 22 Mar 2015
+
+2
+
+3
+
+We present what we believe to be the first formal verification of a biologically
+realistic (nonlinear ODE) model of a neural circuit in a multicellular organism:
+Tap Withdrawal (TW) in C. Elegans, the common roundworm. TW is a reflexive behavior exhibited by C. Elegans in response to vibrating the surface on
+which it is moving; the neural circuit underlying this response is the subject
+of this investigation. Specifically, we perform reachability analysis on the TW
+circuit model of Wicks et al. (1996), which enables us to estimate key circuit
+parameters. Underlying our approach is the use of Fan and Mitra’s recently developed technique for automatically computing local discrepancy (convergence
+and divergence rates) of general nonlinear systems. We show that the results we
+obtain are in agreement with the experimental results of Wicks et al. (1995). As
+opposed to the fixed parameters found in most biological models, which can only
+produce the predominant behavior, our techniques characterize ranges of parameters that produce (and do not produce) all three observed behaviors: reversal
+of movement, acceleration, and lack of response.
+
+1
+
+Introduction
+
+Although neurology and brain modeling/simulation is a popular field of biological study, formal verification has yet to take root. There has been cursory study
+into neurological model checking (see Section 2), but not with the nonlinear
+ODE models used by biologists. We believe that the insights gained through
+formal verification and analysis can transform the field, as has been the case in
+the Electronic Design Automation (EDA) industry, which is now valued at over
+$4 billion annually. As EDA has allowed for increased complexity for a smaller
+time investment in hardware circuits, we believe that the same kind of benefits
+can be realized for neural circuits.
+For our initial neurological study, we have selected the round worm, Caenorhabditis Elegans, due to the simplicity of its nervous system (302 neurons, ∼5,000
+synapses) and the breadth of research on the animal. The complete connectome
+of the worm is documented, and there have been a number of interesting experiments on its response to stimuli.
+For model-checking purposes, we were particularly interested in the tap withdrawal (TW) neural circuit. The TW circuit governs the reactionary motion of
+the animal when the petri dish in which it swims is perturbed. (A related circuit,
+touch sensitivity, controls the reaction of the worm when a stimulus is applied to
+
+a single point on the body.) Studies of the TW circuit have traditionally involved
+using lasers to ablate the different neurons in the circuit of multiple animals and
+measuring the results when stimuli are applied.
+A model of the TW circuit was presented by Wicks, Roehrig, and Rankin
+in [16]. This model is in the form of a system of nonlinear ODEs, as well as
+mapped polarities of the various neurons involved in the TW circuit. Additionally, Wicks and Rankin had a previous paper in which they measure the three
+possible reactions of the animals to TW with various neurons ablated [15]; see
+also Fig. 2. The three behaviors—acceleration, reversal of movement, and no
+response—are logged with the percentage of the experimental population to display that behavior.
+The [16] model has a number of circuit parameters, such as gap-junction
+conductance, capacitance, and leakage current, that crucially affect the behavior of the organism. Values for these parameters based on estimates, rules of
+thumb and measurements are given in [16], but not the parameter ranges. A
+quick analysis of the circuit shows that variations in these parameter values may
+give rise to changes in the behavior of the model from acceleration or reversal to no-response. As all biological parameters vary across populations, time,
+and environments, identifying parameter ranges corresponding to behaviors is a
+fundamentally important problem. For a complete characterization of the TW
+circuit, it is therefore critical to identify the range of parameter values that give
+rise to these different types of behavior.
+Using automatically generated local discrepancy functions [6,3], we are able
+to perform reachability analysis on the [16] model. This approach combines static
+analysis with numerical simulations to allow us to iteratively compute more precise over-approximations of the reachable states of the system with respect to
+a continuous range of parameter values. We used this approach, which we refer
+to as δ-refinement, to determine parameter ranges that produce all three behaviors for the control group (no ablation) and four ablation experiments. This is a
+significant expansion of the biological results, where only static parameters are
+obtained, and only for one behavior per experimental group. The specific parameters of interest are the gap-junction conductances for three sensory neurons
+in the TW circuit, as the gap junctions formed by these neurons are known to
+be the most important functional connections to the TW process.
+Our results are further organized into how many of these conductances we
+considered simultaneously, a categorization we refer to as 1-D, 2-D, and 3-D. For
+the 1-D and 2-D cases, we were able to determine parameter ranges for which
+the three TW responses are guaranteed to hold. The 3-D case is only applicable
+to the control group; here, again, we were able to produce the same guarantees.
+Moreover, with a single exception (which Wicks himself has experienced), our
+results match the trends (in terms of relative percentages) of the earlier biological
+experiments (see Fig. 2).
+The rest of the paper develops along the following lines. Section 3 provides
+requisite background material on the TW neural circuit, its reactionary behavior,
+and the ODE model of [16]. Section 4 describes our reach-tube reachability anal-
+
+ysis and associated property checking. Section 5 presents our extensive collection
+of model-checking/parameter-estimation results. Section 2 reviews related work.
+Section 6 offers our concluding remarks and directions for future work.
+
+2
+
+Related Work
+
+Iyengar et al. [11] present a Pathway Logic (PL) model of neural circuits in the
+marine mollusk Aplysia. Specifically, the circuits they focus on are those involved
+in neural plasticity and memory formation. PL systems do not use differential
+equations, favoring qualitative symbolic models. They do not argue that they
+can replace traditional ODE systems, but rather that their qualitative insights
+can support the quantitative analysis of such systems. Neurons are expressed
+in terms of rewrite rules and data types. Using the PL formalism, they are
+able to simulate neural circuits and perform qualitative in silico experiments,
+such as simulating knock-out of an individual components or other changes to
+the network. Their simulations, unlike our reachability analysis, do not provide
+exhaustive exploration of the state space. Additionally, PL models are abstractions usually made in collaboration between computer scientists and biologists.
+Our work meets the biologists on their own terms, using the pre-existing ODE
+systems developed from physiological experiments.
+Tiwari and Talcott [14] build a discrete symbolic model of the neural circuit Central Pattern Generator (CPG) in Aplysia. The CPG governs rhythmic
+foregut motion as the mollusk feeds. Working from a physiological (non-linear
+ODE) model, they abstract to a discrete system and use the Symbolic Analysis Laboratory (SAL) model checker to verify various properties of this system.
+They cite the complexity of the original model and the difficulty of parameter estimation as motivation for their abstraction. Their discrete model synchronously
+composes 10 input/output automaton (neurons), connects them with 3 types of
+links (excitatory synapse, inhibitory synapse, gap-junction), and includes an observer component. The input of each neuron can be positive, negative, or zero
+and the output is a boolean: a pulse is generated or not. Our approach uses
+the original biological model of the TW circuit of C. Elegans [16], and through
+reachability analysis, we obtain the parameter ranges of interest.
+We have extensive experience with model checking and reachability analysis
+in the cardiac domain, e.g. [7,9,10,13]. In fact, much of our previous work has
+focused on the cardiac myocyte, a computationally similar cell to the neuron.
+This is not surprising as both belong to the class of excitable cells. The similarities
+are so numerous that we have used a variation of the Hodgkin-Huxley model of
+the squid giant axon [8] to model ion channel flow in cardiac tissue.
+
+3
+
+Background
+
+In C. Elegans, there are three classes of neurons: sensory, inter, and motor. For
+the TW circuit, the sensory neurons are PLM, PVD, ALM, and AVM, and the
+
+inter-neurons are AVD, DVA, PVC, AVA, and AVB. The model we are using
+abstracts away the motor neurons as simply forward and reverse movement.
+Neurons are connected in two ways: electrically via bi-directional gap junctions, and chemically via uni-directional chemical synapses. Each connection has
+varying degrees of throughput, and each neuron can be excitatory or inhibitory,
+governing the polarity of transmitted signals. These polarities were experimentally determined in [16], and used to produce the circuit shown in Fig. 1.
+
+REV
+
+FWD
+3
+
+1
+
+5
+
+DVA
+
+3
+8
+
+28
+
+1
+
+3
+
+14
+
+PVC
+
+10
+27
+
+2
+
+AVA
+
+4
+
+1
+1
+
+70 2
+
+4
+2
+
+27
+
+1
+
+9
+
+AVB
+
+12
+
+5
+5
+
+2
+PLM
+
+28
+
+1
+
+27
+PVD
+
+1
+
+10
+
+1
+ALM
+
+2
+
+AVM
+
+1
+
+Fig. 1. Tap Withdrawal Circuit of C. Elegans. Rectangle: Sensory Neurons; Circle:
+Inter-neurons; Dashed Undirected Edge: Gap Junction; Solid Directed Edge: Chemical
+Synapse; Edge Label: Number of Connections; Dark Gray: Excitatory Neuron; Light
+Gray: Inhibitory Neuron; White: Unknown Polarity. FWD: Forward Motor system;
+REV: Reverse Motor System.
+
+The TW circuit produces three distinct locomotive behaviors: acceleration,
+reversal of movement, and a lack of response. In [15], Wicks et al. performed
+a series of laser ablation experiments in which they knocked out a neuron in a
+group of animals (worms), subjected them to a tapped surface, and recorded
+the magnitude and direction of the resulting behavior. In the control group
+with no neurons knocked out, 98% of subjects reacted to a tap with a reversal of
+locomotion, but there were still measured cases of acceleration and “no response”
+behavior. Fig. 2 shows the response types for each of their experiments.
+The dynamics of a neuron’s membrane potential, V, is determined by the
+sum of all input currents, written as:
+Cm V̇ =
+
+X
+X
+1
+(Vl − V ) +
+I gap +
+I syn + I stim
+Rm
+
+Reversal
+Acceleration
+No Response
+100
+
+80
+
+60
+
+40
+
+20
+
+Control
+ALM,AVM,PLMPLMAVMPLM,ALMALMALMRAVM,ALMPVMLUAPVCLUA,PVCPVC,ALMAVAAVDPVDPLM,PVDALM,PVDV6DVAPLM,DVAALM,DVAPVRASHAVEPHBT-
+
+0
+
+Fig. 2. Effect of ablation on Tap Withdrawal reflex. The length of the bars indicate
+the fraction of the population demonstrating the particular behavior.
+
+where Cm is the membrane capacitance, Rm is the membrane resistance, Vl is
+the leakage potential, I gap and I syn are gap-junction and the chemical synapse
+currents, respectively, and I stim is the applied external stimulus current. The
+summations are over all neurons with which this neuron has a (gap-junction or
+synaptic) connection.
+The current flow between neuron i and j via a gap-junction is given by:
+gap
+gap
+Iij
+= ngap
+ij gm (Vj − Vi )
+gap
+where the constant gm
+is the maximum conductance of the gap junction, and
+ngap
+is
+the
+number
+of
+gap-junction
+connections between neurons i and j. The
+ij
+gap
+conductance gm
+is one of the key circuit parameters of this model that dramatically affects the behavior of the animal.
+The synaptic current flowing from pre-synaptic neuron j to post-synaptic
+neuron i is described as follows:
+syn
+syn
+Iij
+= nsyn
+ij gij (t)(Ej − Vi )
+
+syn
+is the
+(t) is the time-varying synaptic conductance of neuron i, nsyn
+where gij
+ij
+number of synaptic connections from neuron j to neuron i, and Ej is the reversal
+potential of neuron j for the synaptic conductance.
+The chemical synapse is characterized by a synaptic sign, or polarity, specifying if said synapse is excitatory or inhibitory. The value of Ej is assumed
+to be constant for the same synaptic sign; its value is higher if the synapse is
+excitatory rather than inhibitory.
+Synaptic conductance is dependent only upon the membrane potential of
+presynaptic neuron Vj , given by:
+syn
+syn
+(t) = g∞
+(Vj )
+gij
+syn
+where g∞
+is the steady-state post-synaptic conductance in response to a presynaptic membrane potential.
+The steady-state post-synaptic membrane conductance is modeled as:
+syn
+g∞
+(Vj ) =
+
+syn
+gm
+
+1 + exp (−4.3944
+
+Vj −VEQj
+VRange
+
+)
+
+syn
+is the maximum post-synaptic membrane conductance for the synapse,
+where gm
+VEQj is the pre-synaptic equilibrium potential, and VRange is the pre-synaptic
+voltage range over which the synapse is activated.
+Combining all of the above pieces, the mathematical model of the TW circuit
+is a system of nonlinear ODEs, with each state variable defined as the membrane
+potential ofa neuron in the circuit. Consider a circuit with N neurons. The
+dynamics of the ith neuron of the circuit is given by:
+
+Cmi V̇i =
+
+N
+N
+Vli − Vi X gap X syn
++
+Iij +
+Iij + Iistim
+Rmi
+j=1
+j=1
+
+(1)
+
+gap
+gap
+Iij
+= ngap
+ij gm (Vj − Vi )
+
+(2)
+
+syn
+Iij
+
+(3)
+
+syn
+gij
+=
+
+=
+
+syn
+nsyn
+ij gij (Ej
+
+− Vi )
+
+syn
+gm
+
+1 + exp (−4.3944
+
+Vj −VEQj
+VRange
+
+.
+
+(4)
+
+)
+
+The equilibrium potentials (VEQ ) of the neurons are computed by setting the
+left-hand side of Eq. (1) to zero. This leads to a system of linear equations, that
+can be solved as follows:
+VEQ = A−1 b
+(5)
+where matrix A is given by:
+(
+gap
+−Rmi ngap
+ij gm
+Aij =
+PN
+gap syn
+1 + Rmi j=1 ngap
+ij gij gm /2
+
+if i 6= j
+if i = j
+
+and vector b is written as:
+bi = Vli + Rmi
+
+N
+X
+
+syn
+Ej nsyn
+ij gm /2.
+
+j=1
+
+The potential of the motor neurons AVB and AVA determine the observable
+behavior of the animal. If the integral of the difference between VAVA - VAVB is
+large, the animal will reverse movement. By extension, if the difference is a large
+negative value, the animal will accelerate, and if the difference is close to zero
+there will be no response. The equation that converts the membrane potential
+of AVB and AVA to a behavioral property, (e.g. reversal ), is given by:
+Z
+Propensity to Reverse ∝ (VAVA − VAVB )dt
+(6)
+where the integration is computed from the beginning of tap stimulation until
+either the simulation ends or the integrand changes sign. To allow initial transients after the tap, the test for a change of integrand sign occurs only after a
+grace period of 100 ms.
+For the purpose of reachability analysis (Section 4), we normalize the system
+of equations with respect to the capacitance. Combining Eqs.( 1) and ( 4) and
+taking Cmi to the right-hand side, we have:
+
+V˙i =
+
+Vli − Vi
+Rmi Cmi
+
++
+
+N
+N
+gap X
+gm
+g syn X
+gap
+nij (Vj − Vi ) + m
+Cmi j=1
+Cmi j=1
+
+Now letting gileak = Rm 1Cm , gigap =
+i
+i
+system dynamics can be written as:
+leak
+gap
+V˙i = gi
+(Vli − Vi ) + gi
+
+N
+X
+j=1
+
+gap
+
+nsyn
+ij (Ej − Vi )
+1+
+
+gap
+gm
+Cmi ,
+
+syn
+
+nij (Vj − Vi ) + gi
+
+N
+X
+j=1
+
+Vj −VEQ
+j
+exp (−4.3944 V
+Range
+
+gisyn =
+
+syn
+gm
+Cmi
+
++
+)
+
+1
+stim
+I
+Cmi i
+
+and Iiext =
+
+nsyn
+ij (Ej − Vi )
+1 + exp (−4.3944
+
+Vj −VEQ
+
+j
+VRange
+
+1
+Cmi
+
+the
+
+ext
+
+(7)
+
++ Ii
+)
+
+This is the 9 dimensional ODE model of the TW circuit. The key circuit parameters are the gap conductances, gigap , and we aim to characterize the ranges of
+these conductances that produce acceleration, reversal, and no response.
+
+4
+
+Reachability Analysis of Nonlinear TW Circuit
+
+Reachability analysis for verifying properties for general nonlinear dynamical
+systems is a well-known hard problem. Our approach relies on a recent line of
+investigation that combines static analysis of the model with validated numerical
+simulations [3,9,4].
+
+4.1
+
+Background on Reachability using Discrepancy
+
+Consider an n-dimensional autonomous dynamical system:
+ẋ = f (x),
+
+(8)
+
+where f : Rn → Rn is a Lipschitz continuous function. A solution or a trajectory
+of the system is a function ξ : Rn × R≥0 → Rn such that for any initial point
+x0 ∈ Rn and at any time t > 0, ξ(x0 , t) satisfies the differential equation (8).
+A state x in Rn is reachable from the initial set Θ ⊆ Rn within a time interval
+[t1 , t2 ] if there exists an initial state x0 ∈ Θ and a time t ∈ [t1 , t2 ] such that
+x = ξ(x0 , t). The set of all reachable states in the interval [t1 , t2 ] is denoted
+by Reach(Θ, [t1 , t2 ]). If t1 = 0, we write Reach(t2 ) when set Θ is clear from
+the context. If we can compute or approximate the reach set of such a model,
+then we can check for invariant or temporal properties of the model. Specifically,
+C. Elegans TW properties such as accelerated forward movement or reversal of
+movement fall into these categories. Our core reachability algorithm [3,9,4] uses
+a simulation engine that gives sampled numerical simulations of (8).
+Definition 1. A (x0 , τ, , T )-simulation of (8) is a sequence of time-stamped
+sets (R0 , t0 ), (R1 , t1 ) . . . , (Rn , tn ) satisfying:
+1. Each Ri is a compact set in Rn with dia(Ri ) ≤ .
+2. The last time tn = T and for each i, 0 < ti − ti−1 ≤ τ , where the parameter
+τ is called the sampling period.
+3. For each ti , the trajectory from x0 at ti is in Ri , i.e., ξ(x0 , ti ) ∈ Ri , and for
+any t ∈ [ti−1 , ti ], the solution ξ(x0 , t) ∈ hull(Ri−1 , Ri ).
+The algorithm for reachability analysis uses a key property of the model called
+a discrepancy function.
+Definition 2. A uniformly continuous function β : Rn × Rn × R≥0 → R≥0 is a
+discrepancy function of (8) if
+1. for any pair of states x, x0 ∈ Rn , and any time t > 0,
+kξ(x, t) − ξ(x0 , t)k ≤ β(x, x0 , t), and
+
+(9)
+
+2. for any t, as x → x0 , β(., ., t) → 0.
+If a function β meets the two conditions for any pair of states x, x0 in a compact
+set K then it is called a K-local discrepancy function. Uniform continuity means
+that ∀ > 0, ∀x, x0 ∈ K, ∃δ such that for any time t, kx−x0 k < δ ⇒ β(x, x0 , t) < .
+The verification results in [3,9,5,4] required the user to provide the discrepancy
+function β as an additional input for the model. A Lipschitz constant of the
+dynamic function f gives an exponentially growing β, contraction metrics [12]
+can give tighter bounds for incrementally stable models, and sensitivity analysis
+gives tight bounds for linear systems [2], but none of these give an algorithm for
+computing β for general nonlinear models. Therefore, finding the discrepancy
+can be a barrier in the verification of large models like the TW circuit.
+
+Here, we use Fan and Mitra’s recently developed approach that automatically computes local discrepancy along individual trajectories [6]. Using the
+simulations and discrepancy, the reachability algorithm for checking properties
+proceeds as follows: Let the U be the set of states that violate the invariant in
+question. First, a δ-cover C of the initial set Θ is computed; that is, the union
+of all the δ-balls around the points in C contain Θ. This δ is chosen to be large
+enough so that the cardinality of C is small. Then the algorithm iteratively and
+selectively refines C and computes more and more precise over-approximations
+of Reach(Θ, T ) as a union ∪x0 ∈C Reach(Bδ (x0 ), T ). Here, Reach(Bδ (x0 ), T ) is
+computed by first generating a (x0 , τ, , T )-simulation and then bloating it by
+a factor that maximizes β(x, x0 , t) over x, x0 ∈ Bδ (s0 ) and t ∈ [ti−1 , ti ]. If
+Reach(Bδ (x0 ), T ) is disjoint from U or is (partly) contained in U, then the algorithm decides that Bδ (x0 ) satisfies and violates U, respectively. Otherwise, a
+finer cover of Bδ (x0 ) is added to C and the iterative selective refinement continues. We refer to this in this paper as δ-refinement. In [3], it is shown that this
+algorithm is sound and relatively complete for proving bounded time invariants.
+4.2
+
+Applying Local Discrepancy to TW Circuit
+
+Fan and Mitra’s algorithm (see details in [6]) for automatically computing local
+discrepancy relies on the Lipschitz constant and the Jacobian of the dynamic
+function, along with simulations. The Lipschitz constant is used to construct
+a coarse, one-step over-approximation S of the reach set of the system along
+a simulation. Then the algorithm computes an upper bound on the maximum
+eigenvalue of the symmetric part of the Jacobian over S, using a theorem from
+matrix perturbation theory. This gives a piecewise exponential β, but the exponents are tight as they are obtained from the maximum eigenvalue of the linear
+approximation of the system in S. This means that for models with convergent
+trajectories, the exponent of β over S will be negative, and the Reach(T ) approximation will quickly become very accurate. In the rest of this section, we
+describe key steps involved in making this approach work with the TW circuit.
+The model of the TW circuit from Section 3 can be written as V̇ = f (V ),
+where V ∈ R9 . The Jacobian of the system is the matrix of partial derivatives
+with the ij th term given by:
+N
+N
+X
+X
+∂fi
+leak
+gap
+gap
+syn
+= −gi
+− gi
+nij − gi
+∂Vi
+j=1,j6=i
+j=1,j6=i
+
+gap
+
+= gi
+
+gap
+
+nij
+
+−
+
+nsyn
+ij
+1 + exp(−4.3944
+
+Vj −VEQ
+j
+−4.3944
+exp(−4.3944 V
+)(Ej −
+Range
+syn syn VRange
+gi nij
+Vj −VEQ
+j
+(1 + exp(−4.3944 V
+))2
+Range
+
+Vj −VEQ
+j
+VRange
+
+)
+
+Vi )
+(10)
+
+For parameter-range estimation of the TW circuit, each parameter p of interest is added as a new variable with constant dynamics (ṗ = 0). Computing
+the reach-set from initial values of p is then used to verify or falsify invariant
+properties for a continuous range of parameter values, and therefore a whole
+family of models, instead of analyzing just a single member of that family. Here
+
+the parameters of interest are the quantities 1/gileak , 10/gigap , 1/gisyn . Consider,
+for example, 1/gileak as a parameter:
+
+
+V˙
+1/gileak
+
+
+
+
+=
+
+f (V )
+0
+
+
+.
+
+In this case the Jacobian matrices for the system with parameters will be singular
+because of the all-zero rows that come from the parameter dynamics. The zero
+eigenvalues of these singular matrices are taken into account automatically by
+the algorithm for computing local discrepancy. In this paper we focus on 10/gigap ,
+leaving the others for future work.
+4.3
+
+Checking Properties
+
+Once the reach sets are computed, checking the acceleration, reversal, and noresponse properties are conceptually straightforward. For instance, Equation (6)
+gives a method to check reversal movement. Instead of computing the integral
+of (VAVA − VAVB ), we use the following sufficient condition to check it:
+∀ t ∈ Tint , ∀ x ∈ Reach(Θ, [t, t]), VAVA (x) > VAVB(x) .
+
+-0.02
+
+-0.02
+
+-0.021
+
+-0.021
+
+-0.022
+
+-0.022
+
+-0.023
+
+-0.023
+
+-0.024
+
+AVA Tube
+AVB Tube
+
+-0.025
+
+Voltage (V)
+
+Voltage (V)
+
+Here, Tint is a specific time interval after the stimulation time, Θ is the initial set
+with parameter ranges, and recall that Reach(Θ, [t, t]) is the set of states reached
+at time t from Θ. We implement this check by scanning the entire reachtube
+and checking that its projection on VAVB (x) is above that of VAVA (x) over all
+intervals. If this check succeeds (as in Figure 4(a)), we conclude that the range
+of parameter values produce the reversal movement. If the check fails, then the
+reversal movement is not provably satisfied (Figure 4(b)) and in that case we
+δ-refine the initial partition.
+
+-0.024
+-0.025
+
+-0.026
+
+-0.026
+
+-0.027
+
+-0.027
+
+-0.028
+
+-0.028
+
+-0.029
+
+(a)
+
+0
+
+0.01
+
+0.02
+
+0.03 0.04
+Time (s)
+
+0.05
+
+0.06
+
+0.07
+
+gap
+Rev. property satisfied with gAV
+M = 1000.
+
+Fig. 3.
+
+AVA Tube
+AVB Tube
+
+-0.029
+
+0
+
+(b)
+
+0.01
+
+0.02
+
+0.03 0.04
+Time (s)
+
+0.05
+
+0.06
+
+0.07
+
+gap
+Rev. unknown with gAV
+M = 33.33.
+
+gap
+.
+Model Checking Reversal Property of Control Group, with δ = 5e − 5, varying gAVM
+
+-0.02
+
+-0.01
+AVA Tube
+AVB Tube
+
+-0.021
+
+-0.015
+
+-0.022
+Voltage (V)
+
+Voltage (V)
+
+-0.023
+-0.02
+
+-0.025
+
+-0.024
+
+AVA Tube
+AVB Tube
+
+-0.025
+-0.026
+-0.027
+
+-0.03
+
+-0.028
+-0.035
+
+(a)
+
+0
+
+0.01
+
+0.02
+
+0.05
+
+0.06
+
+0.07
+
+Rev. property unknown with δ = 1e-4.
+
+Fig. 4.
+
+5
+
+0.03 0.04
+Time (s)
+
+-0.029
+
+(b)
+
+0
+
+0.01
+
+0.02
+
+0.03 0.04
+Time (s)
+
+0.05
+
+0.06
+
+0.07
+
+Rev. property satisfied with δ = 5e-5.
+
+Model Checking Reversal Property of Control Group by refining δ.
+
+Experimental Results
+
+In this section, we apply reachability analysis to parameter rangers that produce
+three different behaviors (reversal, acceleration, no response) in the control and
+four ablation groups. When a tap stimulus is applied, the sensory neurons (ALM,
+AVM and PLM ) propagate that signal to the motor neurons via interneurons.
+The gap-junctions formed by the sensory neurons are the most important functional connections to this process [1]. Therefore we vary only the gap-junction
+conductance, gigap , of the sensory neurons and keep all other parameters constant, as per [16]. Our experiments characterize parameter ranges for reversal,
+acceleration and no response behaviors in all groups, except the ALM,AVMgroup where reversal behavior is not observed.
+In section 4, we explain that we use 10/gigap as our parameter in the state
+vector instead of gigap . Assume pgap
+= 10/gigap , i ∈ {AV M, ALM, P LM }. The
+i
+gap
+corresponding range for pi is [0.01, 1]. From the reachability analysis, we estimate ranges for pgap
+that can be converted back to gigap .
+i
+In the following subsections, we will present our results for parameter range
+estimation for all three behaviors of the control and ablation groups. This process
+requires three experiments per group.
+5.1
+
+1-D Parameter Space
+
+Here we vary one conductance at a time for two groups: the control and the
+ALM, AVM ablation groups.
+Control: For the control case, we varied pgap
+AVM . We found that the reversal
+property is satisfied in sub-range [0.01, 0.214] with δ = 1e − 6 and the acceleration property in sub-range [0.63, 1] with δ = 1e − 5. Recall, δ is the size of the
+finest cover used by the verification algorithm. We could not verify any property for the sample points in sub-range (0.214, 0.63). As shown in Table 1, the
+
+parameter range producing reversal, as identified by our procedure, dominates
+the parameter range for acceleration. Our procedure also shows that no value of
+pgap
+AV M produces the no-response behavior for the control group.
+The time required for our procedure is dependent upon the property, the
+interval for each dimension, and the size of δ. For example, the time necessary
+to complete the procedure for the reversal property is approximately one hour.
+ALM, AVM Ablation Group: In this group two sensory neurons, ALM, and
+AVM, are ablated. As such, we vary only pgap
+PLM . Acceleration is satisfied over
+the interval [0.01, 0.3] with δ = 5e − 5 and no response behavior is satisfied over
+[0.75, 1] with the same δ. Despite using a very small δ for refinement, we did not
+observe any reversal behavior in this entire range. Examining Table 1 we see
+that acceleration is the dominant behavior for this group.
+5.2
+
+2-D Parameter Space
+
+We lead with results for the control group, then examine various ablation groups.
+Parameter Refinement in 2-D: Fig. 5 helps paint a picture of how the δrefinement process discussed in Section 4 works in 2-D. We consider 4 refinement
+steps for the control group: δ = 7e − 5, δ = 6e − 5, δ = 5.5e − 5, and δ = 5e − 5.
+For δ = 7e − 5, the property of interest is unknown at all points. With δ = 6e − 5
+the property is considered unknown for all red areas in the figure, including red
+and blue areas. Blue areas show where δ = 5.5e − 5 are satisfied, and in the blue
+and yellow area both δ = 6e − 5 and δ = 5.5e − 5 have a satisfied property. The
+property is satisfied for the entire range of the graph when δ = 5e − 5. Thus, the
+refinement process stops at δ = 5e−5, and the entire range of the 2-D parameter
+space is characterized.
+gap
+Control Here we consider the pgap
+AVM and pALM conductances simultaneously.
+For this group, reversal is satisfied over the range [0.01, 0.0105] with δ = 2e − 5
+and acceleration is satisfied over [0.63, 0.6305] with the same δ. Table 1 shows
+that reversal, like in the 1-D case, dominates and no response is not generated.
+
+PLM Ablation Group: As the PLM neuron is ablated in this group, varying
+gap
+only pgap
+AVM and pALM is sufficient to produce all three behaviors. Here we find reversal satisfied over [0.01, 0.0105] with δ = 2e − 5, acceleration over [0.67, 0.6705]
+with δ = 5e − 5, and no response over [0.9995, 1] with δ = 5e − 5. Table 1 shows
+that reversal dominates the other two behaviors, but all three are produced.
+ALM Ablation Group: To produce all three behaviors of this group we vary
+gap
+only pgap
+AVM and pPLM . Reversal is satisfied over the interval [0.01, 0.0105] with
+δ = 5e − 5, acceleration over [0.67, 0.6705] with δ = 2e − 5, and no response over
+
+x10-2
+
+1.06
+1.05
+
+pgap
+AVM
+
+1.04
+1.03
+1.02
+1.01
+1.00
+0.99
+0.99
+
+1.00
+
+1.01
+
+1.02
+
+1.03
+
+1.04
+
+1.05
+
+1.06
+
+x10-2
+
+pgap
+ALM
+
+Fig. 5. Example of 2-D Parameter Refinement. Red Regions are Unknown for both
+δ = 6e − 5 and δ = 5.5e − 5, Red/Blue Regions are Unknown for δ = 6e − 5, but
+Satisfied for δ = 5.5e − 5, and Yellow/Blue Regions are Satisfied for both.
+Group Name
+
+Control
+
+Case
+
+Normalized gap-junction conductance (gigap)
+Rev.
+
+Acc.
+
+No Resp.
+
+1D
+
+953.21
+
+5.873
+
+0
+
+2D
+
+2267.57
+
+1.58e-4
+
+0
+
+3D
+
+970.5931
+
+2e-6
+
+1.28e-7
+
+PLM -
+
+2D
+
+2267.57
+
+1.24e-4
+
+2.503e-7
+
+ALM -
+
+2D
+
+2267.57
+
+1.24e-4
+
+2.503e-7
+
+ALM,DVA-
+
+2D
+
+148.72
+
+1.24e-4
+
+2.503e-7
+
+ALM,AVM-
+
+1D
+
+0
+
+966.67
+
+3.33
+
+Table 1. Regions in the parameter space in which the properties are proven satisfied.
+A 1-D case shows interval size, a 2-D case shows area, and a 3-D case shows volume.
+
+[0.9995, 1] with δ = 5e − 5. We can see in Table 1 that this ablation group has a
+propensity to reverse. The astute reader would notice that this trend does not
+seem to match Fig. 2, unlike the rest of our results. We have run simulations
+with the equations from [16], and the simulations also produce reversal, not
+acceleration. The results of the simulation and model checking consistently disagree with the behavior denoted in Fig. 2 for this ALM group. We are currently
+investigating why this is the case.
+ALM, DVA Ablation Group: All three behaviors of this group are produced
+gap
+by varying only pgap
+AVM and pPLM . Here reversal is satisfied over [0.02, 0.0205]
+
+with δ = 2e − 5, acceleration over [0.67, 0.6705] with δ = 5e − 5, and no response
+over [0.9995, 1] with δ = 5e−5. Repeating our experiments for this group, Table 1
+shows the dominant reversal behavior.
+5.3
+
+3-D Parameter Space
+
+Since the ablation groups we have used in this paper all feature at least one of
+the primary sensory neurons (ALM, AVM, and PLM ) ablated, we can only show
+the 3-D case for the original animal.
+gap
+gap
+For the 3-D case, in addition to pgap
+AVM and pALM , we have the pPLM conductance. Finally, we get a non-zero value for no response in the control, but
+Table 1 shows that this value is an order of magnitude smaller than acceleration
+and several orders smaller than reversal. Reversal is satisfied over [0.01, 0.0101]
+with δ = 2e−5, acceleration over [0.631, 0.6305] with δ = 5e−5, and no response
+over [0.63, 0.63005] with δ = 5e − 5.
+
+6
+
+Conclusions
+
+In this paper, we performed reachability analysis with discrepancy to automatically determine parameter ranges for three fundamental reactions by C. Elegans to tap-withdrawal stimulation: reversal of movement, acceleration, and no
+response. We followed the lead of the in vivo experimental results of [15] to obtain parameter-estimation results for gap-junction conductances for a number
+of neural-ablation groups. To the best of our knowledge, these results represent
+the first formal verification of a biologically realistic (nonlinear ODE) model of
+a neural circuit in a multicellular organism.
+Our results are further organized into how many of these three conductances
+we considered simultaneously. For each of these cases, we were able to determine
+parameter ranges for which the three TW responses are guaranteed to hold.
+Moreover, with the exception of the ALM- ablation group (an exception Wicks
+himself has noted about the ODE circuit model), our results match the relativepercentage trends of Fig. 2.
+Future work includes expanding the parameter ranges for TW responses,
+possibly by parallelizing the verification algorithm. We also plan to examine the
+additional ablation groups present in Fig. 2.
+Acknowledgments. We would like to thank Junxing Yang, Heraldo Memelli,
+Farhan Ali, and Elizabeth Cherry for their numerous contributions to this project.
+Our research is supported in part by the following grants: NSF IIS 1447549,
+NSF CAR 1054247, AFOSR FA9550-14-1-0261, AFOSR YIP FA9550-12-1-0336,
+CCF-0926190, and NASA NNX12AN15H.
+
+References
+1. M. Chalfie, J. E. Sulston, J. G. White, E. Southgate, J. N. Thomson, and S. Brenner. The neural circuit for touch sensitivity in Caenorhabditis Elegans. The Journal
+of Neuroscience, 5(4):956–964, 1985.
+
+2. A. Donzé and O. Maler. Systematic simulation using sensitivity analysis. In Hybrid
+Systems: Computation and Control, pages 174–189. Springer, 2007.
+3. P. S. Duggirala, S. Mitra, and M. Viswanathan. Verification of annotated models from executions. In Proceedings of the International Conference on Embedded
+Software, EMSOFT 2013, Montreal, Canada, Sep.-Oct. 2013. IEEE.
+4. P. S. Duggirala, S. Mitra, M. Viswanathan, and M. Potok. C2E2: A verification tool
+for Stateflow models. In 21st International Conference on Tools and Algorithms
+for the Construction and Analysis of Systems, TACAS 2015, 2015.
+5. P. S. Duggirala, L. Wang, S. Mitra, M. Viswanathan, and C. Muñoz. Temporal
+precedence checking for switched models and its application to a parallel landing
+protocol. In FM 2014: Formal Methods, 19th International Symposium, Proceedings, volume 8442 of Lecture Notes in Computer Science, pages 215–229. Springer,
+May 2014.
+6. C. Fan and S. Mitra. Bounded verification using on-the-fly discrepancy computation. Technical Report UILU-ENG-15-2201, Coordinated Science Laboratory,
+University of Illinois at Urbana-Champaign, Feb. 2015.
+7. R. Grosu, G. Batt, F. H. Fenton, J. Glimm, C. L. Guernic, S. A. Smolka, and
+E. Bartocci. From cardiac cells to genetic regulatory networks. In Proceedings of
+the 23rd International Conference on Computer Aided Verification, pages 396–411.
+Springer, 2011.
+8. A. L. Hodgkin and A. F. Huxley. A quantitative description of membrane current
+and its application to conduction and excitation in nerve. Journal of Physiology,
+117:500–544, 1952.
+9. Z. Huang, C. Fan, A. Mereacre, S. Mitra, and M. Z. Kwiatkowska. Invariant
+verification of nonlinear hybrid automata networks of cardiac cells. In Computer
+Aided Verification, 26th International Conference, CAV 2014, Proceedings, volume
+8559 of Lecture Notes in Computer Science, pages 373–390, Vienna, Austria, July
+2014. Springer.
+10. M. A. Islam, A. Murthy, A. Girard, S. A. Smolka, and R. Grosu. Compositionality results for cardiac cell dynamics. In Proceedings of the 17th International
+Conference on Hybrid Systems: Computation and Control. ACM, 2014.
+11. S. M. Iyengar, C. Talcott, R. Mozzachiodi, E. Cataldo, and D. A. Baxter. Executable symbolic models of neural processes. Network Tools and Applications in
+Biology (NETTAB07), 2007.
+12. W. Lohmiller and J. J. E. Slotine. On contraction analysis for non-linear systems.
+Automatica, 1998.
+13. A. Murthy, M. A. Islam, R. Grosu, and S. A. Smolka. Computing bisimulation
+functions using SOS optimization and delta-decidability over the reals. In Proceedings of the 18th International Conference on Hybrid Systems: Computation and
+Control. ACM, 2015.
+14. A. Tiwari and C. L. Talcott. Analyzing a discrete model of Aplysia central pattern
+generator. In Proceedings of the 6th Conference on Computational Methods in
+Systems Biology (CMSB), pages 347–366. Springer, 2008.
+15. S. R. Wicks and C. H. Rankin. Integration of mechanosensory stimuli in
+Caenorhabditis Elegans. The Journal of Neuroscience, 15(3):2434–2444, 1995.
+16. S. R. Wicks, C. J. Roehrig, and C. H. Rankin. A dynamic network simulation
+of the nematode tap withdrawal circuit: Predictions concerning synaptic function
+using behavioral criteria. The Journal of Neuroscience, 16(12):4017–4031, 1996.
+
+

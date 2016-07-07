@@ -1,0 +1,2048 @@
+arXiv:1502.06659v1 [q-bio.NC] 24 Feb 2015
+
+On inferring structural connectivity from brain
+functional-MRI data
+Somwrita Sarkar
+
+Sanjay Chawla
+
+Donna Xu
+
+Design Lab
+University of Sydney
+
+Faculty of Engg and IT
+University of Sydney
+
+Faculty of Engg and IT
+University of Sydney
+
+somwrita.sarkar@sydney.edu.au
+
+sanjay.chawla@sydney.edu.au
+
+doxu2620@uni.sydney.edu.au
+
+ABSTRACT
+The anatomical structure of the brain can be observed via
+non-invasive techniques such as diffusion imaging. However, these are imperfect because they miss connections that
+are actually known to exist, especially long range interhemispheric ones. In this paper we formulate the inverse
+problem of inferring the structural connectivity of brain networks from experimentally observed functional connectivity
+via functional Magnetic Resonance Imaging (fMRI), by formulating it as a convex optimization problem. We show that
+structural connectivity can be modeled as an optimal sparse
+representation derived from the much denser functional connectivity in the human brain. Using only the functional
+connectivity data as input, we present (a) an optimization
+problem that models constraints based on known physiological observations, and (b) an ADMM algorithm for solving it.
+The algorithm not only recovers the known structural connectivity of the brain, but is also able to robustly predict
+the long range interhemispheric connections missed by DSI
+or DTI, including a very good match with experimentally
+observed quantitative distributions of the weights/strength
+of anatomical connections. We demonstrate results on both
+synthetic model data and a fine-scale 998 node cortical dataset,
+and discuss applications to other complex network domains
+where retrieving effective structure from functional signatures are important.
+
+General Terms
+Theory, Algorithms, fMRI, structural, functional, connectivity, networks
+
+Keywords
+convex optimization, ADMM, brain, network, fMRI, network inference, prediction of missing links
+
+1.
+
+INTRODUCTION
+
+Permission to make digital or hard copies of all or part of this work for
+personal or classroom use is granted without fee provided that copies are
+not made or distributed for profit or commercial advantage and that copies
+bear this notice and the full citation on the first page. To copy otherwise, to
+republish, to post on servers or to redistribute to lists, requires prior specific
+permission and/or a fee.
+XXX2015 XXX
+Copyright 20XX ACM X-XXXXX-XX-X/XX/XX ...$15.00.
+
+Networks or graphs are used to model the structure and
+dynamics of many real world systems, such as the internet and the world wide web, scientific collaborations, infrastructure systems such as road, rail, power or transport
+networks, the brain, social networks of individuals, knowledge and design structures in engineering, information and
+knowledge dynamics in firms or organizations [1, 3, 2, 24, 22,
+8]. Usually, an implicit assumption is that the structure of
+the network is observable, and forward models or inference
+of dynamics can be based on the topological organization of
+the system, for example [4].
+However, many of these systems, notably the brain, have
+structures that are difficult to map but can be observed
+via the activity they support. Further, knowledge of functional dynamics can also provide deeper information on active structure (as a subset of the total structure) and its
+temporal variation in systems. Therefore, we can define the
+inverse problem of deriving structure from the functional signature of dynamical networks. The anatomical structure of
+brain networks can only be observed via techniques such as
+diffusion imaging, [e.g. Diffusion Spectrum Imaging (DSI),
+Diffusion Tensor Imaging (DTI)], which are imperfect because they miss edges that are known to actually exist in
+the system, especially long range ones between the two hemispheres [5, 24, 19, 21, 7]. Further, not all of the anatomical
+connections are active at all times; some are dormant, leading to the notion of effective connectivity. It is possible to observe functional connectivity in these systems, measured in
+terms of correlations of network activity via techniques such
+as functional Magnetic Resonance Imaging (fMRI), EEG,
+or MEG. Methods that can infer the anatomical, structural,
+or effective connectivities, starting from the functional signature will therefore provide a significant step forward in
+understanding the normal and/or diseased structural and
+functional states of the brain by providing insight into the
+links between structure and function.
+Solving either the forward problem (inferring dynamics
+from structure) or the inverse problem (inferring structure
+from dynamics) exactly is currently beyond the capacity of
+any discipline. However, recent efforts in the brain networks
+domain show that both the forward and inverse problems
+are extremely topical in several disciplines [19, 21, 12, 18, 6]
+across computational neuroscience, data mining and physics.
+In this paper, we pose the inverse problem of mining the
+structural connectivity of brain networks from a signature
+of its functional connectivity. Different approaches in different disciplines model the problem in several ways. For
+example, computational neuroscience relies heavily on ex-
+
+periments followed by the use of established graph theoretic
+analysis [12], whereas physics based approaches rely on theoretical modeling of physiological phenomena, such as the
+expected behavior of eigenvalues of systems in stable states
+or near critical regimes [19, 21, 7]. In data mining, recent approaches have focussed on deriving functional connectivity
+signatures from functional connectivity data, using sparse
+representations [18, 6, 25], but we are not aware of any work
+on deriving structural connectivity from functional connectivity using sparse representations.
+This paper addresses some significant gaps that remain
+unexplored in previous (very recent) attempts on modeling the inverse problem [21, 7]. Firstly, we focus on the
+sparse structure of structural connectivity as opposed to the
+dense structure of functional connectivity: an optimal solution will be sparse, since experimental measurements show
+that the fMRI signature is always much denser than the
+structural/anatomical network. Secondly, while it is reasonable to assume that functional connectivity ultimately derives from structure and so the two would share topological
+properties, we focus on the issue of the actual quantitative or
+numerical distributions of the connection strengths in both
+cases. As experimental data shows, these are very different
+for the structural and functional data, with the structural
+DSI or DTI data being non-negative and the fMRI data
+containing both positive and negative correlations. Additionally, the numerical ranges and the distribution of the
+data are very different for both cases.
+In this paper, we propose a model for deriving a sparse
+weighted representation of the structural connectivity of the
+brain from its dense (full matrix) weighted functional connectivity. Our main contributions are as follows:
+1. Formulation: A convex optimization problem definition of deriving the structural connectivity of the brain
+from its fMRI connectivity.
+2. Algorithm: An ADMM based algorithm for solving
+the optimization problem.
+3. Application: Applying the approach to real experimental DSI and fMRI data.
+4. Prediction and validation: To what extent does the
+inferred structural connectivity confer with the known
+structural connectivity in the cortex and can it provide any new information about anatomical connectivity? We compare our results with (a) the known
+short range anatomical connectivity of the cortex, and
+(b) the known (but missing from experimental data)
+long range inter-hemispheric connectivity of the cortex
+(prediction of missing links in the structural network).
+
+2.
+
+BACKGROUND
+
+Before formalizing the problem, we present some observations that will form the motivation for our optimization
+formulation, and also establish the basis for why posing the
+problem within an optimization framework can have significant advantages:
+1. Experiments have shown that the structural and functional connectivity of the brain have high positive correlations with each other [12]. In other words, if two
+areas of the brain are strongly connected anatomically,
+
+0.8
+−2
+
+−3
+
+200
+
+300
+
+0.6
+
+200
+
+−4
+
+300
+
+−5
+
+400
+
+0.5
+
+100
+
+100
+
+100
+
+200
+
+0.4
+
+300
+
+0.3
+
+0.4
+400
+
+500
+
+−6
+
+400
+
+0.2
+
+500
+
+0.1
+
+−7
+
+0
+
+0
+700
+
+700
+
+700
+
+0.2
+
+600
+
+600
+
+600
+
+500
+
+−8
+
+−0.1
+800
+
+800
+
+−0.2
+
+−9
+
+−0.4
+
+−10
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+700
+
+800
+
+900
+
+−0.2
+
+900
+
+900
+
+900
+
+800
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+700
+
+800
+
+900
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+700
+
+800
+
+900
+
+−0.3
+
+(c)
+Figure 1: (a)Experimentally(b) measured anatomical
+and
+functional connectivity in the human cortex [10]. (a)
+Structural connectivity measured via DSI. (b) Resting state functional connectivity measured via fMRI.
+(c) Linear correlation map between structural and
+functional connectivity matrices.
+
+it is likely that they will share high functional correlations too. Figures 1(a) and (b) show the anatomical
+and resting state functional connectivity data from [10].
+Each row or column of the matrix shows a region of
+interest or ROI of the cortex, and its entries represent
+structural or functional connectivity with all the other
+ROIs. The matrices represent both the left and right
+hemispheres, with the top half of the rows/columns
+representing one hemishphere and the bottom half the
+other. Figure 1(c) shows the linear correlation between
+the rows/columns of the structural and functional connectivity matrices.
+2. Experiments show that the functional connectivity is
+based upon direct as well as indirect connections or the
+presence of both direct and indirect structural paths
+between brain regions [19, 21, 12]. Thus, signatures
+of functional connectivity or correlations of activity as
+mapped via fMRI are significantly denser than signatures of structural connectivity as mapped via techniques such as DSI or DTI [10], since the functional
+connectivity is postulated to derive from both direct
+and indirect connectivity between brain regions. As
+can be seen from Figure 1(b), the functional signature is much denser than the structural one in Figure 1(a). Thus, it appears from experimental data that
+structural connectivity can be naturally expressed by
+a sparser representation while the functional one is a
+denser one.
+3. Current non-invasive techniques of mapping structural
+brain connectivity miss the long range connections, especially inter-hemispheric ones in the brain [19, 21, 12,
+10]. This is visible in Figs 1(a) and (b): while the main
+diagonal is similarly structured in both, the two offdiagonals, representing inter-hemispheric connectivity
+between the two hemispheres, are very weak in Fig 1(a)
+and strong in Fig 1(b), showing that the functional signature captures traces of long range connections via
+strong correlations that the structural data from DSI
+misses.
+The above observations lead to the following informal characterization of the problem. Given a dense functional connectivity matrix, can we derive an optimal sparse representation of structural connectivity, by modeling physiologically and experimentally known constraints on structural and functional connectivity? Further, (a) how much
+of experimentally mapped and known structural connectivity is the sparse representation able to predict, and (b) can
+
+the sparse representation also predict structural connectivity
+that is known to exist anatomically, but is missing from data
+that comes from the current state of the art non-invasive
+imaging techniques?
+
+3.
+
+PROBLEM DEFINITION
+
+Formally, we consider two graphs Gs = (V, Es ) and Gf =
+(V, Ef ), with ROIs of the cortex represented as N nodes
+in the set V , and the edge sets Es and Ef representing
+structural and functional connectivity edges, respectively,
+between two ROIs or nodes. While structural connectivity
+is a measure of the actual anatomical connectivity between
+two ROIs or nodes, functional connectivity is a measure of
+correlation between activity on two nodes as the brain is in
+resting state or performs a specific task. Thus, note that
+while the presence of an edge in the set Es is a measure
+of actual physical connectivity, an edge in the Ef signifies
+the level of correlation between activity based on the BOLD
+signature [24].
+However, based on the observations in the background
+and previous research [16, 15, 24, 5, 19, 21, 10, 12, 7], we
+assume that the structural and functional connectivity of a
+node to other nodes is positively correlated, as discussed in
+the Background section. More formally, we represent the experimentally measured structure and functional connectivity
+networks Gs and Gf by weighted adjacency matrices S and
+F respectively, where the entries Sij and Fij represent the
+structural and functional connection weights between brain
+regions i and j, respectively. Thus, each column (or row) si
+or fi represents the structural or functional connectivity of
+node i to all the other nodes in the network.
+Our main task can be stated as inferring a sparse representation of F , as a representation of the structural connectivity, by modeling constraints that derive from known
+experimental and physiological observations. The simplest
+way of stating this is
+F X = F,
+(1)
+where X represents our sparse representation matrix, and we
+model it as a transformation that takes F to itself. However,
+to extract the required pattern, this form can be further simplified to our advantage if we work with a lower dimensional
+representation of F rather than the full N × N version. The
+reasoning for this is as follows. Row i of F shows the connectivity of node i with all the other connections. Because of the
+physiologically known modularity structure of the brain (e.g.
+visual cortex, auditory cortex, etc.), we know that several
+other nodes will typically have connectivities very similar
+to node i. Thus, we are looking for a representation where
+each node can be represented as a point in k−dimensional
+space, with k << N , such that if two nodes share similar
+connectivities to other nodes in F or S, then they must lie
+very close to each other in the k−dimensional space. This
+can be achieved in several ways, but here we use the simplest possible representation: the spectral representation of
+F , or the co-ordinates given by the first k eigenvectors of F ;
+F = V DV T , Fk = Vk Dk VkT , where Vk which is k×N matrix
+, now represents the positions of N nodes in k−dimensional
+space Rk . When the transformation X is applied to F , the
+components of sparse X will be like weights on the columns
+of Vk , “picking out” the most relevant connections of node i
+to all other nodes. Thus we have
+Vk X = Vk
+(2)
+
+.
+This is also the simplest possible representation for which
+the known physiological constraints described in the previous section can be captured: (a) high correlations in the
+fMRI data must imply high probability of structural connectivity, but (b) the structural connectivity must be sparse,
+since only direct connections must be inferred, and (c) both
+the short range and the long range structural connectivity
+must be inferred using the functional connectivity.
+One complication is introduced by the presence of negative
+entries in the experimental fMRI data. The meaning of negative correlations in fMRI data is under open debate and has
+been attributed to (a) pre- and post-processing of the fMRI
+data (especially removals related to other physiological functions such as cardiovascular and respiratory functions from
+the raw fMRI data, and removals of global modes when temporal averaging is performed to reveal spatial correlations as
+demonstrated in Fig. 1(b), (b) BOLD activity and haemodynamic effects, and (c) excitatory versus inhibitory effects as
+correlated with positive or negative BOLD response. Since
+the exact meaning of the negative correlations in the fMRI
+matrix and its physiological significance is unclear and varied in the research literature, and all structural connectivity
+data as measured by DSI or DTI techniques is positive, we
+would like to separate out the positive and negative parts,
+as
+Vk (Xp + Xn ) = Vk ,
+
+(3)
+
+where Xp is sparse and positive, and Xn is small and negative. Separating out the positive and negative also makes
+our results easier to interpret. Surprisingly, we discover in
+our results that both the positive and negative solutions echo
+back a similar “picture” of structural connectivity, but Xp
+is much closer to predicting the real structural connectivity. The robustness of this result is particularly significant,
+because unlike previous efforts [7], we make no use of the
+structural connectivity matrix to predict the same in our
+optimization formulation; all our computations are done on
+the functional connectivity matrix and what we derive is
+then shown to be very close to the experimentally measured
+structural connectivity.
+Thus, the final optimization problem can be stated as
+λn
+||Xn ||22
+2
+sub to Vk (Xp + Xn ) = Vk
+min ||Xp ||1 +
+
+diag(Xp ) = 0
+diag(Xn ) = 0
+
+(4)
+
+Xp ≥ 0
+−Xn ≥ 0.
+Note that, similar to [9], we want to enforce the diagonals
+of the solution variables to be 0, so as to avoid the trivial solution of each node expressing itself as its own linear
+combination and none of the others.
+
+4.
+
+OPTIMIZATION ALGORITHM
+
+We present an ADMM based solution framework for solving the above problem. Introducing auxilliary variables A
+and B for the optimization variables Xp and Xn , and indicator functions I1+ (Xp ) and I2+ (−Xn ) for the non-negative
+
+4.4
+
+and negativity constraints, we have:
+L[A, B, Xp , Xn , ∆1 , ∆2 ] =
+λn
+λt
+||Xp ||1 +
+||Xn ||22 + ||Vk − (A + B)Vk ||22
+2
+2
++tr[∆T1 (A − (Xp − diag(Xp ))]
++tr[∆T2 (B − (Xn − diag(Xn ))]
+ρ1
++ ||A − (Xp − diag(Xp ))||22
+2
+ρ2
++ ||B − (Xn − diag(Xn ))||22
+2
++I1+ (Xp ) + I2+ (−Xn ),
+
+(5)
+
+where I1+ (Xp ) = 0 when Xp ≥ 0 and ∞ otherwise, and
+I2+ (−Xn ) = 0 when Xn ≤ 0 and ∞ otherwise.
+Now we minimize L (w.r.t. its arguments) using a standard iterative ADMM process where we differentiate with
+respect to one variable while keeping the others fixed and finally updating the Lagrange multipliers ∆1 and ∆2 . We represent with A∗ , B ∗ , Xp∗ , Xn∗ , ∆∗1 , ∆∗2 , the updated variables
+A, B, Xp , Xn , ∆1 , ∆2 . The full algorithm is presented in Algorithm 1.
+
+4.1
+
+Updating A
+A can be updated as computing
+
+∂ λt
+∂L
+=
+||Vk − (A + B)Vk ||22
+∂A
+∂A 2
+ρ1
++ ||A − Xp + diag(Xp )||22
+2
+
+ T
+
++tr ∆1 (A − Xp + diag(Xp )) ,
+
+(6)
+
+A∗ = (λt VkT Vk +ρ1 I)−1 [λt VkT (Vk −BVk )+ρ1 Xp −∆1 ]. (7)
+
+4.2
+
+Updating B
+The form for B is exactly similar to A. Thus,
+
+B ∗ = (λt VkT Vk +ρ2 I)−1 [λt VkT (Vk −AVk )+ρ2 Xn −∆2 ]. (8)
+
+Since the `1 −norm of Xp is to be minimized, along with
+the square terms, Xp can be updated in closed form using a
+soft-thresholding operator as follows:
+Xp∗ = Y − diag(Y ),
+
+(9)
+
+where
+
+
+∆1
+A+
+,
+ρ1
+
+
+
+
+∆1
+1
+∆1
+= A+
+− 11T
+sgn A +
+,
+ρ1
+ρ1
+ρ1
++
+Y =T
+
+1
+ρ1
+
+where I is the identity matrix and Xn takes on only negative
+values because of I2+ (−Xn ).
+
+4.5
+
+Tη (v) = (|v| − η)+ sgn(v).
+
+Finally, we update the Lagrange multipliers as
+
+where Y takes only positive values due to I1+ (Xp ).
+
+∆∗1 = ∆1 + ρ1 (A∗ − Xp∗ ),
+
+(16)
+
+∆∗2 = ∆2 + ρ2 (B ∗ − Xn∗ ).
+
+(17)
+
+Algorithm 1 ADMM Algorithm
+Input: F, k,λt , ρ1 , ρ2
+Output: Xp , Xn
+Initialize Xp , Xn , A, B, ∆1 , ∆2
+1: F ← V DV T
+2: Use Vk from Vk Dk VkT (first k eigenvectors)
+3: repeat
+4:
+A ← (λt VkT Vk + ρ1 I)−1 [λt VkT (Vk − BVk ) + ρ1 Xp − ∆1 ]
+T
+5:
+B←
+(λt VkT Vk +ρ2 I)−1 [λ
+t Vk (Vk −AVk )+ρ2 Xn −∆2 ]
+∆1
+ρ1
+
+1
+11T
+ρ1
+
+6:
+
+Y ←
+
+7:
+
+Xp ←Y − diag(Y )
+
+ 1
+
+
+Z←
+I
+ρ
+B
++
+∆
+2
+2
+λn +ρ2
+
+A+
+
+−
+
++
+
+−
+
+9:
+Xn ← Z − diag(Z)
+10:
+∆1 ← ∆1 + ρ1 (A∗ − Xp∗ )
+11:
+∆2 ← ∆∗2 = ∆2 + ρ2 (B ∗ − Xn∗ )
+12: until convergence
+13: Xn ←
+14: Xp ←
+
+(11)
+
+5.
+5.1
+
+(12)
+
+Now applying the indicator function I1+ (Xp ),
+Xp∗ = Y − diag(Y ),
+
+∆1
+1
+A+
+− 11T
+,
+ρ1
+ρ1
++
+
+Updating ∆1 and ∆2
+
+T
+Xn +Xn
+2
+T
+Xp +Xp
+2
+
+(10)
+
+with
+
+Y =
+
+set the derivative to 0 and apply indicator function I2+ (−Xn )
+to get
+
+
+
+
+
+1
+I ρ2 B + ∆ 2
+,
+(15)
+Xn∗ =
+λ n + ρ2
+−
+
+8:
+
+Updating Xp
+
+
+
+Similar to the derivation for A and B, we can differentiate
+with respect to Xn as
+
+λn
+∂
+∂L
+=
+||Xn ||22
+∂Xn
+∂Xn 2
+ρ2
++ ||B − Xn + diag(Xn )||22
+(14)
+2
+
+
+
++tr ∆T2 (B − Xn + diag(Xn )) ,
+
+and
+
+and setting it to 0. We then get
+
+4.3
+
+Updating Xn
+
+(13)
+
+RESULTS
+Synthetic baseline model - I
+
+As discussed in the Background section, the real brain
+data that we will work with has known missing entries, especially for long range interhemispheric connections. In order to test and validate the approach on a baseline, we have
+generated synthetic models mimicing the known large scale
+architecture of the cortex. Studies have shown that the
+cortex has a hierarchical modular architecture with larger
+modules nesting smaller modules on several levels [20, 16,
+15]. We have therefore generated hierarchically modular
+
+(a)
+
+(b)
+
+200
+
+200
+
+400
+
+400
+
+600
+
+600
+
+800
+
+800
+
+1000
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+1000
+
+(c)
+
+(d)
+
+200
+
+200
+
+400
+
+400
+
+600
+
+600
+
+800
+
+800
+
+1000
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+(e)
+
+1000
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+(f )
+
+200
+
+200
+
+400
+
+400
+
+600
+
+600
+
+800
+
+800
+
+1000
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+1000
+
+F = S + S 2 + ... + S j ,
+200
+
+400
+
+600
+
+800
+
+1000
+
+Figure 2: Synthetic baseline model I. (a) adjacency
+matrix for a hierarchical network with brain like architecture. (b) derived synthetic functional matrix.
+(c) Xp (d) Xn (e) Xpt with near zero entries removed.
+(f ) Xpn = Xp ∩ (Xn = 0). Parts (c), (d), (e), and (f )
+all bring out the connectivity structure of the adjacency matrix from the functional matrix. Although
+the hierarchical structure is not particularly visible
+in (e) and (f ), it is detected, as confirmed by precision and recall measurements.
+1
+
+Precision and Recall
+
+0.8
+0.6
+
+PXp
+
+RXp
+
+0.4
+
+PXpt
+RX
+
+0.2
+0
+0
+
+pt
+
+PXpn
+RX
+20
+
+40
+k
+
+networks with stochastic block model type architectures, following closely the models introduced in [23, 20]. This is the
+structural connectivity matrix S. Figure 2(a) shows an example hierarchical network adjacency matrix S, with 1024
+nodes, and 16 modules at the finest scale along the main
+diagonal. Other hierarchical levels are formed by progressively reducing the probability of connectivity for 8 modules, 4 modules, and finally 2 modules representing the left
+and right hemishpheres. Further, a similar architecture is
+repeated for inter-hemispheric connectivities, appearing as
+the off-diagonals in the matrix.
+In order to generate a similar synthetic functional activity / correlations network, we have used the idea already
+observed in the Background section and Fig. 1: that the existence of direct as well as indirect paths in the structural
+matrix are highly positively correlated with measured functional activity in the cortex. That is, if two brain regions
+are connected by direct or indirect paths, then it is highly
+likely that their functional activity correlation signature will
+also be high. Shorter the path, more direct the connection,
+higher the probability for positive functional correlations.
+Following previous work done in [21, 19] and experimental
+observations in [12, 7], a simple model of producing a synthetic functional matrix from a given structural matrix is
+defined as:
+
+60
+
+pn
+
+80
+
+Figure 3:
+Precision and recall with respect to
+varying number of dimensions preserved in spectral representation k for synthetic baseline model
+I. Solid lines show precision, dotted lines show recall, for Xp , Xpt with near zero entries removed and
+Xpn = Xp ∩ (Xn = 0). Xp has low precision and almost
+perfect recall. Precision climbs significantly for Xpt
+and Xpn for lower recall of upto about 0.80.
+
+(18)
+
+where each power matrix captures the numbers of paths of
+length j in the adjacency matrix. Analytically j can go upto
+infinity, but practically and computationally, a small number
+can be chosen to simulate this. The reasoning behind this
+is twofold: (a) it can be assumed that higher powers (longer
+and longer paths) contribute less and less to the functional
+activity, and (b) the brain operates at marginal stability,
+close to but lower than the critical boundary between stable
+and unstable, thus implying the condition that the principal
+eigenvalue of S will always be less than 1. In such a case,
+the series in Eqn [18] converges, as shown in [21]. For more
+analytical detail, please refer to previous work in [19, 21].
+Figure 2(b) shows a synthetic functional connectivity matrix derived from the structural connectivity matrix by summing upto paths of length 5. This is matrix of functional
+connectivity, denoted by F .
+We apply our algorithm onto the spectral representation
+of F , and perform an analysis on the structural connectivity extracted when we vary k, the number of dimensions
+preserved in the spectral representation. Figures 2(c) and
+(d) show the matrices Xp and Xn , respectively at k = 16.
+Further, Xp shows a sparse structure with several entries
+extremely close to zero (by at least two or more orders of
+magnitude). We remove these near zero values, producing
+the matrix Xpt , Fig. 2(e), that brings out the structure of
+the adjacency matrix. Further, as is seen in Figs 2(c) and
+(d), both Xp and Xn bring out the structure in two different
+ways: the positive entries in Xp bring out structure, and the
+zero and near-zero negative entries of Xn also mimic and reinforce the same structure, since they imply the absence of
+negative relationships between the nodes. In the case of the
+synthetic baseline we work with here, the negative entries of
+Xn are quite small, since there are no negative entries in F .
+But as we will see in the next section, Xn serves an important role when F contains negative entries. Thus, we can
+combine information by extracting Xpn = Xpt ∩ (Xn = 0),
+
+Brain data and data-driven baseline - II
+
+The brain data that we work with to test our algorithm
+comes from [10]. A primary reason for choosing this dataset
+is that it is the only dataset we could find that maps structural (DSI) and functional (fMRI) connectivity for a defined
+set of 998 region parcellation map of the human cortex.
+While there are other datasets available that contain either
+only structural connectivity or only functional connectivity,
+it is often hard to put together these data and transfer results of one dataset to another since the parcellations used
+may be different in every case. These problems are discussed
+in [14]. A second reason is that our results and methods
+could be tested against [7, 21] that also use the same dataset
+for the same aim as ours. Thirdly, while there is work on
+task based or disease based functional networks with temporal slices of functional connectivity, for e.g. [25, 18, 6], the
+problem that we were working on involves the use of temporally averaged spatial correlations between brain regions,
+such that the structural/physical/spatial connectivity can
+be derived. For this reason, we have used temporally averaged, resting state fMRI data, along with a parallel map
+of DSI based structural connectivity data for the same set
+of 998 regions of the cortex. Figure 4(a) and (c) show the
+structural DSI and functional fMRI data, respectively, with
+the histograms of their connections shown in Figs 4(b) and
+(d). Howeve, due to the general nature of the way we have
+formulated the problem, our algorithm could easily be applied to temporal data networks or disease networks, with
+the expectation that the effective structural connectivity or
+abnormal structural connectivity, respectively, could possibly be retrived from functional signatures of task based fMRI
+data or diseased brain fMRI data.
+The first baseline question we now ask is: if structure and
+functional data show high positive correlation, as claimed
+by the literature and discussed in the Background section,
+and is somewhat confirmed by a superficial visual look at
+the two datasets, can we apply a much simpler thresholding algorithm to derive the structural connectivity from the
+functional one? We tested this using Algorithm 2.
+The results are shown in Fig. 4(e) and (f). Note that we
+
+(b)10 x 10
+
+−3
+
+300
+
+−4
+
+400
+
+−5
+
+500
+
+−6
+
+600
+
+200
+
+400
+
+600
+
+800
+
+(c)
+
+300
+
+0.2
+
+500
+600
+
+0
+
+700
+800
+
+5
+5x 10
+
+(d)
+
+0.4
+
+400
+
+200
+
+400
+
+600
+
+800
+
+(e)
+
+0.6
+
+200
+300
+
+0.4
+
+400
+
+0.2
+
+500
+600
+
+0
+
+700
+800
+
+200
+
+400
+
+600
+
+800
+
+(g)
+
+100
+200
+
+0
+
+−0.5
+
+(f )
+
+200
+
+400
+
+600
+
+5
+6 x 10
+5
+
+−0.01
+
+900
+
+0.25
+
+0.05
+0.1
+0.15
+0.2
+Edge weights (structural)
+
+0.25
+
+0
+0.5
+Edge weights (functional)
+
+1
+
+−0.02
+
+10000
+8000
+6000
+4000
+2000
+0
+−0.5
+
+0
+
+0.5
+
+1
+
+2
+0
+
+0
+
+800
+
+4
+
+−0.5
+
+0.01
+
+700
+
+6
+
+(h)
+
+0.02
+
+600
+
+8
+
+0.04
+
+400
+500
+
+5
+
+10 x 10
+
+0.05
+
+300
+
+0.2
+
+1
+
+−0.4
+
+0.03
+
+0.15
+
+2
+
+−0.2
+
+900
+
+0.1
+
+3
+
+−0.4
+0.8
+
+100
+
+0.05
+
+4
+
+−0.2
+
+900
+
+0
+0
+
+0
+0
+
+0.6
+
+200
+
+20
+
+2
+
+−10
+0.8
+
+100
+
+40
+
+4
+
+−9
+
+900
+
+60
+
+6
+
+−8
+
+800
+
+80
+
+8
+
+−7
+
+700
+
+100
+
+No. of connections
+
+200
+
+5
+
+No. of connections
+
+−2
+
+100
+
+No .of connections
+
+5.2
+
+(a)
+
+0
+0.5
+Edge weights (baseline II)
+
+1
+
+No. of connections
+
+which is shown in Fig. 2(f). All these interpretations bring
+out similar architectures for the adjacency matrix S, starting from the functional matrix F . Observe that we make no
+use of S to derive Xp , Xn , Xpt , and Xpn .
+Figure 3(a) shows the precision and recall for Xp , Xpt , and
+Xpn . Precision is the number of correctly identified connections in our solution divided by the total number of identified
+connections. Recall is the number of correctly identified connections divided by the total actual number of connections
+that actually exist in the structural connectivity matrix and
+should be ideally identified. Xp has low precision and almost perfect recall. Precision climbs significantly for Xpt
+and Xpn for lower recall of upto about 0.80. This observation will become important in the next section, because for
+real brain data, precision will drop while recall will remain
+high. The reason for this is that we will predict several missing links with the algorithm, notably the inter-hemispheric
+connectivity, which will necessarily bring down the precision. Therefore, it was important to check with a baseline
+model that had all the relevant connectivity been present
+in the structural data, both precision and recall would have
+had acceptably high values.
+
+4
+3
+2
+1
+0
+
+−0.04 −0.02
+0
+0.02
+0.04
+0.06
+Edge weights (structural derived with stability and criticality conditions)
+
+800
+
+Figure 4:
+Brain data from [10] and comparisons
+with baseline solution and solution from [21]. (a)
+Structural connection matrix. (b) Histogram for
+(a). (c) fMRI functional connection matrix. (d)
+Histogram for (b). (e) Simple thresholding based
+baseline solution derived from (c). (f ) Histogram
+for (e) showing that simple thresholding may bring
+out topological connections weakly, but fails on connection strengths. (g) solution from [21]. (h) histogram for (g): solution in [21] correctly retrieves interhemispheric connectivity with largest eigenvalue
+of derived structural connectivity = 0.87 that respects stability criteria, but is not sparse, has negative entries, and has a different range of connection
+strengths as compared to (b).
+
+cannot compute precision and recall in any reliable way for
+the derived S∗, because we have used the number of nonzero entries in S to decide the threshold t. The results show,
+however, that even though the visual form of S∗ in Fig. 4(e)
+does have some similarity to S in Fig. 4(a), the histograms of
+connection strengths look quite different. This happens because thresholding by absolute value to bring the sparsity of
+S∗ close to the sparsity of S causes values to intermittently
+disappear from F , since F contains both negative and positive values. Further, this simple thresholding mechanism
+uses information in S, which our algorithm does not.
+Finally, we also study results from [7] and [21]. The results in [7] have used the coarser 66 × 66 region definition,
+and are therefore not as fine grained as the 998 × 998 region definitions used in our work (the same source data is
+available at both resolutions, but using the higher resolution is more challenging because it introduces much more
+fine structure and constraints into the problem). The results from [21] are shown in Fig. 4(g). The biggest strength
+of this result is that there is a physiologically based model
+that explains both the forward and inverse problems, along
+with predicting the missing inter-hemispheric connectivity,
+the predicted structural connectivity matrix had its largest
+eigenvalue at 0.87, which is in experimental agreements with
+EEG recordings of brain activity, and satisfies the theoretical and physiological conditions of dynamical stability and
+criticality in normal brain functioning. However, this solution was not sparse and returns a full matrix, has negative
+entries, and shows a range of connection strengths different
+from the range in S, Fig. 4(h).
+
+5.3
+
+Known structure recovery and prediction
+of inter-hemispheric links
+
+We now present the results of our algorithm applied to
+the brain data from [10]. Figures 6[a-d] show the inferred
+matrices Xp , Xn , Xpt , and Xpn , respectively. From visual observation, we see that both intra-hemispheric (strong
+main diagonal connectivity) and inter-hemispheric connectivity (strong off-diagonals) between the left and right hemispheres has been retrived. Figures 6[e-f] show the histogram
+of connection strengths for Xp , Xpt , and Xpn , respectively.
+The range of connection strengths inferred is very close to
+the distribution in the experimental DSI based structural
+connectivity matrix, Fig 4(a) and (b). Our solutions predict a higher number of both intra-hemispheric and interhemispheric connections as compared to the existing structural matrix. The panel of plots on the right in Fig. 6
+shows the actual and predicted structural connectivities,
+along with plots of similarities and differences between actual and predicted connections. The similarity plot establishes that a high number of actually existing connections
+are recovered, as also confirmed by recall computation, and
+
+1
+0.8
+Precision & Recall
+
+Algorithm 2 Simple Thresholding Algorithm
+Input: F , S
+Output: S∗
+1: z ← Compute the number of non-zero entries in S
+2: o ← Order entries of F (+ve and -ve) by magnitude in
+descending order
+3: t ← o(z)
+4: S∗ ← (|F|>t)
+5: Compare properties of S and S*
+
+0.6
+
+PX
+
+0.4
+
+PX pt
+RXpt
+
+PXpn
+
+0.2
+0
+0
+
+p
+
+RXp
+
+RXpn
+
+20
+
+40
+
+k
+
+60
+
+80
+
+100
+
+Figure 5:
+Precision and recall with respect to
+varying number of dimensions preserved in spectral representation k for real brain data from [10].
+Solid lines show precision, dotted lines show recall, for Xp , Xpt with near zero entries removed and
+Xpn = Xp ∩ (Xn = 0). All have low precision, since
+original data has missing inter-hemispheric connections and solutions identify this strongly. Recall is
+high for all solutions, with Xpt showing best performance.
+the differences plot establishes that inter-hemispheric long
+range connections are retrieved. Note again, that we make
+no use of the experimental structural connectivity matrix to
+make our inferences, using only the functional connectivity
+data and applying our algorithm to it.
+Further, we also compare the results for precision and recall in comparison with the experimental structural connectivity matrix. For all three matrices, Xp , Xpt , and Xpn ,
+recall is high, with Xpt performing the best at about 0.7
+- 0.8. It would appear that increasing the value of k further results in even better or near perfect recall. However, we keep in mind the related important task of predicting the inter-hemispheric connectivity, that does not have a
+strong signature in the experimental structural connectivity
+data. Therefore, increasing the value of k results in the solutions moving closer and closer to the experimental structural
+matrix with decreasing intensities of entries for the interhemispheric connectivity. This observation also explains
+why precision is low for all three matrices Xp , Xpt , and Xpn :
+precision is computed as the ratio of the correctly detected
+existing and mapped connections in the experimental structural DSI data to the total number detected. Because the
+predicted interhemispheric connections retreived are comparable in both number and intensity to the intra-hemispheric
+ones, but do not exist in the existing and mapped structural
+DSI data, the precision goes down. However, we have shown
+in the previous section on the baseline synthetic model, that
+when no connections are missing, precision and recall return
+sufficiently high acceptable values.
+
+6.
+
+RELATED WORK
+
+Brain network analysis is an active area of research across
+many disciplines including data mining and machine learning, complex systems and of course neuroscience [5, 24, 7, 21,
+14, 18, 6, 25]. However, an optimization based perspective
+
+(a)
+
+(b)
+
+100
+
+−4
+
+100
+
+200
+
+−6
+
+200
+
+300
+
+400
+
+−10
+
+500
+
+−1
+
+500
+
+−12
+
+600
+
+−0.5
+
+300
+
+−8
+
+400
+
+−3
+
+x 10
+0
+
+600
+
+−1.5
+
+−14 700
+
+700
+
+−16 800
+
+800
+
+−2
+
+−18 900
+
+900
+200
+
+400
+
+600
+
+−20
+
+800
+
+200
+
+400
+
+600
+
+800
+
+100
+−3 200
+
+100
+200
+400
+
+300
+−4 400
+
+500
+
+500
+
+300
+
+−5
+
+600
+700
+
+−6
+
+800
+900
+
+5
+10x 10
+
+400
+
+600
+
+(c)
+
+60
+
+4
+
+40
+
+No. of connection s
+
+80
+
+0
+0
+
+0.05
+
+−12
+−14
+
+800
+
+−16
+
+900
+
+−18
+200
+
+400
+
+0.05
+
+0.1
+
+0.1
+
+0.15
+
+0.15
+
+0.2
+
+(f)
+80
+
+6
+
+60
+
+4
+
+40
+
+2
+
+20
+
+10
+
+No. of connections
+
+x 10
+
+0.05
+
+80
+60
+
+0.1
+
+40
+
+4
+
+20
+
+2
+0
+
+0
+
+0
+0
+
+0.05
+
+0.1
+
+0.05
+
+0.1
+
+0.15
+
+0.15
+
+t
+
+0.08
+
+0.02
+
+100
+
+6
+
+Structural connectivity data from DSI
+
+0.04
+
+5
+
+8
+
+y-z coordinates
+
+0.06
+
+0
+0
+
+0
+
+x-z coordinates
+
+x-y coordinates
+
+0.12
+0.11
+0.1
+0.09
+0.08
+0.07
+0.06
+0.05
+0.04
+0.03
+0.02 Predicted connectivity total
+0.12
+0.1
+
+0.05
+
+0.1
+
+0.15
+
+0.15
+
+0.2
+
+0.2
+
+Edge weights (structural derived Y )
+4
+
+Edge weights (structural predicted Y1)
+
+(g)
+
+800
+
+100
+
+8
+
+0
+
+0.2
+
+600
+
+(d)
+
+5
+10x 10
+
+20
+
+2
+
+−10
+
+700
+
+(e)
+
+6
+
+−8
+
+600
+
+100
+
+8
+
+0
+0
+
+800
+
+−6
+
+No. of connection s
+
+200
+
+−7
+
+−4
+
+0.22
+0.2
+0.18
+0.16
+0.14
+0.12
+0.1
+0.08
+0.06
+0.04
+0.02
+
+0.2
+
+0.2
+
+Edge weights (structural derived Y3 )
+
+Predicted connectivity: similarity with structural DSI data
+0
+0.12
+0.11
+0.1
+0.09
+0.08
+0.07
+0.06
+0.05
+0.04
+0.03 Predicted connectivity: differences from structural DSI data
+
+Figure 6: Results of applying algorithm on real brain data. (a) Xp . (b) Xn . (c) Xpt . (d) Xpn . (e), (f ),
+(g) show histograms of connections strengths for (a), (c), and (d), respectively. Panel on the side shows
+comparison of actual and predicted connectivity. Columnwise: the plots represent 2D plots of nodes and
+edges with x-y, x-z, and y-z coordinates showing three different visualizations of the cortex. Row-wise: Top
+row shows the edges from the DSI structural connectivity matrix S, second row shows the edges from the
+solution matrix Xpt shown in Fig. 6(c); note that the solution shows long range connections. Third row shows
+the edges from Xpt ∩ S, the part of S that is detected in Xpt . Last row shows the links that are predicted in
+Xpt but do not exist in S, note the long range connections. For ease of representation, solution plots have
+been thresholded at 0.02, so that too many very low weight edges are not visible. Our retrieved solutions
+have more connections predicted for both intra-hemispheric and inter-hemispheric connections.
+
+has been mostly pursued in the data mining and machine
+learning community [25, 6, 18]. These have mostly focused
+on reconstructions and inferences of functional connectivity
+from various types of functional connectivity data.
+A popular approach has been to represent neuroimaging
+or functional data as tensors. For example, fMRI data can
+be represented as a fourth order tensor consisting of the 3D
+spatial coordinates and time. Data mining tasks, like supervised learning, have been extended for tensors for brain data
+analysis. In [11], data is assumed to be given in the form
+(Xi , yi )n
+i=1 , where Xi is the tensor representing an fMRI
+and yi is a binary label indicating whether the brain sample is normal or suffering from a disease (like ADHD). Then
+an SVM optimization formulation is extended to learn the
+weight tensor of the separating hyperplane.
+In Davidson et. al. [6] a tensor formulation is used to
+set up an optimization problem for both node and edge discovery. The motivation is that fMRI parcellation needs to
+be aggregated at the appropriate level which simultaneously
+corresponds to coherent functional regions while keeping the
+fMRI activity discriminative enough to capture local variations.
+The body of work introduced in [13, 25] uses an optimization formulation to estimate a sparse inverse covariance matrix from the sample covariance matrix extracted from fMRI
+data. The insight for infering the inverse covariance matrix
+is the well known result that if data follows a multivariate
+normal distribution then the zero locations in the inverse
+covariance matrix corresponds to conditional independence
+between the variables, i.e., if Θ(i, j) = 0 then i and j are conditionally independent and thus there does not exist an edge
+between them. Sparsity is enforced using the `1 regularization on vec(Θ). However, the focus is still on the retrieval
+of relevant functional connectivity from data on functional
+connectivity.
+The inverse problem of inferring structural or anatomical
+connectivity is extremely topical in the computational neuroscience community [7, 19, 21], but to the best of our knowledge, has not been modeled with an optimization framework
+in the machine learning and data mining community. One
+of our chief contributions is that we show that there can be
+significant improvements in the quality of the predictions if
+we model the inverse problem using optimization. Our optimization formulation is also quite distinct in that we assume
+that the spectral representation of the fMRI adjacency matrix lives in a union of low-dimensional spaces where data
+points can be expressed as a sparse linear combination of
+other elements in the subspace. This has been referred to as
+the self-expressive property of data in [9], and we show that
+it is possible to derive an optimal sparse representation of
+structural/anatomical connectivity, starting from functional
+connectivity data using this property.
+
+7.
+
+CONCLUSIONS
+
+We presented a convex optimization formulation and ADMM
+algorithm for solving the inverse problem of deriving the
+sparse structural connectivity of the brain from its functional connectivity signature. To the best of our knowledge,
+this inverse structural/anatomical inference problem from
+fMRI data has not been modeled within an optimization
+framework before.
+Using only the functional connectivity data as input, we
+presented (a) an optimization problem that models con-
+
+straints based on known physiological observations, and (b)
+an ADMM algorithm for solving it. We showed that the
+algorithm not only successfully recovers the known structural connectivity of the brain, but is also able to robustly
+predict the long range interhemispheric connections missed
+by DSI or DTI. Particularly, it addresses two principal gaps
+that remained unexplored in previous attempts: (a) our solution was sparse, and was very close to the sparsity that
+is actually observed in a DSI or DTI based experimental
+anatomical network, and (b) our predictions of the numerical distributions of the weights or connections strengths also
+showed a good match with the DSI or DTI based experimental anatomical network, even though we use only the fMRI
+data that has a very different distribution of weights. Further, we demonstrated these results on one of few available
+datasets that contain parallel maps of structural and functional connectivity of the human cortex parcellated into finescale 998 regions. Previous results have either been shown
+on the much coarser 66 node parcellation, and/or has not
+had a sparse form with close matches to the actual numerical distributions of the experimentally observed connection
+weights.
+For future work, it will be possible to extend this formulation to include constraints coming in from the structural
+data and constraints that also respect the criticality and
+stability conditions that have been noted to be important in
+both [7] and [21]. For example, the problem could be formulated as a constrained matrix completion problem, where
+we write an optimization problem to use the fMRI data to
+introduce links into the DSI data in a constrained way, while
+also forcing the stability and criticality conditions on eigenvalues as well as maintaining the required amount of sparsity and the quantitative distribution of weights/connection
+strengths. The method could also be extended to model
+more realistic cases of asymmetric connectivity and/or combinations of excitatory and inhibitory connectivity in the
+cortex, since in each of these cases, the basic optimization
+formulation could be changed to model different types of
+conditions.
+While the present paper focusses on brain networks, the
+inverse problem of deriving structure from function in general is relevant to many other types of dynamical networks.
+Infrastructure networks, such as roads or communication
+lines, have links that can support fixed flows. In this case,
+the structure of carrying capacity can be mapped exactly,
+but functional data on congestion and jams can be used to
+infer management or design strategies for the future, for altering the physical structure of the network, or altering the
+flow or capacities of links [17]. As a second example, consider
+that while the exact structure of online social networks such
+as Facebook can be mapped, much of the structure may be
+dormant, as not all links are active all of the time. In such
+a case, deriving the effective structure of the network via
+studying time-stamped dynamics such as the frequency of
+interactions via specific links, can provide much deeper levels of information about the structure of the network. Thus,
+we believe that modeling this problem within an optimization framework as a general strategy can provide significant
+advantages and deep insights for several domains.
+
+8.
+
+ACKNOWLEDGEMENTS
+
+The authors thank Prof. P.A. Robinson and Dr K. Aquino
+for valuable comments and insights.
+
+9.
+
+REFERENCES
+
+[1] R. Albert and A. L. Barabasi. Statistical mechanics of
+complex networks. Rev. Mod. Phys., 74:47–97, 2002.
+[2] M. Barthelemy. Spatial networks. Phys. Rep.,
+499:1–101, 2011.
+[3] S. Boccaletti, V. Latora, Y. Moreno, M. Chavez, and
+D. U. Hwang. Complex networks: Structure and
+dynamics. Physics Reports, 424:175–308, 2006.
+[4] S. V. Buldyrev, R. Parshani, G. Paul, H. E. Stanley,
+and S. Havlin. Catastrophic cascades of failures in
+interdependent networks. Nature,
+464:10.1038/nature08932, 2010.
+[5] E. T. Bullmore and O. Sporns. Complex brain
+networks: graph theoretical analysis of structural and
+functional systems. Nat. Rev. Neurosci., 10:186–198,
+2009.
+[6] I. Davidson, S. Gilpin, O. Carmichael, and P. Walker.
+Network discovery via constrained tensor analysis of
+fmri data. In ACM SIGKDD, pages 194–202. ACM,
+2013.
+[7] G. Deco, A. R. McIntosh, K. Shen, R. M. Hutchinson,
+R. S. Menon, S. Everling, P. Hagmann, and V. K.
+Jirsa. Identification of optimal structural connectivity
+using functional connectivity and neural modeling.
+The Journal of Neuroscience, 34(23):7910–7916, 2014.
+[8] A. Dong and S. Sarkar. Forecasting technological
+progress potential based on the complexity of product
+knowledge. Technological Forecasting and Social
+Change, 90B:599–610, 2015.
+[9] E. Elhamifar and R. Vidal. Sparse subspace clustering:
+Algorithms, theory and applications. IEEE
+Transactions on Pattern Analysis and Machine
+Intelligence, 35(11):2765–2781, 2013.
+[10] P. Hagmann, L. Cammoun, X. Gigandet, R. Meuli,
+C. J. Honey, and V. J. Weeden. Mapping the
+structural core of the human cerebral cortex. PLOS
+Biol., 6(7):e159, 2008.
+[11] L. He, X. Kong, P. S. Yu, X. Yang, A. B. Ragin, and
+Z. Hao. Dusk: A dual structure-preserving kernel for
+supervised tensor learning with applications to
+neuroimages. In Proceedings of the 2014 SIAM
+International Conference on Data Mining,
+Philadelphia, Pennsylvania, USA, April 24-26, 2014,
+pages 127–135, 2014.
+[12] C. J. Honey, O. Sporns, L. Cammoun, X. Gigandet,
+J. P. Thiran, R. Meuli, and P. Hagmann. Predicting
+human resting-state functional connectivity from
+structural connectivity. PNAS, 106(6):2035–2040,
+2008.
+[13] S. Huang, J. Li, J. Ye, T. Wu, K. Chen, A. Fleisher,
+and E. Reiman. Identifying alzheimer’s disease-related
+brain regions from multi-modality neuroimaging data
+using sparse composite linear discrimination analysis.
+In Advances in Neural Information Processing Systems
+24: 25th Annual Conference on Neural Information
+Processing Systems 2011. Proceedings of a meeting
+held 12-14 December 2011, Granada, Spain., pages
+1431–1439, 2011.
+[14] X. Kong and P. S. Yu. Brain network analysis: a data
+mining perspective. ACM SIGKDD Explorations
+Newsletter, 15(2):30–38, 2013.
+[15] D. Meunier, R. Lamboitte, and E. T. Bullmore.
+
+[16]
+
+[17]
+
+[18]
+
+[19]
+
+[20]
+
+[21]
+
+[22]
+
+[23]
+
+[24]
+[25]
+
+Modular and hierarchically modular organization of
+brain networks. Front. Neurosci., 4:Article 200, 2010.
+D. Meunier, R. Lamboitte, A. Fornito, K. Ersche, and
+E. T. Bullmore. Hierarchical modularity in human
+brain functional networks. Front. Neuroinform.,
+3:Article 37, 2009.
+L. X. Pang, S. Chawla, W. Liu, and Y. Zheng. On
+detection of emerging anomalous traffic patterns using
+gps data. Data and Knowledge Engineering,
+87:357–373, 2013.
+E. E. Papalexakis, A. Fyshe, N. D. Sidiropoulos, P. P.
+Talukdar, T. M. Mitchell, and C. Faloutsos.
+Good-enough brain model: Challenges, algorithms and
+discoveries in multi-subject experiments. In ACM
+SIGKDD. ACM, 2014.
+P. A. Robinson. Interrelating anatomical, effective,
+and functional brain connectivity, using propagators
+and neural field theory. Phys. Rev. E, 85:011912, 2012.
+P. A. Robinson, J. A. Henderson, E. Matar, P. Riley,
+and R. T. Gray. Dynamical reconnection and stability
+constraints on cortical network architecture. Phys.
+Rev. Lett., 103:108104, 2009.
+P. A. Robinson, S. Sarkar, G. M. Pandejee, and
+J. Henderson. Determination of effective brain
+connectivity from functional connectivity with
+application to resting state connectivities. Phys. Rev.
+E, 90:012707, 2014.
+S. Sarkar, A. Dong, J. A. Henderson, and P. A.
+Robinson. Spectral characterization of hierarchical
+modularity in product architectures. Journal of
+Mechanical Design, 136:011006, 2013.
+S. Sarkar, J. A. Henderson, and P. A. Robinson.
+Spectral characterization of hierarchical network
+modularity and limits of modularity detection. PLoS
+One, 8(1):e54383, 2013.
+O. Sporns. Networks of the brain. MIT Press, 2011.
+L. Sun, R. Patel, J. Liu, K. Chen, T. Wu, J. Li,
+E. Reiman, and J. Ye. Mining brain region
+connectivity for alzheimer’s disease study via sparse
+inverse covariance estimation. In Proceedings of the
+15th ACM SIGKDD Conference, pages 1335–1344.
+ACM, 2009.
+
+

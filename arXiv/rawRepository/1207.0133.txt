@@ -1,0 +1,9381 @@
+Fast Response to Infection Spread and Cyber Attacks on
+Large-Scale Networks
+Sven Leyffer∗
+
+Ilya Safro†
+
+arXiv:1207.0133v1 [cs.SI] 30 Jun 2012
+
+Abstract
+We present a strategy for designing fast methods of response to cyber attacks and infection spread on complex weighted networks. In these networks, nodes can be interpreted
+as primitive elements of the system, and weighted edges reflect the strength of interaction
+among these elements. The proposed strategy belongs to the family of multiscale methods
+whose goal is to approximate the system at multiple scales of coarseness and to obtain a
+solution of microscopic scale by combining the information from coarse scales. In recent
+years these methods have demonstrated their potential for solving optimization and analysis problems on large-scale networks. We consider an optimization problem that is based on
+the SIS epidemiological model. The objective is to detect the network nodes that have to
+be immunized in order to keep a low level of infection in the system.
+Keywords: multiscale algorithms, infection spread, cyber security, coarsening, epidemics
+
+1
+
+Introduction
+
+Networks are a widely used type of abstraction for complex data of scientific interest for which
+one may want to emphasize the relationships between primitive components of the system
+(such as nodes and vertices) by connecting them with edges or links. Examples can be found
+in domains such as astronomy, Internet, food webs, and metabolic networks. Recent growth
+of large-scale, real-world network data available for scientific analysis has promoted significant
+theoretical and practical advances in many areas of natural sciences and engineering; for example
+see [2, 30]. Optimization of different quantitative objectives on networks often plays a crucial
+role in network science, not only when a practical solution is needed, but also for a general
+understanding of structural and statistical features of networks.
+In recent decades, a significant amount of research in the networks science has been done
+in analyzing infection spreading. Examples can be found in domains such as epidemiology
+[16, 21, 28], cyber security [14], and social sciences [2]. Developing strategies of the response
+policies to the infection propagation is crucial for applications of theoretical analysis in the
+real-life situations. Usually, such response strategies can be formulated as optimization models
+that consider applying some operation (e.g., immunization of individuals, rerouting of network
+links, updating the antivirus software) on network primitives (such as nodes, links, and communities) at different resolutions. Often, such optimization models must consider the number
+of limited resources that prohibit performing all possible operations for better response results.
+For example, when an epidemics occurs it is impossible to immunize everybody immediately.
+Instead, we have to formulate the policies that can help to achieve a particular goal given partial
+immunization with limited resources. In this paper we propose a method for designing efficient
+∗
+†
+
+Mathematics and Computer Science Division, Argonne National Laboratory, leyffer@mcs.anl.gov
+Mathematics and Computer Science Division, Argonne National Laboratory, safro@mcs.anl.gov
+
+1
+
+methods for optimal response problems on large-scale networks. Implementation of the method
+is available for download at [27].
+
+2
+
+Optimal Response Model
+
+We consider a traditional infection-spread model in which network nodes can be in one of
+two possible states, namely, infected and susceptible (SIS model; see [20]), and each node i
+is associated with probability of being infected at time t, φi,t . Introduced as a simplification
+of the SIR (susceptible-infected-recovered) model in [24], the SIS model has been extensively
+analyzed in epidemiology and adapted in the cyber security area for analysis of computer viruses
+propagation [23]. In this paper we follow that general model and the probabilistic version of
+optimal response model (formulated in [17]) that takes into account the status of all individuals
+in the network.
+The SIS model considers the following quantities: S - number of susceptible nodes; I number of infected nodes; β - infection transmission rate; and δ - rate of recovery from infection.
+The model describes an evolution of the two classes of population of infected nodes I and
+susceptible nodes S at time t as
+(
+dI
+dt = λS − δI
+(1)
+dS
+dt = δI − λS,
+where λ = βhkiI/(S + I) reflects the rate at which susceptible nodes become infected and hki
+is an average node degree. One of the most important consequences of (1) is the notion of an
+epidemic threshold τ , a measure to predict when the infection outbreak disappears, that is, the
+value that has to be compared with β/δ. Chakrabarti et al. proposed a topology-independent,
+nonlinear dynamical system model of SIS [9]. Their model,
+1 − φi,t = (1 − φi,t−1 )hi,t + δφi,t−1 hi,t ,
+
+i = 1...n,
+
+(2)
+
+describes the probability that node i is susceptible, where hi,t is the probability that node i
+is not infected from its neighbors at time t. We assume that the probabilities of nodes being
+infected in the previous round t−1 are independent; see [9] for more details. Often, the infection
+transfer rate cannot be represented by a single parameter β; thus, without loss of generality it
+is replaced by a matrix P n×n = {pij }, where pij is the probability of node i being infected by
+node j. The probability of an uncompromised node i not being infected at time t is
+Y
+hi,t =
+(1 − pij φj,t−1 ).
+(3)
+j∈Γi
+
+We now formulate the optimization problem whose goal is to keep the level of infection at each
+node low while maximizing the (weighted) number of “alive” connections between nodes that
+will not be considered by the policy as “needing special attention”. This is motivated by the
+infection spread response policies in different domains that are often driven by the number of
+resources available for the realization. We denote the graph underlying a given network by
+G = (V, E, w), where V is a set of nodes, E is a set of edges, and w : V → R≥0 is a weighting
+function on E that represents the strength of connectivity between two nodes (such as the
+number of shared users between sites in a cyber system). Assuming that the probabilities of
+
+2
+
+infection transition from Γi (neighbors of i) to i are independent, the problem is formulated as
+X
+maximize
+wij xi xj
+x
+
+ij∈E
+
+subject to xi −
+
+Y
+
+(1 − pij φj,t−1 xj ) ≤ bi ∀i ∈ V,
+
+(4)
+
+j∈Γi
+
+xi ∈ {0, 1}
+
+∀i ∈ V,
+
+where wij is the link weight between nodes i and j; bi is a threshold for bounding the level
+of allowed probability of infection at node i; and xi are binary variables (1 - if we decide to
+leave the node i functioning, 0 - closed, requiring special attention). If for some ij ∈ E one of
+the nodes i or j is solved to be closed, that link does not contribute its wij to the objective.
+In general, (4) is a nonconvex integer nonlinear program and known to be N P -complete [17].
+There exist a number of deterministic solvers for (4), including BARON [35] based on a branchand-reduce strategy that employs piecewise linear underestimators of the multilinear functions
+on 4 to construct a convex relaxation, and then branches either on an integer variable or
+on a nonconvexity creating a branch-and-bound tree-search. The open-source solver Couenne
+[3] implements a similar strategy. However, these solvers cannot handle problems with tens
+of thousands of nodes (typically they work well for problems with a few hundred variables
+and nonlinear expressions), because the search tree explodes exponentially. Therefore, in this
+paper, we propose a strategy for designing fast, suboptimal multiscale methods for this class of
+problems. Such methods are often more useful in practice than are optimal ones that take a
+long time to converge even for small instances.
+
+3
+
+Multiscale Strategy
+
+In many practical situations, it is often noticeable that when elementary parts of a system have
+a complicated behavior, their ensembles often can be much more structured. The multiscale
+computational methodology [7, 6] is a systematic approach for achieving efficient calculations
+of systems containing many degrees of freedom (such as network nodes, image pixels, and particles). From the relationships among the given microscopic parts of the system, the rules for
+the system at increasingly coarser scales are derived. The idea behind multiscale methods is
+to collect the relevant information regarding the system at different scales and then to obtain
+the solution at the microscopic scale by adapting the information inherited from coarse scales.
+Realizations of the multiscale frameworks are attractive in practice because they can be naturally combined with other computational and analysis techniques, making them suitable for
+applying on large-scale instances [7]. For many applications with underlying computational
+structural problems on networks (or graphs), the introduction of multiscale methods has led
+to breakthroughs in the quality of computational and data analysis results. Examples include
+structural analysis problems [36, 32], partitioning [19], clustering [13], segmentation [37], VLSI
+design [29], and linear ordering [34].
+Our method is inspired by the algebraic multigrid (AMG) [38] applied for solving optimization problems on large-scale graphs [34]. In this framework a hierarchy of decreasing-size
+network graph Laplacians {Li }ki=0 is created by a process called coarsening, starting from the
+original network L0 . When a small-enough (or easy-to-solve) Laplacian Lk is created, the problem is solved exactly for Lk ; and the solution is projected to the original L0 by interpolating it
+scale after scale. Each interpolation is then followed by refinement, that is, by local processing
+that improves the solution (see Figure 1).
+
+3
+
+Figure 1: V-cycle scheme for US roads network. Red and green circles illustrate compromised
+and closed areas, correspondingly.
+
+3.1
+
+Coarse problem
+
+The construction of a coarse problem on a network consists of two main phases: defining the sets
+of coarse nodes, and links. For both phases it is important to be able to describe how “close”
+two given fine-level nodes are to each other at the stage of switching to the coarse level. In
+particular, it is crucial in the context of infection spread on real networks when the weights on
+the links can be noisy and the measure of closeness must take into account the neighborhoods
+of nodes, instead of looking at one particular direct connection. A recently introduced approach
+of algebraic distance between nodes [34, 10] has proved itself being successful in AMG-based
+methods [8]. We define the distance between nodes i and j as
+(k)
+̺ij
+
+:=
+
+R 
+
+X
+ (k,r)
+(k,r) p
+− χj 
+χi
+r=1
+
+!1/p
+
+,
+
+(5)
+
+where the superscript (k,r) refers to the kth iteration on the rth initial random vector, namely,
+χ(k,r) = H k χ(0,r) , and H is a Jacobi over-relaxation iterator of the Laplacian (see the Appendix).
+The set of coarse nodes Vc is created by the aggregation of fine nodes Vf into small clusters
+based on the strength of connectivity estimated by using the algebraic distance. The nodes
+from Vf are traversed one by one and divided into two sets C and F such that (a) C ∪ F = Vf ;
+and (b) nodes in F are strongly coupled to C (see the Appendix). Then nodes in F are divided
+among some of their neighbors in C to form future coarse nodes. The nodes are traversed in the
+ascending order of the infection’s level. By doing so we localize small areas of high connectivity
+that potentially can propagate the infection rapidly (and, thus, have to be be determined as
+“closed” in the solution).
+The coarse network Laplacian Lc is defined by the restriction operator Lc = RT Lf R, where
+R ∈ Rn×N is a matrix of connections between variables in F and C, where n = |Vf | and
+
+4
+
+N = |C|. Finally, the optimization problem is formulated for aggregated (coarse) variables as
+X
+X
+AI XI
+WIJ XI XJ +
+maximize
+X
+
+I∈Vc
+
+IJ∈Ec
+
+subject to XI −
+
+Y
+
+(1 − PIJ ΦJ,t−1 XJ ) ≤ BI
+
+∀I ∈ Vc ,
+
+(6)
+
+J∈ΓI
+
+XI ∈ {0, 1}
+
+∀I ∈ Vc ,
+
+where XI are binary decision variables that correspond to coarse nodes; WIJ and PIJ are
+accumulated strengths of connectivity and infection spread probabilities between aggregates I
+and J in Vc , respectively; ΦI are infection probabilities for coarse nodes; and BI are accumulated
+thresholds for infection level for coarse nodes (see the Appendix).
+The main difference between
+P
+the fine and the coarse problems is the new linear term I∈Vc AI XI . It takes into account the
+fine-level links between nodes aggregated into the same coarse node.
+
+3.2
+
+Uncoarsening
+
+During the coarsening process we recursively form the hierarchy of smaller problems until a
+small-enough level is reached. The size of this level depends on the external optimization solver
+one can use (see the Appendix). After the coarsest problem is solved, the solution is gradually
+projected back to the original scale. It consists of three phases: C-nodes interpolation, F -nodes
+interpolation, and refinement. Initially, all seed nodes i ∈ C are initialized by xi = XI , where
+XI is a corresponding coarse variable seeded by node i ∈ C. Next, all F -nodes are interpolated
+by maximizing their contribution to the current objective. This is equivalent to solving (4)
+when all xj ’s are fixed except the node i that is being currently interpolated. As a result of
+these two phases we obtain the first feasible solution of the fine-scale problem. This solution is
+then improved by Gauss-Seidel-like relaxation in which for every node the contribution of the
+opposite solution to the objective (or/and number of satisfied constraints) is compared with its
+current contribution.
+The refinement phase consists of the collective improvement of the solution for sufficiently
+small subsets of variables. For this purpose we have formulated a localized refinement procedure,
+which extracts from the entire system small subproblems and solves each separately. We note
+that this phase can easily be performed in parallel by using for example the red-black order of
+the refinements [38] (see Figure 2). Single subset refinement solves problem (7) for subset of
+nodes S by choosing a connected subgraph and fixing the boundary conditions for the rest of
+the nodes. The single localized refinement is formulated as
+X
+X
+X
+wij xi x̃j +
+ai x i
+maximize
+wij xi xj +
+x
+
+i∈S,j6∈S
+
+i,j∈S
+
+subject to xi − ki
+
+Y
+
+i∈S
+
+(1 − pij φj,t−1 xj ) ≤ bi ∀i ∈ V,
+
+j∈Γi
+j∈S
+
+xi ∈ {0, 1} ∀i ∈ V,
+where x̃j is a fixed solution for node j 6∈ S, and
+Y
+ki =
+(1 − pij φj,t−1 x̃j ) .
+j∈Γi ,j6∈S
+
+5
+
+(7)
+
+2 7 4 9
+2 9 1 9
+
+3 0 8 4
+3 1 6 7
+
+2 7 5 1
+2 7 4 8
+2 7 5 0
+
+2 6 6 0
+2 7 5 4
+3 0 6 9
+3 0 8 6
+
+3 0 2 4
+3 2 0 1
+
+3 0 8 3
+3 0 8 5
+
+3 0 8 9
+
+3 0 7 1
+
+2 7 4 6
+
+3 0 8 1
+
+2 8 6 9
+
+3 1 6 6
+
+3 0 7 4
+2 7 5 3
+
+3 0 7 0
+
+3 1 3 6
+3 0 8 8
+
+3 0 7 2
+
+3 1 3 7
+3 0 7 5
+2 7 5 2
+
+2 7 4 7
+3 0 7 3
+
+3 0 8 7
+3 0 8 2
+3 0 3 1
+3 0 3 2
+
+2 8 6 8
+
+3 1 0 1
+
+3 1 0 2
+
+3 1 3 5
+3 0 4 4
+2 6 8 8
+2 6 8 9
+
+3 0 4 36 0 9 0
+3 0 9 1
+
+3 0 6 1
+
+2 5 8 0
+
+2 7 2 6
+3 0 7 6
+2 7 2 5
+
+3 2 7 1
+2 7 7 5
+2 7 7 6
+
+2 4 8 4
+
+2 7 3 4
+2 7 8 4
+
+2 9 3 1
+
+2 5 7 9
+3 1 9 3
+3 0 4 5
+
+2 7 8 3
+2 7 3 8
+
+3 1 1 3
+2 5 3 1
+
+2 5 0 0
+3 2 8 5
+
+2 7 8 5
+
+2 9 2 9
+
+3 0 4 7
+
+3 0 4 8
+
+2 7 3 6
+
+2 7 3 7
+
+3 0 8 0
+
+3 0 1 0
+3 2 3 8
+
+2 5 3 0
+2 6 3 6
+3 2 8 6
+3 1 7 1
+
+2 5 0 5
+
+3 0 2 7
+
+2 9 2 6
+2 7 5 5
+2 7 5 6
+3 1 8 1
+
+3 0 7 7
+
+3 0 5 1
+
+3 1 4 5
+3 1 8 0
+
+3 2 4 1
+3 0 3 4
+
+2 7 35 08 93 90 5 0
+2 9 1 6
+
+3 1 6 8
+
+3 2 6 2
+
+2 8 5 7
+
+2 7 7 9
+
+2 8 0 6
+
+3 0 3 3
+
+3 0 9 8
+3 1 6 4
+3 1 6 3
+
+2 7 2 4
+
+3 2 1 3
+3 0 1 8
+
+2 6 9 3
+
+2 6 5 7
+2 9 1 8
+
+3 2 8 2
+3 0 4 9
+
+2 6 9 2
+
+9 3 4
+
+2 8 0 7
+
+2 9 3 6
+
+2 6 8 7
+
+2 9 2 2
+
+3 2 5 0
+
+3 0 3 9
+
+3 1 7 3
+
+3 1 83 50 6 5
+3 1 5 9
+3 2 0 2
+
+2 7 9 2
+2 7 6 8
+
+2 8 3 9
+2 8 3 8
+
+2 9 7 2 3 2 8 1
+
+3 0 5 7
+2 9 9 9
+2 9 9 5
+
+3 1 5 2
+
+2 8 1 2
+
+2 9 2 82
+2 9 2 7
+
+2 8 0 1
+
+3 1 0 5
+3 0 9 7
+
+2 8 4 6
+
+2 8 7 5
+
+2 9 0 6
+3 1 1 0
+
+3 1 4 1
+2 7 62 27 6 3
+
+2 7 6 7
+
+2 9 9 34 1 4 0
+
+3 1 8 6
+
+3 1 2 7
+3 0 5 9 3 1 32 09 3 0
+
+2 8 1 1
+
+2 7 3 1
+
+2 7 7 0
+
+2 6 6 7
+
+2 7 6 1
+
+3 1 4 9
+
+3 2 2 8
+
+2 53 50 39 6
+2 8 7 4
+
+2 6 0 1
+3 0 6 6
+
+2 4 6 9
+2 82 68 06 2
+2 8 5 8
+
+3 1 2 8
+
+3 1 3 2
+
+2 9 1 7
+
+2 5 9 6
+2 8 4 3
+
+3 1 2 0
+2 4 9 7
+
+3 1 8 4
+
+3 0 0 2
+3 0 2 6
+3 2 6 8
+
+2 4 3 7
+
+2 5 2 9
+2 9 1 5
+
+2 4 5 5
+
+2 9 6 4
+
+2 82 78 17 2
+2 8 7 0
+
+3 0 5 8
+
+3 1 1 9
+
+3 2 8 0
+
+2 4 4 9
+3 1 8 2
+
+2 6 7 8
+2 7 1 4
+
+2 7 3 0
+
+2 9 7 8
+
+2 9 7 0
+
+2 5 9 7
+
+3 1 1 8
+
+3 1 2 2
+
+3 2 3 1
+
+2 6 8 3
+2 6 8 2
+2 4 3 8
+
+2 6 3 9
+
+2 9 2 3
+3 0 2 8
+2 4 2 7
+3 2 36 29 0 9
+
+2 7 7 3
+
+2 7 9 6
+2 8 7 7
+2 8 7 3
+2 8 7 6
+
+2 7 9 1
+
+3 1 9 2
+3 1 9 1
+
+3 1 3 8
+2 9 2 4
+
+2 8 9 2
+
+2 9 0 25 5 8 1
+
+2 8 9 1
+2 6 9 0
+
+3 1 32 99 3 7
+2 7 7 7
+2 8 0 2
+
+2 8 6 4
+
+3 2 6 4
+
+2 4 4 8
+
+2 9 4 2
+2 8 4 4
+2 4 9 8
+
+2 5 6 4
+
+2 5 2 2
+
+2 5 7 4
+
+2 8 0 9
+2 9 0 8
+
+2 9 1 3
+
+2 9 7 1
+
+3 2 4 9
+
+2 4 9 5
+
+2 7 2 9
+
+2 7 6 9
+
+2 8 6 1
+2 8 6 3
+2 8 5 9
+
+2 7 2 1
+2 8 4 5
+
+2 7 1 5
+
+2 9 3 8
+2 7 3 2
+2 6 5 8
+
+2 7 5 9
+
+2 7 2 3
+
+3 2 8 4
+3 0 9 2
+2 9 2 5
+
+3 1 7 2
+2 4 9 1
+
+3 1 6 5
+
+3 1 4 3
+
+2 9 0 7
+2 9 0 4
+
+2 6 3 3
+
+3 1 8 9
+
+2 4 3 9
+
+3 1 8 7
+
+3 2 8 7
+
+2 7 0 0
+
+3 0 0 1
+
+3 1 5 4
+2 6 5 9
+
+2 5 9 2
+
+2 8 8 4
+3 0 0 8
+2 4 3 0
+
+2 4 7 8
+
+3 0 3 6
+
+2 9 1 4
+
+2 5 1 4
+
+3 0 5 6
+
+2 5 1 5
+
+2 7 7 2
+
+3 0 7 8
+2 5 5 4
+3 1 4 7
+2 6 3 1
+
+3 1 3 30 2 7 8
+3 2 73 51 2 6
+
+2 7 8 1
+
+2 8 8 6
+
+2 9 9 1
+
+2 6 4 0
+
+2 5 8 9
+2 7 8 0
+
+2 6 9 5
+3 0 5 4
+
+2 6 1 0
+2 6 2 0
+
+2 5 1 2
+
+2 8 8 5
+
+2 9 2 0
+2 4 9 9
+
+2 6 3 8
+
+2 6 2 9
+
+2 7 7 1
+
+2 7 0 9
+
+3 1 9 6
+
+3 1 4 6
+
+2 8 5 1
+
+2 4 3 5
+
+2 9 4 5
+
+3 1 2 5
+
+2 6 3 7
+
+2 6 2 2
+
+2 9 8 6
+
+2 5 2 6
+
+2 4 2 9
+
+2 8 5 2
+
+2 8 4 0
+
+3 2 2 9
+
+2 5 6 3
+
+3 2 5 1
+
+2 82 48 95 0
+
+2 8 3 7
+
+3 1 1 4
+
+3 1 3 1
+
+2 9 6 8
+
+3 2 3 4
+3 0 4 0
+
+2 6 5 2
+2 9 7 9
+
+3 2 3 5
+
+3 2 8 3
+
+2 9 4 4
+
+3 1 0 8
+
+2 5 3 5
+2 5 3 8
+
+3 2 0 3
+2 4 6 2
+3 2 6 6
+
+3 1 0 4
+3 2 0 0
+
+3 0 6 7
+
+2 8 5 4
+
+2 7 9 0
+
+2 5 3 6
+
+2 9 0 1
+
+3 0 6 4
+
+2 9 6 9
+
+2 8 5 3
+2 9 2 1
+2 8 7 8
+2 7 6 0
+
+3 0 3 7
+
+2 9 8 3
+
+2 6 5 1
+
+2 8 1 9
+
+2 7 0 5
+
+2 9 6 6
+
+2 6 5 3
+
+3 2 0 4
+
+2 4 6 3
+
+2 6 9 4
+3 1 9 8
+
+2 8 6 6
+
+2 5 5 0
+
+2 9 3 0
+2 7 8 7
+
+2 9 9 6
+
+6 4 6
+
+1 1 8 4
+
+3 2 2 7
+
+4 2 9 6
+4 2 9 8
+4 2 9 7
+4 2 9 5
+
+4 1 2 2
+4 1 2 3
+
+3 2 9 1
+
+2 7 4 4
+
+2 4 7 4
+
+2 6 7 2
+
+2 4 5 3
+
+2 5 7 0
+
+2 5 7 2
+
+2 7 2 2
+
+4 1 1 7
+
+4 2 7 4
+
+2 8 9 6
+
+3 1 0 3
+
+2 6 9 7
+
+2 4 3 3
+
+2 6 6 1
+
+2 5 9 0
+
+3 1 9 0
+2 7 0 4
+
+2 4 5 4
+
+4 1 1 6
+
+3 1 1 1
+2 8 8 1
+
+2 8 1 6
+
+3 2 1 4
+3 2 5 2
+
+4 1 3 4
+
+2 4 7 9
+
+4 1 6 6
+
+2 4 8 6
+
+2 7 8 2
+
+2 6 0 9
+
+2 5 1 7
+2 6 0 2
+
+2 5 1 9
+
+2 5 8 5
+
+2 5 1 6
+2 5 1 8
+
+2 9 6 3
+
+2 7 1 3
+
+4 1 3 1
+
+2 5 0 8
+
+4 1 3 0
+
+4 2 4 2
+
+1 1 7 4
+
+3 0 5 3
+2 9 9 2
+3 1 6 2
+
+3 1 9 9
+
+4 3 1 49 3 1 8
+
+4 2 5 84 1 5 4
+
+2 6 1 2
+
+4 2 5 1
+
+4 2 3 7
+
+2 5 6 8
+
+2 4 2 4
+3 1 9 7
+
+2 9 9 8
+2 6 0 4
+3 0 9 5
+2 5 0 4
+
+4 1 5 8
+
+4 1 4 1
+4 1 4 42 1 4 0
+
+2 6 1 3
+
+2 9 5 5
+
+2 5 7 6
+
+2 7 1 2
+
+4 2 9 9
+6 8 0
+
+2 5 5 5
+
+2 5 9 8
+2 5 9 9
+2 4 2 5
+
+2 4 7 5
+
+3 2 3 0
+2 9 8 9
+3 2 21 75 1 0
+
+4 2 8 4
+
+4 2 4 9
+3 7 9 8
+3 9 3 9
+
+5 8 0
+
+2 9 6 2
+
+2 9 5 6
+
+3 2 0 5
+2 5 0 7
+
+2 4 6 4
+
+4 2 9 0
+
+3 2 7 7
+
+3 7 8 1
+
+2 4 4 5
+4 1 5 5
+
+4 2 4 3
+
+4 1 9 8
+
+6 6 7
+
+2 9 5 3
+4 1 8 8
+
+4 1 9 0
+4 1 9 1
+
+4 1 6 1
+
+6 5 2
+
+6 5 0
+6 4 9
+
+3 0 9 4
+
+4 1 9 42 2 3 4
+
+2 7 0 8
+
+4 2 6 1
+
+4 3 0 4
+
+4 1 9 7
+
+1 5 1 8
+
+4 1 9 6
+
+4 1 4 3
+
+7 2 4
+7 2 5
+
+2 8 9 5
+
+2 4 8 1
+
+2 4 8 0
+
+2 5 9 1
+
+2 8 8 0
+
+2 5 2 8
+
+4 1 9 5
+
+4 1 6 7
+
+4 1 8 2
+4 1 3 8
+
+3 9 4 1
+
+6 8 2
+6 7 7
+
+6 1 6
+
+6 3 4
+
+2 5 6 9
+
+2 8 8 9
+4 2 0 8
+
+4 1 5 9
+
+4 2 3 2
+
+4 2 3 40 2 3 1
+3 9 0 5
+
+3 9 4 0
+6 8 3
+7 2 0
+6 9 3
+
+6 5 3
+6 3 9
+
+6 1 5
+
+2 5 9 3
+
+2 9 1 1
+
+2 8 3 2
+
+4 3 2 1
+
+4 3 2 2
+
+4 2 6 6
+4 2 5 7
+4 1 6 8
+
+4 1 5 3
+3 8 0 3
+
+4 1 6 9
+
+4 1 8 3
+4 2 2 6
+
+3 7 6 3
+
+3 7 8 5
+5 8 4
+
+6 5 1
+
+6 6 8
+
+6 3 3
+
+2 4 5 9
+
+2 8 8 2
+2 4 8 2
+
+2 6 7 4
+
+4 2 5 4
+
+4 2 5 3
+
+3 7 6 5
+
+3 7 8 0
+
+7 1 9
+7 2 7
+
+6 8 5
+
+6 3 8
+
+3 1 4 4
+
+2 6 1 8
+
+2 5 6 0
+2 8 9 0
+
+2 8 3 3
+4 1 1 8
+4 1 3 5
+
+3 9 4 6
+
+2 4 8 8
+
+4 0 9 1
+
+4 0 9 2
+
+4 2 1 4
+
+3 9 3 8
+
+6 8 1
+6 2 2
+
+2 8 7 9
+
+2 7 5 7
+
+2 6 0 6
+
+4 1 8 9
+4 1 3 7
+
+3 8 0 1
+
+6 8 4
+
+3 2 4 6
+3 1 1 7
+
+2 4 3 1
+
+4 2 2 4
+3 7 9 0
+
+7 1 5
+
+7 1 6
+6 2 1
+
+6 3 2
+
+2 6 6 6
+
+2 4 3 2
+
+4 2 3 8
+4 2 5 9
+
+3 8 9 2
+
+3 7 6 6
+
+5 8 5
+
+5 8 2
+
+6 7 2
+
+7 0 8
+
+7 1 8
+
+6 3 1
+
+2 7 8 8
+
+2 5 0 3
+3 7 8 3
+
+6 8 7
+
+5 8 3
+
+1 8
+
+2 5 7 1
+
+2 8 9 8
+
+3 2 7 0
+
+7 3 66 7 3
+
+6 7 9
+
+2 8 9 7
+
+2 8 9 9
+
+3 1 3 3
+3 1 3 4
+
+2 5 2 3
+
+2 6 1 1
+
+4 1 2 4
+
+6 7 4
+
+6 2 46
+
+7 1 7
+
+2 5 6 7
+
+3 0 9 3
+3 2 8 9
+
+2 5 8 6
+
+2 4 6 1
+
+2 9 1 2
+
+4 1 8 1
+
+4 2 7 40 2 7 1
+4 2 7 3
+4 2 7 5
+4 2 7 2
+
+5 7 6
+
+7 0 2
+
+6 1 7
+6 8 9
+
+2 6 4 2
+
+3 2 8 8
+
+2 7 4 3
+
+2 5 7 8
+
+3 8 0 2
+
+3 8 4 1
+3 7 7 9
+
+6 1 2
+7 0 0
+
+7 3 5
+
+6 7 8
+
+6 2 3 5 8 7
+5 8 6
+6 5 5
+
+3 0 2 3
+2 5 7 3
+
+2 6 5 0
+
+4 2 5 5
+
+2 9 0 2
+
+3 9 0 4
+
+6 4 5
+
+7 3 4
+
+6 7 1
+
+6 6 9
+
+6 8 8
+
+2 5 6 6
+
+3 2 9 2
+
+2 6 7 3
+
+4 2 6 3
+
+4 2 6 4
+
+7 0 3
+
+6 5 4
+
+3 2 13 82 1 7
+
+2 4 7 7
+2 4 7 6
+2 5 5 2
+
+4 2 3 9
+4 2 4 0
+4 1 5 7
+
+3 8 7 5
+
+3 7 8 7
+
+5 7 9
+
+7 1 3
+
+7 3 2
+
+3 2 2 6
+
+2 4 2 8
+3 2 9 0
+4 9 0
+
+4 2 3 3
+
+3 9 2 8 3 93 38 60 4
+
+3 8 6 5
+3 8 7 8
+
+7 0 1
+
+7 3 3
+
+7 1 4
+
+2 9 4 1
+
+2 4 7 3
+2 4 8 3
+
+2 4 4 6
+
+2 5 0 2
+
+2 9 4 9
+
+4 2 2 94 2 2 3
+3 7 5 2
+
+3 7 9 5
+
+3 8 0 8
+
+3 8 9 4
+3 7 8 9
+
+3 8 4 2
+
+6 2 5
+
+6 7 5
+
+7 0 4
+6 6 4
+
+6 3 7
+
+2 6 3 0
+
+3 2 1 9
+3 2 0 6
+2 5 4 0
+
+2 4 8 9
+
+4 2 2 8
+
+3 7 7 3
+
+3 8 8 4
+3 8 6 6
+
+3 7 7 2
+
+7 0 9
+6 6 3
+
+3 1 7 0
+
+3 2 7 2
+
+2 5 5 9
+
+2 8 2 8
+
+2 5 8 3
+
+2 6 5 6
+
+2 5 4 9
+
+2 8 0 4
+3 7 9 4
+
+3 7 6 1
+
+3 7 7 1
+3 7 5 4
+
+2 4 6 0
+
+6 7 0
+
+2 7 3 5
+
+2 5 4 1
+
+2 8 5 6
+
+2 8 0 5
+2 9 5 0
+
+3 8 8 5
+
+3 7 9 3
+
+3 9 0 6
+3 9 1 8
+
+3 8 3 6
+
+3 8 7 9
+
+3 7 8 4
+
+7 3 1
+
+2 5 6 5
+
+2 5 0 1
+3 2 4 3
+
+2 8 2 7
+
+2 5 8 2
+
+3 1 5 5
+2 4 3 6
+
+2 8 5 5
+2 6 8 0
+
+4 2 1 0
+3 9 4 4
+
+3 7 6 0
+
+3 8 2 4
+3 8 4 7
+
+3 8 5 9
+
+3 8 6 8
+
+7 2 8
+
+2 8 1 7
+
+2 6 7 7
+
+2 4 5 8
+
+3 2 4 2
+2 9 6 0
+
+2 6 7 9
+
+3 7 5 1
+
+3 7 5 0
+3 7 6 7
+
+3 8 3 8
+
+3 9 0 7
+
+3 8 5 8
+
+6 8 6
+5 8 1
+
+7 2 9
+
+3 2 4 5
+
+2 6 7 6
+
+3 2 6 0
+
+3 2 3 9
+2 6 4 5
+
+2 5 2 1
+2 5 3 9
+
+2 6 6 9
+4 3 1 4
+4 3 1 5
+
+3 0 0 0
+
+2 8 1 8
+
+3 2 5 9
+
+2 9 7 5
+
+3 0 1 6
+2 9 7 4
+
+2 5 2 4
+2 9 6 1
+2 24 52 46 8
+
+2 8 4 8
+
+2 8 3 5
+2 8 3 6
+2 8 3 4
+
+4 3 1 3
+
+2 8 9 3
+
+2 8 9 4
+
+3 2 5 8
+
+3 2 5 63 2 5 7
+2 6 4 7
+
+2 9 7 3
+
+3 1 1 5
+
+2 5 4 7
+
+2 8 3 1
+2 7 9 9
+
+4 3 1 6
+
+3 7 8 8
+
+3 8 4 0
+
+2 9 6 7
+
+2 4 4 7
+
+2 6 4 8
+
+3 2 4 0
+3 2 3 3
+2 9 5 8
+
+2 5 4 6
+
+2 8 3 0
+
+2 9 4 7
+
+2 8 2 9
+
+3 8 0 6
+3 8 4 4
+
+3 8 4 3
+
+3 8 1 2
+3 8 1 3
+
+2 7 9 3
+
+3 2 5 5
+
+3 2 1 2
+
+2 6 4 3
+
+3 0 5 2
+3 0 1 5
+
+2 6 6 5
+2 6 6 4
+2 9 4 6
+
+3 9 1 4
+3 8 3 9
+
+3 8 2 5
+
+3 7 8 6
+
+3 0 1 2
+
+2 6 4 9
+
+2 6 4 4
+
+2 6 4 6
+
+2 6 2 6
+
+2 6 0 7
+3 0 6 0
+
+2 4 8 5
+
+3 0 5 5
+2 9 8 4
+
+3 8 2 7
+3 7 6 2
+
+3 8 6 2
+3 9 1 1
+
+3 8 9 8
+
+3 2 6 1
+
+2 4 4 1
+2 6 2 5
+
+2 4 4 3
+2 4 9 2
+
+2 5 3 7
+
+2 9 8 5
+
+3 9 3 2
+
+3 9 3 5
+3 7 6 8
+
+3 8 9 7 3 7 5 5
+
+3 8 8 6
+
+3 9 3 3
+
+3 7 5 3
+
+3 8 4 6
+
+2 4 5 7
+
+2 7 0 3
+3 2 3 6
+
+2 4 4 2
+3 2 2 4
+
+2 4 9 3
+2 6 4 1
+
+2 6 2 7
+
+3 8 2 8
+
+3 8 6 1
+3 9 2 6
+3 7 6 4
+3 8 9 5
+3 7 4 9
+
+3 8 0 7
+3 8 9 1
+
+3 8 9 6
+3 8 2 6
+
+3 7 7 4
+
+3 7 9 7
+
+3 8 1 6
+
+3 9 3 7
+
+3 2 7 3
+
+3 2 5 4
+
+2 5 0 9
+3 2 2 5
+
+3 2 0 8
+2 4 7 2
+
+2 8 4 7
+
+3 8 5 6
+
+3 8 7 2
+
+3 7 7 8
+3 9 2 3
+3 8 5 7
+
+3 8 6 3
+
+3 8 3 4
+3 8 5 1
+3 8 5 5
+
+2 8 1 4
+
+2 6 9 6
+
+3 2 7 4
+
+3 2 3 7
+3 0 1 4
+
+3 2 1 6
+2 5 7 7
+
+2 5 8 8
+
+2 6 0 3
+
+2 5 4 2
+
+3 8 6 7
+3 9 2 7
+3 9 4 3
+
+3 9 0 3
+3 9 0 1
+3 8 2 0
+
+3 8 0 5
+
+3 8 0 0
+
+3 8 3 5
+
+3 8 5 0
+
+3 8 9 3
+
+2 7 4 5
+
+2 4 8 7
+
+2 5 2 5
+2 5 8 7
+
+2 8 1 3
+
+2 5 2 7
+
+3 9 2 4
+3 9 0 2
+
+3 8 6 4
+
+3 7 37 76 7 7
+
+3 9 1 2
+
+3 8 7 1
+
+2 6 3 2
+
+2 5 1 0
+
+2 9 4 3
+
+2 6 0 0
+2 4 6 8
+
+2 7 4 1
+
+3 8 2 9
+3 9 2 30 8 3 7
+3 8 4 8
+
+3 8 0 9
+
+3 7 7 5
+
+3 7 9 6
+3 8 2 3
+
+3 9 1 5
+
+3 2 6 7
+
+2 4 5 6
+
+2 6 1 5
+
+2 5 1 12 6 1 6
+
+3 0 1 3
+
+3 2 4 8
+
+2 6 5 4
+
+3 1 1 6
+
+2 4 3 4
+
+2 7 1 8
+
+3 8 7 4
+3 8 6 0
+3 9 0 8
+3 9 2 1
+
+3 9 2 2
+
+3 8 2 2
+3 9 1 3
+
+3 7 9 9
+3 9 3 4
+3 8 73 78 7 6
+
+3 8 53 49 1 6
+
+3 8 8 7
+
+2 9 7 7
+
+3 0 0 6
+
+3 2 4 7
+
+3 1 8 8
+
+2 6 2 4
+
+2 9 0 33 0 7 9
+
+2 6 9 8
+2 9 3 3
+
+2 7 4 2
+
+2 6 5 25 8 4 1
+3 0 6 8
+
+2 9 9 0
+
+3 8 5 3
+
+3 0 0 7
+
+3 0 1 9
+
+2 6 0 8
+2 9 5 9
+
+2 9 8 0
+
+2 5 5 1
+2 4 5 2
+
+2 7 3 9
+
+3 1 7 8
+
+3 2 0 7
+
+2 8 0 0
+
+3 9 2 5
+
+2 6 1 7
+
+2 7 9 4
+2 7 3 3
+
+2 6 2 3
+
+2 6 6 8
+
+2 9 7 6
+
+2 6 9 9
+
+2 5 6 1
+
+2 4 9 6
+
+2 7 6 6
+
+2 8 2 5
+
+3 1 7 6
+
+3 9 0 0
+3 9 13 98 3 0
+
+3 1 8 3
+
+3 1 2 1
+3 1 6 1
+3 1 0 9
+
+2 6 6 2
+
+2 9 3 2
+2 9 3 5
+3 1 7 4
+
+2 9 5 2
+2 7 2 8
+
+2 7 9 8
+
+2 9 9 7
+3 8 4 5
+
+2 4 7 21 6 1 9
+
+2 7 0 1
+
+2 6 8 4
+2 7 6 4
+
+2 8 6 5
+
+2 8 2 0
+
+3 2 1 1
+
+3 1 5 0
+
+3 1 5 1
+
+2 7 4 0
+
+3 0 2 0
+
+2 7 6 5
+
+2 9 8 8
+
+3 9 4 2
+
+2 4 7 0
+2 8 6 7
+
+3 0 4 2
+
+3 1 1 2
+3 2 6 5
+
+3 2 2 2
+2 7 9 73 2 5 3
+
+3 8 5 2
+
+2 7 8 9
+
+2 8 1 5
+
+3 1 6 0
+
+3 1 7 7
+3 0 6 2
+
+2 9 5 1
+
+3 8 7 3
+
+3 9 4 5
+
+3 0 6 3
+3 1 4 8
+
+2 6 6 3
+
+2 7 0 2
+
+3 1 4 2
+
+2 9 0 0
+
+3 0 4 1
+3 1 0 0
+
+3 1 9 4
+3 0 3 5
+3 1 7 5
+
+2 6 2 8
+
+3 8 9 9
+3 8 3 2
+3 8 3 3
+
+3 8 8 0
+
+3 8 1 4
+
+3 9 3 0
+
+3 7 9 2
+
+3 8 8 1
+
+3 8 1 7
+
+6 4 4
+6 2 6
+
+6 1 4
+6 1 3
+
+6 4 0
+
+3 0 1 1
+
+2 7 8 6
+
+3 1 0 6
+
+2 8 8 3
+2 4 29 84 2 6
+
+3 9 2 9
+
+3 8 3 1
+
+3 8 1 1
+3 7 5 7
+
+3 7 9 1
+
+3 9 1 7
+
+3 8 8 8
+
+3 8 9 0
+
+6 4 3
+
+6 1 9
+
+6 7 6
+
+7 1 0
+
+3 2 3 2
+
+3 0 0 4
+3 0 2 1
+3 0 2 9
+3 0 2 2
+
+3 1 5 3
+3 0 1 7
+2 5 3 3
+
+2 9 8 2
+
+3 8 1 8
+3 8 1 0
+
+3 9 3 1
+3 7 5 6
+
+3 7 5 8
+
+3 9 1 0
+
+3 8 8 2
+
+3 8 8 9
+
+6 4 8
+6 3 6
+
+6 4 1
+
+7 0 6
+
+6 9 8
+
+3 0 0 9
+2 7 2 7
+
+2 8 8 8
+
+2 8 8 7
+
+2 5 8 4
+
+3 1 2 3
+3 1 2 4
+
+2 5 0 6
+
+3 2 7 6
+2 9 4 8
+3 1 0 7
+
+2 7 0 6
+3 0 2 5
+
+2 7 9 5
+
+2 5 2 0
+
+2 6 1 4
+
+2 6 9 1
+3 1 5 6
+
+2 6 3 5
+2 8 1 0
+2 6 7 0
+2 5 1 3
+3 0 0 5
+
+3 1 7 9
+
+2 8 0 3
+
+3 8 2 1
+3 8 4 9
+
+2 5 4 5
+2 5 7 5
+
+2 5 4 4
+
+2 9 6 5
+
+2 6 7 5
+
+3 2 2 1
+
+2 5 9 5
+
+2 5 3 4
+2 8 22 83 2 1
+
+3 8 1 5
+
+2 6 7 1
+
+2 6 3 4
+
+2 9 9 3
+
+3 0 3 8
+2 9 8 7
+2 4 9 0
+
+3 1 5 7
+
+2 8 2 2
+2 8 2 4
+
+3 8 1 9
+
+3 7 5 9
+
+3 8 8 3
+
+3 9 0 9
+
+6 4 7
+6 3 5
+
+7 0 7
+
+6 9 9
+
+4 1 8 0
+
+4 2 3 6
+
+2 5 4 3
+
+4 0 8 8
+4 2 6 24 2 5 6
+
+2 9 5 4
+
+2 9 5 7
+
+2 4 4 4
+
+3 0 4 3
+4 2 3 5
+4 1 9 9
+
+1 8 5 4
+
+2 6 8 1
+
+4 1 9 3
+4 1 6 2
+
+4 2 0 2
+
+4 0 8 5
+
+2 7 0 7
+
+3 2 6 3
+
+4 0 8 49 2 0 3
+
+4 1 5 0
+
+2 6 8 5
+
+4 1 1 0
+4 2 6 7
+
+4 1 5 6
+4 0 8 1
+
+2 5 5 8
+
+2 7 1 1
+
+4 1 2 1
+
+7 2 6
+
+1 5 91 08 8 9
+
+2 37 12 50 8
+2 6 0 5
+4 3 0 3
+4 0 8 7
+
+1 7 9 2
+1 7 9 1
+
+2 4 5 0
+
+4 3 0 2
+
+4 0 8 6
+
+4 0 8 3
+
+3 2 1 03 2 2 0
+
+2 4 5 1
+4 1 8 7
+
+4 0 8 2
+
+2 0 2 4
+
+4 1 3 2
+1 7 1 6
+
+1 7 9 3
+
+4 3 0 1
+
+4 1 9 4
+
+2 6 8 6
+
+4 0 8 4
+
+2 9 0 9
+
+2 0 2 5
+
+2 9 1 0
+
+2 7 1 9
+
+4 0 9 0
+4 2 0 5
+
+4 1 7 2
+
+1 8 9 6
+1 5 1 7
+
+4 2 2 7
+
+4 1 1 5
+
+4 2 6 9
+
+1 7 1 1
+
+4 0 9 9
+4 1 3 3
+4 2 4 1
+
+4 2 1 8
+
+1 7 4 1
+
+3 0 0 3
+
+4 2 6 0
+4 2 4 4
+
+6 9 5
+
+2 5 3 2
+
+2 7 7 8
+1 7 8 7
+4 2 5 0
+
+4 1 6 0
+
+2 7 1 7
+
+6 9 4
+
+2 4 6 6
+
+4 2 1 7
+
+2 7 7 4
+
+1 9 2 1
+
+3 8 6 9
+2 9 8 1
+
+2 4 6 7
+
+4 1 0 0
+
+1 8 0 4
+
+3 8 7 0
+4 2 6 5
+
+1 6 0 6
+
+2 1 5 2
+
+1 6 4 0
+
+2 8 4 2
+4 2 1 1
+
+2 1 6 0
+
+1 5 6 3
+
+3 1 9 5
+2 8 0 8
+2 4 6 5
+
+1 7 4 3
+
+2 6 2 1
+
+4 1 0 1
+
+1 6 4 5
+
+1 6 4 2
+
+2 1 6 1
+
+2 9 4 0
+
+3 2 7 9
+
+4 2 0 6
+
+2 1 6 2
+
+1 8 5 7
+
+2 0 1 3
+1 7 6 6
+
+3 2 4 4
+2 7 1 6
+1 6 4 1
+4 2 1 9
+
+2 5 5 6
+
+1 5 7 8
+1 9 8 5
+1 4 1 7
+1 6 7 1
+2 9 3 9
+
+3 2 2 3
+
+1 6 8 9
+
+1 1 6 2
+
+6 9 2
+5 9 1
+3 1 6 9
+
+1 7 1 4
+
+5 9 0
+
+1 7 4 2
+2 0 7 8
+
+1 7 6 7
+
+1 2 4 1
+5 8 9
+7 3 7
+
+6 2 7
+5 9 5
+6 2 8
+
+6 2 0
+6 0 0
+5 9 9
+6 0 2
+
+6 6 5 7 3 8
+
+6 6 6
+
+5 2 9
+4 0 2 2
+
+1 4 8 1
+
+5 9 6
+
+1 4 8 2
+
+5 3 1
+
+1 7 8 9
+
+4 0 2 4
+
+5 9 4
+
+6 4 2
+
+1 3 5 5
+
+7 0 5
+5 8 8
+
+6 5 6
+
+6 0 1
+5 9 8
+
+6 5 8
+
+5 2 8
+
+6 0 5
+
+4 2 4 7
+
+5 9 7
+
+4 3 0 0
+
+1 5 9 6
+2 0 3 8
+1 6 7 2
+1 7 6 8
+
+5 0 3
+
+6 0 4
+
+5 0 2
+
+4 2 4 6
+
+7 1 1
+
+1 7 9 0
+
+1 2 1 9
+
+1 9 5 8
+1 9 6 0
+
+4 0 2 6
+
+7 1 2
+
+5 7 8
+
+4 1 8 6
+
+4 2 0 0
+
+6 0 3
+
+6 9 1
+
+5 2 4
+
+2 0 3 9
+2 5 9 4
+
+5 2 5
+
+6 0 9
+
+1 8 6 2
+2 0 4 0
+
+4 0 2 3
+
+1 8 1 6
+
+4 1 2 6
+
+3 7 8 2
+
+6 0 7
+
+1 5 6 2
+
+4 1 2 7
+
+4 2 4 5
+
+6 1 0
+
+6 1 1
+6 9 0
+
+4 3 1 7
+
+4 2 5 2
+
+6 5 7
+5 7 5
+
+6 6 2
+6 6 1
+
+5 6 4
+
+4 2 4 8
+
+6 0 6
+
+7 3 0
+6 5 9
+
+6 3 0
+
+6 2 9
+
+1 7 3 9
+
+2 5 5 7
+
+5 3 0
+
+6 6 0
+
+6 9 6
+6 9 7
+5 9 2
+5 9 3
+
+1 7 5 4
+
+1 7 8 5
+5 0 4
+
+5 7 7
+
+1 8 4 0
+
+1 6 5 3
+
+4 0 9 7
+
+1 8 3 3
+4 1 2 5
+
+6 0 8
+
+2 1 5 8
+4 1 3 6
+
+7 2 2
+
+4 2 9 2
+4 2 94 32 9 4
+4 1 2 8
+
+4 0 3 3
+
+1 6 6 5
+
+1 5 4 5
+2 0 9 3
+
+1 1 6 3
+
+4 2 2 2
+
+7 2 1
+
+1 8 9 9
+
+1 8 0 8
+
+3 9 9 3
+
+5 2 3
+
+7 2 3
+
+1 6 6 8
+1 6 6 9
+
+1 2 9 8
+
+1 7 6 9
+
+4 0 1 5
+1 5 3 2
+5 3 7
+
+1 3 0 2
+
+1 8 0 5
+
+4 2 9 1
+
+1 9 4 6
+1 8 3 9
+
+5 5 6
+4 0 5 8
+
+4 2 2 0
+
+4 0 3 4
+
+4 0 5 7
+3 7 6 9
+
+2 0 3 3
+
+1 9 1 2
+
+1 9 1 0
+
+4 0 2 5
+
+5 6 3
+4 2 0 7
+
+2 1 4 2
+1 8 9 0
+
+1 3 1 5
+
+1 3 9 8
+
+1 5 7 51 9 1 5
+
+4 1 7 4
+
+5 3 6
+
+4 2 2 1
+
+5 6 7
+5 7 4
+
+1 2 9 9
+
+4 2 7 7
+
+4 0 0 3
+
+5 5 7
+4 2 7 8
+4 2 7 6
+
+5 6 2
+
+2 0 3 2
+
+3 9 9 0
+
+1 9 5 7
+1 4 0 7
+
+5 6 8
+
+1 8 8 8
+
+4 2 7 9
+
+1 5 5 4
+1 8 4 5
+
+5 5 8
+
+5 1 3
+
+1 5 7 2
+
+1 7 4 0
+
+1 1 8 2
+
+5 2 7
+
+1 6 8 5
+
+1 9 7 8
+5 4 8
+
+5 5 2
+
+5 1 1
+
+5 3 85 5 5
+
+1 1 2 1
+
+2 0 2 3
+1 2 3 9
+
+5 2 6
+
+5 0 5
+
+2 0 14 61 5 8
+1 6 9 3
+
+1 4 8 3
+1 1 9 0
+
+5 5 1
+
+1 3 1 4
+2 1 7 5
+
+5 3 4
+
+5 5 4
+
+1 1 2 2
+
+1 5 5 3
+
+1 2 3 2
+1 3 2 9
+
+5 5 3
+
+1 8 1 5
+4 1 6 4
+
+5 7 3
+
+1 6 9 7
+
+4 2 8 84 2 8 9
+
+5 5 0
+
+1 8 7 8
+
+1 9 0 7
+
+4 0 9 4
+5 4 6
+
+1 8 5 8
+
+2 1 7 4
+
+1 5 4 6
+5 4 7
+
+5 1 2
+5 5 9
+
+4 8 3
+
+1 7 7 1
+
+1 6 7 0
+
+1 7 2 0
+
+1 2 3 8
+
+3 9 9 1
+5 3 2
+
+5 3 5
+
+4 2 0 1
+
+1 2 4 6
+
+3 7 7 0
+4 2 2 5
+
+5 4 9
+
+4 8 7
+4 2 6 8
+
+3 9 6 0
+1 0 7 1
+
+4 1 0 4
+
+1 9 7 9
+
+4 1 4 5
+
+2 0 3 1
+1 7 8 6
+
+4 1 6 5
+
+4 9 1
+
+2 0 5 9
+
+4 2 8 0
+
+4 1 1 1
+
+1 6 1 5
+
+1 1 9 1
+
+4 1 0 3
+5 3 3
+
+1 7 7 2
+
+4 1 7 6
+2 0 2 8
+
+4 2 1 3
+
+5 7 2
+
+4 8 1
+
+4 3 1 2
+4 3 0 8
+4 3 0 9
+
+5 7 1
+
+5 4 2
+
+5 05 70 6
+
+1 6 5 9
+
+2 0 5 7
+
+5 0 0
+5 0 1
+
+5 6 5
+
+4 3 1 0
+
+4 1 5 2
+
+1 1 3 1
+4 2 0 9
+
+5 6 6
+
+1 3 3 0
+
+5 4 5
+
+4 7 8
+4 8 5
+
+1 8 2 6
+
+2 0 6 0
+
+4 9 8
+
+4 8 9
+
+4 1 7 5
+
+4 3 1 1
+
+5 0 8
+5 0 9
+4 7 4
+4 7 9
+4 7 6
+
+4 8 4
+4 8 6
+
+4 1 4 6
+
+5 6 0
+
+4 1 3 9
+
+4 1 7 3
+
+4 7 7
+
+4 9 4
+
+1 0 7 2
+
+5 4 3
+
+4 9 7
+
+1 5 2 3
+1 2 7 5
+
+5 4 4
+
+5 1 0
+
+4 8 0
+
+1 7 0 4
+
+1 8 5 1
+
+5 6 1
+
+2 0 5 2
+
+4 2 8 2
+4 2 8 3
+
+4 8 2
+4 9 2
+
+1 8 1 2
+
+4 2 8 1
+
+1 9 71 67 2 4
+
+1 6 9 6
+5 3 9
+
+4 2 1 5
+
+4 2 1 6
+
+4 1 5 1
+4 0 9 8
+
+4 9 5
+
+1 1 9 2
+1 3 0 7
+
+4 1 6 3
+
+1 4 6 9
+
+4 2 1 2
+4 1 7 8
+
+4 2 8 6
+
+4 1 7 0
+
+4 9 6
+
+1 7 9 5
+
+4 1 4 4
+
+4 3 2 6
+
+4 9 3
+
+4 1 7 9
+4 1 7 7
+
+4 9 9
+
+8 4 2
+
+5 7 0
+
+4 1 4 9
+
+8 4 1
+
+4 2 0 4
+
+4 1 7 1
+4 1 4 7
+
+4 3 0 5
+
+1 2 8 0
+
+1 1 4 9
+
+4 2 8 7
+
+1 9 8 8
+
+4 1 8 5
+
+1 7 3 3
+
+1 6 5 1
+4 1 0 2
+4 3 0 7
+
+4 1 8 4
+
+1 7 9 6
+
+4 3 0 6
+
+1 1 8 7
+
+2 0 4 8
+
+2 1 4
+
+1 2 0 8
+
+1 3 0 8
+5 4 0
+5 4 1
+
+4 1 0 7
+
+1 7 0 8
+
+1 4 9 4
+
+1 1 5 0
+1 7 9 7
+
+4 1 1 2
+
+2 1 5
+
+9
+
+1 5 9 2
+
+1
+
+4 0 9 6
+
+2
+
+1 5 9 5
+1 7 9 4
+
+4 0 9 3
+
+1 1 2
+7
+
+4 1 0 6
+
+4 1 0 9
+
+2 1 0 0
+
+4 1 0 8
+
+1 7 4 4
+
+2 1 4 7
+
+1 8 7 0
+
+1 1 3
+1 7 0 1
+
+4 3 2 0
+7
+
+1 5 4 7
+
+1 1 2 9
+
+3
+
+1 7 0 9
+
+3 9 6 2
+4 1 1 4
+
+4 1 1 3
+2
+
+3
+
+1 5 4 4
+2 1 4 6
+
+4 2 8 5
+
+4 7 5
+
+4 4 4 6
+
+1 0 7 3
+1 2 8 2
+
+2 0 8 7
+
+5 6 9
+
+2 1 2 7
+1 6 3 8
+
+2 3 1
+
+1 4 4 1
+
+1 8 3 2
+
+2 1 0 2
+
+1 5 8 3
+1 9 1 8
+
+1 5 3 7
+
+4 1 1 9
+
+1 7 5 6
+
+1 5 8 5
+
+2 1 3 3
+
+1 7 4 5
+
+3 9 6 1
+1 2 2 6
+
+4 0 9 5
+5
+
+1 7 2 1
+
+1 2 8 3
+
+4 3 2 5
+
+3
+
+2 0 1 4
+
+4 1 0 5
+
+8 4
+
+1 5 6 5
+2 1 5 4
+
+1 7 2 2
+
+1 5 4 8
+
+4 1 2 0
+4 1 4 8
+
+1 6 9 1
+1 9 7 2
+
+2 1 5 5
+
+2 1 9 6
+
+2 0 5 8
+
+1 9 3 0
+
+1 2 8 1
+
+4 0 4 4
+
+1 7 5 5
+2
+
+1 4 0 4
+
+4
+
+2 0 5 3
+
+2 0 5 1
+
+1 9 2 7
+
+1 9 3 1
+2 0 9 9
+
+1 9 7 71 8 2 0
+
+1 6 6 2
+
+1 6 2 3
+
+1 5 7 4
+
+1 4 9 2
+
+2 0 4 3
+
+2 1 1 5
+
+4 0 4 5
+1 3 2
+
+1 7 1 0
+
+2 1 0 6
+
+1 7 3 4
+
+1 3 9 3
+4 4 6 0
+
+1 8 3 8
+
+1 3 7 5
+
+1 2 4 3
+
+1 6 0 1
+1 5 7 3
+
+4 4 6 1
+5 2 2
+4 4 5 2
+
+1 8 0 2
+
+2 0 8 10 6 6 1
+
+1 5 5 0
+
+2 0 6 7
+
+1 8 3 1
+
+4 0 6 9
+4 0 7 0
+
+4 0 0 4
+
+1 3 9 7
+
+1 6 4 3
+
+1 6 9 0
+1 7 2 6
+1 4 2 1
+
+4 4 5 4
+
+1 4 4 2
+
+1 1 0 2
+
+2 0 1 1
+
+1 7 8 2
+
+1 9 8 2
+
+1 8 3 0
+
+1 7 5 9
+
+2 1 1 4
+1 4 2 2
+
+1 6 2 2
+
+1 8 5 0
+
+1 7 2 5
+
+1 6 9 2
+1 8 16 61 0 0
+
+1 8 7 1
+
+1 9 2 2
+
+1 3 7 7
+
+1 6 9 9
+
+1 8 6 9
+
+2 1 5 1
+1 1 0 3
+
+1 8 0 3
+
+1 3 3 8
+
+1 8 1 3
+
+2 1 4 8
+
+1 7 8 0
+
+4 0 4 7
+
+5 1 4
+
+2 0 6 5
+
+1 9 4 5
+
+1 6 0 9
+
+1 3 8 2
+
+4 4 5 8
+
+1 6 5 2
+
+1 6 0 2
+1 5 3 4
+
+1 5 4 9
+1 1 3 0
+
+2 0 5 4
+1 6 9 8
+
+4 0 5 2
+
+2 0 9 7
+1 4 4 3
+
+2 1 1 9
+
+1 8 7 2
+
+1 1 3 5
+
+2 1 1 8
+
+1 7 0 3
+
+1 3 8 3
+
+1 8 4 8
+
+1 8 7 3
+
+2 0 8 9
+
+2 1 3 0
+
+2 0 9 8
+
+4 0 0 9
+
+1 6 3 3
+1 7 7 9
+
+1 2 4 2
+
+1 8 4 1
+
+8 3 0
+
+1 8 7 9
+
+5 2 1
+
+4
+
+2
+
+1 6 8 0
+
+1 1 3 2
+
+1 4 3 4
+1 3 8 1
+
+4 4 6 5
+4 4 6 3
+4 4 6 6
+4 4 6 4
+
+4 4 5 7
+2
+
+1 3 3
+
+2 0 0 1
+
+1 9 4 7
+
+4 0 4 6
+
+4 4 5 5
+
+4 1 2 9
+1 2 9
+
+1 7 5189 8 6
+
+1 6 0 5
+
+1 3 7 6
+1 4 2 3
+
+4 4 5 3
+
+1 2 8
+1 2 6
+
+1 4 9 3
+
+1 5 9 1
+
+1 1 8 5
+
+4 4 5 1
+
+4 4 5 6
+
+2 4 4 0
+
+4 3 2 4
+4 3 2 3
+
+2 3 5
+1 2 7
+
+4 0 1 0
+
+4 4 4 4
+
+1 5 5 5
+
+2 1 5 3
+
+1 1 3 3
+
+4 0 1 8
+
+9
+
+1 8 8 6
+
+4 4 4 7
+
+1 1 4 3
+
+1 6 3 5
+
+1 5 5 1
+
+1 2 9 1
+
+2 1 1 0
+
+2 5 6 2
+
+2 1 2 9
+4 4 4 5
+
+4 0 7 9
+
+8 5 6
+
+1 7 7 6
+
+1 1 2 3
+1 4 0 6
+
+4 4 4 9
+
+4 4 4 8
+
+1 5 6 1
+
+2 1 1 7
+
+1 9 4 2
+
+1 4 5 1
+1 3 1 3
+
+8 2 9
+4 4 6 2
+
+1 9 6 4
+
+1 9 9 3
+
+1 6 6 7
+
+4 4 5 9
+
+1 7 3 2
+
+2 1 2 8
+
+4 0 3 7
+4 4 5 0
+
+8 3 2
+8 4 3
+
+9 0 7
+
+1 3 2 3
+
+4 0 3 6
+
+1 3 7 4
+
+1 9 9 8
+
+9 0 9
+9 0 8
+
+9 2 0
+
+8 4 9
+
+2 0 2 9
+
+4 0 8 0
+9 3 2
+1 9 6 2
+
+4 0 5 1
+1 4 7 6
+
+1 1 8
+
+8 3 4
+8 3 1
+
+1 1 7
+
+2 1 1 3
+
+2 0 8 8
+
+1 8 2 3
+
+1 6 1 1
+
+1 6 6 6
+
+1 3 7 2
+
+4 0 0 2
+
+8 2 8
+
+1 7 6 0
+
+1 7 1 5
+
+1 4 7 2
+
+1 5 4 3
+
+1 9 9 4
+
+1 3 1 7
+
+9 0 3
+
+1 9 5 5
+
+1 9 8 7
+
+8 2 6
+
+8 6 7
+
+1 9 9 5
+
+1 7 1 8
+
+4 0 3 8
+
+1 1 6
+
+8 3 6
+
+9 0 6
+
+1 6 0 8
+
+1 8 9 8
+
+8 6 8
+9 0 4
+
+8 6 2
+8 5 5
+
+1 9 6 1
+
+1 8 1 9
+
+9 1 9
+9 1 0
+
+9 0 5
+
+8 6 3
+8 6 1
+
+8 9 8
+
+1 9 7 0
+1 4 9 1
+
+8 5 0
+
+1 9 8 4
+
+8 5 1
+
+8 1
+
+8 6 6
+8 5 4
+
+8 3 3
+
+1 6 2 1
+
+1 1 4 5
+
+8 7 7
+
+8 2 7
+
+1 0 8 1
+
+1 1 1 5
+
+8 4 5
+
+9 2 2
+9 2 3
+
+2 1 9 7
+
+1 5 6 0
+
+1 1 7 9
+1 9 4 8
+
+9 2 6
+
+1 6 0 3
+
+2 1 8 2
+9 2 5
+
+3 9 8 1
+4 0 1 4
+
+8 3 5
+9 2 7
+
+9
+
+9 2 1
+
+9 2 4
+
+9
+
+8 9 1
+
+1 1 0 5
+
+1 4 0 5
+
+8 8 1
+
+2 1 1 1
+
+1 7 7 3
+
+1 1 3 9
+
+1 9 6 3
+
+1 3 7 3
+1 1 8 0
+
+3 9 6 4
+
+1 3 2 4
+1 1 3 6
+
+1 4 1 0
+
+1 1 5 4
+
+1 1 0 6
+
+4 0 5 3
+8 2 5
+
+1 0 6 7
+
+1 1 1 0
+
+3 9 6 5
+
+8 8 5
+
+1 6 8 6
+
+1 2 6 7
+4 0 3 2
+
+8 9 2
+8 6 0
+
+8 5
+
+3 9 8 3
+
+8 3 7
+
+1 6 0 7
+
+1 8 7 7
+
+1 1 3 7
+
+1 5 9 7
+
+1 4 9 9
+
+9 0 1 8 9 9
+
+1 6 4 8
+
+1 4 9 7
+
+8 7 1
+
+1 4 5 9
+
+4 0 3 9
+
+1 0 6 8
+1 4 1 8
+1 6 7 4
+
+9 2 8
+4 0 2 8
+1 0 8
+
+4 0 0 0
+
+1 4 5 5
+
+1 4 9 8
+
+1 5 0 0
+
+9 2 9
+
+8 9 3
+
+8 8 2
+
+9 3 0
+
+1 4 1 9
+1 4 8 0
+1 2 6 9
+
+4 0 1 2
+8 9 0
+
+3 9 8 9
+
+1 4 5 6
+
+3 9 7 0
+
+3 9 7 2
+3 9 9 2
+
+4 0 0 8
+
+8 7 0
+
+9 1 8
+
+9 1 6
+
+3 9 9 7
+
+9 0 0
+
+3 9 4 8
+
+1 1 9 6
+1 5 6 7
+1 4 5 4
+1 4 5 3
+
+1 3 6 5
+
+4 0 3 1
+
+4 0 1 3
+
+1 6 1 3
+1 8 0 7
+
+1 5 3 5
+
+4 0 7 3
+4 0 7 4
+1 5 8 0
+
+1 5 6 8
+
+1 5 6 6
+1 2 8 6
+
+4 0 7 5
+
+3 9 5 9
+3 9 9 9
+
+8 6 5
+
+8 4 7
+
+3 9 5 6
+
+3 9 6 3
+
+8 7 3
+
+8 8 0
+9 1 5
+
+4 0 2 1
+
+1 0 7 9
+
+1 0 6 9
+
+4 0 0 1
+
+3 9 5 8
+
+1 8 0 6
+
+3 9 9 6
+4 0 1 6
+
+8
+8 8 9
+
+1 2 4 9
+
+4 0 1 7
+
+4 0 5 0
+
+4 0 7 6
+
+4 0 7 2
+
+3 9 5 7
+9 0 2
+
+1 8 0 0
+
+1 4 5 7
+
+3 9 7 1
+9 3 1
+
+9 1 2
+
+4 0 1 1
+
+9
+
+1 1 9 7
+
+1 4 7 9
+
+1 1 5 3
+
+4 0 0 5
+8 4 4
+8 5 7
+8 4 6
+
+9 1 7
+9 1 4
+
+8
+
+1 6 1 2
+
+1 1 0 7
+
+3 9 5 3
+4 0 2 0
+
+8 7 2
+
+8 7 8
+
+8 9 4
+8 8 4
+
+9 1 3
+
+2
+
+2 1 6 3
+
+1 5 9 8
+
+1 8 2 8
+4 0 1 9
+
+8 7 5
+2 0 7
+
+5
+
+4
+
+1 6 2 7
+
+1 6 6 4
+2 0 0 6
+
+1 1 1 1
+
+4 0 2 9
+
+8 7 6
+
+8 8 3
+
+1 0 0
+
+7
+
+1 7 8 1
+
+1 1 3 8
+8 5 8
+
+8 7 4
+
+8 5 9
+
+1 6 0 4
+
+1 2 6 8
+
+1 2 6 6
+8 9 6
+
+8 9 7
+7
+
+1 9 6 9
+
+8 6 9
+
+8 9 5
+
+8 6 4
+5
+
+8 2
+
+9
+
+3 9 7 8
+
+9 1 1
+
+1 0 7 8
+1 9 2 3
+
+8 4 8
+
+1 1 1 3
+
+3 9 7 9
+
+8 8 7
+8 8 8
+
+1 8 4 7
+
+1 1 1 6
+
+3 9 6 9
+
+1 5 1
+
+8 7 9
+
+4 0 2 7
+
+8 5 2
+
+8 8 6
+3 9 7 7
+3 9 7 6
+
+3 9 6 7
+
+1 8 8 0
+
+3 9 6 8
+
+1 3 5
+
+1 7 3 0
+1 2 5
+
+1 3 0 0
+
+1 7 6 3
+
+1 3 2 7
+4 0 3 0
+1 2 5 6
+3 9 9 8
+
+2 3 7
+1
+
+2 0 5
+
+1
+
+2 3 6
+
+3 9 5 5
+
+1 1 5
+
+1 8 1 0
+
+1 8 2 1
+
+1 1 4
+
+2 0 8
+
+1 7 5 7
+
+1 8 8
+8 5 3
+9
+
+4 0 5 5
+
+3
+9
+
+4
+
+6
+
+2 0 9
+
+1 0 7 0
+
+1
+2 0 6
+1 6 5 7
+
+4 0 5 4
+3 9 8 0
+
+1 1 1 21 5 8 1
+
+1 9 0 9
+1 5 8 2
+
+4 0 5 6
+
+9
+4
+
+1 7 6 4
+
+2
+1 5 7 9
+4
+
+1 3 4
+
+3
+
+8
+7
+1
+
+1 9 1 3
+
+0
+5
+
+6
+
+1 4 3
+
+1 6 4
+
+1 6 2
+
+2
+
+1 6 3
+
+1 7 5 1
+
+0
+1 3 2 6
+
+3 9 4 9
+
+1 8 8 2
+
+1 3 2 8
+
+1 1 2 5
+
+1 3 1
+
+1 6 5
+
+1 4 3 3
+
+1 6 4 4
+
+4 0 0 7
+
+6
+1 5 5 2
+
+1 8 1
+
+1 7 1
+
+1 3 0 1
+
+2 0 3
+2 3 4
+1 2 4 4
+7
+
+1 7 0
+
+5
+
+2 0 3 5
+
+4 0 0 6
+
+1 6 8
+
+2 2 7
+1 6 9
+
+2 2 6
+
+1 4 3 1
+
+4 0 4 9
+
+2 3 3
+
+2 2 2
+
+2 2 9
+2 2 3
+
+1 9 1
+
+2 3 0
+
+7
+
+1 8 7
+
+3 9 8 8
+
+7
+9
+
+2
+
+1 6 1 6
+2 0 0 2
+1 1 7 22
+
+1 3 9
+7
+
+1 5 4 2
+
+1 3 0 51 3 0 6
+4 0 4 8
+
+1 5 0
+
+1 8 5
+1 3 7
+
+1 3 2 5
+
+4 0 4 0
+
+6
+
+1 0 6 0
+4
+
+1
+
+4
+7
+
+8
+
+4 0 4 2
+
+1 9 5 2
+
+1 3 1 9
+
+2 0 2
+
+4 0 4 3
+
+1
+
+1 9 3 8
+
+1 4 3 0
+
+1 6 7
+
+1 2 2 5
+
+1 3 4 4
+
+1 0 4
+
+1 6 8 2
+
+1 5 7 1
+
+1 0 6
+
+1 0 1
+5
+
+1 6 1 7
+1 0 6 2
+1 0 6 1
+1 3 3 2
+
+1 8 2 2
+
+1 7 4
+
+2 1 8
+2 1 7
+
+1 1 5 7
+
+1 2 3
+
+1 2 6 1
+
+2 2 1
+
+2 2 0
+
+2 3 2
+
+1 5 0 9
+
+1 2 2
+
+1
+
+3
+
+1 8 9
+
+5
+
+1 4 3 2
+
+1 6 5 6
+1 9 3 7
+1 6 7 3
+
+1 8 9 4
+1 4 4 4
+
+1 6 8 7
+
+1 5 6 4
+
+1 9 5 0
+
+2 1 6 7
+1 8 9 5
+
+1 3 8 5
+1 5 6 9
+
+1 2 3 5
+
+0
+
+1 9 3 6
+1 6 8 8
+
+1 4 4 5
+
+1 7 2 3
+
+1 3 6 9
+
+3 9 7 5
+4
+
+1 710328 4
+
+1 2 4 7
+
+1 9 7 5
+
+1 0 2
+
+1 7 6 2
+
+1 2 6 4
+7
+
+1 7 7 5
+
+4 1 2
+
+0
+
+1 0 7 7
+
+1 3 6 2
+1 3 7 0
+
+1 9 6 7
+1 6 4 7
+
+1 9 2 8
+
+1 3 6 0
+1 2 7 4
+
+1 6 9 5
+1 4 5 0
+
+1 9 1 6
+
+1 7 4 6
+
+2 0 0 3
+
+1 2 7 2
+
+1 2 6 2
+
+4 0 6 5
+
+7
+
+1 5 8 6
+
+2 1 2 6
+1 3 6 8
+
+1 2 2 4
+6
+
+1 5 5
+
+1 2 1 8
+1 6 2 6
+
+1 7 9 9
+1 9 2 4
+2
+
+1 5 6
+
+0
+
+1 3 7 1
+
+8 3 8
+
+1 2 1
+
+6
+
+6
+
+1 1 4 0
+
+1 5 3 8
+
+1 9 0 2
+
+1 4 0
+
+2 1 2
+
+9
+
+1 3 6
+
+1
+
+1 8 9 7
+
+1 2 5 5
+
+1 2 3 6
+
+1 0 8 2
+1 9 6 8
+
+2
+
+1 7 4 9
+5
+
+1 9 2 9
+1 5 3 9
+
+1 2 4
+
+2
+5
+
+1 6 2 0
+
+1 6 1 8
+1 9 8 3
+
+1 7 5 0
+
+1 7 9
+
+2 1 1
+2
+
+1 5 7 0
+
+1 7 9 8
+
+1 4 0 8
+1 9 8 0
+
+1 5 1 0
+
+1 8 6
+3 0
+
+2 1 0
+
+2 1 3
+3
+
+8 3
+
+1
+1
+
+1 7 0 0
+1 6 5 5
+
+1 7 2 8
+1 2 6 3
+
+1 4 2 4
+
+1 4 5 8 1 3 4 5
+
+1 2 3 7
+
+8
+
+4 0 6 6
+
+1 5 2 8
+
+2 1 7 7
+
+1 2 7 3
+
+3
+4
+
+5
+
+1 4 6
+
+2 1 9 4
+
+4
+
+1 0 8 4
+
+1 6 9 4
+
+3 9 9 5
+1 8 0
+
+9
+
+1 7 7 8
+
+4 0 6 4
+
+1 7 1 3
+
+2 1 7 8
+1 3 6 1
+1 4 9 5
+
+1 3 6 3
+1 6 3 7
+
+1 7 3 1
+1 2 9 4
+
+3 9 5 4
+
+1 7 3 8
+
+1 5 8
+4 2 2
+
+1 0 3
+
+1 5 5 9
+
+1 6 8 3
+
+1 7 6
+
+1 2 9 3
+
+4 0 6 1
+
+1 7 3 7
+
+1 6 3 6
+
+1 9 9 0
+
+1 8 2 4
+2 1 8 3
+
+1 9 1 4
+
+1 0 9 8
+
+4 0 6 2
+
+1 9 6
+
+1 9 1 9
+
+1 9 8 1
+
+1 8 4 3
+
+4 0 5 9
+
+7
+
+1
+1 4 5
+
+1 5 2 9
+
+1 1 9 3
+
+5
+4 8 8 2
+
+1 5 3
+
+1 9 0 3
+
+1 5 7 7
+1 5 0 7
+
+1 8 8 5
+
+3 9 6 6
+4 0 7 1
+
+4
+
+1 7 7
+
+1 5 9
+
+1
+
+1 7 2 7
+
+1 7 3 6
+4 0 6 0
+4 0 6 3
+
+4
+1 5 4
+
+5
+
+7
+
+1 7 3
+
+1 9 4
+1 2 0
+
+2
+
+1 8 3 4
+
+2 1 8 0
+
+1 9 7 4
+1 8 8 1
+
+1 2 4 8
+
+3 9 5 0
+
+1 3 8
+
+1 8 3 6
+
+1 6 1 9
+
+4 0 4 1
+3 9 5 2
+8 6
+2 2 4
+2 1 9
+
+1 8 1
+
+1 3 1 8
+
+3 9 5 1
+
+1 1 0
+
+2 2 8
+
+2 1 6
+
+2 2 5
+
+1 7 8 4
+
+4 7 3
+
+1 6 3 1
+
+1 6 6
+1 6 1
+2
+
+1 0 8 0
+
+7
+
+1
+1
+
+7
+
+1
+
+6
+
+4
+
+1 4 1
+1 5 7
+
+1 9 0
+
+1 0 9 9
+
+1 5 9 4
+
+2 0 0 8
+
+1 1 0 9
+1 6 7 7
+
+3 9 7 3
+
+2
+
+1 6 7 6
+
+1 4 8 6
+
+1 9 4 1
+
+1 9 0 6
+
+1 7 4 7
+1 9 0 4
+1 4 7 1
+
+2 0 2 6
+
+1 3 3 4
+
+9
+
+1 7 1 2
+1
+
+8
+
+3 9 4 7
+
+1 9 9
+
+1 3 0
+1
+
+1 6 0
+
+2
+
+9
+
+2 0 4 7
+
+0
+
+1 3 9 6
+
+3 9 9 4
+1 7 8
+
+3
+
+6
+
+3
+
+1 9 3
+
+1 8 4 6
+
+1 3 3 3
+
+2 0 6 8
+
+2 0 2 2
+
+3 9 8 4
+
+7
+3
+
+9
+
+3
+
+1 5 0 2
+1 5 1 5
+
+1 4 2
+
+1 4 0 3
+
+1 9 9 9
+
+1 4 6 8
+
+1 1 7 3
+
+1 4 9 0
+
+4 2 7
+
+3
+
+1 6 4 9
+
+1 6 5 4
+1 7 5 2
+
+1 8 6 8
+1 7 6 1
+
+1 3 9 4
+
+1 6 1 4
+2 1 7 3
+
+1 4 8 5
+
+1 9 1 7
+1 9 4 3
+
+4 3 8
+
+1 8 6 4
+2 1 5 7
+
+1 8 1 8
+1 3 8 0
+
+2 1 0 3
+
+1 3 4 6
+
+1 8 9 3
+
+1 8 8 7
+
+2 0 2 0
+
+3 9 8 5
+
+2 0 1
+
+2 0 3 0
+
+1 4 8 4
+
+1 5 1 1
+1 5 0 6
+
+3
+
+1 9 7
+
+0
+
+5
+
+4 8 5 2
+
+1 5 3 6
+
+1 5 3 1
+
+1 8 2 7
+
+2 1 3 1
+
+3 9 8 6
+2 0 1 9
+
+4
+
+2 0 4
+
+1 5 1 4
+
+2 2 0 2
+
+8 7
+1 1 1
+
+1 2 1 3
+
+1 3 6 6
+1 7 2
+
+1 5 3 3
+
+1 5 3 0
+
+1 5 1 2
+
+1 4 7 3
+
+1 3 9 1
+9
+
+6
+
+7
+
+8 9
+
+1 1 5 2
+
+8
+4 7 2
+
+5
+
+1 9 8
+7
+
+1 0 7 4
+1 9 6 5
+
+4 7 1
+
+9
+
+1 4 5 2
+
+1 4 2 5
+
+1 7 0 7
+
+2
+4 0 7 7
+
+1 6 6 0
+
+1 3 0 4
+
+3 9 7 4
+
+2 1 9 9
+1 1 5 1
+
+1 2 1 6
+1 5 2
+1 1 9
+
+5
+
+6
+
+2 1 7 6
+
+1 1 7 0
+
+2 2 0 4
+
+4 0 7 8
+
+1 4 8
+
+1 1 3 4
+
+8 0
+
+1 3 5 7
+
+1 2 1 2
+
+1 3 3 5
+
+1 6 1 0
+
+1 8 2 9
+
+1 4 9
+
+2 1 3 2
+
+1 1 7 1
+1 1 6 9
+
+2 0 1 6
+
+6
+
+8 8
+9
+1 9 5
+
+1 4 4
+
+2 1 4 5
+
+2 0 7 6
+
+4 3 9
+4
+
+1 9 5 4
+
+1 2 1 0
+
+1 1 6 7
+
+2 0 4 6
+
+8 3 9
+
+5
+
+1 9 2
+
+1 0 9
+
+1 2 1 1
+1 8 8 3
+
+3
+
+4
+5
+
+1 5 5 7
+
+1 4 8 7
+1 5 4 1
+
+4
+
+8
+
+1 0 7
+
+5
+
+1 7 4 8
+
+2 1 8 8
+
+1 3 9 5
+
+1 5 1 3
+3
+
+1 4 7
+
+4 0 6 8
+
+2 0 3 4
+
+1 3 0 3
+
+1 2 1 5
+
+1 3 5 6
+
+1 9 6 6
+1 0 7 6
+
+1 2 1 7
+
+2 2 0 1
+1 1 5 9
+
+1 6 7 5
+
+1 7 0 6
+
+1 2 0 1
+
+1 5 1 6
+
+2 0 6 2
+
+2 1 7 9
+1 6 4 6
+
+1 0 7 5
+
+1 8 9 2
+
+1 3 2 2
+
+1 1 0 1
+
+2 2 0 3
+
+1 5 4 0
+
+2 1 3 9
+1 4 8 9
+
+4 8 8
+
+1 7 7 0
+
+4 1 0
+
+4 3 1
+
+2 0 0 7
+
+1 1 0 0
+1 1 7 5
+
+1 8 9 1
+
+4 1 1
+
+2 0 0
+
+1 5 5 8
+
+2 2 0 0
+
+1 4 3 8
+1 3 9 0
+
+1 7 5
+
+1 8 1 1
+
+1 2 7 7
+
+1 4 1 6
+
+1 1 9 5
+
+1 9 2 5
+
+1 9 0 8
+
+2 1 2 0
+
+4 3 3
+1 1 8 3
+
+1 3 1 0
+1 4 1 4
+
+1 1 4 8
+
+1 1 9 8
+
+4 0 2
+
+1 9 2 0
+
+2 1 3 8
+
+1 4 6 7
+
+1 2 7 6
+
+1 9 0 5
+1 8 1 4
+
+4 3 2
+3 9 8 7
+
+1 4 1 3
+
+4 0 1
+
+1 4 3 9
+
+1 2 0 0
+
+2 0 2 7
+
+1 4 4 0
+
+1 3 0 9
+1 4 6 4
+
+1 4 6 6
+
+1 1 4 6
+
+4 0 3
+
+1 4 6 5
+
+1 1 9 4
+1 1 5 8
+2 1 8 51 3 1 6
+
+4 3 6
+
+1 2 7 8
+
+4 0 5
+
+4 0 9
+1 8 4
+
+1 8 8 4
+6
+
+4 8 6 0
+
+9
+
+2 1 9 8
+
+1 3 5 2
+
+1 6 7 8
+1 3 2 0
+1 1 9 9
+
+4 6 0
+
+4 8 5 8
+6
+
+4 0 4
+
+4 0 6
+
+8 4 0
+
+1 8 3
+
+1 2 0 9
+
+2 1 9 3
+
+1 8 2
+9 8 9
+
+1 9 4 0
+
+6
+
+1 8 1 7
+
+1 5 2 7
+
+3 9 2
+
+1 5 2 1
+
+4 5 7
+
+1 2 4 5
+
+1 4 1 5
+1 2 7 9
+
+4 3 5
+
+1 5 2 6
+
+3 9 1
+
+2 1 4 9
+
+1 5 0 5
+1 6 8 4
+
+1 9 3 9
+
+1 4 3 5
+
+1 6 7 9
+
+1 9 2 6
+
+2 1 8 9
+
+1 5 1 9
+2 1 5 0
+
+4 3 4
+3 9 4
+
+1 5 2 2
+
+3 9 0
+
+2 1 8 4
+
+4 6 1
+1 3 4 9
+
+4 0 6 7
+
+1 4 3 6
+1 4 1 2
+
+1 8 4 4
+1 3 2 1
+
+1 1 6 6
+
+1 1 6 4
+
+9 8 7
+1 5 8 9
+
+4 5 8
+
+4 2 3
+
+1 8 7 4
+1 2 8 4
+
+4 4 2
+
+4 2 5
+
+9 8 8
+
+1 4 1 1
+
+1 5 2 0
+
+1 1 4 7
+
+1 2 9 7
+
+1 2 5 3
+1 3 4 0
+
+1 1 6 8
+
+9 9 7
+
+1 4 6 2
+
+4 6 6
+
+2 1 5 6
+
+4 4 1
+
+1 4 6 3
+
+1 8 3 5
+
+1 3 4 8
+
+1 5 9 9
+2 0 0 0
+
+1 3 3 9
+1 0 5 2
+
+1 6 2 9
+
+4 3 0
+
+1 0 5
+4 2 6
+
+1 4 2 6
+
+1 2 9 6
+
+4 4 0
+
+4 2 4
+
+4 1 4
+
+2 0 1 2
+
+2 0 6 4
+2 0 6 3
+
+1 2 5 2
+
+3 8 8
+
+4 4 4
+2 3 4 4
+
+1 8 5 5
+1 5 8 4
+
+4 1 6
+
+1 0 3 2
+
+1 8 6 5
+
+1 1 4 2
+
+9 6 0
+
+9 6 6
+
+1 3 9 2
+
+1 5 8 8
+
+4 6 9
+
+1 9 5 1
+
+1 4 7 4
+1 1 4 1
+
+4 8 5 9
+
+2 1 8 7
+
+1 9 5 3
+
+1 8 5 6
+
+2 1 3 6
+
+1 0 5 8
+
+1 0 5 7
+
+2 1 8 6
+2 0 6 6
+
+1 1 1 7
+
+1 3 4 1
+
+4 4 3
+
+2 1 4 0
+2 1 4 3
+
+4 1 7
+
+4 5 0
+4 8 5 7
+
+1 4 7 5
+
+1 2 0 7
+
+1 0 5 5
+
+2 0 5 6
+2 1 2 5
+2 1 2 4
+
+4 6 4
+1 0 3 1
+
+1 7 5 3
+
+4 6 8
+
+2 0 8 5
+
+2 1 3 7
+
+1 3 5 0
+9 4 5
+
+1 4 4 8
+
+1 0 1 9
+
+1 7 1 7
+
+9 6 5
+2 0 8 4
+
+1 0 5 0
+
+1 0 4 6
+
+1 0 0 6
+
+9 6 8
+
+1 0 1 8
+
+1 1 8 9
+1 0 2 2
+
+4 1 3
+
+9 7 4
+
+2 1 9 5
+
+6
+
+1 2 3 4
+
+2 0 8 3
+
+1 1 6 5
+
+8
+4 2 8
+2 3 6 5
+
+1 0 3 9
+1 0 1 1
+
+6
+
+1 0 3 8
+
+1 3 6 4
+
+4 5 9
+
+1 4 2 7
+
+1 5 2 5
+
+5
+
+1 8 5 3
+
+4 0 3 5
+
+9 5 5
+
+6
+
+1 0 4 0
+1 0 2 9
+
+4
+
+6
+
+2 0 6 1
+2 0 9 4
+1 3 4 7
+1 5 5 6
+
+1 7 6 5
+
+1 2 0 3
+
+1 0 3 6
+
+9 7 9
+
+2 1 0 7
+
+1 3 4 2
+4 5 5
+
+1 8 6 6
+
+2 0 1 5
+
+1 2 0 5
+
+1 0 5 6
+
+1 2 3 3
+
+1 7 7 7
+
+1 3 4 3
+9 9 1
+
+1 2 0 6
+
+1 7 0 5
+
+4 8 5 6
+
+9 6 3
+9 7 5
+
+1 8 6 7
+
+4 6 2
+
+3
+
+9 4 0
+
+1 0 1 0
+
+1 0 1 6
+1 0 5 4
+
+1 4 6 0
+
+1 8 4 9
+
+1 2 0 2
+
+4 4 7
+
+2 3 4 2
+
+1 3 5 9
+
+1 7 1 9
+
+3 8 3
+
+1 4 4 7
+
+2 0 8 1
+
+2 0 5 5
+
+1 1 7 8
+
+1 8 6 0
+
+1 0 1 7
+
+4 5 4
+
+1 0 8 9
+2 0 3 7
+
+9 8 6
+
+1 3 1 2
+1 2 9 0
+
+2 1 0 8
+2 0 7 2
+1 8 4 2
+
+1 3 5 8
+
+1 0 1 2
+
+1 0 9 4
+
+2 0 9 5
+2 0 7 4
+
+9 4 2
+1 0 4 1
+
+1 0 1 4
+
+1 0 0 1
+
+2 1 0 5
+
+1 9 8 9
+
+1 2 0 4
+
+3 8 4
+
+2 3 4 3
+1 0 1 3
+
+9 9 3
+
+1 1 8 8
+
+4 1 5
+1 1 0 4
+
+1 0 3 0
+
+9 5 2
+9 3 9
+
+9 5 7
+
+9 3 5
+
+9 3 4
+
+9 7 0
+1 0 3 5
+
+2 1 2 1
+1 4 6 1
+
+4 5 2
+9 8 3
+
+1 0 5 1
+9 5 6
+
+1 0 1 5
+9 3 8
+
+1 0 2 0
+
+9 6 9
+
+1 0 0 7
+9 5 8
+1 0 0 2
+
+9 4 9
+
+9 6 2
+
+2 0 8 2
+
+2 0 4 2
+
+2 3 5 1
+1 0 2 4
+1 0 2 3
+
+9 3 7
+
+9 8 5
+
+9 7 2
+
+1 0 0 4
+9 9 5
+
+9 7 8
+
+9 7 1
+1 0 4 9
+
+1 5 8 7
+
+3 9 8 2
+1 0 5 9
+
+9 8 4
+9 8 2
+
+1 0 2 1
+1 0 2 8
+9 4 3
+9 5 9
+1 0 0 3
+1 0 0 5
+
+1 0 0 8
+1 0 3 7
+1 0 0 0
+1 0 4 3
+
+9 5 1
+
+1 4 4 9
+
+9 5 3
+
+9 6 1
+9 8 1
+9 5 4
+9 7 3
+9 4 4
+9 6 7
+
+1 0 4 5
+1 0 0 9
+
+1 0 2 6
+
+1 0 2 7
+
+1 0 2 5
+
+9 6 4
+
+9 5 0
+
+9 4 8
+
+1 4 4 6
+
+1 1 7 7
+
+1 6 5 0
+
+2 3 6 3
+
+9 8 0
+
+1 0 4 4
+
+4 7 0
+
+1 5 0 8
+2 1 2 3
+
+2 1 4 4
+
+1 3 1 1
+
+2 3 4 0
+
+1 0 3 4
+1 0 4 7
+
+2 0 7 9
+
+1 4 0 9
+
+2 0 7 7
+2 0 7 0
+
+1 3 8 7
+
+2 1 0 21 1 2 2
+
+1 6 8 1
+
+2 4 0 1
+
+1 0 4 2
+
+4 2 9
+
+4 8 9 4
+
+2 1 3 5
+1 0 9 5
+
+2 1 9 1
+
+1 7 3 5
+
+2 0 8 6
+
+2 0 9 6
+
+2 0 9 1
+
+1 3 8 6
+
+2 1 9 0
+2 1 6 8
+
+1 5 2 4
+
+9 4 6
+9 3 3
+
+2 3 6 2
+
+9 4 1
+
+2 1 9 2
+1 4 7 0
+
+1 7 8 8
+
+4 8 7 1
+
+2 0 7 1
+
+1 0 8 3
+
+2 1 32 40 9 0
+
+2 0 4 5
+5 1 8
+
+2 1 5 9
+
+1 1 8 1
+1 8 7 6
+
+4 4 5
+
+1 0 9 0
+
+4 8 5 5
+
+2 1 6 5
+
+2 1 7 2
+
+2 1 6 9
+
+1 8 7 5
+
+2 1 1 2
+
+1 9 5 9
+
+2 1 7 1
+
+1 5 0 3
+
+2 1 6 4
+
+2 3 6 0
+
+9 4 7
+
+1 0 5 3
+
+2 0 3 6
+
+1 2 6 5
+
+9 3 6
+
+9 9 2
+
+9 9 8
+9 7 7
+
+1 0 9 3
+
+2 0 7 3
+
+2 0 4 4
+9 9 6
+
+1 0 4 8
+
+9 7 6
+
+1 0 9 1
+
+2 1 6 6
+
+2 1 7 0
+
+1 2 9 5
+
+1 0 9 7
+1 2 2 3
+1 6 3 2
+
+4 4 6
+9 9 4
+
+2 2 3 4
+1 0 8 6
+2 1 4 1
+
+1 2 2 9
+
+1 4 7 8
+
+2 2 2 8
+
+4 8 5 1
+
+9 9 9
+
+1 1 0 8
+
+4 2 0
+
+1 9 4 9
+2 0 1 7
+1 0 8 7
+
+9 9 0
+
+2 2 2 6
+
+1 3 8 9
+2 3 6 4
+
+1 4 9 6
+1 0 9 2
+
+1 2 8 5
+
+2 2 9 6
+
+2 2 9 8
+
+1 3 5 1
+
+1 0 8 8
+1 0 8 5
+
+3 8 6
+
+4 8 9 2
+
+1 2 4 0
+
+1 4 7 7
+
+1 0 9 6
+
+3 9 3
+
+2 0 1 8
+
+2 2 9 7
+
+2 0 5 0
+3 8 5
+
+1 6 3 0
+
+1 2 2 0
+1 2 5 1
+
+3 8 7
+
+4 8 9 3
+
+1 5 0 4
+1 4 2 0
+
+1 2 5 4
+
+1 6 2 4
+2 2 5 8
+
+1 1 8 6
+
+2 2 6 2
+
+2 3 0 7
+4 2 1
+
+2 2 5 9
+1 4 8 8
+
+2 0 1 0
+
+2 2 6 0
+
+1 0 3 3
+
+1 3 7 9
+4 1 8
+2 1 0 9
+2 8 5
+
+1 4 2 9
+
+1 3 6 7
+1 2 2 2
+2 2 2 3
+
+2 3 3 0
+
+1 4 0 1
+
+0
+
+1 0 6 5
+
+2 0 0 5
+
+5 2 0
+1 7 2 9
+
+5 1 7
+2 0 7 5
+
+2 2 3 5
+
+5 1 6
+
+5 1 9
+
+4 1 9
+
+2 3 8 3
+
+2 3 6 9
+
+2 3 2 8
+
+1 9 7 3
+
+1 3 5 3
+
+2 4 0 5
+
+3 9 5
+
+2 2 6 1
+
+2 8 4
+
+1 4 0 0
+
+1 4 2 8
+
+1 0 6 4
+
+2 0 0 9
+
+2 3 7 6
+2 2 2 0
+
+2 3 2 6
+
+1 1 7 6
+
+2 2 3 2
+2 2 9 5
+
+2 4 0 3
+
+2 2 2 9
+
+1 1 4 4
+
+1 3 8 8
+
+2 1 0 4
+2 2 2 1
+
+2 3 0 9
+
+5 1 5
+
+2 8 3
+
+3 6 4
+
+1 1 2 8
+4 5 1
+
+2 5 5
+
+1 2 5 8
+1 3 7 8
+
+2 3 5 6
+
+2 2 8 3
+4 5 6
+
+2 2 2 2
+2 3 8 8
+
+2 3 5 2
+
+2 8 2
+
+3 2 9
+2 9 5
+
+1 1 1 9
+
+2 4 1
+3 7 7
+
+2 4 1 8
+
+1 8 5 2
+
+2 0 6 9
+
+2 3 5 3
+2 3 8 5
+2 3 8 4
+
+2 4 1 9
+2 3 0 8
+
+4 5 3
+
+2 3 3 1
+
+1 0 6 3
+
+1 5 9 3
+
+3 5 7
+3 3 0
+
+2 8 6
+
+2 7 6
+3 5 1
+
+2 8 0
+
+3 0 4
+
+4 0 7
+
+3 1 2
+2 4 9
+
+2 2 2 4
+
+4 6 5
+
+2 3 9 1
+
+4 3 7 2 2 8 4
+
+2 3 2 1
+
+1 3 3 7
+
+4 6 3
+3 9 94
+
+3 9 8
+
+1 2 3 1
+
+3 2 4
+
+2 4 7
+
+3 1 1
+
+3 4 7
+3 4 5
+3 4 4
+
+2 5 0
+
+2 2 3 9
+
+1 5 7 6
+
+2 3 2 2
+
+2 2 8 0
+
+2 3 3 2
+
+4 6 7
+
+4 4 9
+
+2 2 1 2
+
+3 2 5
+2 7 0
+
+2 8 7
+
+2 7 1
+
+3 4 82 7 4
+
+2 7 2
+2 7 3
+3 7 2
+
+3 1 6
+2 6 2
+
+3 8 1
+
+2 7 5
+2 6 9
+
+2 3 3 3
+
+2 2 1 1
+
+2 2 7 1
+
+2 3 9 7
+
+2 3 7 3
+
+3 6 2
+
+3 1 0
+
+1 8 0 9
+1 3 3 6
+
+2 2 0 7
+
+3 8 9
+
+2 2 6 4
+
+2 2 0 8
+2 2 42 42 1 9
+2 2 9 0
+
+2 3 6 8
+
+2 9 1
+
+3 5 2
+2 9 2
+
+3 6 0
+1 2 5 7
+
+2 3 2 3
+
+2 3 2 4
+
+2 9 9
+
+1 1 1 8
+
+2 2 8 6
+
+0 0
+2 3 8 1
+
+2 4 5
+
+1 1 2 6
+
+3 9 7
+2 3 9 5
+
+2 3 9 2
+8 4 1 6
+2 3 9 0
+
+1 0 6 6
+
+2 0 2 1
+
+2 4 1 5
+
+2 2 6 8
+
+3 0 1
+
+2 5 8
+1 9 9 2
+
+2 2 9 4
+
+2 7 9
+3 1 3
+
+2 2 1 3
+
+2 2 8 5 3 9 6
+2 3 4 1
+2 2 8 9
+
+2 2 9 2
+
+3 0 2
+
+3 0 5
+1 6 2 5
+
+4 0 8
+2 3 9 4
+
+2 2 0 6
+2 3 8 2
+
+2 3 1 8
+
+2 3 1 2
+
+3 6 52 4 2
+3 6 3
+
+3 0 6
+
+1 9 9 7
+
+2 3 9 3
+
+2 3 3 9
+2 2 4 6
+
+2 9 6
+2 5 4
+
+2 0 0 4
+
+1 3 5 4
+
+1 8 5 9
+
+2 3 9 2
+2 3 8 0
+2 4 2 0
+
+3 6 6
+
+1 3 9 9
+
+2 4 0 2
+
+2 3 2 9
+
+2 3 2 7
+
+2 2 5 5
+
+2 3 5 0
+
+2 3 1 9
+
+2 2 6 7
+
+2 3 8 9
+
+2 2 0 5
+
+1 6 2 8
+
+3 3 4
+2 4 4
+
+2 4 6
+
+1 8 2 5
+
+1 1 2 4
+
+4 4 8
+
+2 6 8
+
+2 5 7
+
+3 1 7
+
+4 4 3 7
+
+1 3 3 1
+
+2 2 8 2
+
+3 6 8
+
+2 4 8
+
+1 6 6 3
+
+1 2 8 9
+
+2 2 1 0
+
+2 3 1 3
+
+2 3 2 0
+
+2 3 7 7
+
+1 1 6 0
+
+2 6 1
+
+2 6 0
+
+3 4 6
+
+2 6 4
+3 3 5
+
+1 1 2 7
+2 3 9 9
+2 4 0 0
+
+3 6 1
+
+2 9 8
+
+3 0 3
+
+1 9 0 1
+
+2 2 7 6
+
+3 8 2
+
+2 8 1
+
+3 7 1
+
+3 5 9
+
+3 4 1
+3 6 9
+
+2 2 7 0
+2 2 6 9
+
+1 2 8 7
+
+2 3 0 2
+
+2 7 8 2 5 9
+1 1 2 0
+
+3 0 7
+
+1 9 5 6
+
+1 4 0 2
+
+8 0 2
+
+2 3 6 6
+
+2 2 7 7
+
+3 4 0
+2 6 5
+
+3 0 8
+
+3 4 9
+
+2 6 6
+
+2 9 7
+
+3 2 3
+
+8 2 2
+
+2 3 0 4
+
+2 5 6
+
+3 3 1
+
+3 7 5
+
+3 1 5
+
+1 2 5 0
+8 1 1
+
+1 2 2 8
+1 2 2 7
+2 3 0 1
+
+3 0 0
+2 9 4
+
+1 6 3 4
+
+3 8 0
+
+4 4 3 9
+
+1 9 3 4
+2 2 4 0
+
+3 5 0
+
+3 7 3
+
+1 2 3 0
+
+2 3 7 2
+2 2 5 7
+
+4 9 0 2
+2 3 1 4
+
+2 6 7
+
+3 7 8
+
+2 9 3
+
+1 2 9 2
+2 3 5 4
+
+2 2 7 8
+2 3 4 9
+4 8 9 1
+
+4 4 4 1
+
+1 2 8 8
+
+1 9 0 0
+
+2 3 7 5
+2 4 02 63 3 5
+
+3 4 3
+
+2 0 9 2
+
+1 8 6 3
+2 3 7 1
+8 0 9
+
+8 0 0
+
+7 9 0
+
+2 2 7 4
+2 2 8 1
+
+8 1 0
+
+7 4 4
+
+3 1 8
+
+2 4 0 7
+
+2 3 2 5
+
+2 4 0
+
+4 4 3 8
+
+2 2 4 3
+
+7 9 3
+8 0 4
+2 3 5 8
+
+1 5 0 1
+1 2 7 1
+
+7 4 1
+2 3 0 0
+
+3 5 6
+4 4 3 6
+
+7 4 6
+
+2 2 7 5
+
+2 7 7
+
+8 0 1
+
+2 2 9 9
+
+1 7 8 3
+
+8 0 8
+
+4 9 0 1
+
+3 1 4
+
+4 4 4 0
+
+1 2 2 1
+
+7 9 4
+
+3 3 6
+
+4 4 4 2
+
+1 6 3 9
+
+3 4 2
+
+3 3 7
+
+2 4 1 7
+
+3 2 6
+7 9 2
+
+1 9 3 3
+
+2 2 7 3
+
+2 2 5 4
+
+4 9 2 1
+
+2 9 0
+4 4 2 1
+
+2 3 7 4
+
+1 8 0 1
+
+1 2 1 4
+
+7 4 3
+
+2 2 2 5
+
+4 9 1 1
+
+3 2 7
+
+4 4 3 5
+
+1 2 7 0
+
+1 1 6 1
+
+2 4 3
+
+2 3 5 9
+4 9 0 7
+
+1 9 3 5
+
+1 1 5 6
+
+7 9 5
+
+2 3 3 6
+
+1 4 3 7
+3 3 8
+
+3 5 5
+
+2 8 8
+
+2 1 1 6
+
+3 2 8
+4 4 2 0
+
+7 4 5
+
+3 7 9
+
+4 4 3 4
+
+2 3 7 9
+1 7 7 4
+
+4 4 4 3
+
+1 2 6 0
+
+2 2 3 6
+
+3 3 3
+
+7 9 6
+
+3 3 9
+
+2 3 3 8
+
+2 3 8
+1 9 4 4
+
+1 1 5 5
+
+2 2 3 7
+
+3 3 2
+
+4 4 3 2
+3 5 4
+
+2 3 7 8
+1 9 9 6
+
+7 7 9
+
+7 4 2
+7 6 0
+
+2 3 6 7
+
+2 2 9 1
+
+1 2 5 9
+4 4 2 3
+
+4 4 2 7
+4 8 5 0
+
+4 4 2 8
+
+2 3 9
+1 9 1 1
+
+8 1 3
+8 1 2
+
+7 7 7
+2 2 3 8
+4 9 0 9
+4 9 0 6
+
+4 9 0 8
+
+4 9 1 9
+
+3 5 3
+
+2 4 0 4
+2 2 2 7
+
+8 1 5
+
+3 3 8 1
+
+7 5 9
+4 4 2 6
+
+4 4 2 2
+3 3 8 5
+
+1 9 7 1
+
+2 2 3 1
+
+2 2 9 3
+
+4 4 2 5
+3 7 4
+
+2 0 4 9
+
+7 7 8
+
+2 3 8 6
+
+1 9 3 2
+
+7 8 3
+
+8 1 4
+2 3 1 5
+
+4 4 2 9
+
+8 1 6
+7 6 3
+4 4 3 0
+
+7 6 2
+7 5 8
+
+7 8 9
+
+4 4 2 4
+
+3 0 9
+
+1 9 9 1
+
+4 9 2 2
+
+1 1 1 4
+
+2 2 4 5
+2 3 4 8
+
+2 5 2
+2 5 3
+
+1 8 3 7
+
+2 2 4 7
+2 4 0 8
+7 6 1
+
+3 5 8
+
+7 8 8
+2 3 3 7
+2 2 3 0
+
+2 4 2 1
+
+2 3 0 3
+
+4 8 7 9
+
+4 4 3 1
+
+3 7 6
+2 2 5 6
+
+2 3 9 6
+4 9 1 7
+
+2 8 9
+
+7 8 0
+
+2 4 2 2
+
+4 4 3 3
+7 9 1
+4 8 3 7
+4 8 7 3
+
+8 2 4
+8 2 3
+
+7 5 4
+
+7 3 9
+
+7 4 7
+
+2 5 1
+
+7 8 4
+
+3 2 2
+
+4 8 7 2
+7 4 0
+
+2 3 4 7
+2 3 5 7
+
+7 9 9
+
+7 5 7
+2 2 6 3
+7 5 6
+
+4 9 0 5
+
+3 6 7
+7 8 7
+
+3 7 0
+
+7 8 1
+
+4 8 9 0
+
+7 9 8
+
+7 5 5
+4 8 4 9
+
+8 0 3
+
+4 9 0 3
+3 1 9
+7 7 2
+7 6 4
+2 3 0 6
+
+4 8 3 9
+
+7 4 8
+4 3 6 2
+
+4 8 3 8
+4 9 0 4
+
+8 2 1
+
+2 2 1 4
+7 4 9
+
+8 0 5
+
+7 7 4
+7 6 8
+
+4 8 8 1
+
+7 6 9
+7 7 5
+3 3 7 2
+4 8 7 8
+
+7 6 6
+
+8 0 7
+
+7 5 1
+
+7 5 0
+
+2 2 6 5
+
+4 8 6 4
+
+4 9 2 0
+
+2 2 1 8
+
+3 3 8 7
+
+4 8 3 6
+
+8 0 6
+7 6 5
+
+8 2 0
+
+4 9 1 4
+
+8 1 7
+
+2 3 1 7
+
+3 2 0
+
+4 8 3 5
+
+7 7 1
+7 8 2
+
+4 9 1 0
+4 9 2 4
+4 8 5 4
+4 8 6 2
+
+2 2 1 5
+
+7 5 2
+
+3 5 4 3
+
+8 1 8
+
+7 6 7
+
+3 3 1 8
+
+7 7 3
+4 8 5 3
+
+2 3 1 6
+7 8 6
+8 1 9
+7 7 0
+
+4 8 9 7
+4 9 1 8
+7 8 5
+7 7 6
+
+4 3 6 3
+2 2 8 8
+
+4 8 6 3
+
+3 2 1
+7 5 3
+7 9 7
+
+4 8 4 7
+
+3 4 7 3
+
+4 9 1 3
+
+4 9 4 0
+2 2 1 7
+2 3 4 6
+
+4 9 3 4
+2 3 4 5
+2 4 1 3
+
+4 8 8 4
+4 8 8 7
+
+4 8 7 0
+
+4 8 4 8
+
+4 8 7 7
+
+2 6 3
+
+4 9 3 9
+
+4 34 73 06 9
+4 3 4 1
+
+4 9 3 3
+
+4 8 4 6
+
+3 5 4 4
+
+4 9 2 8
+
+4 8 8 0
+
+4 3 7 4
+
+4 8 3 2
+4 9 1 5
+
+4 3 7 6
+4 9 0 0
+
+4 8 8 5
+
+4 8 8 6
+
+2 4 1 1
+
+4 8 8 9
+
+4 3 9 2
+4 3 5 2
+
+4 4 1 5
+4 9 3 2
+
+4 8 7 4
+3 6 4 2
+2 4 1 4
+
+4 3 8 4
+4 3 4 4
+4 4 0 1
+
+4 8 2 8
+4 8 3 4
+4 3 7 8
+
+4 9 2 9
+
+4 3 8 6
+
+3 5 5 6
+
+4 9 1 6
+
+4 3 6 6
+4 3 6 7
+
+4 3 5 4
+
+4 3 2 7
+
+4 4 1 3
+
+2 2 6 6
+
+2 3 1 1
+
+4 4 1 0
+
+4 4 0 8
+
+4 9 2 7
+4 8 4 1
+
+3 6 4 9
+
+4 3 8 7
+4 3 3 7
+
+4 8 8 8
+2 3 7 0
+
+4 3 3 0
+
+4 8 4 4
+
+4 3 84 53 9 8
+
+4 4 0 4
+
+4 4 0 2
+4 4 1 4
+
+3 6 1 8
+4 3 3 5
+
+4 3 7 5
+
+4 3 8 1
+
+2 2 7 2
+4 9 3 8
+
+4 3 3 4
+4 3 4 7
+4 9 3 5
+
+3 5 4 5
+
+3 7 0 7
+
+3 7 0 6
+
+4 3 6 8
+4 3 4 2
+
+3 6 6 9
+
+3 4 4 9
+
+3 7 0 8
+3 5 3 3
+
+4 3 4 9
+
+4 6 9 5
+
+4 3 2 8
+
+4 3 3 2
+
+4 4 1 1
+
+4 3 3 1
+
+4 3 3 8
+
+3 6 1 7
+
+3 7 1 0
+
+4 3 2 9
+
+2 3 3 4
+
+3 4 7 6
+
+3 5 4 9
+
+3 4 8 9
+
+4 8 2 9
+
+4 3 4 6
+
+4 3 3 6
+
+4 9 3 6
+
+2 2 1 6
+
+4 4 0 7
+4 3 4 5
+4 3 7 7
+
+4 4 0 0
+3 7 3 7
+
+4 4 0 9
+
+4 6 9 3
+
+4 3 6 0
+
+4 3 6 5
+
+3 3 8 6
+
+3 4 4 5
+
+3 6 1 1
+
+3 3 0 1
+
+3 4 4 6
+
+3 7 2 0
+
+3 4 4 7
+
+4 9 2 3
+
+4 4 1 9
+
+4 4 1 7
+
+4 4 1 8
+
+4 4 0 6
+4 3 4 0
+
+2 2 8 7
+2 2 7 9
+
+3 3 0 0
+
+3 4 4 8
+
+4 3 5 7
+
+4 3 6 1
+4 3 4 3
+
+4 9 1 2
+
+4 3 4 8
+4 3 5 3
+
+4 3 7 3
+
+4 9 3 7
+
+2 3 5 5
+
+4 3 9 5
+4 3 5 6
+
+2 2 5 3
+4 3 9 1
+
+4 4 0 5
+
+3 6 2 2
+
+4 3 9 49 4 1 2
+4 3 9 6
+
+2 3 8 7
+4 3 3 9
+
+3 6 0 4
+
+4 6 9 4
+
+4 3 3 3
+4 3 7 2
+
+4 3 94 33 8 3
+
+4 3 9 4
+
+4 3 9 0
+4 3 5 5
+3 3 4 5
+
+4 8 6 6
+
+4 3 8 2
+
+4 9 3 0
+4 4 0 3
+
+4 8 4 3
+
+4 6 3 4
+
+4 3 5 94 3 7 1
+
+4 6 9 2
+
+4 3 9 7
+
+4 8 4 2
+
+3 5 4 1
+
+3 4 0 3
+
+4 3 6 4
+
+4 3 8 9
+
+4 8 4 0
+
+4 8 8 3
+
+4 3 5 8
+3 7 4 8
+4 4 1 6
+
+3 6 5 3
+
+3 7 4 7
+
+3
+
+4 9 3 1
+
+4 3 8 0
+4 3 8 8
+
+3 3 4 48 8 6 5
+
+2 2 4 2
+
+4 3 5 1
+2 3 6 1
+
+3 6 8 7
+
+4 4 8 4
+
+3 6 6 7
+
+4 5 8 8
+
+4 5 4 0
+
+4 3 7 9
+4 6 8 8
+
+4 6 8 3
+
+2 2 4 9
+
+3 7 2 8
+
+4 3 5 0
+
+4 6 6 0
+3 7 2 9
+
+3 6 4 0
+
+4 4 7 7
+3 3 4 7
+3 6 4 1
+
+4 7 8 9
+
+2 2 5 22 2 5 1
+
+3 6 7 8
+
+4 6 8 2
+
+2 3 1 0
+
+3 7 4 5
+4 5 0 6
+3 4 0 2
+
+4 6 5 8
+2 4 1 2
+
+3 6 6 1
+
+4 6 1 6
+4 7 8 8
+
+3 7 4 3
+
+3 6 0 9
+
+3 5 5 5
+
+4 5 0 5
+
+3 4 0 1
+
+3 4 0 0
+
+4 4 8 7
+2 3 0 5
+3 6 6 8
+
+4 5 4 6
+
+3 5 3 4
+4 7 0 0
+
+3 6 8 6
+
+4 4 9 3
+
+4 8 6 7
+
+3 6 8 2
+
+3 3 4 9
+
+3 3 2 3
+
+3 6 5 8
+
+4 6 0 0
+
+4 5 7 3
+
+4 5 3 7
+
+2 2 4 1
+
+3 6 0 5
+
+4 7 9 1
+4 4 8 6
+
+3 3 3 7
+
+3 5 5 4
+
+4 6 2 4
+
+2 2 4 8
+
+3 4 0 5
+
+4 8 6 84 8 6 9
+
+3 6 0 6
+
+4 6 3 1
+
+3 3 2 2
+3 4 0 4
+
+3 6 0 3
+
+4 5 5 0
+
+2 2 0 9
+
+4 7 9 0
+
+2 2 3 3
+
+4 7 9 7
+
+4 5 5 8
+4 7 9 2
+
+4 9 2 5
+
+3 6 2 8
+
+4 7 0 3
+2 2 5 0
+4 5 7 4
+
+4 8 9 5
+3 4 2 9
+
+3 4 5 6
+
+4 5 3 3
+4 5 6 7
+
+3 4 5 4
+4 5 6 6
+
+4 7 6 3
+3 4 53 76 5 0
+
+3 4 9 2
+
+4 5 3 6
+
+4 5 7 2
+
+3 6 6 3
+
+3 6 5 1
+
+3 6 6 0
+
+4 7 9 5
+
+3 4 2 8
+3 5 9 9
+
+4 8 4 5
+
+4 8 3 0
+
+4 5 9 44
+
+4 8 9 9
+
+5 9 5
+4 7 9 3
+
+3 4 5 3
+3 4 5 8
+
+4 6 0 6
+
+4 7 4 3
+
+4 5 3 9
+
+4 5 4 7
+3 6 4 6
+
+3 7 1 9
+
+4 5 1 0
+
+4 8 6 1
+
+3 6 1 9
+
+4 8 9 8
+4 8 0 9
+
+4 6 6 7
+
+4 8 3 3
+
+3 5 6 6
+
+4 4 9 7
+
+4 6 5 2
+
+4 8 0 8
+
+4 5 3 5
+
+4 8 3 1
+
+3 6 0 2
+3 6 7 2
+
+4 9 2 6
+4 8 7 6
+
+4 7 9 4
+
+4 8 9 6
+
+4 5 0 7
+
+4 7 7 9
+3 7 0 5
+
+4 4 7 4
+
+4 6 8 6
+4 7 9 8
+
+4 6 3 2
+
+3 7 0 4
+
+4 7 8 7
+4 7 8 0
+
+4 6 0 9
+4 8 2 4
+
+3 3 3 0
+
+3 3 3 1
+
+4 8 2 2
+
+4 5 2 5
+4 6 2 6
+
+4 7 7 3
+
+4 8 7 5
+4 6 0 3
+
+4 5 3 4
+
+4 6 5 6
+
+4 4 8 3
+
+2 4 0 9
+4 6 5 1
+4 6 4 4
+3 5 8 1
+
+3 3 6 9
+
+4 5 5 2
+4 6 1 8
+
+4 5 4 1
+
+4 7 5 9
+3 5 8 0
+
+4 7 8 6
+
+3 2 9 5
+
+3 3 4 2
+
+3 3 0 2
+
+4 5 3 2
+
+3 3 6 7
+
+4 4 8 2
+
+4 4 7 6
+
+3 3 8 9
+
+3 3 4 0
+
+2 4 1 0
+
+4 7 2 2
+
+4 8 2 6
+
+3 3 4 1
+
+3 4 5 0
+
+4 6 7 3
+4 7 2 3
+4 5 9 6
+
+4 4 7 3
+
+4 7 7 2
+
+3 3 6 8
+
+3 6 5 4
+
+4 4 6 9
+
+4 5 6 9
+
+3 2 9 4
+
+4 7 8 5
+
+4 6 8 5
+
+4 5 0 1
+3 3 0 8
+
+4 4 9 4
+
+4 6 8 0
+
+3 3 3 4
+
+3 5 5 2
+
+3 4 3 5
+
+4 8 1 6
+
+4 5 7 8
+
+3 5 3 9
+3 6 9 2
+
+4 4 7 1
+
+3 3 8 8
+
+4 8 2 3
+
+4 6 0 8
+
+4 5 9 0
+
+4 7 9 6
+
+4 7 0 2
+
+3 4 7 4
+
+3 5 2 9
+
+4 5 1 1
+4 4 7 5
+
+4 6 0 5
+4 8 1 7
+
+4 6 1 7
+
+4 4 9 0
+
+3 6 9 1
+
+4 6 0 7
+4 5 5 6
+
+4 6 4 8
+
+4 6 7 0
+4 6 5 7
+
+4 6 1 9
+
+4 6 8 9
+
+4 8 0 4
+4 6 6 5
+
+4 6 0 4
+
+3 6 9 7
+3 6 2 9
+
+4 7 6 5
+
+4 8 2 7
+
+4 5 1 8
+
+4 5 5 7
+
+4 6 5 5
+
+4 6 4 2
+
+3 5 9 7
+
+4 4 9 9
+
+4 6 9 1 4 7 7 8
+
+4 5 4 8
+
+4 6 9 6
+
+3 3 1 4
+
+4 6 8 7
+
+3 6 9 3
+
+4 6 3 0
+
+4 6 2 8
+
+4 7 2 6
+4 7 8 4
+
+4 6 4 9
+
+4 6 2 7
+
+4 6 7 5
+
+4 5 0 3
+
+4 6 2 5
+
+4 6 3 9
+4 5 6 1
+
+3 3 1 3
+
+3 6 9 6
+4 6 7 4
+
+4 6 1 3
+
+4 6 3 8
+
+4 6 7 1
+
+4 5 4 2
+
+4 5 0 2
+4 5 7 6
+
+4 7 7 1
+
+4 4 8 1
+
+4 7 8 1
+
+4 7 5 4
+
+4 5 7 5
+
+4 7 9 9
+
+3 6 8 4
+
+4 4 7 2
+
+4 7 4
+3 7
+2 0 6
+
+4 5 0 8
+4 6 1 5
+
+3 3 9 0
+
+4 5 4 9
+
+4 8 0 3
+
+4 5 1 2
+
+4 7 8 2
+
+3 6 9 0
+
+3 3 3 3
+
+3 5 6 4
+
+4 7 4 9
+
+4 8 1 0
+
+4 6 3 7
+
+4 5 5 9
+
+4 5 0 0
+
+4 7 6 4
+4 4 9 8
+
+4 7 5 3
+
+4 5 2 6
+
+4 6 4 6
+
+4 6 9 0
+
+3 5 9 6
+
+3 4 1 3
+
+3 6 3 1
+
+3 5 2 3
+
+4 7 1 9
+
+4 5 9 1
+
+4 6 4 3
+
+3 3 2 4
+3 3 7 0
+
+3 4 3 4
+
+3 6 3 0
+
+4 7 1 6
+4 7 1 3
+
+4 6 0 2
+
+4 6 6 2
+
+4 7 5 6
+4 7 8 3
+
+4 6 4 7
+4 4 7 9
+
+3 2 9 7
+
+3 3 3 2
+
+4 6 7 2
+
+4 4 7 0
+
+3 6 4 3
+
+4 6 5 4
+
+4 8 1 1
+
+3 6 2 3
+3 5 0 4
+
+3 7 4 1
+
+4 8 2 0
+
+4 5 3 0
+4 4 6 8
+
+4 6 1 1
+
+4 6 7 6
+
+3 6 1 6
+4 6 0 1
+
+4 4 8 0
+
+3 4 2 7
+
+3 3 3 9
+
+4 6 8 1
+3 3 6 2
+
+4 5 2 3
+
+3 5 0 6
+
+4 6 7 8
+
+4 7 6 6
+3 7 3 2
+3 5 6 8
+
+4 6 3 6
+
+3 6 0 8
+
+4 4 7 8
+
+3 7 2 2
+3 5 7 6
+
+3 5 7 7
+3 3 5 3
+
+4 8 1 9
+4 5 9 9
+
+4 8 2 5
+
+4 6 5 3
+
+4 5 6 5
+
+3 3 1 0
+3 3 7 1
+
+3 3 2 5
+3 4 3 3
+
+3 5 0 5
+
+3 6 2 1
+
+3 4 8 4
+
+3 7 3 1
+
+4 5 9 3
+4 6 4 1
+4 5 6 4
+
+3 3 1 1
+3 5 6 7
+
+3 5 3 8
+
+3 4 6 0
+
+3 5 6 0
+3 3 5 7
+
+3 4 7 7
+
+3 3 3 6
+
+3 5 1 6
+
+3 6 5 7
+
+4 7 3 9
+
+4 5 7 1
+4 6 2 9
+
+3 4 8 5
+
+3 6 3 3
+
+4 7 5 0
+
+4 6 5 0
+
+4 5 4 5
+4 5 2 8
+
+4 4 8 5
+3 4 5 5
+
+3 5 7 8
+3 7 1 8
+
+3 5 1 1
+
+4 7 0 7
+
+4 5 3 1
+
+3 3 23 62 9 6
+3 6 5 5
+
+3 5 6 3
+3 5 1 2
+3 5 1 0
+3 5 0 7
+
+3 5 0 9
+
+4 7 2 5
+
+4 5 2 7
+
+3 3 7 8
+
+3 3 1 2
+3 4 7 8
+
+3 4 3 6
+3 4 2 3
+
+3 7 2 31 4 8 6
+
+3 6 8 3
+
+4 6 4 0
+
+4 5 4 3
+
+3 5 7 2
+
+3 5 1 3
+
+4 6 6 1
+
+3 6 4 5
+
+4 8 1 4
+4 8 14 38 1 5
+
+4 5 3 8
+
+3 3 5 6
+3 3 3 5
+
+4 7 3 3
+
+3 3 8 0
+
+3 4 2 5
+
+3 7 3 8
+
+3 3 7 9
+
+3 2 9 8
+3 5 3 7
+
+3 7 3 3
+
+3 5 0 8
+
+3 3 0 9
+
+4 6 1 0
+
+4 7 3 7
+
+4 7 4 2
+
+4 6 4 5
+
+3 4 2 6
+3 6 3 2
+
+3 6 8 5
+3 6 3 5
+
+3 7 2 3
+
+3 6 0 0
+
+4 4 6 7
+3 5 8 9
+
+3 6 4 4
+
+4 8 2 1
+
+4 8 0 5
+
+4 4 9 6
+
+4 7 5 1
+
+4 8 04 78 0 6
+
+4 7 2 1
+
+4 7 5 7
+4 7 4 0
+
+4 5 7 7
+
+3 2 9 9
+
+3 5 9 0
+
+3 4 2 4
+
+3 7 4 6
+
+3 4 8 7
+
+4 6 6 8
+
+3 6 3 4
+3 6 2 4
+3 5 7 5
+
+3 3 6 1
+
+3 3 2 1
+
+3 4 6 4
+
+4 7 1 8
+
+4 7 4 1
+4 7 1 5
+4 7 2 7
+
+4 6 7 7
+
+3 3 5 1
+
+4 5 7 0
+
+4 7 4 7
+
+3 4 3 9
+3 3 3 8
+
+3 4 4 1
+
+3 4 6 5
+
+3 4 7 1
+
+3 4 4 0
+
+4 5 1 7
+
+3 5 9 8
+
+4 7 4 5
+
+4 4 8 9
+
+4 6 2 1
+
+4 4 9 2
+
+3 6 9 8
+
+4 7 4 4
+
+3 6 8 9
+4 7 3 0
+
+3 5 9 3
+4 5 9 7
+
+4 7 5 5
+4 7 1 2
+
+3 4 6 3
+
+4 7 7 5
+4 7 7 4
+
+4 7 6 7
+
+3 6 7 1
+
+3 6 7 9
+
+4 7 3 1
+
+4 7 0 8
+
+3 4 5 9
+3 5 6 1
+
+4 6 8 4
+
+4 5 5 3
+
+3 3 5 2
+
+3 4 6 2
+
+3 3 6 4
+4 5 8 2
+
+4 6 1 4
+
+4 7 3 6
+
+3 4 2 1
+
+3 5 5 8
+3 4 6 1
+
+3 3 5 9
+
+4 7 5 8
+4 7 4 8
+
+4 7 2 9
+
+4 7 0 5
+
+4 6 6 4
+2 4 2 3
+
+4 7 2 0
+
+3 6 1 2
+
+4 5 1 6
+4 5 6 8
+
+4 7 6 0
+4 7 7 7
+
+4 4 9 5
+
+4 7 7 0
+3 4 6 6
+
+4 7 3 8
+
+4 7 5 2
+
+4 4 9 1
+
+4 5 2 9
+
+3 6 7 3
+3 6 7 4
+
+4 8 1 2
+
+4 5 0 9
+
+4 5 6 3
+
+4 7 6 9
+
+3 3 1 7
+3 3 2 8
+
+4 7 2 8
+
+4 5 6 0
+
+3 7 0 2
+
+3 6 8 1
+
+4 7 3 4
+
+4 6 3 3
+4 7 6 1
+
+3 6 8 0
+
+4 7 0 9
+
+3 5 7 9
+
+4 7 1 7
+
+3 3 6 0
+
+3 3 9 3
+3 3 9 2
+
+4 5 8 0
+
+4 7 4 6
+
+4 4 8 8
+
+3 5 8 2
+
+3 3 6 3
+4 5 8 1
+
+3 7 2 5
+
+4 6 6 9
+
+4 6 6 3
+
+4 5 1 9
+
+3 5 4 8
+3 7 4 2
+
+4 5 8 4
+
+3 3 2 9
+
+3 5 5 9
+
+4 6 2 2
+
+3 6 7 0
+4 6 7 9
+
+3 2 9 3
+
+4 7 1 4
+
+3 7 3 0
+
+3 3 2 7
+
+3 7 2 4
+3 4 7 5
+
+4 6 5 9
+
+4 5 6 2
+3 6 5 2
+
+3 3 5 0
+3 4 8 8
+3 5 1 5
+
+4 5 5 1
+
+4 5 1 3
+3 3 5 8
+
+3 7 4 0
+
+3 4 9 8
+
+3 3 6 5
+
+4 7 0 4
+
+3 3 4 6
+
+4 5 5 4
+
+4 5 8 3
+4 5 1 5
+
+3 5 3 2
+3 6 8 8
+
+4 6 1 2
+4 5 8 6
+
+3 3 8 2
+
+4 7 1 0
+
+4 5 2 4
+
+3 4 4 3
+
+3 5 8 6
+3 5 8 7
+
+3 7 1 3
+
+3 3 9 5
+
+4 5 1 4
+3 5 4 0
+4 6 2 3
+
+4 6 64 67 0 1
+
+4 5 9 8
+
+4 7 1 1
+4 5 0 4
+
+3 73 07 00 1
+
+3 4 7 2
+
+4 5 8 9
+4 5 2 0
+
+3 3 2 0
+
+3 4 2 0
+3 3 1 6
+
+4 5 8 5
+
+3 6 2 7
+3 7 2 6
+
+4 7 2 4
+
+4 5 2 2
+
+3 7 0 9
+4 5 7 9
+3 7 1 1
+
+4 5 9 2
+3 4 1 1
+
+3 7 2 7
+3 5 9 4
+
+3 5 4 7
+
+3 3 6 6
+
+3 3 0 7
+3 4 1 9
+
+4 7 3 5
+4 8 04 08 0 1
+4 5 2 1
+
+4 5 5 5
+
+3 5 4 6
+
+1
+3 6 6 4
+
+4 6 2 0
+
+3 6 0 7
+
+3 5 5 7
+
+4 8 0 2
+4 5 8 7
+
+3 3 9 4
+3 5 8 5
+
+3 5 1 4
+3 5 1 7
+3 5 9 5
+
+3 4 0 8 3 7 1 2
+3 5 1 9
+
+4 6 9 9
+
+4 5 4 4
+3 5 3 6
+
+4 7 6 8
+
+4 6 3 5
+3 4 0 9
+
+3 5 8 4
+
+4 7 7 6
+
+3 5 2 1
+
+3 5 2 0
+
+3 7 3 6
+
+3 4 8 3
+
+3 3 4 4
+3 6 2 0
+
+3 5 4 2
+
+4 6 9 8
+
+3 4 8 2
+3 6 7 6
+
+4 6 9 7
+3 5 5 0
+
+3 4 9 1
+
+3 5 5 1
+
+3 4 1 0
+
+4 7 6 2
+
+3 7 0 3
+
+3 7 1 6
+
+3 5 5 3
+3 6 3 7
+
+3 4 0 6
+
+3 5 3 0
+3 4 6 9
+
+3 6 7 7
+
+3 4 0 7
+
+4 8 1 8
+
+3 4 7 0
+
+3 6 3 6
+
+3 4 9 0
+
+3 5 0 3
+3 7 1 7
+
+3 6 7 5
+
+3 4 1 4
+
+3 4 1 8
+
+3 36 64 48 7
+3 6 6 6
+
+3 7 3 9
+3 5 3 1
+
+3 4 2 2
+
+3 3 9 9
+
+3 5 6 2
+
+3 5 6 5
+3 4 6 7
+3 5 0 2
+3 5 3 5
+
+3 3 1 9
+
+3 5 1 8
+3 5 2 8
+
+3 3 8 3
+
+3 5 7 4
+3 5 7 3
+
+3 5 2 5
+
+3 3 0 6
+
+3 7 4 4
+
+3 6 9 9
+
+3 3 4 3
+
+3 5 2 2
+
+3 4 6 8
+
+3 5 2 7
+
+3 5 2 4
+
+3 3 7 7
+
+3 4 8 0
+
+3 6 3 8
+
+3 6 5 9
+
+3 4 1 5
+3 3 0 3
+
+3 4 1 2
+
+3 3 5 5
+
+3 5 8 33 3 0 4
+3 3 0 35 4 7 9
+
+3 4 9 7
+
+3 5 7 1
+
+3 4 3 8
+
+3 6 2 6
+3 5 39 62 1 3
+
+3 4 8 1
+
+3 5 2 6
+
+2
+3 6 3 9
+3 7 1 5
+3 4 3 7
+3 5 6 9
+3 3 5 4
+
+3 6 1 4
+3 4 9 3
+3 4 5 2
+
+3 5 9 1
+
+3 6 6 5
+
+3 7 1 4
+
+3 6 6 2
+
+3 6 0 1
+3 5 8 8
+3 4 93 95 0 0
+3 5 0 1
+
+3 6 2 5
+
+3 4 9 6
+
+3 3 8 4
+
+3 3 1 5
+
+3 6 5 6
+3 4 4 2
+3 5 7 0
+
+3 6 1 5
+3 4 9 4
+
+3 4 9 5
+3 4 3 2
+
+3 3 9 8
+3 3 9 6
+
+3 4 5 1
+
+3 3 9 7
+3 7 3 4
+
+3 7 3 5
+
+3 4 4 4
+
+3 3 7 6
+
+3 6 1 0
+
+3 6 9 5
+
+3 6 9 4
+
+3 4 3 1
+3 3 9 1
+
+3 3 7 3
+
+3 3 7 4
+3 3 73 54 1 7
+
+3 4 1 6
+
+3 4 3 0
+
+Figure 2: Localized refinement. Red dashed squares correspond to subgraphs induced by small
+subsets of nodes for localized refinements
+
+4
+
+Results
+
+We evaluate our method on a set of small networks with known optimal solutions, two case
+studies (HIV spread and cyber infrastructure networks), and one massive data set. The two
+case study networks are typical complex network instances on which solving this particular
+optimization is of great practical importance. The connection between epidemiological models
+and analysis of cyber attacks has been extensively investigated during the past two decades
+[22, 23, 9]. The massive dataset evaluation contains networks of different structures and sources,
+including some that arise in applications that are not related immediately to the response
+problem but can potentially represent hard structures for the method.
+
+4.1
+
+Networks with Known Optimal Solutions
+
+Before analyzing the proposed method on large-scale instances that cannot be solved to proven
+optimality (even using commercial solvers) reasonably fast, we evaluated how good the results
+of the multiscale method are on small networks that can be solved exactly. For this purpose we
+generated 200 Erdös-Rényi networks [15] with randomly initiated wij and φi,t−1 (see (4)). The
+results are demonstrated in Figure 3. Typically in such settings almost half of the instances are
+optimally solved while others are close enough to the optimum (between 90% and 100%).
+
+4.2
+
+HIV Spread Network
+
+First we demonstrated our algorithm on a network created from data that was collected in by
+Potterat et al. [31] related to the HIV spread over individuals who were in contact through sex
+or injection drug use. The original data contains a network with 250 nodes, where each node
+corresponds to an individual. We generated 100 similar networks by using a multiscale network
+generator [18] and connected them by several random edges in order to create one big network
+(see Figure 4). We simulated an immediate outbreak of the infection in which initially 5% of
+nodes were associated with high level of infection (φi ∈ [0.8, 1]) and each edge had the same
+rate of infection transmission. Then five iterations of the infection spread were performed; at
+each iteration, all nodes released their infection to the neighbors, and the updated φ was
+X
+
+p
+P ij
+φold
+.
+∀i ∈ V φnew
+= min 1, φold
+j
+i
+i +
+k∈Γi pik
+j∈Γi
+
+6
+
+Ratio between MA and optimal solution
+
+1
+0.98
+0.96
+0.94
+0.92
+0.9
+0
+
+50
+
+100
+150
+Networks ordered by ratios
+
+200
+
+Figure 3: Comparison with optimal solutions for 200 small networks. Each point represents a
+ratio between the objectives of MA and optimal solutions, respectively, for one network.
+Typical computational results comparing the multiscale algorithm (MA) and a combination of
+different types of iterated local search (ILS) are presented in Figure 5. The multiscale algorithm
+reached the objective 13404 in just five iterations of the refinement, while ILS was able to achieve
+the objective 12870 being more than 100 times slower than MA. We note that the content of
+the two solutions was different. The number of nodes suggested to consider as “closed” by MA
+(8159) was bigger than those chosen by ILS (7864). In contrast to ILS, MA
+P leftP“open” more
+high-degree nodes. We observe that introducing the linear penalty term − i∈V j∈Γi wij xi to
+the objective of (4) may reverse this situation in favor of closing more high-degree nodes. Such
+a term can be coarsened similarly to the aggregated edge coefficients Ai in (6).
+
+4.3
+
+Peer-to-Peer Network
+
+Peer-to-peer systems (P2P) are a type of technology for collaborative environments in which
+each participating computer can play roles of both server and client. At the core of such systems
+lies an infrastructure for sharing computational resources such as storage space and CPU time.
+Data streams in such networks are often associated with mutually anonymous (for users) source
+and target nodes which brings the realization of a strong cyber security system to one of the
+system’s central issues. Examples of P2P systems include Napster, Gnutella, and SETI@Home.
+Altunay et al. analyzed one such system [1], namely, the Open Science Grid, and proposed
+optimization model for manipulating collaboration policies to prevent the fast spread of cyber
+attacks. Unfortunately, methods proposed in [1] are too slow for large-scale networks.
+We evaluated our method on the biggest connected component of the Gnutella P2P network
+[25, 33]. As in the previous case we compared our results with those of ILS. We observed that
+ILS rapidly reaches slow improvement zones; however, in contrast to the previous case there
+was a significant gap in the objective between MA and ILS on this type of network, and thus
+the evaluation consists of 30 trials with different random initial seeds. The results are shown
+in Figure 6. Each bar corresponds to the ratio between MA and ILS objectives for one initial
+random seed. The difference in running time is similar to the previous case (between 100 and
+200 times) in favor of MA. In addition, MA typically finds a better solution, as shown in Figure
+6. The difference in solution quality can be as much as 20%.
+7
+
+Figure 4: Infection spread network (|V | = 25090, |E| = 28284) constructed by sparse random
+connections among 100 generated networks that are similar to real HIV spread data.
+
+Objective by multiscale method with 5 refinement iterations
+600
+
+380
+
+250
+
+Slow improvement
+zones
+
+100
+
+Figure 5: Computational results on the infection spread network.
+
+8
+
+Ratio between objectives of MA and ILS
+
+1.2
+
+1.15
+
+1.1
+
+1.05
+
+1
+0
+
+20
+10
+5
+15
+25
+Number of experiment with different random seeds
+
+30
+
+Figure 6: Computational results on the Gnutella P2P network.
+
+4.4
+
+Massive Simulations
+
+We also demonstrated the robustness of the proposed method on a test set of 100 large-scale
+graphs taken from different sources such as [25, 12, 11]. In contrast to HIV and P2P networks, the connection of many of these graphs to the infection spread response problem is not
+straightforward (if at all), but their structural complexity presents a particular difficulty for
+optimization methods. The results of comparison with ILS are presented in Figure 7, where
+each point corresponds to the ratio between objectives of MA and ILS. For approximately onethird of the test set, the difference in the objective is significant while the running time of MA
+is between 50 to 200 times faster. The difference in running time depends mostly on the size
+of subproblems (7) because in many cases the external solvers such as [26] that ensure upper
+bounds are not of linear complexity. We note that according to the results, the most difficult
+instances are networks with high average degree. The biggest difference detected between MA
+and ILS ratios was 132 for a graph with average degree 240. We generated 100 graphs by
+high-entropic multiscale editing [18] and observed that MA still improves the objective over ILS
+with a factor between 70 and 150.
+
+5
+
+Conclusions
+
+We propose a fast multiscale method for optimizing the response policies to infection spread
+in large-scale, complex, weighted networks. The method is flexible and can be easily adapted
+for different changes in the model formulation such as changing the model to link-based immunization [4, 1] and adding penalty function to the objective and new constraints. Similar to
+many methods in the large family of multiscale algorithms, our approach is scalable and suitable
+for parallelization on HPC systems. As key future work directions we identify two branches:
+theoretical and applied. Theoretical work involves rigorous analysis in order to identify upper
+and lower bounds. In the applied branch we suggest to introduce similar optimization problems
+for the SIR model, where the “recovered” states of nodes will be introduced and PDE-based
+constraints will describe time series of the data.
+
+9
+
+Ratios between MS and ILS (logarithmic scale)
+
+128
+64
+32
+16
+8
+4
+2
+1.2
+1
+
+0
+
+20
+
+40
+60
+80
+Networks ordered by ratios
+
+100
+
+Figure 7: Massive data experiments on various graph structures.
+
+6
+6.1
+
+Appendix: Technical Details
+Algebraic Distance
+
+The algebraic distance can be based on different types of stationary iterative relaxations such
+as Gauss-Seidel and Jacobi [10]. We experimented with the Jacobi overrelaxation iterator
+H = (1 − ω)I + ωD −1 W in order to validate the ability to make the implementation fully
+parallel (in contrast to Gauss-Seidel which is difficult to parallelize). Here I is a diagonal
+matrix with ones on the diagonal, WP
+is a weighted adjacency matrix with entries wij , and D is
+a diagonal matrix with entries dii = j∈V wij .
+
+6.2
+
+F − C Coupling and Restriction Operator
+
+The selection of nodes to C is done by traversing all nodes starting with those that are
+highly
+infected.
+Initially we set F = Vf and C = ∅. Then the node is added to C if
+P
+−1
+−1 P
+ρ
+/
+j∈C ij
+j∈Vf ρij ≥ Θ. The default value for parameter Θ is 0.5. Increasing it will usually
+lead to slower coarsening and potentially better results, as more scales are created during the
+coarsening and more refinement is done. Decreasing Θ will lead to the opposite effects.
+
+6.3
+
+Aggregated Variables and Constants
+
+Coefficients AIP
+in (6) accumulate weights of edges wij whose endpoints are aggregated into I,
+namely, AI = i,j∈I wij . Coarse nodes represent
+small clusters of fine nodes and, thus, edge
+P
+weights between coarse nodes are WIJ = k6=l RkI wkl RlJ . In order to reduce the complexity of
+the coarse problems the number of non-zeros in rows of R has to be bounded by a sufficiently
+small number. In the experiments we determined that one nonzero entry with the strongest
+algebraic distance coupling [34] is enough for practical purposes. Coefficients PIJ can be derived
+similarly if pij are not derived from wij . In our experimental settings they are normalized
+inverses of the given connection strengths. Aggregation of scalars φj,t−1 and bI into ΦJ,t−1
+and BI , respectively, has to be done according to the application, because in some situations
+the probability of infection in coarse node J may not depend linearly on those in fine-level
+10
+
+node. In our simplified models they are accumulated from the corresponding fine level nodes as
+normalized sums.
+
+6.4
+
+External Optimization Solver
+
+The recently developed mixed-integer nonlinear optimization toolkit MINOTAUR [26] has
+proved itself as particularly suitable for such problems. MINOTAUR compares favorably with
+other state-of-the-art MINLP solvers such as BONMIN [5]. We used MINOTAUR as both a
+coarsest level and local-processing solver for the problems in (7). The sizes of the coarsest level
+and local processing problems were 40 and 15 variables, respectively. During our experiments
+all small problems of the type (7) were solved exactly.
+
+References
+[1] Mine Altunay, Sven Leyffer, Jeffrey T. Linderoth, and Zhen Xie. Optimal response to
+attacks on the Open Science Grid. Computer Networks, 55(1):61–73, 2011.
+[2] Albert-Laszlo Barabasi. Linked: How Everything Is Connected to Everything Else and
+What It Means. Plume, 2003.
+[3] P. Belotti. Couenne: a user’s manual. Technical report, Lehigh University, 2009.
+[4] A.N. Bishop and I. Shames. Link operations for slowing the spread of disease in complex
+networks. EPL (Europhysics Letters), 95:180–185, 2011.
+[5] Pierre Bonami, Lorenz T. Biegler, Andrew R. Conn, Gérard Cornuéjols, Ignacio E. Grossmann, Carl D. Laird, Jon Lee, Andrea Lodi, François Margot, and Nicolas Sawaya. An
+algorithmic framework for convex mixed integer nonlinear programs. Discrete Optimization, 5(2):186–204, 2008.
+[6] A. Brandt. Multiscale scientific computation: Review 2001. In T. Barth, R. Haimes,
+and T. Chan, editors, Multiscale and Multiresolution methods (Proceeding of the Yosemite
+Educational Symposium, October 2000). Springer-Verlag, 2001.
+[7] A. Brandt and D. Ron. Chapter 1 : Multigrid solvers and multilevel optimization strategies.
+In J. Cong and J. R. Shinnerl, editors, Multilevel Optimization and VLSICAD. Kluwer,
+2003.
+[8] Achi Brandt, James J. Brannick, Karsten Kahl, and Irene Livshits. Bootstrap AMG. SIAM
+J. Scientific Computing, 33(2):612–632, 2011.
+[9] D. Chakabarti, Y. Wang, C. Wang, J. Leskovec, and C. Faloutsos. Epidemic thresholds in
+real networks. ACM Transactions on Information and System Security, 10, 2008.
+[10] Jie Chen and Ilya Safro. Algebraic distance on graphs. SIAM J. Scientific Computing,
+33(6):3468–3490, 2011.
+[11] J. Cong. Optimality Study Project. http://cadlab.cs.ucla.edu/˜ pubbench/.
+[12] T. Davis. University of Florida Sparse Matrix Collection. NA Digest, 97(23), 1997.
+[13] Inderjit Dhillon, Yuqiang Guan, and Brian Kulis. A fast kernel-based multilevel algorithm
+for graph clustering. In Proceedings of the eleventh ACM SIGKDD international conference
+on Knowledge discovery in data mining, KDD ’05, pages 629–634. ACM, 2005.
+11
+
+[14] D.M. Dunlavy, B. Hendrickson, and T.G. Kolda. Mathematical challenges in cybersecurity.
+Technical report, Sandia National Laboratory, 2009.
+[15] P. Erdos and A. Renyi. On the evolution of random graphs. Publ. Math. Inst. Hung. Acad.
+Sci, 5:17–61, 1960.
+[16] S. Eubank, H. Guclu, V.S.A. Kumar, M.V. Marathe, A. Srinivasan, Z. Toroczkai, and
+N. Wang. Modelling disease outbreaks in realistic urban social networks. Nature,
+429(6988):180–184, 2004.
+[17] N. Goldberg, S. Leyffer, and I. Safro. Optimal response to epidemics and cyber attacks
+in networks. Technical Report ANL/MCS-1992-0112, Argonne National Laboratory, 2012.
+submitted to Networks.
+[18] Alexander Gutfraind, Lauren Meyers, and Ilya Safro. Multiscale network generation.
+http://www.mcs.anl.gov/˜ safro/musketeer/index.html, 2012.
+[19] George Karypis and Vipin Kumar. A fast and high quality multilevel scheme for partitioning irregular graphs. SIAM J. Sci. Comput., 20(1):359–392, 1998.
+[20] M. J. Keeling and K. T. D. Eames. Networks and epidemic models. J. R. Soc. Interface,
+2:295, 2005.
+[21] Matthew James Keeling and Pejman Rohani. Modeling infectious diseases in humans and
+animals. Clinical Infectious Diseases, 47:408, 2008.
+[22] Jeffrey O. Kephart, Gregory B. Sorkin, William C. Arnold, David M. Chess, Gerald
+Tesauro, and Steve R. White. Biologically inspired defenses against computer viruses.
+In IJCAI (1), pages 985–996, 1995.
+[23] Jeffrey O. Kephart and Steve R. White. Measuring and modeling computer virus prevalence. In Proceedings of the 1993 IEEE Symposium on Security and Privacy, SP ’93, pages
+2–14, Washington, DC, USA, 1993. IEEE Computer Society.
+[24] W.O. Kermack and A.G. Mckendrick. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London. Series A, 115(772):700–721, 1927.
+[25] J.
+Leskovec.
+Stanford
+http://snap.stanford.edu/index.html.
+
+Network
+
+Analysis
+
+Package
+
+(SNAP).
+
+[26] Sven Leyffer, Jeff Linderoth, Jim Luedtke, Ashutosh Mahajan, and Todd Munson. MINOTAUR, a toolkit for solving mixed-integer nonlinear optimization problems.
+http://wiki.mcs.anl.gov/minotaur/index.php/Main Page.
+[27] Sven Leyffer and Ilya Safro. Fast solver for optimal response to infection spread.
+http://www.mcs.anl.gov/˜ safro/optresp.html.
+[28] L.A. Meyers, B. Pourbohloul, M.E.J. Newman, D.M. Skowronski, and R.C. Brunham.
+Network theory and SARS: predicting outbreak diversity. Journal of theoretical biology,
+232(1):71–81, 2005.
+[29] G.-J. Nam and J. Cong. Modern circuit placement. Springer Publishers, 2007.
+[30] Mark Newman. Networks: An Introduction. Oxford University Press, New York, 2010.
+
+12
+
+[31] J. J. Potterat, L. Phillips-Plummer, S. Q. Muth, R. B. Rothenberg, D. E. Woodhouse,
+T. S. Maldonado-Long, H. P. Zimmerman, and J. B. Muth. Risk network structure in
+the early epidemic phase of hiv transmission in colorado springs. Sex Transmit Infect,
+78(Supplement I):159–163, 2002.
+[32] Haw ren Fang, Sophia Sakellaridi, and Yousef Saad. Multilevel manifold learning with
+application to spectral clustering. In Jimmy Huang, Nick Koudas, Gareth J. F. Jones,
+Xindong Wu, Kevyn Collins-Thompson, and Aijun An, editors, CIKM, pages 419–428.
+ACM, 2010.
+[33] Matei Ripeanu, Ian Foster, and Adriana Iamnitchi. Mapping the gnutella network: Properties of large-scale peer-to-peer systems and implications for system design. IEEE Internet
+Computing Journal, 6:2002, 2002.
+[34] Dorit Ron, Ilya Safro, and Achi Brandt. Relaxation-based coarsening and multiscale graph
+organization. Multiscale Modeling & Simulation, 9(1):407–423, 2011.
+[35] N. V. Sahinidis. BARON: A general purpose global optimization software package. Journal
+of Global Optimization, 8:201–205, 1996.
+[36] M. Ángeles Serrano, Marián Boguñá, and Alessandro Vespignani. Extracting the multiscale
+backbone of complex weighted networks. Proceedings of the National Academy of Sciences,
+106(16):6483–6488, 2009.
+[37] Eitan Sharon, Meirav Galun, Dahlia Sharon, Ronen Basri, and Achi Brandt. Hierarchy
+and adaptivity in segmenting visual scenes. Nature, 442(7104):810–813, 2006.
+[38] Ulrich Trottenberg and Anton Schuller. Multigrid. Academic Press, Orlando, FL, 2001.
+
+The submitted manuscript has been created
+in part by UChicago Argonne, LLC, Operator
+of Argonne National Laboratory (“Argonne”).
+Argonne, a U.S. Department of Energy Office of
+Science laboratory, is operated under Contract
+No. DE-AC02-06CH11357. The U.S. Government retains for itself, and others acting on
+its behalf, a paid-up nonexclusive, irrevocable
+worldwide license in said article to reproduce,
+prepare derivative works, distribute copies to
+the public, and perform publicly and display
+publicly, by or on behalf of the Government.
+
+13
+
+

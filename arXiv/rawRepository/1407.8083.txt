@@ -1,0 +1,1852 @@
+Variational cross-validation of slow dynamical modes in molecular kinetics
+Robert T. McGibbon1 and Vijay S. Pande1
+Department of Chemistry, Stanford University, Stanford CA 94305, USA
+
+arXiv:1407.8083v3 [q-bio.BM] 27 Mar 2015
+
+(Dated: 30 March 2015)
+
+Markov state models (MSMs) are a widely used method for approximating the eigenspectrum of the molecular
+dynamics propagator, yielding insight into the long-timescale statistical kinetics and slow dynamical modes of
+biomolecular systems. However, the lack of a unified theoretical framework for choosing between alternative
+models has hampered progress, especially for non-experts applying these methods to novel biological systems.
+Here, we consider cross-validation with a new objective function for estimators of these slow dynamical modes,
+a generalized matrix Rayleigh quotient (GMRQ), which measures the ability of a rank-m projection operator
+to capture the slow subspace of the system. It is shown that a variational theorem bounds the GMRQ
+from above by the sum of the first m eigenvalues of the system’s propagator, but that this bound can be
+violated when the requisite matrix elements are estimated subject to statistical uncertainty. This overfitting
+can be detected and avoided through cross-validation. These result make it possible to construct Markov
+state models for protein dynamics in a way that appropriately captures the tradeoff between systematic and
+statistical errors.
+Keywords: molecular dynamics, propagator, cross-validation, Rayleigh quotient, variational theorem
+I.
+
+INTRODUCTION
+
+Conformational dynamics are central to the biological function of macromolecular systems such as signaling proteins, enzymes, and channels. The molecular description of processes as diverse as protein folding, kinase
+activation, voltage-gating of ion channels, and ubiquitin
+signaling involve not just the structure of a unique single conformation, but the conformational dynamics between a multitude of states accessible on the potential
+energy surface.1–4 These dynamics occur on a range of
+timescales and have varying degrees of structural complexity: localized vibrations may occur on the 0.1 ps
+timescale, while large-scale structural changes like protein folding can take seconds or longer.5 Although many
+experimental techniques – most notably X-ray crystallography and nuclear magnetic resonance spectroscopy – can
+yield detailed structural information on functional conformations, the experimental characterization of the dynamical processes, intermediate conformations and transition pathways in macromolecular systems remains exceptionally challenging.6,7
+Atomistic molecular dynamics (MD) simulations can
+complement experiment and provide a powerful tool for
+probing conformational dynamics, allowing researchers
+to directly visualize and analyze the time evolution of
+macromolecular systems in atomic detail. Three major
+challenges for MD simulation of complex systems are the
+accuracy of the potential energy functions, adequate sampling of conformational space, and quantitative analysis
+of simulation results. The state-of-the-art on all three
+fronts has advanced rapidly in recent years. A new generation of increasingly accurate forcefields have recently
+emerged, such as those which include explicit polarizability and have been parameterized more systematically.8–12
+On the sampling problem, the introduction of graphical
+processing units (GPUs) has dramatically expanded the
+timescales accessible with MD simulation at modest cost,
+
+and specialized MD-specific hardware and distributed
+computing networks have yielded further gains.13–17 In
+this work, we focus on the remaining challenge, the quantitative analysis of MD simulations.
+Despite, or perhaps because of their detail, MD simulations require further analysis in order to yield insight into
+macromolecular dynamics or quantitative predictions capable of being tested experimentally. The direct result of
+a simulation, an MD trajectory, is a time series of Cartesian positions (and perhaps momenta) of dimension 3N
+(6N if momenta are retained), where N is the number of
+atoms in the system. Because routine MD simulations
+may contain tens or hundreds of thousands of atoms,
+these time series are extremely high-dimensional. A multitude of methods have been proposed for reducing the
+dimensionality or complexity of MD trajectories and enabling the analysis of the system’s key long-lived conformational states, dynamical modes, transition pathways,
+and essential degrees of freedom.18–24
+In this work, we combine two central ideas from machine learning and chemical physics – hyperparameter selection via cross-validation and variational approaches for
+linear operator eigenproblems – to create a new method
+for discriminating between alternative simplified models
+for molecular kinetics constructed from MD simulations.
+Towards this end, we prove a new variational theorem
+concerning the simultaneous approximation of the first
+m eigenfunctions of the propagator of a high-dimensional
+reversible stochastic dynamical system, which mathematically formalize the slow collective dynamical motions we
+wish to identify in molecular systems.
+
+II.
+
+CROSS VALIDATION
+
+In seeking to estimate the slowest collective dynamical
+modes of a molecular system from a finite set of stochastic trajectories, statistical noise is unavoidable. These
+
+2
+dynamical modes, which we formally identify as the first
+m eigenfunctions, φi , of the propagator, an integral operator associated with the dynamics of a molecular system (vide infra), are functions on R3N to R. Like the
+ground state wave function in quantum chemistry, these
+eigenfunctions can only be approximately represented in
+any finite basis set. Reducing this approximation error,
+a statistical bias, motivates the use of larger and more
+flexible basis sets. Unfortunately, in an effect known as
+the bias-variance tradeoff,25,26 larger basis sets tend to
+exacerbated a competing source of error, the model variance: with a fixed simulation data set but additional adjustable parameters due to a larger basis set, the model
+estimates of these eigenfunctions become more unstable
+and uncertain.
+As has been known since at least the early 1930s, training a statistical algorithm and evaluating its performance
+on the same data set generally yields overly optimistic
+results.27 For this reason, standard practice in supervised
+machine learning is to divide a data set into separate
+training and test sets. The model parameters are estimated using the training data set, but performance is
+evaluated separately by scoring the now-trained model
+on the separate test set, consisting of data points that
+were left out during the training phase. To avoid overfitting, the choice between alternative models is made using
+test set performance, not training set performance.
+However, because researchers may expend significant
+effort to collect data sets, the exclusion of a large fraction of the of the data set from the training phase can be
+a costly proposition. k-fold cross-validation is one alternative that can be more data-economical, where the data
+is split into k disjoint subsets, each of which is cycled as
+both the training and test set.
+Let X be a collection of molecular dynamics trajectories (the data set), which we assume for simplicity to
+consist of a multiple of k independent MD trajectories
+of equal length. In k-fold cross validation, the trajectories are split into k equally-sized disjoint subsets, called
+folds, denoted X (i) , for i ∈ {1, 2, . . . , k}. These will serve
+as the test sets. Let X (−i) = X \ X (i) denote the set of
+all trajectories excluded from fold i; these will serve as
+the training sets.
+Consider an algorithm to estimate the m slowest dynamical modes of the system, g. Examples of such estimators include Markov state models (MSMs)28 and timestructured independent components analysis (tICA).29,30
+The result of this calculation, the estimated eigenfunctions, φ̂1:m , are taken to be a function of both an input
+dataset, X, as well as a set of hyperparameters, θ, which
+many include settings such as the number of states or
+clustering algorithm in an MSM or the basis set used in
+tICA.
+φ̂1:m = (φ̂1 , φ̂2 , . . . , φ̂m ) = g(X, θ)
+
+(1)
+
+Furthermore,
+consider an objective function,
+O(φ̂1:m , X 0 ), which evaluates a set of proposed eigen-
+
+functions, φ̂1:m , and a (possibly new) dataset X 0 ,
+returning a single scalar measuring the performance
+or accuracy of these eigenfunctions. The mean cross
+validation performance of a set of hyperparameters
+is defined by the following expression, which builds k
+models on each of the training sets and scores them on
+the corresponding test sets.
+
+M CV (θ) =
+
+k
+1X
+O(g(X (−i) , θ), X (i) )
+k i=1
+
+(2)
+
+Model selection can be performed by finding the hyperparameters, θ∗ = arg maxθ M V C(θ), which maximize
+the cross validation performance. Many variants of this
+protocol with different procedures for splitting the training and test sets, such as repeated random subsampling
+cross-validation and leave-one-out cross validation, are
+also possible.31
+The remainder of this work seeks to develop a suitable
+objective function, O, for estimates of the slow dynamical
+modes in molecular kinetics that can be used as shown
+above in a cross-validation protocol. This task is complicated by the fact that no ground-truth values of true
+eigenfunctions, φi , are available, either in the training or
+test sets. Nevertheless, our goal is to construct a consistent objective function, such that as the size of a molecular dynamics data set, X grows larger, the maximizer of
+O(·, X) converges in probability to the true propagator
+eigenfunctions, φ1:m .
+p
+
+arg max O(φ̂1:m , X) −
+→ φ1:m
+
+(3)
+
+φ̂1:m
+
+III.
+
+THEORY BACKGROUND
+
+We begin by introducing the notion of the propagator
+and its eigenfunctions from a mathematical perspective,
+introducing the key variables and notation that will be
+essential for the remainder of this work. We largely follow
+the order of presentation in Prinz et al. 28 which contains
+a longer and more thorough discussion.
+Consider a time-homogeneous, ergodic, continuoustime Markov process x(t) ∈ Ω which is reversible with
+respect to a stationary distribution stationary distribution µ(x) : Ω → R+ . Where necessary for concreteness,
+we take the phase space, Ω, to be R3N , where N is the
+number of atoms of a molecular system. The system’s
+stochastic evolution over an interval τ > 0 is described
+by a transition probability density
+p(x, y; τ )dy = P[x(t + τ ) ∈ B (y) | x(t) = x],
+
+(4)
+
+where B (y) is the open -ball centered at y with infinitesimal measure dy.
+Consider an ensemble of such systems at time t, distributed according to some probability distribution pt (x).
+
+3
+After waiting for a duration τ , the distribution evolves
+to a new distribution,
+Z
+pt+τ (y) =
+dx p(x, y; τ ) pt (x) = P(τ ) ◦ pt (y), (5)
+Ω
+
+which defines a continuous integral operator, P(τ ), called
+the propagator with lag time τ . The propagator, P(τ ),
+admits a natural decomposition in terms of its eigenfunctions and eigenvalues
+P(τ ) ◦ φi = λi φi .
+
+(6)
+
+Furthermore, due to the reversibility of the underlying
+dynamics, P(τ ) is compact and self-adjoint with respect
+the a µ−1 weighted scalar product,32
+Z
+hf, giµ−1 =
+dx f (x)g(x)µ−1 (x),
+(7)
+Ω
+
+where f and g are arbitrary scalar functions on Ω. The
+propagator has a unique largest eigenvalue λ1 = 1 with
+corresponding eigenfunction φ1 (x) = µ(x). The remaining eigenvalues are real and positive, can be sorted in
+descending order, and can be normalized to be µ−1 orthonormal. Using the spectral decomposition of P(τ ),
+the conformational distribution of an ensemble at arbitrary multiples of τ can be written as a sum of exponentially decaying relaxation processes
+pt+kτ (x) =
+
+∞
+X
+
+λki hpt , φi iµ−1 φi ,
+
+
+
+kτ
+exp −
+= µ(x) +
+hpt , φi iµ−1 φi ,
+ti
+i=2
+
+Pm =
+
+argmin
+
+||Am − P||µ−1 .
+
+(10)
+
+rank(Am )≤m
+
+Proof. This is the extension of the familiar Eckart-Young
+theorem to self-adjoint linear operators. The original result is by Schmidt.33 See Courant and Hilbert (pp 161),34
+and Micchelli and Pinkus 35 for further details.
+While Theorem 1 is a statement about operator approximation, it can also be viewed as a statement about
+optimal dimensionality reduction for description of slow
+dynamics. Over all m-dimensional dimensionality reductions, the one which projects the dynamics onto its first
+m propagator eigenfunctions preserves to the largest degree information about the long-timescale evolution of
+the original system.
+Note however that rank-constrained propagator, Pm ,
+while optimal by spectral norm is not generally
+positivity-preserving, as proved in Appendix B, which
+is an important property of the propagator necessary for
+its probabilistic interpretation in Eq. (5).
+
+(8)
+IV. OBJECTIVE FUNCTION AND SUBSPACE
+VARIATIONAL PRINCIPLE
+
+i=1
+∞
+X
+
+Theorem 1. Let P be compact linear operator which
+is self-adjoint with respect to an inner product h·, ·iµ−1 .
+Assume that the eigenvalues λi and associated eigenfunctions φi are sorted in descending order by eigenvalue.
+Define the rank-m operator Pm such that Pm ◦ f =
+P
+m
+i=1 λi hf, φi iµ−1 φi , and let Am be an arbitrary rank m
+operator. Then,
+
+(9)
+
+τ
+. The eigenfunctions φi (x) for i = 2, ...
+where ti = −
+ln λi
+can thus be interpreted as dynamical modes, along each
+of which the system relaxes towards equilibrium with a
+characteristic timescale, τi . Many molecular systems are
+characterized by m individual slow timescales with eigenvalues close to one, separated from the remaining eigenvalues by a spectral gap. These slowest collective degrees
+of freedom, such as protein folding coordinates and pathways associated with enzyme activation/deactivation, are
+often identified with key functions in biological systems.
+The remaining small eigenvalues correspond to faster dynamical processes that rapidly decay to equilibrium. Under these conditions, the long-time dynamics induced by
+the propagator can be well described by consideration of
+only these slow eigenfunctions – that is, a rank-m lowrank approximation to the propagator.
+Furthermore, not only do these slow eigenfunctions
+form a convenient basis, in fact they lead to an optimal
+reduced-rank description of the dynamics. That is, each
+of the partial sums formed by truncating the expansion
+in Eq. (8) at its first m terms is is the closest possible
+rank-m approximation to P(τ ) in spectral norm. This
+statement is made precise by the following theorem.
+
+In this section we introduce the objective function discussed abstractly in Section II. We show that both the
+existing time-structure independent components analysis (tICA)29,30 and Markov state model (MSM)28,36–39
+methods can be interpreted as procedures which directly
+optimize this criteria using different restricted families
+of basis functions. Furthermore, we show that in the
+infinite-data limit, when the requisite matrix elements
+can be computed without error, a variational bound governs this objective function: ansatz eigenfunctions, φ̂1:m ,
+which differ from the propagator’s true eigenfunctions,
+φ1:m , are always assigned a score which is less than the
+score of the true eigenfunctions.
+Unfortunately, in the more typical finite-data regime,
+this variational bound can be violated in a pernicious
+manner: as the size of the basis set increases past
+some threshold, models can give continually-increasing
+training set performance (even breaking the variational
+bound), even as they get less accurate when measured
+on independent test data sets. This observation underscores the practical value of cross-validation in estimators
+for the slow dynamical processes in molecular kinetics.
+Our results build on the important contributions of
+Noé and Nüske 40 and Nüske et al. 41 , who introduced a
+closely related variational approach for characterizing the
+
+4
+slow dynamics in molecular systems. Our novel contribution stems from an approach to the problem through the
+lens of cross-validation, with its need for a single scalar
+objective function. While previous work focuses on estimators of each of the propagator eigenfunctions, φi , one
+at at time, we focus instead on measures related to the simultaneous estimation of all of the first m eigenfunctions
+collectively.
+Theorem 2. Let P be compact linear operator whose
+eigenvalues λ1 > λ2 ≥ λ3 , . . . are bounded from above
+and which is self-adjoint with respect to an inner product
+h·, ·iµ−1 . Furthermore, let f be an arbitrary set of m linearly independent functions on Ω → R, f = {fi (·)}m
+i=1 .
+Let Sm and Sm
+be
+the
+space
+of
+m
+×
+m
+real
+symmetric
+++
+matrices and positive definite matrices respectively. Define a matrix P ∈ Sm with Pij = hfi , P ◦ fj iµ−1 , and a
+matrix Q ∈ Sm
+++ with Qij = hfi , fj iµ−1 . Define RP [f ] as
+
+RP [f ] = Tr P Q−1 .
+(11)
+Then,
+RP [f ] ≤
+
+m
+X
+
+λi .
+
+(12)
+
+i=1
+
+Lemma 3. The equality in Eq. (12) holds for f =
+{φ1 , φ2 , . . . , φm }, and any set of m functions, f , such
+that span(f ) = span({φ1 , φ2 , . . . , φm }).
+The proof of Theorem 2 follows from the Ky Fan
+theorem.42,43 Its proof, as well as the proof of Lemma 3
+can be found in Appendix A.
+This result implies that the slow eigenspace of the
+molecular propagator can be numerically determined by
+simultaneously varying a set of ansatz functions f to
+maximize RP [f ]. If the maxima is found, then f are
+the desired eigenfunctions, up to a rotation. The matrix
+P has the form of a time-lagged covariance matrix between the ansatz functions, describing the tendency of
+the system to move from regions of phase space strongly
+associated one ansatz function to another in time τ . The
+matrix Q acts like a normalization, giving the equilibrium overlap between ansatz functions. Note that when
+the trial functions, f , are µ−1 -orthonormal, Q, is simply
+the identity. Under these conditions, RP [f ] then assumes
+a simple form as the sum of the individual Ritz values of
+the trial functions.
+Physically, RP [f ] can be interpreted as the “slowness” of the lower-dimensional dynamical process formed
+by projecting a high-dimensional process through the
+m ansatz functions. The maximization of RP [f ] corresponds to a search for the coordinates along which the
+system decorrelates as slowly as possible.
+Because it is bounded by the sum of the first m true
+eigenfunctions of the propagator, RP [f ], is the foundation of the sought objective function for cross-validation
+of estimators for the slow dynamical modes in molecular
+kinetics. Unfortunately, it cannot be calculated exactly
+
+from a molecular dynamics simulation. Next we show
+how the requisite matrix elements, Pij and Qij can be
+approximated from MD. The noise in these approximations will be a function of both the amount of available
+simulation data and the size and flexibility of a basis set,
+leading to the bias variance tradeoff discussed earlier. By
+the continuous mapping theorem and Theorem 2, consistency of the objective function (in the sense of Eq. (3)) is
+established if these estimators for P and Q are consistent.
+
+A.
+
+Basis Function Expansion
+
+Equipped with this variational theorem, we now consider the construction of an approximation to the dominant eigenspace of P(τ ) using linear combinations of
+functions from a finite basis set. This reduces the problem of searching over the space of sets of m functions to
+a problem of finding a weight matrix that linearly mixes
+the basis functions.
+Let {ϕa }na=1 be a set of n functions on Ω → R, which
+will be used as basis functions in which to expand the
+slowest m propagator eigenfunctions. Physically motived
+basis functions for protein dynamics might include measurements of protein backbone dihedral angles, the distances between particular atoms, or similar structural
+coordinates. The basis can also be indicator functions
+for specific regions of phase space – the “Markov states”
+in a MSM.
+Following Nüske et al. 41 , we expand the m ansatz
+eigenfunctions as µ-weighted
+P linear combinations of the
+basis functions, fi (x) =
+a Aia µ(x)ϕa (x), where A ∈
+Rn×m is a weight matrix of arbitrary expansion coefficients. From the basis functions, we define the timelagged covariance and overlap matrices C ∈ Sn and
+S ∈ Sn++ respectively such that Cij = hµϕi , P ◦ µϕj iµ−1
+and Sij = hµϕi , µϕj iµ−1 .
+Then, by exploiting the linearity of the basis function
+expansion, the matrices P and Q, can be written as matrix products involving the expansion coefficients, correlation and overlap matrices.
+P = AT CA
+
+(13)
+
+T
+
+Q = A SA
+
+(14)
+
+These equations can be interpreted in a simple way:
+the time-lagged correlation and overlap of the ansatz
+functions with respect to on another can be formed from
+two similar matrices involving only the basis functions,
+C and S, and the expansion coefficients, A. When the
+ansatz functions, f , are constructed this way, RP [f ]
+reduces to the generalized matrix Rayleigh quotient
+(GMRQ), RP [f ] = R(A; C, S) = R(A)
+R(A) ≡ Tr AT CA (AT SA)−1
+
+
+
+(15)
+
+5
+Following Lemma 3, we note that R(A) is a function
+only of column span of A, and is not affected by rescaling, or the application of any invertible transformation
+of the columns. Therefore, the optimization of R(A) can
+be seen as a single optimization problem over the set of
+all m-dimensional linear subspaces of Ω. This space is
+referred to as a Grassmann manifold.44 Note that when
+m = 1, P and Q are scalars, and R(A) reduces to a
+standard generalized Rayleigh quotient.
+Furthermore, with fixed basis functions, the training
+problem, A∗ = arg maxA R(A; C, S), is solved directly
+by a matrix A∗ with columns that are the m generalized
+eigenvectors of C and S with the largest eigenvalues, and
+this eigenproblem is identical to the one introduced for
+the tICA method,29,30 and Ritz method.40
+
+B.
+
+Estimation of matrix elements from MD
+
+Equipped with a collection of basis functions, {ϕ}, how
+can C and S be estimated from an MD dataset? As
+previously shown by Nüske et al. 41 , the matrix elements
+C and S can be estimated from an equilibrium molecular
+dynamics simulations, X = {xt }Tt=1 , by exploiting the
+ergodic theorem and measuring the correlation between
+the basis functions, with or without a time lag.
+Cij = hµϕi , P(τ ) ◦ µϕj iµ−1
+(16)
+Z
+Z
+=
+dx dy µ(y) ϕi (y) p(x, y; τ ) ϕj (x)
+x∈Ω
+
+1
+T −τ
+
+T
+−τ
+X
+
+ϕi (xt )ϕj (xt+τ )
+
+≈
+
+1
+T
+
+(18)
+
+t=1
+
+Sij = hµϕi , µϕj iµ−1
+Z
+=
+ϕi (x)ϕj (x)µ(x)
+x∈Ω
+T
+X
+
+ϕMSM
+(xt )
+i
+
+(
+1, if xt ∈ si .
+=
+0, otherwise.
+
+(22)
+
+Using this basis set, as previously shown by Nüske
+et al. 41 , estimates of the correlation matrix elements
+Cij can be obtained following Eq. (18) by counting the
+number of observed transitions between sets si and sj .
+The overlap matrix S is diagonal with entries, Sii , that
+estimate
+the stationary probabilities of the sets, Sii ≈
+R
+dx
+µ(x).
+x∈si
+For the particular case of MSM basis sets, in contrast to the somewhat crude transpose symmetrization
+method, a more elegant enforcement of symmetry of C
+can be accomplished via a maximum likelihood estimator
+following Algorithm 1 of Prinz et al.28
+Equipped with these estimators for C and S from MD
+data, Eq. (15) now has a form which is suitable for use as
+a cross-validation objective function, O(φ̂1:m , X 0 ). The
+proposed eigenfunctions, which may have been trained
+on a different dataset, are numerically represented by
+expansion coefficients, Â, and C and S act as sufficient
+statistics from the test dataset X 0 ; the GMRQ objective
+function is R(Â; C(X 0 ), S(X 0 )).
+
+V.
+
+ALGORITHMIC REALIZATION
+
+y∈Ω
+
+(17)
+≈
+
+n
+overlapping states
+Sn which partition Ω, S = {si }i=1 , such
+that si ⊆ Ω, i=1 si = Ω, and si ∩ sj = ∅, and define
+
+ϕi (xt )ϕj (xt )
+
+(19)
+(20)
+(21)
+
+t=1
+
+Note that for Theorem 2 to be applicable, C is required
+to be symmetric, a property which is likely to be violated
+by the estimator Eq. (18). For this reason, in practice we
+use an estimator that averages the matrix computed in
+Eq. (18) with its transpose. We call this method transpose symmetrization, and it amounts to including each
+trajectory twice in the dataset, once in the forward and
+once in the reversed direction, as discussed in Schwantes
+and Pande.29
+Markov state models (MSMs)28,36–39 are particular
+case of the proposed method that have been widely applied to the analysis of biomolecular simulations45–53 ,
+where the basis functions are chosen to indicator functions on a collection of non-overlapping subsets of the
+conformation space.
+Given a set of discrete non-
+
+The central practical purpose of cross-validation with
+generalized matrix Rayleigh quotient (GMRQ) is, given
+an MD dataset, to select a set of appropriate basis
+functions with which to construct Markov state models
+(MSMs) for system’s kinetics. Note that Eq. (22) leaves
+substantial flexibility in the definition of the basis set,
+since the partitioning of phase space into states is left
+unspecified.
+Methodologies for constructing these states include
+clustering the conformations in the dataset using a variety of distance metrics, clustering algorithms, and dimensionality reduction techniques. Let θ be a variable
+containing the settings for these procedures, which parameterizes a function, gθMSM (X), that, given a collection
+of MD trajectories, returns a set of n states, S.
+Procedurally, GMRQ-based cross-validation for MSMs
+is a protocol for assigning a scalar score, M CV (θ), to the
+MSM hyperparameters, θ, with the following steps.
+1. Separate the full data set into k disjoint folds, as
+described in Section II.
+2. For each fold, i, use the training data set, X (−i) ,
+to construct a set of states, S (−i) = gθ (X (−i) ).
+3. Use the states S (−i) and the training data set
+X (−i) to build a Markov state model.
+This
+
+6
+entails clustering the dataset to obtain the basis functions (states), {ϕ}, estimating the training set correlation and overlap matrices C (−i)
+and S (−i) from the trajectories, and computing their first m generalized eigenvectors, A =
+arg maxA R(A; C −(i) , S (−i) ), with a standard generalized symmetric eigensolver (e.g. LAPACK’s
+dsygv subroutine).54
+4. These eigenvectors maximize the GMRQ on the
+training set, but how do they perform when tested
+on new data? Using the test set data, X (i) , and the
+states, S (−i) , as determined from the training set,
+compute the test set correlation and overlap matrices, C (i) and S (i) . These trained eigenvectors, A,
+are scored on the test set by R(A; C (i) , S (i) ). The
+key metric for model selection, the cross-validation
+mean test set generalized matrix Rayleigh quotient
+is
+M V C(θ) = k
+
+−1
+
+k
+X
+
+R(A; C
+
+(i)
+
+,S
+
+(i)
+
+).
+
+(23)
+
+i=1
+
+As an overfitting diagnostic, we also calculate the
+cross-validation mean training set GMRQ,
+M V C 0 (θ) = k −1
+
+k
+X
+
+R(A; C (−i) , S (−i) ).
+
+(24)
+
+i=1
+
+5. Finally, the entire procedure is repeated for many
+choices of θ, and the hyperparameter set that maximize the mean cross validation score is chosen as
+the best model, θ? = arg maxθ M V C(θ).
+For this approach, one symptom of overfitting – the
+construction of models that describe the statistical noise
+in X rather than the underlying slow dynamical processes
+– is an overestimation of the eigenvalues of the propagator and overestimation of the GMRQ. Related statistical
+methods, such as kernel principal components analysis
+which also involve spectral analysis of integral operators
+under non-negligible statistical error suffer from the same
+effect, which has been termed variance inflation.55–57
+Left unspecified in this protocol are three important
+parameters: the degree of cross validation, k, the number of desired eigenfunctions, m, and the correlation lag
+time, τ . In our experiments, following common practice in the machine learning community, we use k = 5.
+Especially in the data-limited regime, the tradeoffs involving the choice of k are not entirely clear, as the objective lacks the form of an empirical risk minimization
+problem.26,58 For MSMs, substantial attention in the literature has been paid to the selection of the lag time,
+τ .28,38,59 With fixed basis function, it has been shown
+that the eigenfunction approximation error is a decreasing function of the τ , which motivates the use of larger
+values.60 On the other hand, larger values of τ limit the
+temporal resolution of the model. For MSMs of protein
+
+folding, the authors’ experience suggest that appropriate values for τ are often in the range between 1 and
+100 nanoseconds. Finally, we suggest that m, the rank of
+GMRQ, be selected based on the number of slow dynamical processes in the system, as determined by an apparent
+gap in the eigenvalue spectrum of P(τ ), or heuristically
+to a value between 2 and ∼ 10.
+
+VI.
+A.
+
+SIMULATIONS
+Double Well Potential
+
+In order to gain intuition about the method, we begin
+by considering one of simplest possible systems: Brownian dynamics on a double well potential. We consider a
+one dimensional Markov process in which a single particle
+evolves according to the stochastic differential equation
+√
+dxt
+= −∇V (xt ) + 2DR(t)
+dt
+
+(25)
+
+where V is the reduced potential energy, D is the diffusion constant, and R(t) is a zero-mean delta-correlated
+stationary Gaussian process. For simplicity, we consider
+the potential
+V (x) = 1 + cos(2x)
+
+(26)
+
+with reflecting boundary conditions at x = −π and
+x = π. Using an Euler integrator, a time step of
+∆t = 10−3 , and diffusion constant D = 103 , we simulated 10 trajectories starting from x = 0 of length 105
+steps, and saved the position every 100 steps. The potential and histogram of the resulting data points is shown
+in Fig. 1 (b). We computed the true eigenvalues of the
+system’s propagator to machine precision by discretizing
+the propagator matrix elements on a dense grid (see Appendix C). The timescale of the slowest relaxation process in this system is t2 ≈ 7115.3 steps, and the dataset
+contains approximately 94 transitions events.
+We now consider the construction of Markov state
+models for this system, and in particular the selection
+of the number of states, n, using states, S = {si }ni=1 ,
+which evenly partition the region between x = −π and
+x = π into n equally spaced intervals.
+h
+2π
+2π 
+si = − π +
+(i − 1), −π +
+i
+n
+n
+
+(27)
+
+When n is too low, we expect that the discretization
+error in the MSM will dominate, and our basis will not
+be flexible enough to capture the first eigenfunction of
+the propagator. On the other hand, because the number of parameters estimated by the MSM is proportional
+to n2 , we expect that for n too large, our models will
+be overfit. We therefore use 5-fold cross validation with
+the GMRQ to select the appropriate number of states,
+balancing these competing effects. The cross-validation
+
+7
+GMRQ for the first two eigenvectors (m = 2, τ = 100
+steps) of the MSMs is shown in Fig. 1 (a), along with the
+exact value of the GMRQ. The blue training curve gives
+the average GMRQ over the folds when scoring the models on the same trajectories that they were fit with, and
+is simply equal to the mean sum of the first two eigenvalues of the MSMs, whereas the red curve shows the mean
+GMRQ evaluated on the left-out test trajectories.
+The training GMRQ increases monotonically, and we
+note with particular emphasis that it increases past the
+exact value when using a large number of states. This indicates that the models built with more than 200 states
+predict slower dynamics than the true propagator. This
+effect is impossible in the limit of infinite data as demonstrated by Eq. (12) – it is a direct manifestation of overfitting, and indicates why straightforward variational optimization without testing on held-out data or consideration of statistical error fails in a data-limited regime. The
+training set eigenvectors, the maximizers of the training
+set GMRQ, are actually exploiting noise in the dataset
+more so than modeling the propagator eigenfunctions.
+On the other hand, the test GMRQ displays an inverted
+U-shaped behavior and achieves a maximum at k = 61.
+These models thus achieve the best predictive accuracy
+in capturing the systems slow dynamics, given the finite
+data available.
+
+cesses in addition to the stationary distribution. The
+results are shown in Fig. 2, with blue curves indicating
+the mean GMRQ on the training set, and red curves indicating the mean performance on the held-out sets. We
+find that in all cases, the performance on the training set
+is optimistic, in the sense that the ansatz eigenvectors
+fit during training score more poorly when reëvaluated
+on held out data. Furthermore, although the training
+curves all continue to increase with respect to the number of states within the parameter range studied – which
+might be interpreted from a variational perspective as
+the quality of the models continually increasing – the
+performance on the test sets tends to peak at a moderate number of states and then decrease. We interpret
+this as a sign of overfitting: when the number of states is
+too large, with models fitting the statistical noise in the
+dataset rather than the underlying slow dynamical processes. Of the parameters studied, the best performance
+appears to be using the combination of k-means clustering with the dihedral distance metric, using between 50
+and 200 states. We also note that k-centers appears to
+yield particularly poor models for all distance metrics,
+which may be rationalized on the basis that, by design,
+the algorithm selects outlier conformations to serve as
+cluster centers.63
+
+B.
+
+VII.
+
+Comparison of Clustering Procedures: Octaalanine
+
+What methods of MSM construction are most robustly
+able to capture the long-timescale dynamics of protein
+systems? To address this question, we performed a series of analyses of 27 molecular dynamics trajectories
+of terminally-blocked octaalanine, a small helix forming
+peptide. We used 8 different methods to construct the
+state discretization using clustering with three distance
+metrics and three clustering algorithms.
+For clustering, we considered three distance metrics.
+The first was the backbone φ and ψ dihedral angles.
+Each conformation was represented by the sine and cosine of these torsions for a total of 32 features per frame,
+and distances for clustering were computed using a Euclidean metric. Second, we considered the distribution of
+reciprocal interatomic distances (DRID) distance metric
+introduced by Zhou and Caflisch,61 using the Cα, Cβ,
+C, N , and O atoms in each residue. Finally, we considered the Cartesian minimal root mean square deviation
+(RMSD) using the same set of atoms per residue.62 We
+also considered three clustering algorithms, k-centers,63 a
+landmark version of UPGMA hierarchical clustering (see
+Appendix D), and k-means.64
+For each pair of distance metric and clustering
+algorithm (excluding k-means & RMSD which are
+incompatible),65 we performed 5-fold cross validation using between 10 and 500 states for the clustering. For this
+experiment, we heuristically chose a lag time of τ = 10
+ps, and m = 6, to capture the first five dynamical pro-
+
+DISCUSSION
+
+Some amount of summarization, coarse-graining or dimensionality reduction of molecular dynamics data sets
+is a necessary part of their use to answer questions in
+biological physics. In this work, we argue that the goal
+of this effort should essentially be to find the dominant
+eigenfunctions of the system’s propagator, an unknown
+integral operator controlling the system’s dynamics. We
+show that this goal can be formulated as the variational
+optimization of a single scalar functional, which can be
+approximated using trajectories obtained from simulation and a parametric basis set. Although overfitting is
+a concern with finite simulation data, this risk can be
+mitigated by the use of cross-validation.
+When the basis sets are restricted to mutuallyorthogonal indicator functions or linear functions of the
+input coordinates, this method corresponds to the existing MSM and tICA methods. Unlike previous formulations, it provides a method by which MSM and tICA
+solutions can be “scored” on new data sets that were
+not used during parameterization, making it possible to
+measure the generalization performance of these methods
+and choose the various hyperparameters required for each
+method, such as the number of MSM states or clustering method. Furthermore, the extension to other families
+of basis functions (e.g Gaussians) is straightforward, and
+GMRQ provides a natural quantitative basis on which
+to conclude whether these new methods are superior to
+existing basis sets.
+
+103
+
+Exact
+MVC' (Train)
+MVC (Test)
+
+102
+
+Number of states
+
+1.5
+102
+
+101
+
+103
+
+2.0
+Energy
+
+1.990
+1.985
+1.980
+1.975
+1.970
+1.965
+1.960
+(a)
+1.955 1
+10
+
+Frequency
+
+GMRQ-2
+
+8
+
+1.0
+
+(b)
+3
+
+Potential 0.5
+Samples
+
+2
+
+1
+
+0
+
+Position
+
+1
+
+2
+
+3
+
+0.0
+
+FIG. 1. Model selection for MSMs of a double well potential. Error bars indicate standard deviations over the 5 folds of cross
+validation. See text for details.
+6.0
+
+MCV' (Train)
+MCV (Test)
+
+GMRQ-6
+
+5.5
+5.0
+4.5
+
+GMRQ-6
+
+4.0
+
+6.0
+
+5.5
+
+5.5
+
+5.0
+
+5.0
+
+4.5
+
+K-centers // Dihedral
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+4.0
+
+4.5
+
+Hierarchical // Dihedral
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+4.0
+
+6.0
+
+6.0
+
+6.0
+
+5.5
+
+5.5
+
+5.5
+
+5.0
+
+5.0
+
+5.0
+
+4.5
+
+4.5
+
+4.5
+
+4.0
+
+GMRQ-6
+
+6.0
+
+K-centers // DRID
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+4.0
+
+6.0
+
+6.0
+
+5.5
+
+5.5
+
+5.0
+
+5.0
+
+4.5
+4.0
+
+Hierarchical // DRID
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+400
+
+500
+
+4.0
+
+K-means // Dihedral
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+300
+
+400
+
+500
+
+K-means // DRID
+0
+
+100
+
+200
+
+4.5
+
+K-centers // RMSD
+0
+
+100
+
+200
+
+300
+
+Number of states
+
+400
+
+500
+
+4.0
+
+Hierarchical // RMSD
+0
+
+100
+
+200
+
+300
+
+Number of states
+
+FIG. 2. Comparison of 8 methods for building MSMs under 5-fold cross validation, evaluated using the rank-6 GMRQ. We used
+the k-centers, k-means, and landmark-based (nlandmarks = 5000) UPGMA hierarchical clustering algorithms, with the DRID61
+and backbone dihedral angle featurizations. Error bars indicate the standard error in the mean over the cross validation folds.
+
+A. Connections to quantum mechanics and machine
+learning
+
+The variational theorem for eigenspaces in this work
+has strong connections to work in two other related fields:
+excited state electronic structure theory in quantum mechanics and multi-class Fisher discriminant analysis in
+machine learning. In quantum mechanics, Theorem 2 is
+analogous to what has been called the ensemble or trace
+variational principle in that field,66–69 which bounds the
+sum of the energy of the first m eigenstates of the Hamiltonian by the trace of a matrix of Ritz values. While
+
+the goal of finding just the ground-state eigenfunction
+(m = 1) is more common in computational quantum
+chemistry, the simultaneous optimization of many eigenstates is critical for many applications including bandstructure calculations for materials in solid state physics.
+Furthermore, in machine learning, this work has an
+analog in the theory multi-class Fisher discriminant
+analysis.70 Here, the goal is to find a low-rank projection of a labeled multi-class dataset which maximizes the
+between-class variance of the dataset while controlling
+the within-class variances. The optimal discriminant vectors are shown to be the first k generalized eigenvectors
+
+9
+of an eigenproblem involving these two variance matrices – the problem shares the same structure as Eq. (15)
+in this work.71 We anticipate that this parallel will aid
+the development of improved algorithms for the identification of slow molecular eigenfunctions, especially with
+respect to regularization and sparse formulations.72,73
+
+B.
+
+Comparison to likelihood maximization
+
+While we focus on the identification of the dominant
+eigenfunctions of the system’s propagator, a different
+viewpoint is that analysis of MD should essential entail
+the construction of probabilistic, generative models over
+trajectories, fit for example by maximum likelihood or
+Bayesian methods.
+As we show in Section IV B, and Nüske et al. 41 have
+shown earlier, MSMs arise naturally from a maximization of Eq. (12) when the ansatz eigenfunctions are constrained to be linear combinations of a set of mutually
+orthogonal indicator functions. However, MSMs can also
+be viewed directly as probabilistic models, constructed
+by maximizing a likelihood function of the trajectories
+with respect to the model parameters. This probabilistic view has, in fact, been central to the field, driving the development of improved methods for example
+in model selection,25,74 parameterization,75 and coarsegraining.76,77 To what extent does this imply that the
+variational and probabilistic views are equivalent?
+In Appendix B we show that while these two views may
+coincide for the particular choice of basis set with MSMs,
+they need not be equivalent in general. In fact, the
+GMRQ-optimal model formed by the first m eigenfunctions of the propagator need not be positivity preserving, which is essential to form a probabilistic likelihood
+function in the sense of Kellogg, Lange, and Baker 74 or
+McGibbon, Schwantes and Pande.25 On the other hand,
+the two views are tightly coupled; their connection is
+given by the error bounds proved by Sarich, Noé, and
+Schütte 60 . When the model gives a good approximation
+to the slow propagator eigenspace (low eigenfunction approximation error, high GMRQ), a good approximation
+to the long-timescale transition probabilities is obtained.
+Cross validation with the log likelihood requires either
+a generative model for the high dimensional data, such
+as a hidden Markov model (HMM),78 or dimensionality reduction before model comparison. This is a major
+disadvantage, because accurate and tractable generative
+models for time series with tens or hundreds of thousands
+dimensions are not generally available. However, treating
+dimensionality reduction as a preprocessing and applying
+probabilistic models afterwards, as done by McGibbon,
+Schwantes, and Pande 25 , does not enable quantitative
+comparison between alternative competing dimensionality reduction protocols. With the GMRQ, on the other
+hand, the need for a reference state decomposition or
+high-dimensional generative model is eliminated,76 and
+different dimensionality reduction procedures can easily
+
+be compared in a quantitative manner, as shown in Fig. 2.
+
+VIII.
+
+CONCLUSIONS
+
+The proliferation of new and improved methods for
+constructing low-dimensional models of molecular kinetics given a set of high-resolution MD trajectories has been
+a boon to the field, but the lack of a unified theoretical
+framework for choosing between alternative models has
+hampered progress, especially for non-experts applying
+these methods to novel biological systems. In this work
+we have presented a new variational theorem governing
+the estimation of the space formed by the span of multiple eigenfunctions of the molecular dynamics propagator.
+With this method, a single scalar-valued functional scores
+a proposed model on a supplied data set, and the use of
+separate testing and training data sets makes it possible to quantify and avoid statistical overfitting. During the training step, time-structure independent components analysis (tICA) and Markov state models (MSMs)
+are specific instance of this method with different types
+basis functions. This method extends these tools, making it possible to score trained models on new datasets
+and perform hyperparameter selection.
+We have applied this approach to compare eight different protocols for Markov state model construction on
+a set of MD simulations of the octaalanine peptide. We
+find that of the methods tested, k-means clustering with
+the dihedral angles using between 50 and 200 states appears to outperform the other methods, and that the
+k-centers cluster method can be particularly prone to
+poor generalization performance. To our knowledge, this
+work is the first to enable such quantitative and theoretically well-founded comparisons of alternative parameterization strategies for MSMs.
+We anticipate that this work will open the door to
+more complete automation and optimization of MSM
+construction. Free and open source software fully implementing these methods is available in the MDTraj
+and MSMBuilder3 packages from http://mdtraj.org
+and http://msmbuilder.org, along with example and
+tutorials.79 While the lag time, τ and rank, m, of the
+desired model must be manually specified, other key hyperparameters that control difficult-to-judge statistical
+tradeoffs, such as the number of states in an MSM, can be
+chosen be optimizing the cross-validation performance.
+Furthermore, given recent advances in automated hyperparameter optimization in machine learning, we anticipate that this search itself can be fully automated.80
+
+ACKNOWLEDGEMENTS
+
+This work was supported by the National Science
+Foundation and National Institutes of Health under Nos.
+NIH R01-GM62868, NIH S10 SIG 1S10RR02664701, and
+NSF MCB-0954714. We thank the anonymous review-
+
+10
+ers for their many suggestions for improving this work,
+Christian R. Schwantes, Mohammad M. Sultan, Sergio
+Bacallado, and Krikamol Muandet for helpful discussions, and Jeffrey K. Weber for access to the octaalanine
+simulations.
+Appendix A: Proofs of Theorem 2 and Lemma 3
+Proof of Theorem 2
+
+The eigenfunctions, φP
+i , of P(τ ) form a complete basis. Expand each fi = a wai φa with coefficients W ∈
+R∞×m with Wni = hfi , φn iµ−1 .
+Pij = hfi , P ◦ fj iµ−1
+DX
+E
+X
+=
+Wai φa , P ◦
+Wbj φb
+a
+
+=
+
+X
+
+µ−1
+
+b
+
+(A1)
+(A2)
+
+Wai Waj λa
+
+(A3)
+
+Qij = hfi , fj iµ−1
+DX
+E
+X
+Wai φa ,
+Wbj φb
+=
+
+(A4)
+
+a new collection
+Pm of functions g = {g1 , g2 , . . . , gm }, such
+that gj = i=1 Mij fi , and a matrix W 0 ∈ R∞×m such
+0
+= hgi , φn iµ−1 . Expanding the matrix elements
+that Wni
+0
+of W , we note that
+W 0 = W M.
+
+(A13)
+
+Then, using Eq. (A7) and Eq. (A8), RP [g] can be written
+as a matrix expression involving W 0 , and subsequently
+rewritten involving W and M . Expansion of the matrix
+products and application of the cyclic property of the
+trace confirms that RP [g] = RP [f ]:
+RP [g] = Tr W 0T D(λ)W 0 (W 0T W 0 )−1 ),
+
+(A14)
+
+= Tr (W M ) D(λ)(W M )((W M ) (W M ))−1 ,
+(A15)
+
+T
+T
+−1
+T
+−1
+−T
+= Tr M W D(λ)W M (W W ) M
+,
+(A16)
+
+= Tr W T D(λ)W (W T W )−1 ,
+(A17)
+T
+
+= RP [f ].
+
+T
+
+(A18)
+
+a
+
+a
+
+=
+
+X
+
+µ−1
+
+b
+
+Wai Waj
+
+(A5)
+(A6)
+
+a
+
+We define the diagonal matrix D(λ) with Dii = λi .
+Then, Eq. (A3) and Eq. (A6) can be rewritten in matrix
+form:
+P = W T D(λ)W,
+
+(A7)
+
+T
+
+(A8)
+
+Q = W W.
+
+Let F = Q1/2 ∈ Sm
+++ be the (unique) positive definite
+square root of Q, which is guaranteed to exist because Q
+is positive definite, and B = W F −1 . Then, rearrange the
+objective function using the cyclic property of the trace:
+
+RP [f ] = Tr W T D(λ)W (F F )−1 ,
+(A9)
+|
+{z
+} | {z }
+Q−1
+
+P
+
+
+W D(λ)W F −1 ,
+
+= Tr B T D(λ)B .
+= Tr F
+
+−1
+
+T
+
+(A10)
+(A11)
+
+Note that B T B = F −1 W T W F −1 = Im . Therefore, by
+application of the Ky Fan theorem,42,43
+RP [f ] ≤
+
+m
+X
+
+λi ,
+
+(A12)
+
+i
+
+and the equality holds when f = {φ1 , φ2 , . . . , φm }.
+Proof of Lemma 3
+
+Following Absil et al. 44 , let f = {f1 , f2 , . . . , fm }, and
+M ∈ Rm×m be an arbitrary invertible matrix. Define
+
+The significance of this result is that it demonstrates
+RP to be invariant to linear transformations of f which
+preserve the space spanned by the functions. Much like
+the Ritz value of an trial vector is invariant to rescaling,
+or the angle between two planes is invariant to linear
+transformations of the basis vectors defining the planes,
+RP [f ] is only a functional of the space spanned by f .
+This space – the set of all m-dimensional linear subspaces
+of a vector or Hilbert space – is referred to as a Grassmann manifold.44
+Appendix B: Tension Between Spectral and Probabilistic
+Approaches
+
+Here we show, by way of a simple analytical example,
+the extent to which the variational and probabilistic approaches to the analysis of molecular dynamics data are
+indeed distinct. By explicitly constructing the propagator eigenfunctions for a Brownian harmonic oscillator,
+we show that the rank-m truncated propagator, Pm (τ ),
+built from the first m eigenpairs of P(τ ) is not in general
+a nonnegativity-preserving operator. That is, for some
+valid initial distributions, pt (x), the propagated distri(m)
+bution, p̃t+τ (x) = Pm (τ ) ◦ pt (x), fails to be non-negative
+throughout Ω and thus does not represent a valid probability distribution.
+(m)
+
+pt+τ (x)  0 ∀ x ∈ Ω
+
+(B1)
+
+This indicates that variational and probabilistic approaches have the potential to be almost contradictory
+in what they judge to be “good” models of molecular
+kinetics.
+Consider the diffusion of a Brownian particle in the
+potential U (x) = x2 . For simplicity, we take the temperature and diffusion constant to be unity. This is an
+
+11
+Ornstein-Uhlenbeck process, and the dynamics are described by the Smoluchowski equation,
+∂
+pt (x) = L ◦ pt (x),
+∂t
+
+(B2)
+
+Note that Eq. (B13) has a zero when x = −e2τ /2x0 ,
+and that
+(
+x < −e2τ /2x0 if x0 > 0
+(2)
+p̃τ (x) < 0 when
+(B14)
+x > −e2τ /2x0 if x0 < 0.
+
+with infinitesimal generator L given by
+(2)
+
+2
+
+L=
+
+∂
+∂
++ 2 x,
+∂x2
+∂x
+
+(B3)
+2
+
+and stationary distribution µ(x) = π −1/2 e−x .
+We can expand the generator in terms of its eigenfunctions, φn (x), and eigenvalues, ξn , defined by,
+L ◦ φn (x) = ξn φn (x),
+
+(B4)
+
+which can be recognized as the Hermite equation whose
+solutions are related to the Hermite polynomials, Hn .
+For n = {0, 1, . . .} the solutions are
+2
+
+φn (x) = cn e−x Hn (x),
+ξn = −2n,
+
+(B5)
+(B6)
+
+Appendix C: Double-well Potential Integrator and
+Eigenfunctions
+
+c2n = (2n n!π)−1 ,
+
+(B7)
+
+To discretize the Brownian dynamics stochastic differential equation in Eq. (25) with reflecting boundary
+conditions at −π and π, we used the Euler integrator,
+ 
+
+
+√
+(C1)
+xt+1 = bc xt + ∇V (xt ) + 2DR(t) ∆t ,
+
+where the normalizing constants, cn , are chosen such that
+hφn , φm iµ−1 = δnm .
+The propagator P(τ ) can be formed by integrating
+Eq. (B1) with respect to t, giving
+P(τ ) = eτ L .
+
+(B8)
+
+P(τ ) shares the same eigenfunctions as L. Its eigenvalues, λn , are related to the eigenvalues of L by
+λn = e−τ ξn .
+
+(B9)
+
+We now define the rank-m truncated propagator,
+Pm (τ ), such that
+Pm (τ ) ◦ pt =
+
+m−1
+X
+
+λn hpt , φn iµ−1 φn
+
+(B10)
+
+n=0
+
+=
+
+m−1
+X
+
+e
+
+−2nτ
+
+cn e
+
+−x2
+
+Z
+
+∞
+0
+
+√
+
+0
+
+0
+
+
+
+dx cn π pt (x )Hn (x )
+
+Hn (x)
+−∞
+
+n=0
+
+(B11)
+Consider an initial distribution, pt (x) = δ(x − x0 ), prop(m)
+agated forward in time by Pm . Let p̃τ = Pm (τ ) ◦ δ(x −
+x0 ). Then, Eq. (B11) simplifies to
+p̃(m)
+τ (x) =
+
+m−1
+X
+n=0
+
+Because of this non-positivity, p̃τ (x) is not a valid probability distribution.
+This example demonstrates that the rank-m truncated
+propagator need not, in general, preserve the positivity
+of distributions it acts on. Therefore, if such a model of
+the dynamics are fit or assessed via maximum-likelihood
+methods on datasets consisting of observed transitions,
+despite being optimal by spectral norm, the true rank-m
+truncated propagator may appear to give a log likelihood
+of −∞. The variational and probabilistic approaches to
+modeling molecular kinetics can indeed be very different.
+
+2
+1
+√ e−2nτ e−x Hn (x)Hn (x0 ). (B12)
+2n n! π
+
+Consider now the specific case of m = 2. Using the
+explicit expansion H0 (x) = 1, and H1 (x) = 2x, we have
+
+1 −x2
+p̃(2)
+1 + 2xx0 e−2τ .
+τ (x) = √ e
+π
+
+(B13)
+
+where steps that went outside the boundaries by a given
+distance were reflected back into the interval with a
+matching distance to the boundary:
+
+
+if x > π,
+2π − x
+(C2)
+bc(x) = −2π − x if x < −π,
+
+x
+otherwise.
+We computed the propagator eigenvalues by discretizing the interval into n MSM states {si }ni=1 , following
+Eq. (27), and computing the matrix elements without
+stochastic sampling. This calculation is more straightforward by working with the the transition matrix T ∈
+Rn×n :
+Tij = P [xt+τ ∈ sj |xt ∈ si ] ,
+
+(C3)
+
+Instead of the correlation and overlap matrices, C and
+S, directly. Note that as shown by Nüske et al. 41 and
+Prinz et al. 28 , T = S −1 C. Thus the eigenvalues of T are
+identical to the generalized eigenvalues of (C, S).
+To calculate the matrix elements of T , we consider each
+each state, si , represented by its left endpoint, xi . For
+each pair of states (i, j), we calculate the probability of
+the random force required to transition between them
+in one step, from Eq. (C1), taking into account the fact
+that because of the reflecting boundary conditions, the
+transition could have taken place via a transition outside
+the interval followed by a reflection.
+
+12
+Let δx be the width of the states, δx = n−1 2π. For
+each i ∈ {1, . . . n} and k ∈ {−n, . . . , n}, we calculate the
+action for a step from xi to xi + kδx.
+
+
+((xi + kδx) − xi + ∇V (xi )∆t)
+1
+√
+√
+exp
+aik =
+.
+2π
+2D
+(C4)
+0
+Let jik
+∈ {1, . . . , n} be the index of state which contains bc(xi + kδx). We calculate Tij by summing the appropriate action terms which, because of the boundary
+conditions, get reflected into the same ending state:
+
+Tij =
+
+n
+X
+
+0 ,j .
+aik δjik
+
+(C5)
+
+k=−n
+
+where δi,j is the Kronecker delta. This calculation is
+implemented in the file brownian1d.py in the MSMBuilder3 package. The eigenvalues of T converge rapidly
+as n increases. Our results in Fig. 1 use n = 500.
+
+Appendix D: Landmark UPGMA Clustering
+
+Landmark-based UPGMA (Unweighted Pair Group
+Method with Arithmetic Mean) agglomerative clustering
+is a simple scalable hierarchical clustering which does not
+require computing the full matrix of pairwise distances
+between all data points. The procedure first subsamples
+l “landmark” data points at regular intervals from the
+input data. These data points are then clustered using
+the standard algorithm, resulting in n clusters.81 Let Sn
+be the set of landmark data points assigned by the algorithm to the cluster n, and d(x, x0 ) be the distance
+metric employed. Then, each remaining data point in
+the training set as well as new data points from the test
+set, x∗ , are assigned to cluster, s(x∗ ) ∈ {1, . . . , n}, whose
+landmarks they are on average closest to:
+s(x∗ ) = argmin
+n
+
+1 X
+d(x∗ , x).
+|Sn |
+
+(D1)
+
+x∈Sn
+
+Appendix E: Simulation Setup
+
+We performed all-atom molecular dynamics simulations of terminally-blocked octaalanine (Ace-(Ala)8 NHMe) in explicit solvent using the GROMACS 4
+simulation package,82 the AMBER ff99SB-ILDN-NMR
+forcefield,83 and the TIP3P water model.84 The system
+was energy minimized, followed by 1 ns of equilibration
+using the velocity rescaling thermostat (reference temperature of 298K, time constant of 0.1 ps),85 ParrinelloRahman barostat (reference pressure of 1 bar, time constant of 1 ps, isotropic compressibility of 5 × 10−5 bar),86
+and Verlet integrator (time step of 2 fs). Production
+simulations were performed in the canonical ensemble
+using the same integrator and thermostat. Nonbonded
+
+interactions in all cases were treated with the particle
+mesh Ewald method, using a real space cutoff distance
+for Ewald summation as well as for van der Waals interactions of 10.0 Å.87 Twenty six such simulations were
+performed, with production lengths between 20 and 150
+ns each. The total aggregate sampling was 1.74 µs.
+
+1 K.
+
+A. Dill, S. B. Ozkan, M. S. Shell, and T. R. Weikl, Annu.
+Rev. Biophys. 37, 289 (2008).
+2 M. Huse and J. Kuriyan, Cell 109, 275 (2002).
+3 E. Vargas, V. Yarov-Yarovoy, F. Khalili-Araghi, W. A. Catterall, M. L. Klein, M. Tarek, E. Lindahl, K. Schulten, E. Perozo,
+F. Bezanilla, et al., J. Gen. Physiol. 140, 587 (2012).
+4 A. H. Phillips, Y. Zhang, C. N. Cunningham, L. Zhou, W. F.
+Forrest, P. S. Liu, M. Steffek, J. Lee, C. Tam, E. Helgason, et al.,
+Proc. Natl. Acad. Sci. U.S.A. 110, 11379 (2013).
+5 G. Careri, P. Fasella, E. Gratton, and W. Jencks, Crit. Rev.
+Biochem. Mol. Biol. 3, 141 (1975).
+6 H. B. Buergi and J. D. Dunitz, Acc. Chem. Res. 16, 153 (1983).
+7 A. Mittermaier and L. E. Kay, Science 312, 224 (2006).
+8 L.-P. Wang, J. Chen, and T. Van Voorhis, J. Chem. Theory
+Comput. 9, 452 (2012).
+9 L. Huang and B. Roux, J. Chem. Theory Comput. 9, 3543 (2013).
+10 J. W. Ponder, C. Wu, P. Ren, V. S. Pande, J. D. Chodera, M. J.
+Schnieders, I. Haque, D. L. Mobley, D. S. Lambrecht, R. A. DiStasio Jr, et al., J. Phys. Chem. B 114, 2549 (2010).
+11 R. B. Best, X. Zhu, J. Shim, P. E. Lopes, J. Mittal, M. Feig, and
+A. D. MacKerell Jr, J. Chem. Theory Comput. 8, 3257 (2012).
+12 P. E. Lopes, J. Huang, J. Shim, Y. Luo, H. Li, B. Roux, and
+A. D. MacKerell Jr, J. Chem. Theory Comput. 9, 5430 (2013).
+13 J. E. Stone, D. J. Hardy, I. S. Ufimtsev, and K. Schulten, J.
+Mol. Graphics Modell. 29, 116 (2010).
+14 D. E. Shaw, R. O. Dror, J. K. Salmon, J. P. Grossman, K. M.
+Mackenzie, J. A. Bank, C. Young, M. M. Deneroff, B. Batson,
+K. J. Bowers, E. Chow, M. P. Eastwood, D. J. Ierardi, J. L.
+Klepeis, J. S. Kuskin, R. H. Larson, K. Lindorff-Larsen, P. Maragakis, M. A. Moraes, S. Piana, Y. Shan, and B. Towles, in
+Proceedings of the Conference on High Performance Computing
+Networking, Storage and Analysis (ACM, 2009) pp. 39:1–39:11.
+15 M. Shirts and V. S. Pande, Science 290, 1903 (2000).
+16 I. Buch, M. J. Harvey, T. Giorgino, D. Anderson, and G. De Fabritiis, J. Chem. Inf. Model. 50, 397 (2010).
+17 K. J. Kohlhoff, D. Shukla, M. Lawrenz, G. R. Bowman, D. E.
+Konerding, D. Belov, R. B. Altman, and V. S. Pande, Nature
+Chem. 6, 15 (2014).
+18 J. D. Chodera, N. Singhal, V. S. Pande, K. A. Dill, and W. C.
+Swope, J. Chem. Phys. 126, 155101 (2007).
+19 P. Deuflhard and M. Weber, Linear Algebra Appl. 398, 161
+(2005).
+20 M. A. Rohrdanz, W. Zheng, M. Maggioni, and C. Clementi, J.
+Chem. Phys. 134, 124116 (2011).
+21 A. Altis, P. H. Nguyen, R. Hegger, and G. Stock, J. Chem. Phys.
+126, 244111 (2007).
+22 P. Das, M. Moll, H. Stamati, L. E. Kavraki, and C. Clementi,
+Proc. Natl. Acad. Sci. U.S.A. 103, 9885 (2006).
+23 S. V. Krivov and M. Karplus, Proc. Natl. Acad. Sci. U.S.A. 101,
+14766 (2004).
+24 W. E and E. Vanden-Eijnden, J. Stat. Phys. 123, 503 (2006).
+25 R. T. McGibbon, C. R. Schwantes, and V. S. Pande, J. Phys.
+Chem. B 118, 6475 (2014).
+26 V. N. Vapnik and V. Vapnik, Statistical learning theory, Vol. 2
+(Wiley New York, 1998).
+27 S. C. Larson, J. Educ. Psychol. 22, 45 (1931).
+28 J.-H. Prinz, H. Wu, M. Sarich, B. Keller, M. Senne, M. Held,
+J. D. Chodera, C. Schütte, and F. Noé, J. Chem. Phys. 134,
+174105 (2011).
+29 C. R. Schwantes and V. S. Pande, J. Chem. Theory Comput. 9,
+2000 (2013).
+
+13
+30 G.
+
+Pérez-Hernández, F. Paul, T. Giorgino, G. De Fabritiis, and
+F. Noé, J. Chem. Phys. 139, 015102 (2013).
+31 O. Z. Maimon and L. Rokach, Data mining and knowledge discovery handbook, Vol. 1 (Springer, 2005).
+32 C. Schütte, “Conformational dynamics: modelling, theory, algorithm, and application to biomolecules,” (1998), Habilitation
+Thesis, Free University Berlin.
+33 E. Schmidt, Math. Ann. 63, 433 (1907).
+34 R. Courant and D. Hilbert, Methods of Mathematical Physics,
+Methods of Mathematical Physics No. v. 1 (Wiley, 2008).
+35 C. A. Micchelli and A. Pinkus, J. Approx. Theory 24, 51 (1978).
+36 F. Noé and S. Fischer, Curr. Opin. Struct. Biol. 18, 154 (2008).
+37 G. R. Bowman, K. A. Beauchamp, G. Boxer, and V. S. Pande,
+J. Chem. Phys. 131, 124101 (2009).
+38 V. S. Pande, K. Beauchamp, and G. R. Bowman, Methods 52,
+99 (2010).
+39 J. D. Chodera and F. F. Noé, Curr. Opin. Stuct. Biol 25, 135
+(2014).
+40 F. Noé and F. Nüske, Multiscale Model. Simul. 11, 635 (2013).
+41 F. Nüske, B. G. Keller, G. Pérez-Hernández, A. S. J. S. Mey,
+and F. Noé, J. Chem. Theory Comput. 10, 1739 (2014).
+42 K. Fan, Proc. Natl. Acad. Sci. U.S.A. 35, 652 (1949).
+43 M. L. Overton and R. S. Womersley, SIAM J. Matrix Anal. Appl.
+13, 41 (1992).
+44 P.-A. Absil, R. Mahony, R. Sepulchre, and P. Van Dooren, SIAM
+Rev. 44, 57 (2002).
+45 D. Sezer, J. H. Freed, and B. Roux, J. Phys. Chem. B 112,
+11014 (2008).
+46 S. Muff and A. Caflisch, J. Chem. Phys. 130, 125104 (2009).
+47 I. Buch, T. Giorgino, and G. De Fabritiis, Proc. Natl. Acad. Sci.
+U.S.A. 108, 10184 (2011).
+48 V. A. Voelz, G. R. Bowman, K. Beauchamp, and V. S. Pande,
+J. Am. Chem. Soc. 132, 1526 (2010).
+49 K. A. Beauchamp, R. T. McGibbon, Y.-S. Lin, and V. S. Pande,
+Proc. Natl. Acad. Sci. U.S.A. 109, 17807 (2012).
+50 W. Zhuang, R. Z. Cui, D.-A. Silva, and X. Huang, J. Phys.
+Chem. B 115, 5415 (2011).
+51 S. K. Sadiq, F. Noé, and G. De Fabritiis, Proc. Natl. Acad. Sci.
+U.S.A. 109, 20449 (2012).
+52 O. P. Choudhary, A. Paz, J. L. Adelman, J.-P. Colletier,
+J. Abramson, and M. Grabe, Nat. Struct. Mol. Biol. 21, 626
+(2014).
+53 D. Shukla, Y. Meng, B. Roux, and V. S. Pande, Nat. Commun.
+5, (2014).
+54 E. Anderson, Z. Bai, C. Bischof, S. Blackford, J. Demmel, J. Dongarra, J. Du Croz, A. Greenbaum, S. Hammarling, A. McKenney,
+and D. Sorensen, LAPACK Users’ Guide, 3rd ed. (Society for Industrial and Applied Mathematics, Philadelphia, PA, 1999).
+55 B. Schölkopf, A. Smola, and K.-R. Müller, Neural Comput. 10,
+1299 (1998).
+56 U. Kjems, L. K. Hansen, and S. C. Strother, in Advances in
+Neural Information Processing Systems 13 (MIT Press, 2000)
+pp. 549–555.
+57 T. J. Abrahamsen and L. K. Hansen, J. Mach. Learn. Res. 12,
+2027 (2011).
+
+58 M.
+
+Cornec, “Concentration inequalities of the cross-validation
+estimator for empirical risk minimiser,” (2010), arXiv:1011.0096
+[stat].
+59 S. Park and V. S. Pande, J Chem. Phys. 124, 054118 (2006).
+60 M. Sarich, F. Noé, and C. Schütte, Multiscale Model. Simul. 8,
+1154 (2010).
+61 T. Zhou and A. Caflisch, J. Chem. Theory Comput. 8, 2930
+(2012).
+62 D. L. Theobald, Acta Crystallogr., Sect. A: Found. Crystallogr.
+61, 478 (2005).
+63 K. A. Beauchamp, G. R. Bowman, T. J. Lane, L. Maibaum, I. S.
+Haque, and V. S. Pande, J. Chem. Theory Comput. 7, 3412
+(2011).
+64 S. Lloyd, IEEE Trans. Inform. Theory 28, 129–137 (1982).
+65 M. Senne, B. Trendelkamp-Schroer, A. S. Mey, C. Schütte, and
+F. Noé, J. Chem. Theory Comput. 8, 2223 (2012).
+66 A. K. Theophilou, J. Phys. C 12, 5419 (1979).
+67 E. K. U. Gross, L. N. Oliveira, and W. Kohn, Phys. Rev. A 37,
+2805 (1988).
+68 N. Gidopoulos, P. Papaconstantinou, and E. Gross, Physica B
+318, 328 (2002).
+69 R. Lai, J. Lu, and S. Osher, “Density matrix minimization with
+`1 regularization,” (2014), arXiv:1403.1525 [math-ph].
+70 C. R. Rao, J. R. Stat. Soc. Ser. B Stat. Methodol. 10, pp. 159
+(1948).
+71 G. Baudat and F. Anouar, Neural Comput. 12, 2385 (2000).
+72 L. Clemmensen, T. Hastie, D. Witten, and B. Ersbøll, Technometrics 53, (2011).
+73 B. K. Sriperumbudur, D. Torres, and G. Lanckriet, Mach. Learn.
+85, 3 (2011).
+74 E. H. Kellogg, O. F. Lange, and D. Baker, J. Phys. Chem. B
+116, 11405 (2012).
+75 E. K. Rains and H. C. Andersen, J. Chem. Phys. 133, 144113
+(2010).
+76 S. Bacallado, J. D. Chodera, and V. Pande, J. Chem. Phys. 131,
+045106 (2009).
+77 G. R. Bowman, J. Chem. Phys. 137, 134111 (2012).
+78 R. T. McGibbon, B. Ramsundar, M. M. Sultan, G. Kiss, and
+V. S. Pande, in Proceedings of the 31st International Conference
+on Machine Learning, Vol. 32 (Beijing, China, 2014) pp. 1197–
+1205.
+79 R. T. McGibbon, K. A. Beauchamp, C. R. Schwantes, L.-P.
+Wang, C. X. Hernández, M. P. Harrigan, T. J. Lane, J. M. Swails,
+and V. S. Pande, bioRxiv (2014), 10.1101/008896.
+80 J. Snoek, H. Larochelle, and R. P. Adams, in Advances in Neural Information Processing Systems, Vol. 25 (Lake Tahoe, USA,
+2012) pp. 2951–2959.
+81 D. Müllner, J. Stat. Softw. 53, 1 (2013).
+82 B. Hess, C. Kutzner, D. van der Spoel, and E. Lindahl, J. Chem.
+Theory Comput. 4, 435 (2008).
+83 D.-W. Li and R. Brüschweiler, Angew. Chem. 122, 6930 (2010).
+84 W. L. Jorgensen, J. Chandrasekhar, J. D. Madura, R. W. Impey,
+and M. L. Klein, J. Chem. Phys. 79, 926 (1983).
+85 G. Bussi, D. Donadio, and M. Parrinello, J. Chem. Phys. 126,
+014101 (2007).
+86 M. Parrinello and A. Rahman, J. Appl. Phys. 52, 7182 (1981).
+87 T. Darden, D. York, and L. Pedersen, J. Chem. Phys. 98, 10089
+(1993).
+
+

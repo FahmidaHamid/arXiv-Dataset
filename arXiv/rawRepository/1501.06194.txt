@@ -1,0 +1,978 @@
+Ilan Shomorony
+
+Thomas Courtade
+
+David Tse
+
+UC Berkeley
+ilan.shomorony@berkeley.edu
+
+UC Berkeley
+courtade@berkeley.edu
+
+Stanford University
+dntse@stanford.edu
+
+I. I NTRODUCTION
+Current DNA sequencing technologies are based on a two-step
+process. First, tens or hundreds of millions of fragments from
+random locations on the DNA sequence are read via shotgun
+sequencing. Second, these fragments, called reads, are merged
+to each other based on regions of overlap, using an assembly
+algorithm.
+Roughly speaking, different shotgun sequencing platforms can
+be distinguished from the point of view of three main metrics:
+the read length, the read error rate, and the read throughput.
+In the last decade, the so-called next-generation sequencing
+platforms have attained considerable success at employing heavy
+parallelization in order to achieve high-throughput shotgun sequencing. This allowed a significant reduction in the cost and
+time of sequencing, causing an explosion in the number of new
+sequencing projects and the generation of massive amounts of
+sequencing data.
+In order to guarantee low error rates, most of these nextgeneration technologies are restricted to short read lengths,
+shifting some of the burden of sequencing to the assembly step.
+In practice, this results in very fragmented assemblies, with large
+gaps and little linking information between fragments [1]. On the
+other hand, recent technologies that generate longer reads suffer
+from lower throughput and much higher error rates1 .
+Given this technology trend, the natural questions to ask are:
+what is the impact of read errors on the performance of assemblers? Is the negative impact of read errors more than offset by
+the increase in read lengths in long-read technologies? It is well
+known that read errors have a significant impact on assembly algorithms. For example, in DeBruijn graph based algorithms, read
+errors create extraneous nodes and edges in the assembly graph,
+which results in added complexity. However, these observations
+pertain to specific algorithms. A more fundamental question can
+be asked from an information-theoretic point of view: given a
+read length, an error rate and a coverage depth (number of reads
+per base), is there enough information in the read data to uniquely
+reconstruct the genome? Do errors significantly increase the read
+
+length and/or coverage depth requirements? An answer to these
+basic feasibility questions can provide an algorithm-independent
+framework for evaluating different sequencing technologies. It
+would also settle some speculations in the assembly community
+on whether read errors have a significant impact in long-read
+technologies (see for example [2]).
+Such a framework was initiated in [3] for error-free reads:
+a feasibility curve relating the read length and coverage depth
+needed to perfectly assemble a genome was characterized in
+terms of the repeat complexity of the genome (see examples in
+Fig. 1). Evaluating this curve on several genomes revealed an
+interesting threshold phenomenon: if the read length is below a
+certain critical value `crit , reconstruction is impossible; a read
+length slightly above `crit and a coverage depth close to the
+Lander-Waterman depth cLW (i.e., just enough reads to cover
+the whole sequence) is sufficient. The critical read length `crit
+is given by the length of the longest interleaved repeat in the
+genome, and coincides with the minimum read length L needed
+to uniquely reconstruct the genome given its L-spectrum, i.e. the
+set of reads with one length-L read starting at each position of
+the sequence, illustrated in Fig. 2. This minimum read length
+also appeared in earlier works by Ukkonen and Pevzner [4, 5]
+for reconstruction via sequencing by hybridization.
+Given this framework, the impact of read errors can be studied
+by asking how much the critical read length `crit increases when
+there are errors. In this paper, we investigate this tradeoff for a
+specific error model: 1) the errors are erasures; 2) the erasures
+occur at a rate no larger than D/L for each read and for each
+base in the sequence, but are otherwise arbitrary. Our main result
+is the characterization of a critical read length `˜crit above which
+perfect assembly is always possible. While in the noiseless case
+`crit is a function of the sequence repeat structure, `˜crit depends
+more generally on the error rate and on the approximate repeats
+in the sequence. More concretely, for a sequence s,
+`˜crit (s, D) =
+
+k + D · Ms (D, k + 1),
+10
+
+10
+where
+Ms (D, `) is the maximum number of D-approximate
+
+9
+
+10
+
+9
+8
+
+8
+
+9
+
+7
+8
+
+7
+
+8
+
+6
+
+7
+
+5
+
+6
+
+4
+
+5
+
+3
+
+4
+
+2
+
+3
+
+1
+
+2
+
+9
+10
+
+7
+6
+6
+5
+
+4
+5
+4
+3
+
+2
+3
+2
+1
+`interleaved
+
+1
+0
+
+100
+
+200
+
+0
+
+100
+
+200
+
+`
+
+300
+
+400
+
+interleaved
+read
+length L
+
+300
+
+`interleaved
+
+`repeat
+
+400
+
+(a) S. aureus
+1 One example of a short-read-length technology is Illumina, with reads of
+length ∼ 200 base pairs and error rates of about 1%. In contrast, PacBio reads
+can be several thousand base pairs long, with error rates of about 10-15%.
+
+min
+k≥`crit (s)
+
+normalized coverage depth
+
+Abstract—While most current high-throughput DNA sequencing
+technologies generate short reads with low error rates, emerging
+sequencing technologies generate long reads with high error rates.
+A basic question of interest is the tradeoff between read length
+and error rate in terms of the information needed for the perfect
+assembly of the genome. Using an adversarial erasure error model,
+we make progress on this problem by establishing a critical read
+length, as a function of the genome and the error rate, above which
+perfect assembly is guaranteed. For several real genomes, including
+those from the GAGE dataset, we verify that this critical read length
+is not significantly greater than the read length required for perfect
+assembly from reads without errors.
+
+normalized coverage depth
+
+arXiv:1501.06194v1 [cs.IT] 25 Jan 2015
+
+Do Read Errors Matter for Genome Assembly?
+
+500
+
+600
+
+500
+
+600
+
+0
+700
+
+800 500
+
+700
+
+800
+
+`repeat
+
+1
+0
+
+1000
+
+1500
+
+2000
+
+`interleaved
+
+read
+length
+L
+100
+200
+
+300
+
+`repeat
+2500
+
+400
+
+3000
+
+500
+
+(b) R. sphaeroides
+
+Fig. 1. The thick black curve is a feasibility lower bound for any algorithm, and
+the green line represents the performance of the Multibridging algorithm [3].
+
+600
+
+`repeat
+
+700
+
+	   	  	   	  	  
+	  	  
+	  	  
+	  	  
+	  	  
+	  	  
+	  	  	  	  	  	   	  	  	  	  	  	   	  	  	  	  	  	   	  	  	  	  	  	   	  	  	  	  	  	   	  	  	  	  	  	   	  	  	  	  	  	  
+	  	  	  	  
+	  	  	  	  
+	  	  	  	  
+	  	  
+	  	  	  	  
+	  	  	  	  
+	  	  	  	  
+	  	  
+
+	  
+
+Fig. 2.
+
+The sequence s and its L-spectrum, RL,0 (s).
+
+length-` repeats in s. Moreover, reminiscent of classical coding
+theory results, we show that the same read length `˜crit is sufficient
+for assembly if instead of erasures we consider substitution errors
+at half of the rate. In order to characterize `˜crit , we derive a new
+result about the error correction capability of the L-spectrum.
+More precisely, we show that given a noisy version of the Lspectrum of a sequence, it is possible to obtain the noiseless
+(k + 1)-spectrum of the same sequence, for any k such that
+L > k + D · Ms (D, k + 1). When L > `˜crit , we can obtain the
+noiseless (k + 1) spectrum for some k > `crit , and the noiseless
+result from [3] implies that perfect assembly is possible.
+By evaluating `˜crit on several real genomes, including those
+in the GAGE dataset [6], we verify that `˜crit is not significantly
+larger than `crit . In fact, in most cases, `˜crit ≈ `crit +3D. Hence, if
+the read length L is chosen above the noiseless requirement `crit ,
+perfect assembly is robust to errors up to a threshold (roughly
+1
+3 (L − `crit ) erasures per read).
+The impact of read errors on the information theoretic limits
+of genome assembly has also been studied in the setting of an
+i.i.d. genome model and asymptotically long genome length [7],
+building on an earlier work on error-free reads in the same setting
+[8]. The results are surprising: as long as the error rate is below a
+threshold (which can be as high as 19% for substitution errors),
+noisy reads are as good as noiseless reads; i.e., the requirements
+for assembly in terms of read length and coverage depth are the
+same in both cases. While this result seems stronger than the
+result in the present paper, it is proved under the idealistic and
+unrealistic settings of i.i.d. genome statistics and i.i.d. errors. The
+present result, on the other hand, is more robust as it applies to
+arbitrary genome repeat statistics and error statistics.
+II. P ROBLEM S ETTING
+In the DNA assembly problem, the goal is to reconstruct a
+sequence s = (s[1], ..., s[G]) of length G with symbols from the
+alphabet Σ = {a, c, g, t}. In order to simplify the exposition,
+we assume a circular DNA model; thus, {s[i]}∞
+i=1 is a periodic
+sequence with (minimum) period G. Our results hold in the noncircular case as well under minor modifications. We will let s`i
+be the substring of length ` starting at s[i]; i.e., s`i = (s[i], s[i +
+1], ..., s[i + ` − 1]).
+The sequencer provides a multiset of N reads R =
+{r1 , ..., rN } from s, each of length L. In the noiseless case,
+each read is a length-L substring of s with an unknown starting
+location. Our focus, however, will be on noisy read models, where
+each read may be corrupted by noise. The goal is to design
+an assembler, which takes the set of reads R and attempts to
+reconstruct the sequence s.
+A. The L-Spectrum Read Model
+We will consider a “dense-read” model, in which all the reads
+in the L-spectrum of s are provided. More precisely, R will have
+exactly G reads, one from each possible starting position; i.e.,
+R = {r1 , ..., rG }, where ri = sL
+i for i = 1, ..., G. We will refer
+
+to the error-free L-spectrum of s by RL,0 (s). Notice that the
+starting position i for each read ri is unknown to the assembler.
+While such a read model was originally proposed in the context
+of sequencing by hybridization [4, 5, 9], our motivation for using
+it comes from next-generation sequencing technologies, where
+the high read throughput can provide large coverage depths at
+low costs, and a dense read regime is not unrealistic. This way,
+we can bypass the question of the necessary coverage depth for
+assembly, and instead focus on the interplay between read length
+and error rate in the context of assembly feasibility. Moreover, as
+shown in [3] for noiseless reads, the dense-read model provides
+valuable insights towards understanding the information-theoretic
+limits of reconstruction in the more general shotgun read model.
+In the L-spectrum read model, since we have exactly G reads,
+an assembly of the reads RL,0 (s) = {r1 , ..., rG } can be thought
+of as a permutation σ of the entries of (1, ..., G). We assume without loss of generality that the identity permutation σ0 = (1, ..., G)
+yields a correct assembly of s. Notice, however, that the index i
+of each read ri is unknown to the assembler. Notice also that in
+general, there may be multiple correct assemblies for a sequence
+s if ri = rj for some i 6= j.
+B. Adversarial Erasure Model
+As in the classical coding theory literature, we will study the
+problem of DNA assembly with noisy reads from the perspective
+of an adversarial noise model. Given that actual sequencing
+noise profiles are complex (non-i.i.d., asymmetric across bases)
+and technology-dependent, this approach avoids the need for a
+probabilistic noise model by instead focusing on a worst-case
+scenario. Moreover, under this model we can hope to obtain
+deterministic and non-asymptotic conditions for perfect assembly,
+which can be more easily analyzed in terms of real genome data.
+Motivated by the fact that sequencing technologies usually
+provide a quality score for each base that is read (which could be
+thresholded into “good” and ”bad” bases), and in order to simplify
+the problem, we will consider an erasure model. The reads in R
+will be length-L sequences from the alphabet Σ0 = {a, c, g, t, ε},
+where ε corresponds to an erasure. Thus, a read starting at
+position i from s can be written as ri = (ri [0], ..., ri [L − 1]),
+where either ri [j] = s[i + j] or ri [j] = ε, for 1 ≤ i ≤ G and
+0 ≤ j ≤ L − 1.
+For a fixed parameter D, the adversarial erasure model will
+be constrained by a maximum error rate of D/L within each
+read, and for each base. Since in our read model each base s[i]
+is read L times (ri−(L−1) [L − 1], ri−(L−2) [L − 2], ..., ri [0]), these
+constraints can be written as follows:
+a) There are at most D erasures per read.
+b) Each base s[i] is erased at most D times across all reads.
+We will use RL,D (s) to refer to the L-spectrum of s, RL,0 (s),
+after being corrupted by erasures satisfying (a) and (b).
+In the context of an adversarial noise model with deterministic
+constraints, it makes sense to restrict our attention to potential
+sequences ŝ that are consistent with the reads RL,D (s). A
+sequence ŝ is said to be consistent with RL,D (s) if it could
+have generated the set of reads RL,D (s) according to the erasure
+model in (a) and (b). By extension, we will say that an assembly
+σ of RL,D (s) is consistent if there exists a sequence ŝ, consistent
+with RL,D (s), that could have generated the reads in RL,D (s)
+according to the positions determined by σ. As illustrated in
+Fig. 3, we notice that (b) guarantees that a consistent assembly σ
+
+Since `crit (ŝ) can be computed from the assembled sequence
+ŝ, this result means that L > `crit (ŝ) provides a certificate that
+ŝ = s, even without previous knowledge of `crit (s).
+IV. M AIN R ESULTS
+
+Fig. 3. Part of a consistent assembly for L = 5 and D = 2. Notice that there can
+be at most D erasures per read and per “column” of the assembly σ. Moreover,
+all non-erased bases in a column must agree.
+
+defines, up to cyclic shifts, a unique consistent sequence in ΣG ,
+which we will refer to as ŝ(σ).
+The fundamental feasibility question corresponds to asking
+which values of L allow unambiguous reconstruction. Formally,
+it corresponds to the following algorithm-independent question.
+Question 1. Consider a fixed circular sequence s ∈ ΣG . What
+values of L guarantee that, for an arbitrary set of erased reads
+RL,D (s), s is the unique sequence consistent with RL,D (s)?
+III. A SSEMBLY IN THE N OISELESS C ASE
+The assembly problem in Question 1 was first studied in [4]
+in the noiseless setting D = 0. Notice that when L = 1, R1,0 (s)
+is simply the multi-set {s[1], ..., s[G]} and any permutation
+σ of (1, ..., G) is a consistent assembly. Hence, s cannot be
+reconstructed unambiguously, unless all of its symbols are the
+same. On the other hand, when L = G, there is a unique
+assembly of RG,0 (s) = {s}, and s can always be reconstructed
+unambiguously. Question 1 is thus equivalent to asking for the
+threshold `th for which s can be reconstructed if and only if
+L > `th . In [4], this threshold is established as a function of the
+repeat structure of the sequence s, as we explain next.
+A repeat of length ` in s is a subsequence appearing twice
+at some positions t1 and t2 (so s`t1 and s`t2 ) that is maximal;
+i.e., s[t1 − 1] 6= s[t2 − 1] and s[t1 + `] 6= s[t2 + `]. Two pairs of
+repeats s`a1 , s`a2 and skb1 , skb2 are interleaved if a1 < b1 ≤ a2 < b2 .
+Due to the circular DNA model, since a subsequence s`t can also
+be written as s`t+mG for any integer m, we additionally require
+that b2 − a1 < G. The length of a pair of interleaved repeats
+s`a1 , s`a2 and skb1 , skb2 is defined to be min(`, k). We let `inter (s)
+be the length of the longest pair of interleaved repeats in s and
+set `crit (s) = `inter (s) + 1. The results from [4, 5] imply the
+following:
+Theorem 1. If L > `crit (s), then s is the unique sequence that is
+consistent with RL,0 (s). Conversely, if L ≤ `crit (s), there exists
+a sequence s0 6= s that is also consistent with RL,0 (s).
+In other words, Theorem 1 characterizes the threshold on L
+that fully answers Question 1. We point out that, in the previous
+literature [3, 4], `crit was defined in terms of the length of pairs
+of interleaved repeats (defined in a more restrictive way) and
+the length of triple repeats. However, one can verify that by
+considering the more general definition of interleaved repeats
+above, triple repeats are included as a special case.
+Notice that, while Theorem 1 characterizes the minimum L
+that guarantees perfect reconstruction, `crit (s) is a function of the
+ground truth s, and is not known a priori. However, the following
+corollary of Theorem 1 readily follows:
+Corollary 1. If a sequence ŝ is consistent with RL,0 (s) and
+L > `crit (ŝ), then ŝ = s.
+
+In the previous section, we described how Theorem 1 fully
+characterizes when assembly is possible given the noiseless Lspectrum. In this section, we seek a similar characterization in
+the case where reads are noisy.
+Notice that for the erasure setting described in Section II, one
+possible erasure pattern is to have the last D bases from each
+read erased, which effectively results in noiseless reads of length
+L − D. Therefore, the converse part of Theorem 1 implies that,
+if L ≤ `crit (s) + D, there is a read set RL,D (s) and a sequence
+ŝ 6= s that is consistent with RL,D (s). But how much larger
+than `crit (s) + D does the read length L have to be in order to
+guarantee unambiguous correct reconstruction? In other words,
+how do erasures degrade the fundamental limit characterized by
+Theorem 1?
+Our main result is the introduction of a new sequencedependent quantity, `˜crit (D, s), such that, if L > `˜crit (s, D),
+s is the unique sequence consistent with RL,D (s). In general,
+`crit (s) + D < `˜crit (s, D) for D > 0, and one can construct an
+arbitrary sequence s ∈ ΣG for which the gap between the two
+quantities is significant. However, by computing `crit + D and
+`˜crit for actual genomes, we verify that they are often close, as
+shown in Table I.
+Rather than being defined in terms of exact repeats, as is the
+case of `crit (s), `˜crit (s) depends more generally on approximate
+repeats. For a set of segments S of a given length `; i.e., S ⊂ Σ` ,
+we will first define the radius of S to be
+ρ(S) = min max dH (y, x),
+x∈Σ` y∈S
+
+(1)
+
+where dH (y, x) is the Hamming distance between y and x.
+We will say that the segments in S are d-approximate copies if
+ρ(S) ≤ d. Intuitively, a sequence s that contains a large set S of
+length-` segments with a small radius ρ(S) has more ambiguity in
+terms of assembly. To capture that, we will let M (d, `) correspond
+to the maximum number of d-approximate length-` segments in
+s; i.e.,
+Ms (d, `) = max {|S| : S ⊂ R`,0 (s), ρ(S) ≤ d} .
+
+(2)
+
+Notice that Ms (d, `) is monotonically decreasing in `. We let
+`˜crit (s, D) =
+
+min
+k≥`crit (s)
+
+k + D · Ms (D, k + 1).
+
+(3)
+
+Notice that `˜crit (s, D) ≥ `˜crit (s, 0) = `crit (s). Our main result is
+the following.
+Theorem 2. If L > `˜crit (s, D), then s is the unique sequence
+that is consistent with RL,D (s).
+The main tool used to prove Theorem 2 is a result about
+spectrum error correction. More precisely, we show that from
+a noisy version of the L-spectrum of s RL,D (s), it is possible
+to obtain RL0 ,0 (s), for some effective read length L0 < L. This
+result and the proof of Theorem 2 are presented in Section V.
+As in the noiseless case, we point out that `˜crit (s, D) cannot
+be computed a priori, since it is a function of the ground truth
+sequence s. However, Theorem 2 can in fact be used to obtain a
+certificate result analogous to Corollary 1, allowing one to certify
+
+whether an assembly ŝ is correct, even without prior knowledge
+of `˜crit (s) and Ms (D, ·).
+
+s
+
+Corollary 2. If a sequence ŝ is consistent with RL,D (s) and
+L > `˜crit (ŝ), then ŝ = s.
+Proof: If ŝ is consistent with RL,D (s), by the definition of
+consistency, RL,D (s) can be viewed as a set of reads RL,D (ŝ)
+from ŝ, with an erasure pattern satisfying (a) and (b). But from
+Theorem 2, if L > `˜crit (ŝ), ŝ is the unique sequence that is
+consistent with RL,D (ŝ) = RL,D (s). Since s must also be
+consistent with RL,D (ŝ), we must have ŝ = s.
+In Table I, we show the value of `˜crit (s, D) computed for
+several real genomes. Computing `˜crit (s, D) is generally impractical from a computational standpoint, so the values in Table I
+are based on heuristics implemented by a sequence alignment
+tool called Nucmer [10]. We choose the value of D such that
+D/`crit ≈ 15%. We point out that the first two genomes, R.
+sphaeroides and S. aureus are from the GAGE dataset [6], which
+is used as a benchmark for assemblers. Notice that, with the
+exception of E. coli 536, in all cases `˜crit (s, D) = `crit (s) + mD,
+for m ∈ {2, 3, 4}. This occurs because, for the genomes considered, `crit (s) is already long enough so that there aren’t many
+approximate repeats of that length.
+Genome (s)
+R. sphaeroides
+S. aureus
+A. ferrooxidans
+E. coli 536
+E. coli K-12
+
+	  	  
+t1
+
+ŝ
+
+	  	   	  	  
+
+τ1
+
+Vs
+
+GTACCTAG
+
+ATCAGGTA
+
+	  	  
+
+τ2
+
+t2
+
+	  	  
+
+1
+2
+3
+
+τ1
+
+t3
+
+	  	  
+
+	  	  
+
+ATCAGGTA CCTAG
+
+ATCAGGTA
+
+Vŝ
+1
+2
+
+t1
+
+t2
+
+τ2
+
+t3
+
+G
+
+G
+
+= ŝk+1
+. In this example,
+Fig. 4. We place an edge (u, v) in (Vs , Vŝ , E) if sk+1
+u
+v
+(τ1 , t1 ), (τ2 , t2 ) and (τ1 , t3 ) are some of the edges in (Vs , Vŝ , E).
+
+for the set of reads RL,D (s) with assembled sequence ŝ = ŝ(σ).
+The main idea of the proof is to show that (k + 1)-blocks in s
+and ŝ are in one-to-one correspondence; i.e., ŝtk+1 = sk+1
+τ (t) for
+a bijective mapping τ : {1, ..., G} → {1, ..., G}, which implies
+Rk+1,0 (s) = Rk+1,0 (ŝ).
+In order to show the existence of this bijection τ , we consider
+a bipartite graph (Vs , Vŝ , Ek+1 ), where Vs = Vŝ = {1, ..., G} and
+= ŝk+1
+}, as illustrated in Fig. 4.
+E = {(u, v) ∈ Vs × Vŝ : sk+1
+u
+v
+The existence of the bijective mapping τ is equivalent to the
+existence of a perfect matching in (Vs , Vŝ , E). Hence, Theorem 3
+is equivalent to the following:
+Claim 1. There exists a perfect matching in (Vs , Vŝ , E).
+
+`crit (s)
+
+`˜crit (s, D)
+
+D
+
+271
+1799
+2628
+3245
+1744
+
+331
+2399
+3228
+4462
+2544
+
+30
+200
+300
+450
+200
+
+For a set of nodes U ⊂ Vŝ , we let δ(U ) = {v ∈ Vs : (v, u) ∈
+E for u ∈ U } be the set of neighbors of U . We will show that,
+for any U ⊂ Vŝ , |δ(U )| ≥ |U |, and by Hall’s marriage theorem,
+Claim 1 will follow. We will first state the following lemma,
+which establishes |δ(U )| ≥ |U | for the special case of sets U of
+= x} for some x ∈ Σk+1 .
+the form Ux = {u ∈ Vŝ : ŝk+1
+u
+
+TABLE I
+C OMPUTED `˜crit (s, D) FOR D/`crit ≈ 15%
+
+While the results in this section were presented for an erasure
+model, they can be extended to a substitution error model. In
+fact, if instead of D erasures per read and per base, we have
+D/2 substitution errors, the proofs of Theorems 2 and 3 can
+be modified accordingly, and the statements still hold. We will
+restrict the discussion to the erasure case for simplicity.
+V. S PECTRUM E RROR C ORRECTION
+The main result we use to prove Theorem 2 is a statement
+about when it is possible to take a noisy L-spectrum of s and
+unambiguously construct its noiseless L0 -spectrum, for L0 < L.
+
+Lemma 1. For the bipartite graph (Vs , Vŝ , E), |δ(Ux )| ≥ |Ux |,
+for any x ∈ Σk+1 .
+The proof of Lemma 1 is at the end of this section. Now
+consider a general set U ∈ Vŝ . Let SUk+1 = {sk+1
+∈ Σk+1 : u ∈
+u
+k+1
+0
+k+1
+U }. Since two nodes u, u ∈ U with su 6= su0 cannot be
+connected to the same node v ∈ Vs , we have
+X
+X
+|δ(U )| =
+|δ(Ux ∩ U )| =
+|δ(Ux )|
+k+1
+x∈SU
+
+≥
+
+X
+k+1
+x∈SU
+
+k+1
+x∈SU
+
+|Ux | ≥
+
+X
+
+|Ux ∩ U | = |U |,
+
+k+1
+x∈SU
+
+Theorem 3. Suppose that, for some k, we have
+L > k + D · Ms (D, k + 1).
+
+(4)
+
+Then, for any sequence ŝ that is consistent with RL,D (s),
+Rk+1,0 (ŝ) = Rk+1,0 (s).
+Theorem 3 says that, by finding a consistent assembly of
+RL,D (s), we can obtain the (noiseless) (k + 1)-spectrum of s,
+as long as k satisfies (4). Therefore, when L > `˜crit (s, D), if
+we let k ? be the minimizer in (3), we have that L > k ? + D ·
+Ms (D, k ? + 1) and, by Theorem 3, any ŝ that is consistent with
+RL,D (s) has the same (k ? + 1)-spectrum Rk? +1,0 (s). But since,
+k ? + 1 > `crit (s), Theorem 1 implies that there is only one
+sequence that is consistent with Rk? +1,0 (s), and we must have
+ŝ = s. This proves Theorem 2.
+Next, we turn to the proof of Theorem 3. Suppose that we
+pick some k satisfying (4) and that σ is a consistent assembly
+
+where the first inequality follows from Lemma 1. By applying
+Hall’s theorem, Claim 1 follows, implying that, Rk+1,0 (s) =
+Rk+1,0 (ŝ). Therefore, to conclude the proof of Theorem 3, we
+just need to prove Lemma 1.
+Proof of Lemma 1: Let Ux = {t1 , ..., tq } ⊂ Vŝ , where
+t1 , ..., tq are distinct and ŝk+1
+= ... = ŝk+1
+= x. Consider one
+t1
+tq
+k+1
+such block ŝt , for t ∈ {t1 , ..., tq }. There are L − k reads
+that cover ŝk+1
+in ŝ, as illustrated in Fig. 5. These are the
+t
+reads given by rσ−1 (t−n) , for n = 0, 1, ..., L − k − 1. Notice
+that read rσ−1 (t−n) was originally obtained from the segment
+sL
+σ −1 (t−n) from the true sequence s. The consistency requirement
+L
+on σ thus implies that dH (sL
+σ −1 (t−n) , st−n ) ≤ D. Moreover, if
+we just focus on the (k + 1)-block corresponding to ŝk+1
+, we
+t
+k+1
+k+1
+have dH (sk+1
+,
+s
+)
+=
+d
+(s
+,
+x)
+≤
+D,
+which
+−1
+−1
+H
+σ (t−n)+n t
+σ (t−n)+n
+holds for each t ∈ {t1 , ..., tq } and n = 0, ..., L − k − 1.
+
+k+1
+k+1
+sσk+1
+−1
+(t−3)+3 sσ −1 (t) = sσ −1 (t−2)+2
+
+s
+
+σ
+ŝ
+
+	  	  
+
+	  	  
+
+	  	  
+
+sσk+1
+−1
+(t−1)+1
+
+	  	  
+
+	  	  
+	  	  	  	  
+	  	  
+	  	  	  	  	  	   	  	   	  	  	  	  
+	  	  	  	  
+	  	  	  	   	  	   	  	  	  	   	  	   	  	  	  	  	  	  	  	  	  	   	  	  	  	  	  	   	  	   	  	  	  	  	  	  	  	   	  	   	  	  	  	  	  	   	  	  
+	  	  	  	   	  	   	  	  	  	   	  	   	  	  	  	   	  	   	  	   	  	  	  	   	  	   	  	  	  	   	  	   	  	  	  	   	  	  
+	  	  
+ŝ k+1
+t
+
+Fig. 5. For an arbitrary length-(k + 1) block B in ŝ, the L − k reads that
+completely cover B according to the assembly σ are shaded (in this example,
+L = 6 and k = 2). By mapping these L − k reads back to s, we find the
+corresponding (k + 1)-blocks in s given by sk+1
+for j = 0, 1, 2, 3.
+σ −1 (t−j)+j
+Notice that, in this example, σ −1 (t) = σ −1 (t − 2) + 2, because reads rσ−1 (t)
+and rσ−1 (t−2)+2 are aligned to each other in the same way in s and ŝ.
+
+If we now consider the set of all such (k + 1)-blocks in s
+n
+o
+S = sk+1
+σ −1 (ti −n)+n : n = 0, ..., L − k − 1, i = 1, ..., q , (5)
+since dH (y, x) ≤ D for each y ∈ S, we have that ρ(S) ≤ D.
+Hence, if we let
+
+	
+T = σ −1 (ti − n) + n : 0 ≤ n ≤ L − k − 1, 1 ≤ i ≤ q
+be the starting positions of these blocks in s, T must satisfy
+|T | ≤ Ms (D, k + 1). Now consider the set of (n, i) pairs
+B = {(n, i) : 0 ≤ n ≤ L − k − 1, 1 ≤ i ≤ m}.
+We will define a partition on B according to the value of σ −1 (ti −
+n) + n. More precisely, we will let
+
+	
+Bτ = (n, i) ∈ B : σ −1 (ti − n) + n = τ ,
+for τ ∈ T . It is clear that {Bτ }τ ∈T is a partition of B. We claim
+that there exist distinct τ1 , ..., τq ∈ T such that |Bτj | ≥ D + 1,
+for j = 1, ..., q. Suppose by contradiction that this is not the
+case, and we have at most q − 1 parts Bτ with |Bτ | ≥ D +
+1. Notice that, since σ : (1, ..., G) → (1, ..., G) is one-to-one,
+σ −1 (ti − n) + n 6= σ −1 (tj − n) + n if ti 6= tj , and, for any
+τ , we must have |Bτ | ≤ L − k. Therefore, since (4) implies
+L − k − 1 ≥ D · Ms (D, k + 1),
+X
+|Bτ | ≤ (q − 1)(L − k) + (|T | − q + 1)D
+τ ∈T
+
+≤ (q − 1)(L − k) + D · Ms (D, k + 1)
+= q(L − k) − 1.
+P
+But since τ ∈T |Bτ | = |B| = q(L−k), we have a contradiction.
+Now consider the segments sk+1
+with |Bτj | ≥ D + 1, for
+τj
+j = 1, ..., q. Since τ1 , ..., τq are all distinct, these segments start
+at different points in s. Moreover, since |Bτj | ≥ D + 1, each
+sk+1
+is covered by D + 1 reads from the reads that cover ŝk+1
+ti ,
+τj
+i = 1, ...q. Notice that these must be distinct reads from the
+multiset RL,D (s). This is because two distinct pairs (n, i) and
+(m, j) in Bτ must have n 6= m, and the corresponding reads are
+rσ−1 (ti −n) = rτ −n and rσ−1 (tj −m) = rτ −m , which are distinct
+reads (not necessarily different sequences from ΣL ). Finally, as
+illustrated in Fig. 6, we note that, since there are at most D
+= x, for j = 1, ..., q.
+erasures per base in s, we have that sk+1
+τj
+We conclude that |δ(U )| ≥ q.
+
+s
+
+ŝ
+
+	  	   	   	  	  	  	  	  	  	  	  	  	  	  	   	  
+	  	   	  	  	  	  	  	  	  	   	  	  	  	   	  	   	  	  
+
+	  	  
+
+	  	  
+
+sτk+1
+=x
+j
+
+	  	   	  	  	   	  	   	  	  
+	  	  
+s k+1 = x
+t1
+
+	  	  	   	  	   	  	  
+	  	  = x ...
+
+stk+1
+2
+
+	  	   	   	  	  	  	  	  	  	  	  	  	  	  	   	  
+	  	  
+s k+1 = x
+tq
+
+Fig. 6. If |Bτj | ≥ D + 1, at least D + 1 of the reads that cover one of
+k+1
+in s (in this example, D = 3). Since there
+in ŝ also cover sk+1
+ŝk+1
+τj
+t1 , ..., ŝtq
+are at most D erasures per base in s, we must have sk+1
+= x.
+τj
+
+VI. C ONCLUDING R EMARKS
+Our results show that for several actual genomes, if we are in
+a dense-read model with reads 20-40% longer than the noiseless
+requirement `crit (s), perfect assembly feasibility is robust to
+erasures at a rate of about 10%. While this is not as optimistic
+as the message from [7], we emphasize that we consider an
+adversarial error model. When errors instead occur at random
+locations, it is natural to expect less stringent requirements.
+Another message provided by our results deals with error
+correction. Most current sequencing technologies employ error
+correction algorithms based on aligning reads to form clusters
+and outputing a cleaned-up read for each cluster. However, the
+spectrum error correction result from Theorem 3 suggests that
+a “global” approach to generating cleaned-up reads (based on
+finding a consistent assembly and looking at its spectrum) may
+perform better than cluster-based, or local, error correction.
+A direction for future work is to replace the dense-read model
+with a shotgun read model. While the L-spectrum approach
+is motivated by the high-throughput of current technologies, it
+bypasses the question of the actual coverage depth required for
+assembly. As was the case in [3], we expect the read length
+requirements from the dense-read model to translate into bridging
+conditions in the shotgun model, allowing one to compute the
+coverage required for perfect reconstruction with high probability.
+ACKNOWLEDGMENT
+This work is partially supported by the Center for Science
+of Information (CSoI), an NSF Science and Technology Center,
+under grant agreement CCF-0939370.
+R EFERENCES
+[1] S. L. Salzberg, “Mind the gaps,” Nature methods, vol. 7, no. 2, pp. 105–106,
+2010.
+[2] E. Myers. (2014, Feb.). [Online]. Available: https://twitter.com/
+thegenemyers/status/437349388676263937
+[3] G. Bresler, M. Bresler, and D. Tse, “Optimal assembly for high throughput
+shotgun sequencing,” BMC Bioinformatics, 2013.
+[4] E. Ukkonen, “Approximate string matching with q-grams and maximal
+matches,” Theoretical Computer Science, vol. 92, no. 1, 1992.
+[5] P. Pevzner, “DNA physical mapping and alternating Eulerian cycles in
+colored graphs,” Algorithmica, vol. 13, pp. 77–105, 1995.
+[6] S. L. Salzberg, A. M. Phillippy, A. Zimin, D. Puiu, T. Magoc, S. Koren, T. J.
+Treangen, M. C. Schatz, A. L. Delcher, M. Roberts, G. Marcais, M. Pop,
+and J. A. Yorke, “GAGE: a critical evaluation of genome assemblies and
+assembly algorithms,” Genome Research, vol. 22, no. 3, pp. 557–567, 2012.
+[7] A. Motahari, K. Ramchandran, D. Tse, and N. Ma, “Optimal DNA shotgun
+sequencing: Noisy reads are as good as noiseless reads,” Proc. of IEEE
+International Symposium on Information Theory, pp. 1640–1644, 2013.
+[8] A. Motahari, G. Bresler, and D. Tse, “Information theory of DNA shotgun
+sequencing,” IEEE Transactions on Information Theory, vol. 59, no. 10, pp.
+6273–6289, Oct. 2013.
+[9] P. E. C. Compeau, P. Pevzner, and G. Tesler, “How to apply de Bruijn
+graphs to genome assembly,” Nature Biotechnology, vol. 29, 2011.
+[10] [Online]. Available: http://mummer.sourceforge.net/
+
+

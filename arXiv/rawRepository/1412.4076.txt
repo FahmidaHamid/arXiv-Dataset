@@ -1,0 +1,1888 @@
+arXiv:1412.4076v2 [q-bio.PE] 18 Jan 2015
+
+On the complexity of computing MP
+distance between binary phylogenetic trees
+Steven Kelk and Mareike Fischer
+
+Abstract. Within the field of phylogenetics there is great interest in
+distance measures to quantify the dissimilarity of two trees. Recently,
+a new distance measure has been proposed: the Maximum Parsimony
+(MP) distance. This is based on the difference of the parsimony scores of
+a single character on both trees under consideration, and the goal is to
+find the character which maximizes this difference. Here we show that
+computation of MP distance on two binary phylogenetic trees is NPhard. This is a highly nontrivial extension of an earlier NP-hardness
+proof for two multifurcating phylogenetic trees, and it is particularly
+relevant given the prominence of binary trees in the phylogenetics literature. As a corollary to the main hardness result we show that computation of MP distance is also hard on binary trees if the number of
+states available is bounded. In fact, via a different reduction we show
+that it is hard even if only two states are available. Finally, as a first
+response to this hardness we give a simple Integer Linear Program (ILP)
+formulation which is capable of computing the MP distance exactly for
+small trees (and for larger trees when only a small number of character
+states are available) and which is used to computationally verify several
+auxiliary results required by the hardness proofs.
+
+Mathematics Subject Classification (2010). 05C15; 05C35; 90C35; 92D15.
+
+Keywords. Maximum Parsimony, phylogenetics, tree metrics, NP-hard,
+binary trees.
+
+2
+
+Steven Kelk and Mareike Fischer
+
+1. Introduction
+When present day species are considered and their evolutionary relationships are to be investigated, phylogeneticists often seek to estimate the best
+evolutionary tree explaining the given species data (e.g. DNA alignments).
+However, it is well known that different data sets on the same species can lead
+to different trees, or that different phylogenetic tree estimation methods, like
+e.g. Maximum Parsimony or Maximum Likelihood or distance based methods,
+can lead to different trees even for the same data set [6, 10]. Thus, in practice
+one is often confronted with multiple trees, and it is therefore interesting to
+measure how different these trees really are. A new way of determining their
+relative similarity has recently been proposed [5]: the Maximum Parsimony
+distance (or MP distance, for short).
+This metric basically requires the search for a character which has a low
+parsimony score on one of the trees involved and a high score on the other one.
+In [5] it has been shown that calculating the MP distance between two trees
+is NP-hard. The proof presented there required non-binary trees (sometimes
+also called multifurcating trees). This was not entirely satisfactory, for the
+following reason. In many branches of phylogenetics multifurcating trees are
+used to model uncertainty about the precise order of branching events [13],
+in which case the term unresolved is often used instead of multifurcating.
+Distance measures which interpret multifurcations this way often have the
+property that the distance decreases, or in the worst case stays the same, if
+one or both of the input trees become more unresolved [11]. However, the
+parsimony score of a single tree increases (or in the best case stays the same)
+if its edges are contracted to create multifurcations. This is why algorithms
+that compute Maximum Parsimony trees usually output binary trees: a nonbinary solution can be refined into a binary solution without loss of quality.
+Given this traditional emphasis on binary trees in the parsimony literature,
+and the fact that evolutionary events such as mutation or speciation are
+understood to split a lineage into two parts, not three or more [8], it is logical
+to explore the complexity of MP distance on binary trees.
+In this paper, we answer this question by showing that computing the
+MP distance between two binary trees is, unfortunately, also NP-hard. This
+is by no means a simple extension of the hardness proofs in [5]. To prove
+hardness in the present case we are required to develop a rather elaborate
+array of novel gadgets and arguments, with a strong graph-theoretical flavour.
+Moreover, we show as a corollary to the main theorem that this hardness
+remains if we restrict the number of character states to four (or more). Note
+that this covers the most important biological applications, as the DNA and
+RNA alphabets consist of four character states each, and the protein alphabet
+consists of 20 states. However, when morphological data is analyzed, binary
+characters are also often relevant, which is why we consider this case, too.
+
+Computing MP distance between binary phylogenetic trees
+
+3
+
+We show that when restricted to two character states, calculating the MP
+distance is not only also NP-hard, but even APX-hard, which means that
+there exists a constant c > 1 such that a polynomial-time c-approximation is
+impossible unless P = N P .
+As a tentative first step towards addressing the NP-hardness of the MP
+distance, we present a simple Integer Linear Program (ILP) which calculates
+this distance (both on a bounded number of states as well as in the unbounded
+case). The ILP is rather “explicit” in the sense that it has a static, constraintbased formulation of Fitch’s algorithm embedded within it. Although faster
+than naive brute force algorithms, the ILP for an unbounded number of
+states does not scale well and is limited to trees with approximately 16 taxa.
+On the other hand, the ILP for binary characters is fast: it can cope with
+trees with up to 100 taxa in reasonable time. In both cases the ILP is fast
+enough to verify the MP distance of a number of gadgets used in the hardness
+proofs. An implementation of this ILP has been made publicly available at
+http://skelk.sdf-eu.org/mpdistbinary/ [12].
+
+2. Notation
+Recall that an unrooted phylogenetic X-tree is a tree T = (V (T ), E(T )) on
+a leaf set X = {1, . . . , n} ⊂ V (T ). Such a tree is named binary if it has only
+vertices of degree 1 (leaves) or 3 (internal vertices). A rooted phylogenetic Xtree additionally has one vertex specified as the root, and such a rooted tree
+is named binary if the root has degree 2 and all other vertices are of degree
+1 (leaves) or 3 (internal vertices). Note that two leaves are said to form a
+cherry, if they are connected to the same inner node. Moreover, a rooted
+binary tree on three taxa is also often referred to as a rooted triplet, and a
+rooted tree with only one cherry is also called a caterpillar tree or caterpillar
+for short. We often denote trees in the well-known Newick format [4], which
+uses nested parentheses to group species together according to their degree
+of relatedness. For instance, the tree ((1, 2), (3, 4)) is a tree with two so-called
+cherries (1, 2) and (3, 4) and a root between the two.
+Furthermore, recall that a character f is a function f : X → C for some
+set C := {c1 , c2 , c3 , . . . , ck } of k character states (k ∈ N). Often, k is assumed
+to equal 4 in order for C to represent the DNA alphabet {A, C, G, T }, but in
+the present paper k is not restricted this way but can be any natural number
+unless stated otherwise. Note that in the special case where |f (X)| = 2, we
+also refer to f as a binary character. In general, when |f (X)| = r, f is called
+an r-state character. In order to shorten the notation, it is customary to
+write for instance f = AACC instead of f (1) = A, f (2) = A, f (3) = C and
+f (4) = C. Note that each r-state character f on taxon set X partitions X into
+
+4
+
+Steven Kelk and Mareike Fischer
+
+r non-empty and non-overlapping subsets Xi , i = 1, . . . , r, where xj , xk ∈ Xi
+if and only if f (xj ) = f (xk ).
+Note that in this paper, we refer to a character always with its underlying taxon set partition in mind, i.e. for instance we do not distinguish between
+AACC, CCAA and CCGG, and so on. Moreover, when there is no ambiguity and when the stated result holds for both rooted and unrooted trees, we
+often just write ‘tree’ or ‘phylogenetic tree’ when referring to a phylogenetic
+X-tree.
+An extension of a character f to V (T ) is a map g : V (T ) → C such
+that g(i) = f (i) for all i in X. For such an extension g of f , we denote by
+lg (T ) the number of edges e = {u, v} in T on which a substitution occurs, i.e.
+where g(u) 6= g(v). Such substitutions are also often referred to as mutations
+or changes. The parsimony score or parsimony length of a character f on T ,
+denoted by lf (T ), is obtained by minimizing lg (T ) over all possible extensions
+g of f . For binary trees T , the parsimony score of a character f can easily
+be calculated with the Fitch algorithm [7]. Recall that the bottom-up phase
+of Fitch starts at the labelled leaves and assigns to the unlabeled parent of
+two nodes the intersection of both children’s label set if it is non-empty, or
+the union otherwise. The top-down phase then starts at the root with an
+arbitrary choice of the root states suggested by the bottom-up phase and
+keeps the current state for the descending nodes whenever this is contained
+in the label set of these nodes, and takes an arbitrary state out of the label
+set otherwise.
+This paper deals with the so-called parsimony distance dMP as introduced in [5]. This distance is defined as follows: Given two phylogenetic trees
+T1 and T2 on the same set X of taxa, the parsimony distance between these
+trees is defined as
+dMP (T1 , T2 ) = max |lf (T1 ) − lf (T2 )|,
+f
+
+where the maximum is taken over all characters f on X. A character f which
+maximizes this distance is called an optimal character. Note that, due to the
+fact that the parsimony score of a tree (for a given character) is not affected
+by the presence or absence of a root, parsimony distance is also oblivious to
+whether the input trees are rooted or unrooted.
+For some proofs in this paper we need the notion of a maximum agreement forest, which is closely linked to the so-called rooted subtree prune and
+redraft distance or rSPR distance for short. Recall that, informally, an agreement forest of two rooted phylogenetic trees is a set of subtrees which are
+identical in both trees and which in total contain all leaves, see, e.g. [2]. A
+maximum agreement forest is an agreement forest with minimum number of
+components. A single rSPR move involves moving to a neighboring rooted
+tree by detaching a branch and re-attaching it elsewhere. The rSPR distance
+
+Computing MP distance between binary phylogenetic trees
+
+5
+
+drSP R is the minimum number of rSPR moves required to transform one
+rooted tree into another. Maximum agreement forests and rSPR distance are
+closely linked by the well-known result that, modulo a rooting technicality,
+an agreement forest of two rooted trees with m components yields a set of
+m − 1 rSPR moves which turn the first tree into the second one [2].
+
+3. Preliminaries
+The following observation, which we will use extensively and implicitly throughout the article, appeared unchanged in our earlier work [5].
+Observation 3.1. Let f be a character on X and T a tree on X. Let f ′ be any
+character obtained from f by changing the state of exactly one taxon. Then
+lf (T ) − 1 ≤ lf ′ (T ) ≤ lf (T ) + 1 i.e. the parsimony score can change by at
+most one.
+Proof. Suppose lf ′ (T ) ≤ lf (T ) − 2. Consider any extension of f ′ to the
+interior nodes of T that achieves lf ′ (T ) mutations. Using the same extension
+but on f gives at most lf ′ (T ) + 1 mutations, because only one taxon changed
+state. So lf (T ) ≤ lf ′ (T ) + 1 ≤ lf (T ) − 1, which is a contradiction. In the
+other direction, take any optimal extension of f and apply it to f ’. At most
+
+one extra mutation will be created, so lf ′ (T ) ≤ lf (T ) + 1.
+A more general version of the following lemma appeared earlier in [5].
+Here we have specialized the lemma and its proof to apply to rooted binary
+trees, which is the type of trees we will construct in the subsequent hardness
+reductions.
+Lemma 3.2. Let f be an optimal character for two rooted, binary trees T1
+and T2 i.e. dMP (T1 , T2 ) = |lf (T2 ) − lf (T1 )|. Without loss of generality assume
+lf (T1 ) < lf (T2 ). Then we can construct in polynomial time an optimal character f ′ with the following property: lf ′ (T1 ) < lf ′ (T2 ) and for each vertex u of
+T1 such that both u’s children are leaves (i.e. they form a cherry), f ′ assigns
+both children of u the same state.
+Proof. Consider a vertex u of T1 such that both of its children are taxa, but
+such that f assigns the two children different states. We calculate an optimal
+extension of f to the interior nodes of T1 by applying Fitch’s algorithm.
+Let s be the state allocated to u by the top-down phase of Fitch. Choose
+the child of u that does not have state s and change its state to s. This
+yields a new character f ∗ . Clearly, lf ∗ (T1 ) < lf (T1 ), simply by using the
+same extension that Fitch gave. Combining this with Observation 3.1 gives
+lf ∗ (T1 ) = lf (T1 ) − 1 and thus lf ∗ (T2 ) = lf (T2 ) − 1 (otherwise f could not
+have been optimal). Hence, f ∗ is also an optimal character, and lf ∗ (T1 ) <
+
+6
+
+Steven Kelk and Mareike Fischer
+
+lf ∗ (T2 ). This process can be repeated for as long as necessary. Termination
+in polynomial time is guaranteed because each taxon has its state changed
+at most once.
+
+Observation 3.3. Lemma 3.2 also holds for optimal characters under the
+diMP (T1 , T2 ) model.
+Proof. The transformation in the proof of Lemma 3.2 does not increase the
+number of states in the character.
+
+
+4. MP distance on binary trees is NP-hard
+4.1. The symmetry-breaking construction
+In the hardness proof in Section 4.2 we will construct two trees TE and TV
+and a central fact used in the proof of correctness of the reduction is that,
+for all optimal characters f , lf (TE ) < lf (TV ). In this section we show how to
+construct a gadget to enforce this property. Note that all the trees constructed
+in this section are binary. (As we demonstrated in [5] constructing such a
+symmetry-breaking gadget is far easier in the non-binary case).
+
+Tb
+
+Ta
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+6
+
+3
+
+4
+
+5
+
+1
+
+A
+
+A
+
+C
+
+C
+
+G
+
+G
+
+A
+
+G
+
+A
+
+C
+
+C
+
+G
+
+Figure 1. The two “asymmetric” trees Ta and Tb and an optimal character
+fasym = GAACCG.
+
+Consider the two rooted trees
+Ta = (((((2, 3), 4), 5), 6), 1)
+Tb = ((((2, 6), (3, 4)), 5), 1)
+shown in Figure 1. It can be verified computationally that dMP (Ta , Tb ) = 2,
+achieved for example by character fasym = GAACCG1 with lf (Ta ) = 2 and
+lf (Tb ) = 4. Moreover, if f is an optimal character, then lf (Ta ) + 2 = lf (Tb ).
+1 Note that for this specific character there exist optimal extensions in both trees such that
+the root is allocated state G.
+
+Computing MP distance between binary phylogenetic trees
+
+7
+
+Expressed differently: there does not exist any optimal character f for which
+lf (Ta ) > lf (Tb ), so the instance is “asymmetric”. For two trees T1 and T2 , let
+gap(T1 , T2 ) = | max(lf (T2 ) − lf (T1 )) − max(lf (T1 ) − lf (T2 ))|
+f
+
+f
+
+where f ranges over all characters (not just optimal ones). Note that gap(Ta , Tb ) =
+1 because maxf (lf (Tb ) − lf (Ta )) = 2 and maxf (lf (Ta ) − lf (Tb )) = 1, where
+e.g. the character f = AACCAA achieves lf (Ta ) − lf (Tb ) = 2 − 1 = 1.
+We now describe an iterative construction such that, for any desired
+gap g, we can construct two trees T1 and T2 , both on O(g) taxa, such that
+gap(T1 , T2 ) ≥ g.
+We start with Ta and Tb . Let TA be the rooted tree on 12 taxa obtained
+by taking two disjoint copies of Ta and joining them together via their roots
+ρ1 , ρ2 to a newly introduced root ρ. (Here, the copying operation is assumed
+to introduce new taxon labels to prevent the same taxon occuring twice in
+the same tree). TB is defined the same way, but with respect to Tb .
+Claim 4.1. gap(TA , TB ) ≥ 2.
+Proof. We will show that maxf (lf (TB ) − lf (TA )) ≥ 4 and maxf (lf (TA ) −
+lf (TB )) ≤ 2, from which the claim will follow. Let f be a character such that
+lf (Ta )+2 = lf (Tb ), i.e. f is an optimal character for Ta , Tb . We extend character f to become character F on TA , TB in the natural way i.e. disjoint copies
+of the same taxon receive the same character state. If we run the bottom-up
+phase of Fitch’s algorithm on TA and TB , we observe that each copy of Ta
+induces 2 fewer mutations than its corresponding copy of Tb . Moreover, the
+set of states identified (by Fitch’s bottom-up phase) to be possible at ρ1 will
+be equal to the set of states identified to be possible at ρ2 , so there will be no
+mutations incurred in TA on the two edges incident to its root ρ. By the same
+argument, there will be no mutations incurred in TB on the edges incident
+to its root. Hence, lF (TB ) − lF (TA ) ≥ 4. Showing maxf (lf (TA ) − lf (TB )) ≤ 2
+is possible analytically but it is technical. We therefore omit the proof, noting however that we have used an exhaustive computational search to verify
+that (a) maxf (lf (TB ) − lf (TA )) = 4, where the maximum is reached e.g. by
+f = ABBCCAACCBBA and (b) maxf (lf (TA ) − lf (TB )) = 2, where the
+maximum is reached e.g. by f = AABBAAAABBAA. Note that our ILP
+described in Section 6 can also be used to verify the claim. The computational search thus allows us to draw the slightly stronger conclusion that
+gap(TA , TB ) = 2.
+
+Let TAk be the rooted tree on 12k taxa obtained by arranging k disjoint
+copies of TA along a caterpillar backbone. That is, TA1 = TA and for k > 1, TAk
+is obtained by joining TAk−1 and TA via a new root. TBk is defined analogously.
+Claim 4.2. gap(TA2 , TB2 ) ≥ 3.
+
+8
+
+Steven Kelk and Mareike Fischer
+
+Proof. By extending the character F to TA2 , TB2 in the usual fashion, and
+using the same Fitch-based argument as in the previous proof, we see that
+maxf (lf (TB2 )−lf (TA2 )) ≥ 8. One the other hand, due to the fact that maxf (lf (TA )−
+lf (TB )) ≤ 2, the total number of mutations incurred inside the two copies
+of TA can in total be at most 4 more than the total number of mutations
+incurred inside the two copies of TB . In the worst case, TA2 can perhaps also
+suffer a single mutation on the two edges incident to the root, while TB2 suffers
+none, so maxf (lf (TA2 ) − lf (TB2 )) ≤ 5. The claim follows.
+
+Lemma 4.3. For k ≥ 1, gap(TAk , TBk ) ≥ k + 1.
+Proof. We prove this statement by induction. For k ∈ {1, 2} the lemma has
+already been proved, so assume k ≥ 3. By continuing the arguments used in
+the previous claims, we see that
+max(lf (TBk ) − lf (TAk )) ≥ max(lf (TBk−1 ) − lf (TAk−1 )) + max(lf (TB ) − lf (TA ))
+f
+
+f
+
+f
+
+and
+max(lf (TAk )−lf (TBk )) ≤ max(lf (TAk−1 )−lf (TBk−1 ))+max(lf (TA )−lf (TB ))+1
+f
+
+f
+
+f
+
+where the 1 in the second expression accounts for the possibility that in TAk
+a mutation is incurred on one of the root edges, while no such mutation
+is incurred in TBk . Combining the above with the fact that maxf (lf (TB ) −
+lf (TA )) = 4, maxf (lf (TA ) − lf (TB )) = 2, maxf (lf (TB2 ) − lf (TA2 )) ≥ 8 and
+maxf (lf (TA2 ) − lf (TB2 )) ≤ 5, we obtain the desired result.
+
+In addition to Lemma 4.3, we actually also need to know a (polynomialtime computable) expression for dMP (TAk , TBk ). Conveniently, we have a closed
+expression for this.
+Lemma 4.4. For k ≥ 2, dMP (TAk , TBk ) = 8 + 4(k − 2) = 4k.
+Proof. From the proof of Lemma 4.3 we know that
+dMP (TAk , TBk ) = maxf (lf (TBk ) − lf (TAk )).
+Due to the recurrence shown in the proof of that lemma we see,
+maxf (lf (TBk ) − lf (TAk )) ≥ 8 + 4(k − 2)
+We will complete the proof by showing dMP (TAk , TBk ) ≤ 8 + 4(k − 2). To do
+this, we exploit the fact (proven in [5]) that dMP (TAk , TBk ) ≤ drSP R (TAk , TBk )
+i.e. MP distance is a lower bound on the well-known rooted subtree prune
+and regraft (rSPR) distance. In particular, we prove that drSP R (TAk , TBk ) ≤
+8 + 4(k − 2). We do this by showing that TAk , TBk permit an agreement forest
+with at most 8 + 4(k − 2) + 1 = 4k + 1 components. (It is well-known that an
+agreement forest with m components yields a set of m − 1 rSPR moves that
+
+Computing MP distance between binary phylogenetic trees
+
+9
+
+turn one tree into the other, see [2])2 . Now, observe that TAk , TBk contains
+4 + 2(k − 2) = 2k copies of the original Ta , Tb trees. Next, observe that an
+agreement forest for Ta , Tb with 3 components can be obtained by placing
+taxon 3 and taxon 6 each in a singleton component, and {1, 2, 4, 5} in the
+remaining component. To obtain an agreement forest for TAk , TBk we put all
+copies of taxon 3 and all copies of taxon 6 in singleton components, yielding 4k singleton components. All remaining taxa can be placed in one large
+component, yielding 4k + 1 components in total.
+
+Finally, we consider the following auxiliary observation, which will be
+useful later.
+Observation 4.5. For each k ≥ 2, there exists an optimal character f k on
+TAk , TBk such that f k has 3 states, and there exist optimal extensions of f k to
+both trees, such that the roots of TAk , TBk both receive the same state.
+Proof. As noted earlier, fasym = GAACCG is an optimal character for Ta , Tb
+and permits optimal extensions such that the roots of both trees can be
+assigned state G. We can obtain an optimal character f k on TAk , TBk simply
+by making 2k copies of fasym . The optimality of f k follows from the fact that
+fasym is optimal for Ta , Tb and that Claim 4.1 holds for any optimal character.
+Given that each copy of Ta and Tb can have state G allocated to its root, it
+follows (by continuing the bottom-up phase of Fitch on the remainder of TAk
+and TBk ) that there exist optimal extensions of f k such that the roots of TAk
+and TBk are both allocated state G.
+
+4.2. The reduction
+In this section we exclusively consider simple undirected graphs. Recall that
+a graph G = (V, E) is cubic if every vertex has degree exactly 3, in which case
+|E| = 3|V |/2. A proper edge colouring of a graph G is an assignment of colours
+to the edges such that no two adjacent edges have the same colour, where two
+edges are adjacent if they have a common endpoint. Let χ′ (G), the chromatic
+index of G, be the minimum number of colours required to properly colour
+the edges of G. The classical result of Vizing (see any standard graph-theory
+text, such as [3]) states that for every graph G, ∆(G) ≤ χ′ (G) ≤ ∆(G) + 1
+where ∆(G) is the maximum degree of a vertex in G. Hence, for cubic G,
+χ′ (G) ∈ {3, 4}. Even for cubic graphs it is NP-hard to distinguish between
+these two possibilities [9].
+Theorem 4.6. Computation of dMP (T1 , T2 ) on binary trees is NP-hard.
+2 To
+
+utilize this agreement forest formulation of rSPR we should first append a new taxon
+ρ to the root of both trees. However in this case it is easy to check that the omission of ρ
+does not harm the analysis.
+
+10
+
+Steven Kelk and Mareike Fischer
+
+Proof. Let G = (V, E) be a cubic graph where n = |V |. We give a polynomialtime reduction from computation of χ′ (G) to computation of dMP , from
+which NP-hardness will follow. Specifically, we will construct two trees TE
+and TV such that, for a certain integer P , dMP (TE , TV ) = P if and only if
+χ′ (G) = 3. In particular, if χ′ (G) = 4, then dMP (TE , TV ) will be P − 1 (or
+less). An important difference with Theorem 4.6 of [5] is that here optimal
+characters f will be engineered to always have the property lf (TE ) < lf (TV )
+and not the other way round. Informally, at optimality TE always “wins”.
+The high-level idea is that in TE we will choose the colours of the edges of
+G. In fact, for each edge we will choose three colours, all different, representing
+the colour of e in three different copies of G. Due to the way we construct
+the two trees, there will exist optimal characters in which the edge colouring
+(in each of the three copies of G) is proper. This is because, the closer an
+edge colouring is to being proper, the higher the parsimony score induced
+in TV . Within the space of proper edge colourings, we will show that it is
+advantageous to use as few colours as possible, because this will give the
+character a low parsimony score on TE . Leveraging the fact that the colours
+used for the three copies of each edge are all different, we will derive the
+conclusion that dMP can reach a certain value P if and only if there is a
+proper edge colouring that uses only 3 colours i.e. that χ′ (G) = 3. We will
+prove the following:
+
+χ′ (G) = 3 ⇒ dMP (TE , TV ) = P
+χ′ (G) = 4 ⇒ dMP (TE , TV ) ≤ P − 1
+Let M be a large integer, at most polynomially large in n, whose value
+we will specify later. Letting k = M , construct TAk , TBk (as described in
+the previous section). Relabel SE = TAk and SV = TBk . By Lemma 4.3,
+gap(SE , SV ) ≥ M + 1.
+The core ingredients of TE are the subtrees B, SE and T ∗∗∗ . We construct B by taking an arbitrary rooted binary tree on 3|V | + |E| taxa. By
+appending an extra taxon α just above its root, we create a new root yielding
+3|V | + |E| + 1 taxa in total. Note that since α is not a taxon of B, in the
+following we refer to B including α or B without α to stress whether or not
+α is considered together with B or not.
+Tree T ∗∗∗ is constructed as follows. Fix an arbitrary rooted binary tree
+T on |E| leaves, identifying the leaves with elements of E. Replace each leaf
+ue of T ∗ , where e ∈ E, with a rooted triplet to obtain T ∗∗ on 3|E| leaves ue,j
+where e ∈ E and j ∈ {1, 2, 3}. Finally, replace each leaf ue,j of T ∗∗ with a
+where u, v ∈ V are the two
+rooted triplet on three taxa xue,j , xve,j and xedge
+e,j
+endpoints of e. We ensure that xue,j , xve,j are sibling to each other (i.e. form
+∗
+
+Computing MP distance between binary phylogenetic trees
+
+11
+
+a cherry). This is T ∗∗∗ , which is depicted in Figure 2, and it has thus 9|E|
+taxa.
+
+T ∗∗∗
+
+T
+
+T∗
+
+∗∗
+
+u1
+
+u1,1
+
+xu1,1
+
+xv1,1
+
+u1,2
+
+edge
+xedge
+1,1 x1,2
+
+u1,3
+
+xv1,2
+
+u2
+
+u2,3
+
+xu1,2
+
+u|E|
+
+u2,2
+
+u2,1
+
+xedge
+2,1
+
+xv2,1
+
+u|E|,3 u|E|,2
+
+xu2,1
+
+xedge
+|E|,3
+
+xv|E|,3
+
+u|E|,1
+
+xu|E|,3
+
+Figure 2. The tree T ∗∗∗ . Here we have identified E with the set {1, . . . , |E|}
+to simplify the figure. In the lowermost leaves we have overloaded u and v:
+in each case they refer to the two endpoints of the edge in question.
+
+The basic idea is that each edge e = {u, v} occurs 3 times in total, and
+each such occurrence consists of a cherry representing u and v, and an extra
+taxon (“edge” ) sitting just above the cherry.
+The construction of TE is concluded by joining B including α, SE and
+T ∗∗∗ as shown in Figure 3, which also introduces auxiliary taxa β1 , β2 , γ1 , γ2 .
+We adopt the labels used in that figure. Summarizing, TE contains
+3|V | + |E| + 1 + 4 + 9|E| + 12M
+taxa.
+To construct TV we start by taking B and attaching SV on the edge
+entering taxon α. Now, let
+H = {(v, j)|v ∈ V, j ∈ {1, 2, 3}} ∪ {e|e ∈ E}.
+Clearly, |H| = 3|V | + |E|. Pick an arbitrary bijection between the taxa of
+B (excluding α) and the elements of H. For each edge e ∈ H, introduce a
+edge
+edge
+rooted triplet on the three taxa xedge
+and attach this rooted
+e,1 , xe,2 , xe,3
+triplet on the edge entering the taxon of B corresponding to e. For each
+tuple (v, j) ∈ H, let {e, e∗ , e∗∗ } be the 3 edges incident to v in G, introduce a
+rooted triplet on the three taxa xve,j , xve∗ ,j and xve∗∗ ,j , and attach this rooted
+triplet on the edge entering the taxon of B corresponding to (v, j). Finally,
+
+12
+
+Steven Kelk and Mareike Fischer
+
+TE
+
+ρ2
+ρ1
+γ1
+α β1
+
+β2
+
+γ2
+
+T ∗∗∗
+9|E| taxa
+
+B
+
+SE
+12M taxa
+
+3|V | + |E| = 3|E| taxa
+
+Figure 3. The tree TE . Taxon α is closely linked to subtree B as it is descending from the same root as B in TE . This root is considered in the
+proof. However, in TV , α shares a direct common root with SV , not B.
+
+we introduce a new root and join B to the new subtree on ((β1 , γ1 ), (β2 , γ2 )).
+This completes the construction of TV , which is depicted in Figure 4.
+We are now in a position to specify the number M . We require M to
+be sufficiently large that, for every optimal character f , lf (TE ) < lf (TV ).
+From Lemma 4.4 we know that there exists some character f ′ such that
+lf ′ (TV ) − lf ′ (TE ) ≥ 4M . (In particular, we can obtain such a character by
+– for example – extending the character suggested by Lemma 4.4 such that
+all taxa outside SE and SV are assigned the same state.) Now, let t be the
+number of edges in TE that lie outside SE . For every character f we have
+lf (TE ) − lf (TV ) ≤ t + (4M − (M + 1)).
+The 4M term is obtained from Lemma 4.4, the (M + 1) term from Lemma
+4.3, and the t term arises (pessimistically) from the situation when every edge
+in TE (outside SE ) incurs a mutation, but no edge in TV (outside SV ) incurs
+a mutation. So, if we choose M such that
+t + 4M − (M + 1) < 4M
+it follows that for every optimal character f , dMP (TV , TE ) = lf (TV ) − lf (TE )
+and in particular lf (TV ) > lf (TE ). Choosing M = t is therefore sufficient to
+achieve this. This “symmetry breaking” has far-reaching consequences which
+we shall heavily utilize later.
+Next, let f S be any 3-state character on the taxa in SE and SV such
+that lf S (TV ) − lf S (TE ) = 4M = dMP (SE , SV ). This character exists and
+
+Computing MP distance between binary phylogenetic trees
+
+13
+
+TV
+
+α
+β1
+
+γ1
+
+β2
+
+γ2
+
+B
+
+SV
+12M taxa
+
+xedge
+e,1
+
+xedge
+e,2
+
+xedge
+e,3
+
+xve∗∗,j xve∗,j
+
+xve,j
+
+4(3|V | + |E|) = 12|E| taxa
+Figure 4. The tree TV .
+
+can be constructed in polynomial time thanks to Observation 4.5. Recall,
+in particular, that it is constructed by making many disjoint copies of the
+character fasym = GAACCG.
+Now, suppose χ′ (G) = 3. We will extend f S to all the taxa in TE as
+follows, obtaining a 4-state character. Take any proper edge colouring Col
+of graph G using three colours red, blue and green. We start by relabelling
+f S as follows: character state G maps to blue, A maps to red and C maps
+to green. Next, colour all the taxa in B including α pink. Colour the cherry
+{β1 , β2 } pink and the cherry {γ1 , γ2 } blue.
+
+14
+
+Steven Kelk and Mareike Fischer
+Next, consider the following cyclical mapping F :
+F (red, 1) → red
+F (red, 2) → blue
+F (red, 3) → green
+F (blue, 1) → blue
+F (blue, 2) → green
+F (blue, 3) → red
+F (green, 1) → green
+F (green, 2) → red
+F (green, 3) → blue
+
+Now, for every e ∈ E, j ∈ {1, 2, 3} and letting e = {u, v}, we assign xue,j , xve,j
+and xedge
+e,j all the same colour: the colour F (Col(e), j) where as usual Col(e)
+is the colour assigned to e by the proper edge colouring Col.
+Let this character be called f Col . Observe,
+lf Col (TE ) = 1 + 2|E| + lf S (SE )
+This can be confirmed by applying Fitch’s algorithm. Note, in particular,
+that there is an optimal extension such that all the internal nodes of the tree
+B (including α) are coloured pink, all the nodes of the T ∗ part of T ∗∗∗ are
+blue, p2 is blue, the root is blue, and all the unlabelled nodes are blue. The
++1 is then the mutation in the transition from pink to blue on, for example,
+the edge between the cherries {β1 , β2 } and {γ1 , γ2 }. There is no mutation on
+the edge entering the root of SE because, by Observation 4.5 and the way
+we relabelled f S , there is an optimal extension of SE in which its root is
+permitted to be blue.
+Also,
+lf Col (TV ) = 2 + 3(3|V | + |E|) + 1 + lf S (SV )
+The +1 term here is definitely incurred because there is an optimal extension
+in which the root of TV and α are both coloured pink, but pink is not used
+in f S , so there will then be a mutation on the edge entering the root of SV .
+The +2 term corresponds to mutations incurred in the β1 , β2 , γ1 , γ2 region of
+TV .
+
+Computing MP distance between binary phylogenetic trees
+
+15
+
+Now, define P as follows:
+P = lf Col (TV ) − lf Col (TE )
+
+ 
+
+= 2 + 3(3|V | + |E|) + 1 + lf S (SV ) − 1 + 2|E| + lf S (SE )
+
+ 
+
+= 2 + 3(3|V | + |E|) + 1 − 1 + 2|E| + 4M
+Hence, if χ′ (G) = 3, dMP (TE , TV ) ≥ P . We still need to show (1)
+dMP (TE , TV ) ≤ P and (2) dMP (TE , TV ) = P if and only if χ′ (G) = 3. Once
+these facts have been established NP-hardness will follow.
+We approach this by starting from an arbitrary optimal character f
+and then transforming f step by step such that we do not lose optimality but
+the character attains a certain canonical form. This canonical form will be
+attained by accumulating one special property at a time. In all cases the argument that a new property can be obtained, is based on the assumption that
+all earlier properties have already been accumulated. Properties are never
+lost, and each property can be attained in polynomial time. Thus, given an
+arbitrary optimal character we can transform it in polynomial time into a
+character that has all the described properties. The proofs of the following
+properties can be found in the Appendix (unless stated here).
+Property 1. All cherries in TE are monochromatic. That is, if {x, y} are two
+taxa that share a parent in TE , then both are assigned the same colour (i.e.
+state).
+Proof. This is possible by combining Lemma 3.2 with the fact (established
+earlier) that, for every optimal character f , lf (TE ) < lf (TV ).
+Property 2.1. In TE , the cherry {β1 , β2 } has a different colour to the cherry
+{γ1 , γ2 }.
+Property 2.2. In TE , the (possibly multiple) colours used for the taxa of B
+(including α) are not used elsewhere in TE , except possibly {β1 , β2 }.
+Property 2.3 In TE , all the taxa in B have the same colour which, with
+the possible exception of β1 , β2 , does not appear on taxa outside B and α.
+Property 3. In TE , all the taxa in B have the same colour, and cherry {β1 , β2 }
+also has this colour. Moreover this colour does not appear on any other taxa
+i.e. it is unique for B (including α) and β1 , β2 .
+From now on we refer to the unique colour used by B (including α), β1
+and β2 as pink. Property 3 is extremely important. In particular, it means
+that from now on we can assume the existence of optimal extensions of TV
+
+16
+
+Steven Kelk and Mareike Fischer
+
+such that the root of TV is coloured pink and, moreover, that the entire image
+of B inside TV is coloured pink. We call these pink extensions. These greatly
+simplifies the task of counting mutations inside TV . In particular, it means
+that we from now on (in TV ) only need to consider mutations incurred inside
+the subtrees sibling to the taxa of B, which we call below pink subtrees. These
+subtrees never contain pink taxa.
+Property 4. Let f be an optimal character with properties 1–3 and let f ∗
+be the restriction of f to the taxa in SV and SE . Then lf ∗ (SV ) − lf ∗ (SE ) =
+dMP (SE , SV ).
+Proof. Fix a pink extension of f . From the earlier properties, f ∗ does not
+contain any pink taxa. Now, taxon α is coloured pink, because α is a taxon of
+B. This means that, in TV , there is unavoidably a mutation on the edge entering the root of SV . Moreover, we know that there exist optimal characters
+for SE , SV in which the roots of SE and SV can be allocated the same colour
+blue: this is the 3-state character f S that we constructed at the start of the
+proof. This means that, without loss of optimality, we can assume f ∗ = f S ,
+where we are free to (and should) relabel the blue inside f S such that in TE
+no mutation is incurred on the edge entering the root of SE . (This can be
+achieved by running the bottom-up phase of Fitch on the subtree sibling to
+SE in TE , identifying the set of colours permitted by Fitch at the root of the
+subtree, and arbitrarily picking one of those colours as the relabelling colour).
+Optimality is assured because (1) lf S (SV ) − lf S (SE ) = dMP (SE , SV ), (2) we
+force a mutation at the root of SV and (3) we definitely avoid a mutation at
+the root of SE .
+edge
+Property 5. (a) For every edge e = {u, v} ∈ E the three taxa xedge
+e,1 , xe,2 ,
+edge
+v
+u
+xedge
+e,3 all have distinct colours. Moreover, (b) xe,1 , xe,1 , xe,1 all have the same
+edge
+v
+u
+v
+u
+colour, xe,2 , xe,2 , xe,2 all have the same colour, and finally xedge
+e,3 , xe,3 , xe,3
+all have the same colour.
+
+Proof. First, suppose for some e ∈ E there exists j, j ′ ∈ {1, 2, 3} such that
+edge
+edge
+edge
+j 6= j ′ and xedge
+e,j , xe,j ′ have the same colour. Observe that xe,1 , xe,2 ,
+edge
+xedge
+e,3 all form a single below pink subtree in TV . Suppose we recolour xe,j
+to some brand new colour. This raises the parsimony score of TE by at most
+1. However, it also raises the parsimony score of TV by at least one, due to
+the introduction of a new colour into the corresponding below pink subtree.
+Hence the recoloured character is optimal. We can repeat this as long as
+necessary to ensure that (a) eventually holds. Now, suppose for some e ∈ E
+u
+v
+and j ∈ {1, 2, 3} the taxa xedge
+e,j , xe,j , xe,j do not all have the same colour. By
+v
+u
+Property 1 we know that xe,j and xe,j have the same colour, because they
+form a cherry in TE . We recolour all 3 taxa with a brand new colour. This
+cannot raise the parsimony score of TE . On the other hand, it cannot lower
+
+Computing MP distance between binary phylogenetic trees
+
+17
+
+the parsimony score of TV , because the three now uniquely coloured taxa all
+occur in different below pink subtrees of TV . Hence the recoloured character
+is optimal, and (a) is still holding. We repeat this as long as necessary to
+ensure that (b) eventually also holds.
+Property 6. For every j ∈ {1, 2, 3}, the edge colouring induced by the colours
+of the xedge
+taxa (e ∈ E), is a proper edge colouring.
+e,j
+Recall that, by Property 5, each xedge
+taxon has the same colour as the
+e,j
+xue,j and xve,j taxa below it in TE . Suppose that there is some j ∈ {1, 2, 3}
+for which the induced edge colouring is not proper. Then there exists some
+u ∈ V and two edges e 6= e′ in E incident at u such that xue,j and xue′ ,j both
+have the same colour. Both these taxa are together in a below pink subtree
+of TV . This subtree therefore currently induces m < 2 mutations (excluding
+the mutation as the subtree touches the pink region). Now, suppose we introduce a brand new colour and recolour xue,j , xve,j and xedge
+e,j with it. This raises
+the parsimony score of TE by at most 1. However, it definitely also raises
+the parsimony score of TV , by at least 1, because the aforementioned below
+pink subtree now induces m + 1 mutations (due to the introduction of a new
+colour). Hence the new character is optimal, and all earlier properties are preserved. We can repeat this process until the induced edge colouring is proper.
+Property 7. For an optimal character f ,
+lf (TV ) = 2 + 3(3|V | + |E|) + 1 + lf S (SV ).
+Proof. This is a consequence of the fact that (from Property 6) we can assume that in TV a proper edge colouring is induced, plus the fact that a pink
+extension is an optimal extension. In particular, the proper edge colouring
+means that each of the 3|V | + |E| below pink subtrees induces 2 mutations
+on its internal edges and a third mutation where the subtree touches the
+pink region. The ‘2’ term corresponds to the fact that the two taxa γ1 , γ2 are
+necessarily not pink. The ’1’ term is the mutation at the root of SV .
+Central argument
+As a consequence of Property 7, optimal characters (which we always assume
+to induce proper edge colourings) are only distinguished by their ability to
+minimize the number of mutations induced in TE . We can already establish
+a strong lower bound for this number:
+lf (TE ) ≥ 1 + 2|E| + lf S (SE )
+Every proper edge colouring induces (at least) these mutations in TE . The
+’1’ term is the mutation that occurs between the β1 , β2 and γ1 , γ2 taxa and
+the 2|E| term is a consequence of (amongst others) Property 5.
+
+18
+
+Steven Kelk and Mareike Fischer
+
+Hence, dMP (TE , TV ) = lf (TV ) − lf (TE ) ≤ P , where P is the value
+defined earlier in the proof. We have already shown that, if G has χ′ (G) = 3,
+P is possible. We now see that this is optimal. The only thing we have left to
+show, is that if χ′ (G) > 3, that P is not possible. We use the contrapositive
+to prove this. In particular, we will show
+lf (TE ) = 1 + 2|E| + lf S (SE ) ⇒ χ′ (G) = 3.
+Suppose, then, that lf (TE ) = 1 + 2|E| + lf S (SE ). This means that there are
+no mutations in the subtree T ∗∗∗ other than the 2|E| unavoidable mutations
+due to Property 5. To achieve this it must be the case that all the |E| subtrees (each containing 9 taxa) in T ∗∗∗ all have a single colour in common.
+Let us call this colour blue. Hence, for every e ∈ E, there exists exactly one
+u
+v
+j ∈ {1, 2, 3} such that xedge
+e,j , xe,j , xe,j are all blue. We now build a proper
+3-edge-colouring for G. If j = 1, we assign e the colour red. If j = 2, we
+assign e the colour blue. If j = 3, we assign e the colour green. This must be
+a proper colouring: if it was not, then there would be some vertex u ∈ V , two
+incident edges e, e′ incident to u, and some j ∈ {1, 2, 3} such that xedge
+e,j and
+edge
+′
+xe′ ,j were both blue. But this would contradict Property 6. Hence, χ (G) = 3.
+This completes the proof. Summarising, for a given cubic graph G = (V, E),
+χ′ (G) = 3 ⇔ dMP (TE , TV ) = P,
+from which the NP-hardness of computing dMP (TE , TV ) on binary trees follows.
+
+Corollary 4.7. For every fixed integer i ≥ 4, computation of diMP on binary
+trees is NP-hard.
+Proof. This is a consequence of the fact that in the theorem only 4 states
+are required to construct a character achieving MP distance P . Namely, the
+3 colours used in the proper edge colouring of G, plus pink.
+
+Note that the above proof cannot (obviously) be extended to give APXhardness. By taking multiple copies of the tree T ∗∗∗ it is possible to increase
+the gap between χ′ (G) = 3 and χ′ (G) = 4 instances to more than 1, but this
+is insufficient for APX-hardness.
+
+Computing MP distance between binary phylogenetic trees
+
+19
+
+5. Computation of d2M P is NP-hard on binary trees.
+As in the previous section we first require a gadget that can break symmetry
+between two trees.
+5.1. Symmetry breaking gadget in the case of 2 states
+Consider the two rooted trees
+Ta = (((5, (6, 4)), 3), ((1, (8, 2)), 7))
+and
+Tb = (((7, ((4, 2), 6)), 3), (8, (1, 5)))
+shown in Figure 5.
+
+Tb
+
+Ta
+
+7
+
+2
+
+8
+
+A
+
+A
+
+A A
+
+1
+
+3
+
+4
+
+G G
+
+6
+
+5
+
+G G
+
+5
+
+1
+
+8
+
+3 6
+
+G
+
+A
+
+A
+
+G G A
+
+2
+
+4
+
+7
+
+G A
+
+Figure 5. Two trees Ta and Tb that are “asymmetric” on characters with
+at most 2 states. An example of an optimal character is fasym =
+AAGGGGAA.
+
+Here, it can be verified (e.g. by exhaustive search) that d2MP (Ta , Tb ) = 3,
+and the character fasym = AAGGGGAA can achieve this: lfasym (Ta ) = 1 and
+lfasym (Tb ) = 4.
+In fact, these trees are asymmetric, in the sense that for every optimal 2-state character f , lf (Ta ) < lf (Tb ). In particular, as can be verified by
+computational search (e.g. using the ILP formulation or performing an exhaustive search), maxf (lf (Tb ) − lf (Ta )) = 3 and maxf (lf (Ta ) − lf (Tb )) = 2.
+(The second maximum is achieved by the character AAGAAGGG, for example.) Using the same notation as in Section 4.1, but restricted to characters
+with at most 2 states, we therefore obtain:
+gap(Ta , Tb ) = 1.
+From now on we implicitly assume that all characters have at most 2 states.
+Define TA and TB in the same way as in Section 4.1. It can be verified
+that gap(TA , TB ) ≥ 1. This is not yet strong enough for what we require, so
+
+20
+
+Steven Kelk and Mareike Fischer
+
+let TAA and TBB be obtained by joining two copies of TA , and two copies of
+TB , together (respectively).
+Claim 5.1. gap(TAA , TBB ) ≥ 2.
+Proof. It can easily be checked that maxf (lf (TBB ) − lf (TAA )) ≥ 12. This can
+be achieved, for example, by taking a character f that comprises 4 disjoint
+copies of fasym , thus obtaining lf (TBB ) = 16 and lf (TAA ) = 4. (In fact, by
+performing an exhaustive search, one can show that this is optimal). Verifying
+that maxf (lf (TAA ) − lf (TBB )) = 10 is more challenging. We have used an
+exhaustive search to check this, but note that our ILP gives the same result
+in significantly less time. In fact, lf (TAA ) − lf (TBB ) = 10 can be achieved
+by f = AGAGAGGAAGGGAGGAGAAAGAAGAGGGAGGA, for which
+the score on TAA is 14 and the score on tree TBB is 4. So, altogether we
+have maxf (lf (TBB ) − lf (TAA )) = 12 and maxf (lf (TAA ) − lf (TBB )) = 10, so
+gap(TAA , TBB ) ≥ 2 and d2MP (TAA , TBB ) = 12.
+
+k
+Let TAA
+be the rooted tree on 32k taxa obtained by arranging k disjoint
+1
+copies of TAA along a caterpillar backbone. That is, TAA
+= TAA and for
+k−1
+k
+k
+k > 1, TAA is obtained by joining TAA and TAA via a new root. TBB
+is
+defined analogously.
+k
+k
+Lemma 5.2. For k ≥ 1, gap(TAA
+, TBB
+) ≥ k + 1.
+
+Proof. The case k = 1 is proven by Claim 5.1 and for higher k we use analogous arguments to the proof of Claim 4.2 and Lemma 4.3. We omit details.
+
+k
+k
+Lemma 5.3. For k ≥ 1, d2MP (TAA
+, TBB
+) = 12k.
+
+k
+Proof. TAA
+comprises 4k copies of Ta . By taking 4k copies of character fasym ,
+k
+k
+we see that d2MP (TAA
+, TBB
+) ≥ 4k(4 − 1) = 12k. That 12k is also the upper
+k
+k
+bound, can be verified by showing drSP R (TAA
+, TBB
+) ≤ 12k. This follows
+because by cutting off all copies of taxa 2, 5, 7 into separate components, we
+k
+k
+obtain an agreement forest of TAA
+, TBB
+containing 12k + 1 components. 
+
+5.2. The reduction
+We reduce from the NP-hard (and APX-hard) problem CUBIC MAX CUT
+[1]. Here we are given a cubic graph G = (V, E), |E| = 3|V |/2, and we are
+asked to partition V into two disjoint pieces V1 ∪ V2 such that the number of
+edges that have one endpoint in V1 and one endpoint in V2 (“cut” edges), is
+maximized. Let M AXCU T (G) represent this value. We can assume without
+loss of generality that G is connected and not bipartite.
+
+Computing MP distance between binary phylogenetic trees
+
+21
+
+The high-level idea is similar to the 2-state hardness reduction in [5].
+Namely, we will construct two trees TV and TE and apply the symmetrybreaking gadget to ensure that for all optimal characters f , lf (TV ) < lf (TE ).
+We will model the vertices as subtrees in TV , each comprising three taxa, and
+argue - via a technical argument - that these subtrees are monochromatic. We
+will let the 2 states represent the two sides of the chosen partition V1 ∪ V2 .
+Henceforth we will call these states red and blue. The colour of a vertex
+subtree thus denotes which side of the partition it is on. The tree TE will
+be constructed such that, the more cut edges are induced by the partition
+chosen by TV , the higher the parsimony score of TE . The construction will
+thus naturally choose a character that maximizes M AXCU T (G).
+The fact that TV and TE must be binary, introduces significant complications compared to the 2-state hardness reduction in [5]. For this reason we
+will introduce two new special gadgets, that allow TV (respectively, TE ) to
+be viewed as the independent union of several subtrees. In TV the gadget will
+be called the cherry switch and in TE we will have the D(wi ) gadget, to be
+explained in due course. These independence gadgets neutralise the influence
+of side-effects that can occur as a consequence of the fact that TV and TE are
+both binary.
+
+T
+ρi ≡ wi
+
+D(wi)
+
+T̃
+
+wi0 ≡ pi
+
+wi4
+
+wi3
+
+wi5 wi1 ≡ qi
+
+wi2
+
+wi
+pi
+m1
+
+xe1 [u1 ]
+
+m2
+
+m|E|
+
+xe1 [v1] xe2 [u2] xe2 [v2]
+
+(4 taxa per D(wi))
+
+qi
+m|E|+1
+
+xe|E| [u|E|] xe|E| [v|E|]
+
+2|E| + 4|E| taxa
+
+SE
+
+32M taxa
+
+Figure 6. Tree T is the left-hand side subtree of TE in the 2-state NPhardness construction, cf. Figure 7. Every internal node wi with children
+nodes pi and qi of the original tree T̃ is replaced by tree D(wi ) with root
+wi and children wi0 , . . . , wi5 . Children wi0 and wi1 correspond to pi and qi ,
+respectively, whereas the other children form new leaves. Therefore, each
+D(wi ) contributes four leaves to tree T . For the leaves labelled xei [ui ] and
+xei [vi ], ui and vi are the endpoints of edge ei .
+
+We begin by constructing TE . First, we construct the left-hand side subtree T of TE as depicted in Figure 6. Let T̃ be an arbitrary rooted binary tree
+on |E| + 1 leaves {m1 , . . . , m|E|+1 }. Let I = {w1 , . . . , w|E| } be the |E| interior
+nodes of T̃ . Let M be a large integer whose value we will determine in due
+
+22
+
+Steven Kelk and Mareike Fischer
+TE
+
+T′
+
+T
+6|E| + 32M taxa
+
+l1
+
+l2
+
+lk:=|V |+3|E|
+
+α1 γ1 β1 δ1 α2 γ2 β2 δ2
+
+αk γk βk δk
+4(|V | + 3|E|) taxa
+
+Figure 7. Tree TE for the 2-state NP-hardness construction consists of T as
+depicted in Figure 6 on the left-hand side and T ′ on the right-hand side.
+Note that TE employs in total 32M + 6|E| + 4(|V | + 3|E|) = 32M + 18|E| +
+4|V | taxa.
+
+M
+M
+course. Let SV be the tree TAA
+and SE be the tree TBB
+. Let l be an arbitrary
+leaf of T̃ . We replace l with SE . Next, select an arbitrary bijection between
+the remaining leaves of T̃ and E. For each edge e = {u, v} ∈ E, replace
+the leaf of T̃ corresponding to e with a cherry on two taxa {xe [u], xe [v]}.
+Now, for each internal vertex wi , let pi and qi be the two children of wi . We
+now introduce the independence gadget D(wi ), constructed as follows. Take
+a rooted binary tree (wi2 , ((wi0 , wi4 ), (wi3 , (wi5 , wi1 )))). We replace wi with this
+tree, in the following sense: delete wi , identify wi0 with pi , identify wi1 with qi
+and if wi had an incoming edge, identify the root of D(wi ) with the head of
+this edge. The remaining leaves of D(wi ) are {wi2 , wi3 , wi4 , wi5 } and we regard
+these as taxa, so replacing each wi with D(wi ) increases the number of taxa
+in total by 4|E|. T has in total 2|E| + 32M + 4|E| taxa, where the 32M is
+the number of taxa in SE .
+
+Let T ′ be a rooted caterpillar on |V |+3|E| leaves {l1 , . . . , l|V |+3|E| }. Replace each leaf li by a “double cherry” ((αi , γi ), (βi , δi )) where {αi , βi , γi , δi }
+are taxa. Join T and T ′ together by a new root: this completes the construction of TE as depicted in Figure 7. TE thus has in total,
+2|E| + 32M + 4|E| + 4(|V | + 3|E|)
+= 32M + 18|E| + 4|V |
+taxa.
+To construct TV we start by creating a set of taxa-disjoint trees J. The
+disjoint union of the taxa in the |V | + 1 + 3|E| trees in J will be exactly the
+set of taxa in the tree T mentioned earlier. J contains,
+1. SV ;
+
+Computing MP distance between binary phylogenetic trees
+
+23
+
+TV
+
+γ4 δ4
+α4 β4
+γ3 δ3
+α3 β3
+γ2 δ2
+α2 β2
+γ1 δ1
+α1 β1
+
+SV
+xe∗ [u] xe∗∗ [u] xe[u]
+
+wi4
+
+wi5
+
+wi2
+
+wi3
+
+32M + 4(|V | + 3|E|) + 3|V | + 4|E| taxa
+Figure 8. TV consists of a modification of a caterpillar tree with directed
+path K which starts at the root and leads to a leaf in a cherry. Path K is
+depicted in bold. Each of the |V | + 3|E| edges in K carries two additional
+cherries (αi , βi ) and (γi , δi ). Therefore, K contributes in total 4(|V | + 3|E|)
+taxa. Moreover, for each of the original |E| inner nodes wi of tree T as
+depicted in Figure 6, TV contains four taxa wi2 , wi3 , wi4 , wi5 . This leads
+to 4|E| more taxa. Finally, for each vertex u in V , TV contains a triple
+(xe [u], (xe∗ [u], xe∗∗ [u])), which are 3|V | taxa. Using the fact that in cubic
+graphs we have |V | = 32 |E|, TV employs in total 32M + 16|E| + 7|V | =
+32M + 18|E| + 4|V | taxa.
+
+2. For each vertex u ∈ V , a rooted triplet (xe [u], (xe∗ [u], xe∗∗ [u])) where
+e, e∗ , e∗∗ are the three edges incident to u in G;
+3. For each gadget D(wi ), two single taxon trees wi4 and wi5 , and one cherry
+(wi2 , wi3 ).
+Let C be a rooted caterpillar on |V | + 1 + 3|E| leaves. Consider a directed
+path on |V | + 3|E| edges that starts at the root of C and terminates at one
+of the leaves in the unique cherry of C. Let K be the edges in this path.
+Choose an arbitrary bijection between the leaves of C and the trees in J, and
+replace each leaf with its corresponding subtree. We now need to replace each
+edge in K with a special gadget. In particular, select an arbitrary bijection
+between K and {1, . . . , |V | + 3|E|}. Next, for each edge in K, subdivide it
+twice. From one of the vertices created by the subdivision operation, hang a
+cherry (αi , βi ), and from the other hang a cherry (γi , δi ), where i is the index
+given by the bijection. We call these two cherries a cherry switch - this is the
+independence gadget for TV . This completes the construction of TV , which is
+depicted in Figure 8.
+We are now in a position to specify the number M . We require M to
+be sufficiently large that, for every optimal character f , lf (TV ) < lf (TE ).
+
+24
+
+Steven Kelk and Mareike Fischer
+
+From Lemma 5.3 we know that there exists some character f ′ such that
+lf′ (TE ) − lf′ (TV ) ≥ 12M . We can obtain such a character by extending the
+character suggested by Lemma 5.3 such that all taxa outside SE and SV are
+assigned the same state. Now, let t be the number of edges in TV that lie
+outside SV . For every character f we have
+lf (TV ) − lf (TE ) ≤ t + (12M − (M + 1)).
+The 12M term is obtained from Lemma 5.3, the (M + 1) term from Lemma
+5.2, and the t term arises (pessimistically) from the situation when every edge
+in TV (outside SV ) incurs a mutation, but no edge in TE (outside SE ) incurs
+a mutation. So, if we choose M such that
+t + 12M − (M + 1) < 12M
+it follows that for every optimal character f , dMP (TV , TE ) = lf (TE ) − lf (TV )
+and in particular lf (TE ) > lf (TV ). Choosing M = t is therefore sufficient to
+achieve this.
+Consider now the following.
+Observation 5.4. Let T1 , T2 be two binary trees and let f be an optimal character such that lf (T1 ) < lf (T2 ). Suppose T1 contains two cherries (a, b) and
+(c, d) and, in T2 , there are cherries (a, c) and (b, d) under a common parent
+(i.e. a “double cherry”). Then f can be modified to obtain an optimal character f ′′ in which (a, b) and (c, d) are both monochromatic but with different
+colours, and the colours of all other taxa are unchanged.
+Proof. Let f be an optimal character. We first apply Lemma 3.2 to obtain
+an optimal character f ′ in which the two cherries are monochromatic in T1 .
+If the two cherries have different colours we are done. If not, then recolour
+one of the cherries to obtain f ′′ . This raises the parsimony score of T1 by
+(at most) one. In T2 two new mutations are created in the cherries (a, c) and
+(b, d) while at most one mutation is saved on the edge entering the common
+parent. Hence, f ′′ is also optimal.
+
+In exactly the same way as Theorem 4.6 we now give an accumulating
+list of properties which can be shown to be enjoyed by at least one optimal
+character that can be constructed in polynomial time.
+Property 1. In TV , for each i ∈ |V | + 3|E|, cherry (αi , βi ) is monochrome
+and cherry (γi , δi ) is monochrome, and the cherries have different colours.
+Proof. This is an immediate consequence of Observation 5.4.
+Next, observe that if a character f has Property 1, and we swap the colours
+used in some (or all) of the cherry switches to obtain f ′ , then lf (TE ) =
+lf ′ (TE ). This is because each cherry switch in TV corresponds to a double
+
+Computing MP distance between binary phylogenetic trees
+
+25
+
+cherry in TE , and (as long as Property 1 already holds) the behaviour of the
+double cherries is invariant under permutation of red and blue. This is the
+key observation behind the next property.
+Property 2. There is an optimal character f such that
+X
+lf (TV ) = |V | + 3|E| +
+lf (T ∗ )
+T ∗ ∈J
+
+where lf (T ∗ ) has the expected meaning i.e. the parsimony score of T ∗ after
+restricting f to the taxa in T ∗ .
+P
+Proof. Observe that for any optimal character f , |V | + 3|E| + T ∗ ∈J lf (T ∗ )
+is a lower bound on lf (TV ). This can be observed by first applying Fitch’s
+algorithm to the trees in J (which are all pendant in TV ) and then noting
+that, due to Property 1, each of the |V | + 3|E| cherry switches also incurs a
+mutation, irrespective of the states that Fitch’s algorithm designates to the
+roots of the trees in J. To show that it is also an upper bound, first run Fitch
+on the trees in J. For those trees in J that are allowed by Fitch to have either
+colour at the root, pick one arbitrarily. For each cherry switch, consider the
+root state of the tree from J directly above it (where here “above” means:
+closer to the root of TV ), and directly below it. There are four possibilities:
+red-blue (i.e. the tree from J above it wants a root state of red, the tree
+below it wants blue), red-red, blue-red, and blue-blue. If it is red-blue, then
+if necessary swap the colours on the two cherries in the cherry switch, to
+ensure that the red cherry is closer to the root of TV . If it is blue-red, then
+ensure that the blue cherry is closer to the root of TV . Now, irrespective of
+which of the four possibilities holds, there is an optimal extension which occurs exactly one mutation (and not more) per cherry switch. In the red-blue
+and blue-red cases the mutation will be on the edge between the two subdivision vertices (i.e. the edge between the vertices at which the two cherries
+are attached to the caterpillar backbone). In the cases red-red and blue-blue
+the mutation will be on the edge feeding into the blue, respectively red cherry.
+Property 3. In TV , the trees in J that are rooted triplets or cherries, are
+all monochrome.
+Proof. That the cherries can be made monochrome, is simply a consequence
+of Lemma 3.2. That the rooted triplets are monochrome is more subtle. Consider any triplet in J, this has the form (xe [u], (xe∗ [u], xe∗∗ [u])). We already
+know that {xe∗ [u], xe∗∗ [u]} have the same colour, as they form a cherry. Now,
+if xe [u] also has this colour, we are done. If not, then recolour it to give it
+the same colour as the other two taxa. By Property 2, this must lower the
+parsimony score of TV by exactly one. Hence, the new character is also optimal. (We really need Property 2 here, since “the parsimony score of TV does
+not increase” – which in general is the strongest statement we can make after
+such a recolouring – is not strong enough for our purposes).
+
+26
+
+Steven Kelk and Mareike Fischer
+
+Property 3 basically says that, in TV , the three taxa that represent each
+vertex of G all have the same colour. This will allow us to encode MAX CUT
+correctly. Property 3 also tells us that the {wi2 , wi3 } pairs of taxa, which
+form part of the D(wi ) gadget, will be monochrome. This is particularly
+useful when combined with the fact that wi4 and wi5 are both single taxa
+trees in J. A tree comprising only a single taxon has parsimony score 0, so
+whichever colour is allocated to the wi4 and wi5 taxa, they do not impact
+upon the parsimony score of TV , by Property 2. In other words, these two
+taxa are “free”: they can be allocated any colour in an attempt to cause as
+many mutations as possible in TE . The {wi2 , wi3 } pairs of taxa are also ”free”,
+except for the limitation that wi2 and wi3 should have the same colour. This
+underpins the following critical observation.
+Observation 5.5. Consider the rooted binary tree
+D(wi ) = (wi2 , ((wi0 , wi4 ), (wi3 , (wi5 , wi1 )))).
+Suppose we fix wi0 as red, or blue, or {red, blue}, where {red, blue} has the
+same meaning as in Fitch’s algorithm i.e. “both states are possible”. Suppose
+we do the same (independently) for wi1 . Then depending on our choice we can
+always select colours for wi2 , wi3 , wi4 , wi5 , whilst ensuring that the same colour
+is chosen for wi2 and wi3 , such that the parsimony score of D(wi ) under the
+resulting character is at least 2. Moreover, it is never possible to achieve a
+parsimony score higher than 2 in this way.
+Proof. A straightforward case-analysis is sufficient to verify the “at least 2”
+part of the claim. There are 32 cases, several of which are symmetrical. These
+are the relevant cases:
+1. wi0 and wi1 are both red. Then choose all other taxa to be blue.
+2. wi0 is red and wi1 is blue. Then choose wi4 to be blue, wi5 to be red, and
+wi2 and wi3 to both be blue.
+3. wi0 is red and wi1 is {red, blue}. Then choose wi4 to be blue, wi5 to be
+blue, and wi2 and wi3 to both be red.
+4. wi0 is {red, blue} and wi1 is red. Then choose wi4 to be red, wi5 to be blue,
+and wi2 and wi3 to both be blue.
+5. wi0 and wi1 are both {red, blue}. Then choose wi4 to be red, wi5 to be red,
+and wi2 and wi3 to both be blue.
+To show that 3 or more mutations are never possible, note that a character
+on 6 taxa can only possibly have a parsimony score of 3 if there are exactly
+3 red taxa and exactly 3 blue taxa. (Otherwise, simply choose an extension
+that assigns the majority colour to all internal nodes of the tree, yielding at
+most 2 mutations.) Now, if at least one of wi0 and wi1 chooses {red, blue},
+then 3 mutations are certainly not possible, because we can (again) colour all
+the internal nodes of the tree monochrome in the majority colour, yielding
+at most 2 mutations. So, suppose without loss of generality wi2 and wi3 are
+
+Computing MP distance between binary phylogenetic trees
+
+27
+
+both red. Then exactly one of wi0 and wi4 will be red, and the other blue. But
+then wi1 and wi5 will both be blue. But this character has parsimony score at
+most 2, contradiction.
+
+In TE the taxa wi0 and wi1 become the roots of subtrees, and the three
+possible choices for each taxon in Observation 5.5 reflect the three possible
+decisions that Fitch’s algorithm can make when, in the bottom-up phase, the
+root of that subtree is reached. Essentially, then, Observation 5.5 allows us
+to “glue” these two subtrees together with a profit of exactly 2 mutations,
+entirely independently of the two subtrees themselves.
+Now, consider any optimal character f that has Property 3 (and thus
+all earlier properties too). We have
+lf (TV ) = |V | + 3|E| + lf (SV )
+since (by Property 2) the singletons, cherries and triplets in J do not internally generate any mutations and mutations along the K part of TV are
+already accounted for. (As usual, lf (SV ) refers to the parsimony score of the
+restriction of f to the taxa in SV ). Let CU T (f ) be the number of cut edges
+induced by f i.e. after partitioning the vertices of V according to the colours
+of the corresponding rooted triplets in J. We have,
+lf (TE ) = 2(|V | + 3|E|) + lf (SE ) + CU T (f ) + 2|E|
+The 2(|V | + 3|E|) term is the contribution of the double cherries, and the
+2|E| term is the 2 mutations that we know we can definitely incur in each
+D(wi ) gadget. Hence, an optimal character should try and make the induced
+cut as large as possible: there is no other freedom. Consequently,
+d2MP (TV , TE ) = lf (TE ) − lf (TV )
+= 2(|V | + 3|E|) + lf (SE ) + M AXCU T (G) + 2|E| − (|V | + 3|E| + lf (SV ))
+= |V | + 5|E| + (lf (SE ) − lf (SV )) + M AXCU T (G)
+= |V | + 5|E| + 12M + M AXCU T (G)
+The fact that (lf (SE ) − lf (SV )) is equal to 12M is not entirely automatic.
+It is a consequence of the fact that in this context there is no point choosing
+a character f which, when restricted to SV and SE , yields an MP distance
+smaller than d2MP (SV , SE ) (where the latter value is equal to 12M by Lemma
+5.3).
+The terms can easily be rearranged to obtain M AXCU T (G) from d2MP ,
+which yields the overall theorem:
+Theorem 5.6. Computation of d2MP is NP-hard on binary trees.
+We also obtain the following corollary.
+Corollary 5.7. Computation of d2MP is APX-hard on binary trees.
+
+28
+
+Steven Kelk and Mareike Fischer
+
+Proof. We will show that if d2MP can be approximated in polynomial time
+to within a multiplicative factor of (1 − ǫ), for some ǫ > 0, that CUBIC
+MAXCUT can be approximated in polynomial time to within a factor of (1 −
+kǫ) for some constant k > 0 that is independent of ǫ. Given that CUBIC MAX
+CUT is APX-hard [1] there is (by definition) some ǫ′ > 0 such that a factor
+(1 − ǫ′ ) approximation or better is not possible in polynomial time unless
+P = N P . The APX-hardness of d2MP will then follow3 : the corresponding
+threshhold for d2MP will be ǫ′ /k.
+First, suppose we obtain character f , which is a (1 − ǫ) approximation
+to d2MP (TV , TE ). We need to show that a feasible solution (i.e. a cut) can be
+extracted in polynomial time from f , which requires that the solution obeys
+all the Properties. Character f might not have these Properties, but they can
+be acquired in polynomial time without lowering the parsimony distance score
+of the character. To do this, ensure first that SV and SE use the duplicated
+character fasym (which optimizes the MP distance between SV and SE ).
+This ensures that lf (TV ) < lf (TE ). From this point on the Properties can
+be accumulated one at a time: the constructive proofs describing how the
+Properties are obtained do not require that f is optimal, only that lf (TV ) <
+lf (TE ).
+Recall that |V | = (2/3)|E|. We need an explicit expression for M . This
+was set to be t, the number of edges in TV minus the edges in subtree SV .
+TV has in total 32M + 18|E| + 4|V | taxa, and after subtracting the 32M this
+gives 18|E| + 4|V |. A rooted binary tree on |X| taxa has 2(|X| − 1) edges,
+yielding 36|E| + 8|V | − 2, plus 2 extra edges created when the subtree SV is
+re-attached, giving 36|E| + 8|V | which is (124/3)|E|. Hence,
+d2MP (TV , TE ) = |V | + 5|E| + 12M + M AXCU T (G)
+= (2/3)|E| + 5|E| + 496|E| + M AXCU T (G)
+= (1505/3)|E| + M AXCU T (G).
+The size of the cut returned after processing f is at least
+= (1 − ǫ)((1505/3)|E| + M AXCU T (G)) − (1505/3)|E|
+= (1 − ǫ)M AXCU T (G) − ǫ(1505/3)|E|
+
+It is well-known that for cubic G, M AXCU T (G) ≥ 2|E|/3, by moving
+a vertex to the other side of the partition if one or fewer of its incident edges
+
+3 Formally
+
+speaking we should give an L-reduction here [14]. For brevity we omit the
+technicalities. An L-reduction can if desired easily be constructed from the information
+provided here.
+
+Computing MP distance between binary phylogenetic trees
+
+29
+
+is in the cut. So,
+(1 − ǫ)M AXCU T (G) − ǫ(1505/3)|E|
+≥ (1 − ǫ)M AXCU T (G) − ǫ(1505/2)M AXCU T (G)
+1507
+ǫ)M AXCU T (G).
+= (1 −
+2
+This concludes the proof.
+
+
+
+6. An Integer Linear Programming (ILP) formulation for
+binary instances
+Let T1 and T2 be two binary phylogenetic trees on n ≥ 2 taxa. Given the
+hardness of MP distance it is natural to ask how well dMP (T1 , T2 ) can be
+computed in practice. One option is to leverage the result in [5] which proves
+that there always exists an optimal character that is convex on one of the
+trees (i.e. has a parsimony score exactly one less than the number of states
+in the character). Hence we can guess which of the two input trees is convex,
+guess the number of states s in the optimal character, and then guess the
+(s − 1) edges of the convex tree on which the mutations occur. Assuming the
+trees are unrooted, and letting g(T1 , T2 ) be any safe upper bound on s, this
+gives a deterministic running time of
+
+ g(TX
+1 ,T2 ) 
+2n − 3
+.
+O
+s−1
+s=2
+As the following observation shows, we can take g(T1 , T2 ) = ⌊n/2⌋.
+Observation 6.1. Let T1 and T2 be two binary phylogenetic trees on n ≥ 2
+taxa. There exists an optimal convex character with at most ⌊n/2⌋ states.
+Moreover, this bound is tight.
+Proof. Let f be an optimal convex character. Suppose f has strictly more
+than ⌊n/2⌋ states. Then there exists a state t that occurs on only one taxon x.
+We root T1 on the edge entering x. If we run Fitch on this rooted tree a union
+event will necessarily be generated at the root due to the fact that t occurs
+on only one taxon. Let C be the set of states in this union event, and let t′
+be any state in C \ {t}. Let f ′ be the character obtained from f by assigning
+state t′ to taxon x. By re-running Fitch we see that lf ′ (T1 ) = lf (T1 ) − 1.
+Moreover, f ′ has one fewer state than f , so f ′ is convex. By Observation 3.1
+lf ′ (T2 ) ≥ lf (T2 )− 1. Hence, f ′ is optimal, convex and has fewer states than f .
+By repeating this process we eventually obtain an optimal convex character
+with at most ⌊n/2⌋ states.
+
+30
+
+Steven Kelk and Mareike Fischer
+
+The trees in Figure 1 on 6 taxa are a tight example for this bound: it can
+easily be verified computationally that for these two trees optimal characters
+require at least 3 states.
+
+Of course, even if we take g(T1 , T2 ) = ⌊n/2⌋, such brute-force algorithms will quickly become impractical for even very small n. Hence we turn
+to Integer Linear Programming (ILP), which allows us to compute dMP and
+diMP for larger trees. The ILP for computing d2MP performs very well, allowing computation of d2MP in reasonable time for trees with up to 100 taxa.
+Unfortunately, in the case of dMP the ILP struggles to terminate in reasonable time for trees with more than 16 taxa. Future research (i.e. better ILP
+formulations) will hopefully improve upon this.
+The ILP formulation is currently limited to binary trees but the model
+could be extended to non-binary trees without too much difficulty.
+Let T1 and T2 be rooted, binary phylogenetic trees on the same set of
+taxa X, where |X| = n. Let U be the internal nodes of T1 and V the internal nodes of T2 . Let s be a constant denoting the maximum number of
+states that any character can have; as discussed taking s = ⌊n/2⌋ is a safe
+choice. (To compute diMP we simply take s ≤ i.) The following ILP maximizes lf (T1 ) − lf (T2 ) ranging over all characters f with at most s states.
+To obtain the true parsimony distance the ILP should be run twice, once to
+compute the maximum of lf (T1 ) − lf (T2 ) and once to compute the maximum
+of lf (T2 ) − lf (T1 ).
+All variables in the program are binary.
+First of all we constrain that in both trees the taxa have the same state,
+and that each taxon chooses exactly one state. We introduce variables xt,i
+for each t ∈ X and 1 ≤ i ≤ s. For each t ∈ X we introduce the constraint:
+s
+X
+
+xt,i = 1
+
+i=1
+
+We now show how the parsimony score can be computed for T1 . The variables
+and constraints essentially “hard-code” Fitch’s algorithm. (The encoding of
+T2 is symmetrical. The two encodings are linked together via the variables
+that represent the states of the taxa in X, and the objective function, which
+we shall discuss in due course).
+Given an internal node u ∈ U , let l be its left child and r be its right child.
+Fitch’s algorithm tells us to take the intersection of the states at l and r, if
+the intersection is non-empty, and otherwise the union (in which case we pay
+1 mutation). We do this computation as follows. For 1 ≤ i ≤ s we introduce a
+variable xu,i . The idea is that xu,i will be 1 if and only if state i is in the set of
+
+Computing MP distance between binary phylogenetic trees
+
+31
+
+states at node u (in the bottom-up phase of Fitch). We determine the set of
+states at u by performing the union and intersection computations directly.
+∪
+For that purpose, for 1 ≤ i ≤ s we introduce x∩
+u,i and xu,i and the following
+constraints:
+x∩
+u,i ≤ xl,i
+x∩
+u,i ≤ xr,i
+x∩
+u,i ≥ xl,i + xr,i − 1
+x∪
+u,i ≥ xl,i
+x∪
+u,i ≥ xr,i
+x∪
+u,i ≤ xl,i + xr,i
+The top group of constraints ensure that the x∩
+u,i variables reflect the intersection of the states at the children (i.e. logical AND) and x∪
+u,i the union (i.e.
+logical OR).
+∪
+For each u ∈ U we have a variable x∩
+u and xu which is 1 (resp. 0) if Fitch
+wants an intersection operation at node u. We can ensure that these variables
+take the correct value as follows. Firstly:
+s
+X
+∩
+x∩
+u,i ≥ xu
+i=1
+
+And, secondly, we add the following constraint for each 1 ≤ i ≤ s:
+∩
+x∩
+u ≥ xu,i
+∪
+To ensure that x∩
+u and xu are complementary we add the constraint
+∪
+x∩
+u + xu = 1
+∩
+Now, we have to ensure that xu,i takes the value x∩
+u,i whenever xu is 1,
+∪
+and xu,i otherwise. We do this by, for each 1 ≤ i ≤ s, adding the following
+four constraints:
+
+xu,i ≥ x∩
+u,i
+xu,i ≤ x∪
+u,i
+∩
+xu,i ≤ x∩
+u,i + 1 − xu
+∩
+xu,i ≥ x∪
+u,i − xu
+
+Finally, all that remains is to compute the difference between the two parsimony scores. We do this with the following objective function:
+X
+X
+Maximize
+x∪
+x∪
+u −
+v
+u∈U
+
+v∈V
+
+This concludes the formulation. We have implemented it by using Java to
+translate the input trees into an ILP format suitable for solvers such as
+
+32
+
+Steven Kelk and Mareike Fischer
+
+GLPK, SCIP or CPLEX. We have used this to verify several of the bounds
+used in Section 4.1. The source code can be downloaded from [12].
+We tested our ILP running CPLEX on a 3.10GHz 64-bit machine with
+4 GB RAM. We observed the following running times. For computation of
+dMP :
+• the two trees Ta and Tb on 6 taxa as depicted in Figure 1: total running
+time < 1 second.
+• the two trees TA and TB on 12 taxa consisting of two copies of Ta or Tb ,
+respectively: 70 seconds.
+For computation of d2MP :
+• the two trees on 8 taxa as depicted in Figure 5: < 1 second.
+• the two trees TA and TB on 16 taxa consisting of two copies of Ta or Tb ,
+respectively: < 1 second.
+• the two trees TAA and TBB on 32 taxa consisting of four copies of Ta or
+Tb : 6 seconds.
+Computation of diMP , for small i, is much faster than dMP due to the
+greatly reduced number of binary variables. We observed that the ILP could
+compute d2MP for trees with 100 taxa in approximately 140 seconds.
+
+7. Conclusion
+In this article we have proven that calculating MP distance (dMP ) is NPhard on binary trees. Computation of d2MP (the version of the problem where
+we are restricted to binary characters) is also NP-hard on binary trees. The
+latter problem is also APX-hard, and determining whether dMP is APX-hard
+remains an open question. At the moment we do not have an NP-hardness
+proof for d3MP on binary trees but given that diMP on binary trees is NP-hard
+for each i ≥ 4 we expect that this will also be hard.
+We have presented and implemented a simple ILP formulation, which
+is publicly available at [12]. The ILP is much faster than obvious bruteforce algorithms and allowed us to verify the MP-distance of the symmetrybreaking gadgets used in the hardness reductions. The ILP for d2MP is fast
+but the ILP for dMP does not scale well. An important open problem is
+therefore to develop an ILP formulation that avoids the present approach of
+simply hard-coding Fitch’s algorithm.
+Finally, elucidating the exact relationship between MP distance and
+other phylogenetic metrics remains an intriguing challenge.
+
+Computing MP distance between binary phylogenetic trees
+
+33
+
+Acknowledgement
+We would like to thank Nela Lekic for valuable discussions.
+
+8. Appendix
+Here, we present the proofs we omitted in the previous sections.
+Property 2.1. In TE , the cherry {β1 , β2 } has a different colour to the
+cherry {γ1 , γ2 }.
+Proof. Suppose this is not so. Recolour {β1 , β2 } to some new colour not
+appearing elsewhere. This increases the number of mutations in TE by at
+most 1. However, in TV the number of mutations in the β1 , β2 , γ1 , γ2 subtree
+increases from 0 to 2. Possibly TV then saves a single mutation at the root,
+but in any case the parsimony score of TV increases by at least 1. So the new
+character is still optimal.
+Property 2.2. In TE , the (possibly multiple) colours used for the taxa of B
+(including α) are not used elsewhere in TE , except possibly {β1 , β2 }.
+Proof. Take an optimal extension F of f by applying Fitch’s algorithm. Let
+c be the colour allocated to the root of B by this extension. Let c∗ be the
+colour of the parent p1 of the root of B, and c∗∗ the colour of its parent p2 .
+Let cβ be the colour of the {β1 , β2 } taxa and define cγ similarly. Suppose
+c = c∗ = c∗∗ . We will recolour the character – and this extension – to ensure
+that this is no longer the case. By Property 2.1, cβ 6= cγ . If c 6= cβ and c 6= cγ ,
+then recolour γ1 , γ2 and their parent to colour c. (This lowers the parsimony
+score of TE by 1, and can lower the parsimony score of TV by at most 1, so
+the character - and the extension - is still optimal.) Otherwise, exactly one
+of cβ and cγ is equal to c. If cβ has this property, then swap the colours of
+{β1 , β2 } and {γ1 , γ2 } (and their parents). So we now have c = cγ and c 6= cβ .
+In particular, there is a mutation on the edge entering the cherry {β1 , β2 }.
+For technical reasons we now introduce a brand new colour, bronze say, and
+recolour {β1 , β2 } (and their parent) to be bronze. This leaves the parsimony
+score of TE unchanged, and cannot decrease the parsimony score of TV , so
+the character is still optimal. We do this simply to ensure that the colour of
+β1 , β2 does not occur anywhere else. Run Fitch’s algorithm on TV and record
+the output as R.
+At this point we introduce a new colour silver. Recolour the following
+vertices silver: β1 , β2 , their parent, p1 and the entire c-coloured connected
+component inside B starting at the root of B. This gives a new character
+and extension which saves one mutation (on the edge leading into the cherry
+
+34
+
+Steven Kelk and Mareike Fischer
+
+β1 , β2 ) but creates one mutation between p1 and p2 . So the parsimony score
+of TE does not increase. It is not obvious, but the parsimony score of TV will
+not drop. To see why this is, note that (under this particular recolouring) the
+only way the parsimony score of TV could drop, is if the recolouring causes
+a mutation (i.e. union event) at the root of TV to vanish, and at the same
+time does not create any additional mutations elsewhere. If R did not have
+a mutation event at the root of TV anyway we are done, there is nothing to
+consider. If it did, then in R the union event at the root must have had the
+form {c, bronze}∪W where W ∩{c, bronze} = ∅ and the W is the set of states
+generated by the bottom-up phase of Fitch’s algorithm for the root-incident
+right subtree of TV , let us call this Tright . Now, if the recolouring causes
+the parsimony score of Tright to increase, we are also done. So suppose the
+parsimony score of Tright stays the same and Tright suddenly has an optimal
+extension (generated by any method, not necessarily Fitch) in which its root
+can be coloured c or silver (which is necessary to save a mutation at the
+root of TV ). But then we could take this extension and re-merge the colours
+c and silver back into c, showing that Tright did originally have an optimal
+extension in which its root could be coloured c. This would mean that R
+cannot possibly have been an optimal extension: it claimed a mutation was
+needed at the root of TV , but we have just shown that colouring the root c
+would have avoided mutations on both of its outgoing edges. Contradiction
+on the assumed optimality of F .
+Hence, this new character is indeed still optimal. The modified extension (on TE ) is necessarily also optimal for this new character: if some other
+extension existed that induced fewer mutations, then this would violate the
+assumed optimality of the original character (i.e. because the parsimony score
+of TV does not decrease).
+At this point we can recolour all the monochromatic connected components induced by the extension, and starting at some vertex of B, with
+brand new colours. This new character must be optimal. (The score of TV
+under this new character does not decrease, so the recoloured extension must
+also be optimal.) Moreover, with the possible exception of β1 , β2 none of
+the colours used for taxa in B are used outside B. This is guaranteed because the silver recolouring ensured that there are no longer monochromatic
+connected components that connect taxa in B with taxa beyond B ∪{β1 , β2 }.
+Property 2.3 In TE , all the taxa in B have the same colour which, with
+the possible exception of β1 , β2 , does not appear on taxa outside B and α.
+Proof. Let f be an optimal character. If the taxa in B are monochromatic we
+are done. Otherwise, run Fitch’s algorithm to generate an optimal extension
+on TE . (Also run Fitch on TV and let m be the number of mutations incurred
+there, although we do not need to remember the corresponding extension). In
+TE at least one node of B must be a union event (in the bottom-up phase of
+
+Computing MP distance between binary phylogenetic trees
+
+35
+
+Fitch). Let u be such a node that is furthest from the root of B, and let Tu be
+the subtree of B rooted at u. Let T1 , T2 be the two subtrees rooted at the two
+children of u. The taxa in T1 must be monochromatic with some colour c1 ,
+and the taxa in T2 must be monochromatic with some colour c2 6= c1 . Suppose, without loss of generality, that the optimal extension colours u with
+colour c2 . This causes a mutation between u and the root of T1 . Hence, if
+we recolour the entire subtree T1 (i.e. taxa and non-taxa alike) with colour
+c2 , then this generates a new character f ′ (and new extension) in which the
+parsimony score of TE drops by (at least) 1. We argue that f ′ can decrease
+the parsimony score of TV by (at most) 1, from which the optimality of f ′
+(and its new extension) will follow. Suppose, for the sake of contradiction,
+that f ′ generates m − 2 or fewer mutations in TV . Apply Fitch to f ′ on TV .
+Now, due to the fact that B has essentially the same topology in both TV
+and TE , the subtree Tu is topologically preserved inside TV . In particular, the
+images of all vertices of Tu are unambiguously defined inside TV . Now, in its
+bottom-up phase Fitch will generate in TV no union events on the images of
+the nodes of Tu , due to the fact that all taxa in Tu have colour c2 . (There
+might be a union event generated at the point a pendant rooted triplet is
+grafted onto the image of Tu , see Figure 4, but such subdivision nodes are
+not considered to be part of the image of Tu .) At this point we recolour in
+TV T1 (taxa and non-taxa alike) with colour c1 , creating in total exactly one
+extra mutation, on the edge between u and the root of T1 .4 This new extension is a valid extension of f on TV but generates at most m − 1 mutations,
+contradicting the assumption that an optimal extension of f on TV had m
+mutations. Hence, f ′ must be optimal.
+If f ′ is not yet monochromatic for B, then we re-run Fitch on TE to
+generate a fresh optimal extension, and iterate the entire process until B
+becomes monochromatic. This process must terminate (in polynomial time)
+because each iteration merges two distinctly coloured subtrees of B into one
+strictly larger monochromatic subtree.
+Property 3. In TE , all the taxa in B (including α) have the same colour, and
+cherry {β1 , β2 } also has this colour. Moreover this colour does not appear on
+any other taxa i.e. it is unique for B and β1 , β2 .
+Proof. From Property 2.3 we already know that all taxa in B have the same
+colour and, with the possible exception of β1 , β2 , this colour does not appear
+outside B. Let c be the colour used in B. If c is the same as the colour of
+{β1 , β2 }, denoted again cβ , we are done. If c is the same colour as {γ1 , γ2 },
+then swapping the colours on {β1 , β2 } and {γ1 , γ2 } preserves optimality, and
+4 It is possible that for some taxa x in T the recolouring of T back to c causes a mutation
+1
+1
+1
+in TV to move from the parent edge of x to its sibling edge, but the mutation will not
+disappear, due to the fact that by Property 2.2 x has a different colour to all taxa in
+its sibling subtree, and the fact that we generated the original extension using Fitch’s
+algorithm.
+
+36
+
+Steven Kelk and Mareike Fischer
+
+we are done. (Optimality is preserved because the parsimony score of TE
+cannot increase under such a swap, and the parsimony score of TV cannot
+decrease due to symmetry.) So suppose neither cβ nor cγ is equal to c. Run
+Fitch to generate an optimal extension. In the bottom-up phase Fitch will assign states {c, cβ } to p1 and {c, cβ , cγ } to p2 . Suppose, in the top-down phase,
+the parent of p2 communicates a state to p2 that is either equal to c, or not
+in {c, cβ , cγ }. In this case Fitch allows us to give p2 colour c. We can then
+recolour {γ1 , γ2 } to be c (saving at least one mutation in TE , and saving at
+most one mutation in TV , thus preserving optimality) and then switch back
+to the earlier case. If Fitch permits p1 to be coloured c, we simply recolour
+{β1 , β2 } to be c and we are done because this, via the same analysis, preserves optimality. The only case remaining is if every possible set of choices
+in the top-down phase of Fitch leads to the conclusion that both p1 and p2
+are coloured cβ . (This is the only remaining case because if p2 is or can be
+coloured cγ , then Fitch will subsequently allow us to colour p1 with colour c,
+due to the fact that cγ 6∈ {c, cβ } i.e. we will be in an earlier case.) So consider
+an extension generated by Fitch in this case. We swap the colours on {β1 , β2 }
+and {γ1 , γ2 } (including the colours of their parents). This colour swap does
+not affect the number of mutations but it ensures that both edges leaving p1
+carry mutations. Hence, if we now colour {β1 , β2 }, their parent, and p1 all c,
+both these mutations vanish. So we definitely save one mutation in TE , and
+as usual at most one mutation is saved in TV . So we are done. This concludes
+the proof of Property 3.
+
+References
+[1] P. Alimonti and V. Kann. Some APX-completeness results for cubic
+graphs. Theoretical Computer Science, 237(1–2):123 – 134, 2000.
+[2] M. Bordewich and C. Semple. On the computational complexity of the
+rooted subtree prune and regraft distance. Annals of Combinatorics, 8
+(4):409–423, 2005.
+[3] R. Diestel. Graph theory (graduate texts in mathematics). Springer,
+2005.
+[4] J. Felsenstein, J. Archie, W. Day, W. Maddison, C. Meacham,
+F. Rohlf, and D. Swofford. The newick tree format., 2000. URL
+http://evolution.genetics.washington.edu/phylip/newicktree.html.
+[5] M. Fischer and S. Kelk. On the maximum parsimony distance between
+phylogenetic trees. Annals of Combinatorics, 2014. preliminary version
+arXiv preprint arXiv:1402.1553.
+[6] M. Fischer and B. Thatte. Revisiting an equivalence between maximum
+parsimony and maximum likelihood methods in phylogenetics. Submitted
+to Bulletin of Mathematical Biology, 2009.
+[7] W. Fitch. Toward defining the course of evolution: minimum change for
+a specific tree topology. Systematic Zoology, 20(4):406–416, 1971.
+
+REFERENCES
+
+37
+
+[8] D. Haws, T. Hodge, and R. Yoshida. Phylogenetic tree reconstruction:
+geometric approaches. In R. Robeva and T. Hodge, editors, Mathematical concepts and methods in modern biology – using modern discrete
+models., pages 307–342. Elsevier, 2013.
+[9] I. Holyer. The NP-completeness of edge-coloring. SIAM Journal on
+Computing, 10(4):718–720, 1981.
+[10] D. Huson and M. Steel. Distances that perfectly mislead. Systematic
+Biology, 53(2):327 – 332, 2004.
+[11] L.v. Iersel, S. Kelk, N. Lekić, and C. Scornavacca. A practical approximation algorithm for solving massive instances of hybridization number
+for binary and nonbinary trees. BMC Bioinformatics, 15:127–127, 2013.
+[12] S. Kelk and M. Fischer. Maximum parsimony distance integer linear program (MPDIST). http://skelk.sdf-eu.org/mpdistbinary/, 2014.
+[13] W. Maddison. Reconstructing character evolution on polytomous cladograms. Cladistics, 5(4):365–377, 1989.
+[14] C.H. Papadimitriou and M. Yannakakis. Optimization, approximation,
+and complexity classes. Journal of computer and system sciences, 43(3):
+425–440, 1991.
+Steven Kelk
+Department of Knowledge Engineering (DKE)
+Maastricht University
+P.O. Box 616, 6200 MD Maastricht
+The Netherlands
+e-mail: steven.kelk@maastrichtuniversity.nl
+Mareike Fischer
+Ernst-Moritz-Arndt University of Greifswald
+Department for Mathematics and Computer Science
+Walther-Rathenau-Str. 47
+17487 Greifswald, Germany
+e-mail: email@mareikefischer.de
+
+

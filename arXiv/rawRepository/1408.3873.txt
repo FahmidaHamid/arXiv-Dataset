@@ -1,0 +1,856 @@
+Classifying sequences by the optimized dissimilarity space
+embedding approach: a case study on the solubility analysis of the
+E. coli proteome
+Lorenzo Livi∗†1 , Antonello Rizzi‡2 , and Alireza Sadeghian§1
+
+arXiv:1408.3873v2 [cs.CV] 14 Jan 2015
+
+1
+
+Dept. of Computer Science, Ryerson University, 350 Victoria Street, Toronto, ON M5B
+2K3, Canada
+2
+Department of Information Engineering, Electronics, and Telecommunications,
+SAPIENZA University of Rome, Via Eudossiana 18, 00184 Rome, Italy
+January 16, 2015
+
+Abstract
+We evaluate a version of the recently-proposed classification system named Optimized Dissimilarity
+Space Embedding (ODSE) that operates in the input space of sequences of generic objects. The ODSE
+system has been originally presented as a classification system for patterns represented as labeled graphs.
+However, since ODSE is founded on the dissimilarity space representation of the input data, the classifier
+can be easily adapted to any input domain where it is possible to define a meaningful dissimilarity
+measure. Here we demonstrate the effectiveness of the ODSE classifier for sequences by considering
+an application dealing with the recognition of the solubility degree of the Escherichia coli proteome.
+Solubility, or analogously aggregation propensity, is an important property of protein molecules, which is
+intimately related to the mechanisms underlying the chemico-physical process of folding. Each protein of
+our dataset is initially associated with a solubility degree and it is represented as a sequence of symbols,
+denoting the 20 amino acid residues. The herein obtained computational results, which we stress that
+have been achieved with no context-dependent tuning of the ODSE system, confirm the validity and
+generality of the ODSE-based approach for structured data classification.
+Index terms— Dissimilarity representation; Sequence matching and classification; E. coli proteome
+analysis; Entropy-based data characterization.
+
+1
+
+Introduction
+
+A considerable number of pattern recognition applications deal with data represented as sequences of objects
+[5, 49]. The handwriting on-line recognition problem provides a good example: each object in the sequence
+is a distinct stroke written by a user through a suitable input device [45]. The objects of the sequence can
+originate from a finite alphabet, as in the problem of text excerpt classification [17], where the objects are
+usually words of the corresponding language. Another interesting example pertains biochemical compounds,
+such as DNA and proteins [13, 44, 48]. Many applications deal with objects originating from continue
+domains, such as in the case of series of real-valued data (e.g., 3D spatial positions of a moving agent,
+financial time-series, and sequences of measurements related to a physical plant or device) [15, 33]. Often
+∗ llivi@scs.ryerson.ca
+† Corresponding
+
+author
+
+‡ antonello.rizzi@uniroma1.it
+§ asadeghi@ryerson.ca
+
+1
+
+the ordering of the objects is assumed to be over the time domain; in this case, the objects are referred to
+as events. When dealing with classification problems defined on an input space of sequences, modeling the
+abstract classification function underlying the unknown data generating process can become a very complex
+task. To this end, the problem can be faced by mapping the sequences into Rd vectors, using a suitable
+feature extraction procedure [3, 19, 21, 37, 39]. In this scenario, features are elaborated from the dataset at
+hand, and therefore can be considered as a local reference framework on which ground the new vector-based
+representation of the input data. This solution is supported by the fact that there are many effective and
+well-established data-driven inductive inference systems that deal with real-valued vectors as input patterns
+[27–29, 36, 40, 42].
+The dissimilarity representation is a powerful framework for dealing with pattern recognition and data
+mining problems defined in spaces with no trivial (geo)metric structure [4–7, 10, 16, 24, 35, 47]. Pairwise
+dissimilarity values of input data are generated according to a suitable dissimilarity measure, d : X ×X → R+ ,
+which operates directly in the input domain, X . Such a dissimilarity measure, which can also diverge from a
+common metric distance (e.g., Euclidean distance), is usually defined by parameters that allow to tailor the
+matching method to the particular data type at hand. The dissimilarity representation is developed with
+respect to a local base of prototypes, R, called representation set. Dissimilarity-based classification systems
+for sequences of objects have been proposed on various data types, such as simple atomic elements [39] (e.g.,
+sequences of numbers or characters belonging to a finite alphabet) and more complex data structures, like
+type-2 fuzzy sets [22, 26, 30] and pen strokes [2, 8, 45].
+The recently proposed classification system called Optimized Dissimilarity Space Embedding (ODSE) is
+founded on the dissimilarity representation. It has been originally developed as a classification system for
+labeled graphs, denoting state-of-the-art test set performances on various well-known benchmarking datasets
+[20, 24]. The synthesis of the classification model is implemented by exploiting an information-theoretic
+interpretation of the dissimilarity matrix. Such an interpretation allows to conceive suitable compression
+and expansion operations of the representation set, implementing the optimization of the dissimilarity space.
+The ODSE system performs all operations (i.e., synthesis of the model, test set evaluation etc.) starting from
+the construction of the dissimilarity matrix, which in turn is completely elaborated through a dissimilarity
+measure. Therefore, by adapting the dissimilarity measure to the particular context at hand, it is possible
+to easily adapt the whole ODSE system accordingly.
+In this paper, we present and evaluate a version of the ODSE system tailored to work in the input space
+of sequences. The main aim of this study is to demonstrate the versatility and effectiveness of the design
+underlying the ODSE classifier, which is quickly adaptable to different input domains and hence application
+contexts. Toward this end, here we evaluate the ODSE classifier for sequences on an important application
+concerning the solubility analysis of sequences of amino acid residues, elaborated from the Escherichia coli (E.
+coli) proteome [31, 32]. We contrast our experimental results with two reference systems and with respect to
+another recently-proposed classifier for sequences [39]. Folding is a chemico-physical process of extraordinary
+difficulty and complexity from the viewpoint of prediction. This fact is due to (i) the large number of residues
+constituting protein molecules and to (ii) the multiplicity of different energetic constraints involved in the
+underlying physical process [9]. Moreover, the process of folding is in strict competition with the aggregation
+process (low propensity of a molecule to be soluble), that is, with the tendency of establishing inter-molecular
+bonds. This results in the formation of large multi-molecular aggregates which, analogously to what happens
+for artificial polymers, are insoluble and hence precipitate in solution [9, 11, 13].
+The herein considered data as been already processed by different groups [1, 39, 41]. Therefore, we use
+our previous results [39] for comparison in the herein presented experiments.
+This paper is structured as follows. Section 2 quickly introduces the ODSE system; initially we describe
+the system in terms of graph-based patterns. Section 2.2 discusses the straightforward adaptation of the
+ODSE system for processing sequences. In Section 3 we discuss the experiments performed on the E. coli
+dataset. Finally, Section 4 concludes the paper.
+
+2
+
+2
+
+The ODSE Classification System
+
+The ODSE graph classification system [20, 24] is based on the interplay between different techniques, among
+which we have graph matching, dissimilarity space representation, cluster analysis, and information-theoretic
+data analysis methods. The classifier is founded on an explicit graph embedding mechanism that represents
+the input graphs S, n = |S|, using a suitable representation set, R, m = |R|, by computing the dissimilarity
+matrix Dn×m . Originally, the system has been conceived to operate on the labeled graphs domain G by
+means of a suitable inexact graph matching procedure [18]. The vector configuration representing the input
+data in the embedding space D is derived directly using the rows of D.
+An important component of the ODSE graph classification system is the inner feature-based classifier,
+which operates directly on the developed dissimilarity space embedding; its own classification model is
+synthesized along with the ODSE synthesis. Such a classifier can be any well-known classification system,
+such as a neuro-fuzzy Min-Max network [12, 36].
+
+2.1
+
+A Quick Look Into the ODSE Design
+
+Test patterns are classified by ODSE feeding the corresponding dissimilarity representation to the (already
+synthesized) feature-based classifier, which assigns proper class labels to the test patterns. Figs. 1(a) and 1(b)
+provide, respectively, the diagrams of the ODSE embedding procedure and of the model synthesis. The ODSE
+classification model is defined by the representation set Ri , the setting of the inexact graph matching function
+parameters (denoted as Pi ), and the feature-based classifier (denoted as Mi in Fig. 1(b)) on the developed
+dissimilarity space. During the synthesis stage, additional parameters are optimized, which are fundamental
+to the determination of the optimal classification model. Those parameters, which are synthetically denoted
+as Σi in Fig. 1(a), are the kernel size σ used by the entropy estimator and the two entropy thresholds τc , τe ,
+which play a fundamental role in the compression and expansion operations, respectively. The former is
+used to reduce the number of prototypes, while the latter replaces targeted prototypes that do not help
+discriminating the input data represented in the dissimilarity space. Both operations make use of a suitable
+non-parametric α-order Rényi entropy estimator to characterize the informativeness of the prototypes. Since
+the dissimilarity values fall into a continuous interval, the underlying distribution is assumed to be continuous
+as well. So far, the ODSE system has been tested considering two well-known entropy estimators. The
+first estimator has been proposed by Prı́ncipe [34], and it is referred to as the Quadratic Rényi entropy
+(QRE) estimator, while the second one is based on the construction of the so-called entropic Minimum
+Spanning Tree (MST) among the data samples [14]. While both estimators showed, as ODSE components,
+comparable performances, the latter is considerably faster and less sensible to the dimensionality of the data
+(i.e., dissimilarity vectors).
+In current implementations [20, 24, 25], the ODSE model is optimized through a genetic algorithm (GA).
+The GA operates by performing roulette wheel selection, two-point crossover, and random mutation on the
+variables representing the model parameters; it implements also an elitism strategy that includes the fittest
+individual into the next population. The GA, in practice, evolves a population of ODSE model instances
+that are evaluated by considering a suitable fitness function. Such a fitness function takes into account a
+combination of the recognition rate πi achieved on a validation set, Svs , the cardinality of the compressedand-expanded representation set, and finally the estimated entropy related to the embedded training data.
+Convergence criterion is determined as a combination of a maximum number of iterations and a check that
+evaluates the variation of the fitness in the last five iterations.
+
+2.2
+
+Classifying Sequences with ODSE
+
+It is easy to realize that ODSE can be straightforwardly adapted to operate in other input spaces (i.e., different from the labeled graphs domain). In fact, once an effective dissimilarity measure d(·, ·) that operates in
+the specific input space at hand (e.g., a domain of sequence of characters) is defined, all ODSE operations are
+automatically valid and well-defined, since they are performed on the vectors derived from the dissimilarity
+
+3
+
+R
+Ü
+
+R
+compression
+
+
+
+
+R
+expansion
+
+Ü
+
+Ü
+
+5
+
+ç
+å
+
+:
+Ü
+
+Dissimilarity
+Representation
+computation
+
+D
+
+
+
+
+
+5
+
+ç
+å
+
+Ü
+
+;
+
+Ü
+
+á
+
+R
+
+P
+
+
+
+R
+
+á
+
+P
+
+Ü
+
+Ü
+
+Ö
+
+Ø
+
+P
+-
+
+Ü
+
+Ü
+
+Graph dissimilarity parameters
+
+Expansion-compression parameters
+
+(a) ODSE embedding space synthesis step.
+
+
+
+
+
+5
+
+ç
+å
+
+Embedding
+Synthesis Step
+
+R
+
+R
+
+Ü
+
+Ü
+
+Classification,
+Synthesis and
+Performance Measure
+
+
+
+
+
+5
+
+éæ
+
+Dissimilarity
+Representation
+Computation
+
+D
+
+
+
+Ü
+
+-
+
+Ü
+
+Ü
+
+N
+
+Ü
+
+
+
+5
+
+é
+æ
+
+P,
+
+M
+
+Ü
+
+
+
+Genetic Algorithm
+
+(b) Synthesis of the ODSE classification model.
+
+Figure 1: Schematic description of the ODSE embedding space and classification model synthesis. Taken
+from [24].
+matrix D (i.e., compression, expansion, and entropy estimation). Therefore, adaptation of ODSE to process
+sequences of generic objects is performed by implementing d(·, ·) as a suitable sequence matching algorithm.
+From the software implementation point of view, ODSE flexibility is due to the C++ template metaprogramming approach1 [23]. In fact, the designer is in charge to define just a class implementing a suitable
+dissimilarity measure, passing it as an argument to the main procedure.
+
+3
+
+Recognition of the E. coli Protein Solubility
+
+Aggregation propensity of proteins is strongly related to “errors” in the folding process [9]. In fact, protein
+aggregation is at the basis of pathologies defined as misfolding diseases [46], which include Alzheimer and
+Parkinson. Nevertheless, protein–protein interactions are of vital importance for proteins exerting their
+physiological role, so that a refined balance between aggregation (inter-molecular connections) and folding
+(intra-molecular connections) is of utmost importance. This balance is so crucial for life that does exist a
+class of protein molecules called “chaperones”, whose specific role is to help other proteins in completing
+a correct folding process [43]. However, the nature of the code by which a linear sequence of amino acid
+residues is transformed into a functional 3D structure is still elusive [9]. It is well-known that some proteins
+are capable to easily reach the stable state, so that they can undergo different folding–unfolding cycles even
+when isolated from the cell micro-environment. On the other hand, there are other proteins that cannot be
+folded when isolated from their cellular environment, necessitating a chaperone-driven folding process.
+Niwa et al. [31] studied, in a strictly controlled setting, the aggregation/solubility propensity of the E.
+coli proteins. Proteins having difficulty in performing the folding autonomously (i.e., without the help of
+chaperones) tend to aggregate and hence precipitate in the solution (water in this case). Agostini et al. [1]
+in a recent work clearly demonstrated that the solubility degree in the same Niwa et al. data base negatively
+correlates with the aggregation propensity (the aggregation is estimated from the folded state). This result
+1 http://sourceforge.net/p/libspare/home/Spare/
+
+4
+
+implies that it is possible to consider the solubility as a measure of the relative stability of both the folded
+and aggregated states (i.e., the higher the solubility the higher the protein stability in its native state).
+
+3.1
+
+Dataset Description
+
+The 3173 E. coli proteins elaborated by Niwa et al. [31] were transcribed and translated from the E. coli
+DNA extracts in strictly controlled conditions. Their solubility was assessed in terms of percentage of
+protein concentration at saturation point. The authors demonstrated a bi-modal distribution of solubility,
+with many poorly soluble proteins and a fairly smaller set of very soluble proteins (see Fig. 2(a)). For
+instance, when considering [0, 0.3] and [0.7, 1] as the two intervals of normalized solubility characterizing
+the insoluble and soluble proteins, the dataset would be split into 1631 insoluble and 180 soluble proteins,
+respectively, which makes the corresponding classification problem very unbalanced [39]. Those interval of
+solubility, although they generate an unbalanced classification problem, are of the same length and they
+are placed at the extremes of the (normalized) solubility range. This fact reassures us to perform a fair
+(although perhaps non optimal) construction of the soluble and insoluble classes (see Fig. 2(b)). The input
+of the herein considered classifiers consists in the E. coli sequences of amino acid identifiers, which output
+the predicted “soluble” or “insoluble” class.
+2.2
+
+1
+
+2
+1.8
+
+0.8
+Solubility degree
+
+1.6
+Density
+
+1.4
+1.2
+1
+0.8
+
+0.6
+
+0.4
+
+0.6
+0.4
+
+0.2
+
+0.2
+0
+0
+
+0.2
+
+0.4
+0.6
+Solubility degree
+
+0.8
+
+0
+
+1
+
+(a) Density of the 3173 E. coli proteins with respect to
+the normalized solubility degree.
+
+0
+
+200
+
+400
+
+600
+
+800 1000 1200 1400 1600 1800 2000
+Protein
+
+(b) Normalized solubility degree of the considered 1811 proteins. The two classes are clearly recognized.
+
+Figure 2: Density (2(a)) and solubility degree (2(b)) of the considered proteins.
+As a consequence of the aforementioned bi-modality of the solubility degree density, the herein discussed
+experiments have been organized by considering two different splits of the original dataset. The first experiment (setting previously considered here [39]) operates over a perfectly balanced (small) dataset made of
+the 100 proteins with the highest solubility degree and the 100 with the lowest solubility degree. We refer
+to this dataset as DS-200. The training set Str contains 140 proteins and the test set Sts the remaining 60.
+Training and test set are characterized by the same number of soluble and insoluble proteins. The second
+experiment, which we introduce here, takes into account instead a larger dataset made of 1811 proteins (DS1811), obtained by considering the aforementioned solubility ranges to define the two classes (see Fig. 2(b)).
+DS-1811 contains a total 179 soluble and 1632 insoluble proteins. We consider two different split settings for
+DS-1811. In the first case, the training set contains 180 proteins, 70 of which belong to the soluble class and
+the remaining 110 to the insoluble class. The test set is considerably larger, since in fact it contains 1631
+proteins, 1521 of which belong to the insoluble class. The training set, although it is much smaller than the
+test set, it is suitably conceived to “cover” the considered data with characterizing proteins, that is, with
+proteins that suitably represent the soluble or insoluble prototypical patterns – those proteins are selected
+as prototypes of the respective classes by exploiting a preliminary clustering-based analysis. In the second
+case, we consider a perfectly balanced training set, made of 100 soluble and 100 insoluble proteins randomly
+
+5
+
+selected among the 1811 that are available in DS-1811. The remaining 1611 proteins form the test set. We
+refer to this dataset instance as DS-1811-2. The motivation behind this further split setting is due to the
+fact that typically classifiers are sensitive to the percentages of per-class training set patterns. We will asses
+also this aspect in our experiments.
+
+3.2
+
+Experimental Setting
+
+In this paper, we adopt the ODSE version described in [20, Sec. 3]. For the sake of shortness, we do not report
+here the details of this particular ODSE version, referring the reader to given reference. We setup ODSE
+to operate in the input space of sequences by means of a dissimilarity measure implemented through the
+Levenshtein sequence matching algorithm [22, 38]. We consider in the Levenshtein global alignment scheme
+suitable pre-computed substitution weights; we used the weights provided by the PAM120 matrix, which has
+been retrieved from: ftp://ftp.ncbi.nih.gov/blast/matrices/. We report the results obtained with two
+different feature-based classifiers operating in the dissimilarity space: a k -NN rule operating the Euclidean
+distance (kNN) and the C-SVM classifier (C-SVM) equipped with a Gaussian kernel. We compare ODSE
+with the recently-proposed sequence classification system based on another embedding technique [39], which
+is denoted as GRAPSEC in the following. We consider also two reference systems that operate directly
+in the input space. The first one is a k -NN rule based classifier (kNN), equipped with the same weighted
+Levenshtein matching scheme used in ODSE. The second one is a kernelized C-SVM classifier operating
+in the input space of sequences through the kernel function elaborated from the Levenshtein metric – no
+corrections are performed to assure positive definiteness of the resulting kernel. Setting of meta-parameters
+(e.g., C of C-SVM) have been defined by preliminary tests. In the following, “0” indicates the insoluble
+class, while “1” the soluble class. To make our results statistically significant, we considered 10 different
+randomized re-samplings of the dataset DS-1811 (both split settings). Split percentages of both settings are
+defined as described in the previous section. The following results on DS-1811 are hence intended as averages
+(with related standard deviations). To complete our analysis, we performed a significance analysis using the
+well-known t-test. In the following, results in bold are intended as statistically significant (p < 0.0001).
+Results for DS-200 are not statistically validated since they presented no relevant variance.
+
+3.3
+
+Test Set Classification Accuracy Results
+
+Table 1 shows the results for DS-200, DS-1811, and DS-1811-2. Results on DS-200 achieved with the
+kNN classifier (for k = 5) are comparable with those of GRAPSEC, although for different k values ODSE
+obtains slightly inferior results. Test set accuracy results obtained with ODSE using C-SVM operating in
+the embedding space equate those of GRAPSEC (same per-class errors). The kNN based reference system
+is systematically outperformed by the others, while the C-SVM classifier achieves a good result, however
+inferior to those obtained by ODSE and GRAPSEC.
+Let us now focus on the results for DS-1811. ODSE systematically outperforms GRAPSEC and the
+kNN reference system, especially when using the C-SVM classifier in the dissimilarity space. Please note
+that differences here are statistically significant. We note a more balanced per-class error distribution; in
+particular less errors are committed for the class of very soluble proteins (1), which proved to be hard to
+recognize also in our previous study [39]. Results obtained with the kNN operating directly in the input
+space are of poor quality, except for the k = 5 case, where the system achieves competitive results. It is
+worth noting that the results achieved with C-SVM operating in the input space are significantly better than
+any other system, although they are fairly comparable with the best result of ODSE. Standard deviations
+are in general low, demonstrating the stability of the results with respect to the different splits of the data.
+Let us consider now the results on DS-1811-2, i.e., the split of DS-1811 with a perfectly balanced training
+set. At first, we immediately recognize an overall decay of performance, regardless of the considered classifier.
+This is due to the fact that in DS-1811-2 the training set is made of randomly selected proteins (100 for each
+class), while in DS-1811 we suitably selected prototypes to better characterize the data. Errors for each class
+are roughly the same, denoting a general weak sensitivity of the considered systems to the percentages of
+per-class patterns in the training set. However, please note that the training set of DS-1811 was not wildly
+6
+
+imbalanced (70 soluble vs 110 insoluble proteins). Finally, it is worth pointing out that ODSE configured
+with C-SVM achieves the best results, which are also statistically significant. From this we might conclude
+that ODSE is less sensitive to the specific training set instance adopted to train the model.
+Table 1: Test set classification accuracy results achieved on DS-200, DS-1811, and DS-1811-2.
+Class. System
+
+ODSE
+
+Core Classifier
+
+k -NN
+C-SVM
+
+GRAPSEC
+
+k -NN
+
+kNN
+
+-
+
+C-SVM
+
+-
+
+ODSE
+
+k -NN
+C-SVM
+
+GRAPSEC
+
+k -NN
+
+kNN
+
+-
+
+C-SVM
+
+-
+
+ODSE
+
+k -NN
+C-SVM
+
+4
+
+GRAPSEC
+
+k -NN
+
+kNN
+
+-
+
+C-SVM
+
+-
+
+Params
+# Err. 0
+DS-200
+k=1
+1
+k=3
+1
+k=5
+1
+C=2
+0
+k=1
+1
+k=3
+1
+k=5
+0
+k=1
+24
+k=3
+20
+k=5
+24
+C=2
+2
+DS-1811
+k=1
+343.6
+k=3
+306.6
+k=5
+306.5
+C=2
+245.6
+k=1
+382.4
+k=3
+375.0
+k=5
+368.2
+k=1
+1228.2
+k=3
+1315.6
+k=5
+322.4
+C=2
+233.0
+DS-1811-2
+k=1
+345.4
+k=3
+308.6
+k=5
+307.6
+C=2
+285.2
+k=1
+394.6
+k=3
+384.0
+k=5
+372.2
+k=1
+1222.4
+k=3
+1223.4
+k=5
+420.6
+C=2
+362.6
+
+# Err. 1
+
+Global TS Accuracy
+
+7
+6
+4
+4
+6
+4
+4
+0
+0
+0
+5
+
+86.7%
+88.4%
+91.7%
+93.3%
+88.4%
+91.7%
+93.3%
+60.0%
+66.6%
+66.0%
+88.3%
+
+39.6
+36.0
+37.4
+28.2
+41.0
+40.6
+39.8
+7.4
+1.2
+1.0
+33.0
+
+76.5% (±0.002)
+78.9% (±0.001)
+78.9% (±0.001)
+83.2% (±0.001)
+74.0% (±0.001)
+74.5% (±0.001)
+74.9% (±0.002)
+24.5% (±0.001)
+19.4% (±0.002)
+80.1% (±0.001)
+83.6% (±0.002)
+
+40.6
+37.0
+37.2
+28.2
+45.8
+44.4
+42.2
+5.2
+5.0
+5.6
+16.2
+
+76.3% (±0.003)
+78.8% (±0.003)
+78.6% (±0.001)
+80.8% (±0.025)
+73.0% (±0.002)
+73.7% (±0.001)
+74.6% (±0.003)
+24.7% (±0.003)
+24.7% (±0.003)
+73.9% (±0.008)
+76.8% (±0.001)
+
+Conclusions
+
+In this paper, we have evaluated the effectiveness and versatility of the ODSE classification system when
+processing sequences. Notably, we have considered an application dealing with the E. coli proteome classification. We focused on the recognition/discrimination of soluble and insoluble proteins, on the base of
+sequences of identifiers denoting amino acid residues. Recognition of solubility/aggregation propensity of
+proteins is a very important research topic. In fact, aggregation of proteins is at the basis of many misfolding diseases, such as Parkinson and Alzheimer. Each protein of our dataset was initially associated with
+a solubility degree and it was represented as a sequence of symbols, denoting the 20 amino acid residues.
+Experiments presented in this paper have been carried out by considering different reference systems and
+several splits of the original data. The results obtained with ODSE denoted competitive test set classification
+accuracy percentages. Overall, the results presented in this paper strengthen the effectiveness of the ODSE
+system when dealing with structured data (sequences of symbols in this case). It is important to underline
+that the experiments have been performed without the need to tune any system component specifically for
+the considered problem (i.e., the E. coli solubility recognition), thus confirming that ODSE can be considered
+as a widely applicable classification system.
+
+7
+
+Future research directions involve the application of ODSE in other sequence-based pattern recognition
+problems, such as recognition of events in smart grid data. We also plan to cast the herein presented E. coli
+proteome analysis as a function approximation problem, i.e., by considering the continuous solubility degree
+as the target output signal.
+
+References
+[1] F. Agostini, M. Vendruscolo, and G. G. Tartaglia. Sequence-Based Prediction of Protein Solubility. Journal of Molecular
+Biology, 421(2-3):237–241, 2012. ISSN 0022-2836. doi: 10.1016/j.jmb.2011.12.005.
+[2] L. Batista, E. Granger, and R. Sabourin. Applying Dissimilarity Representation to Off-Line Signature Verification. In
+Proceedings of the 2010 20th International Conference on Pattern Recognition, ICPR ’10, pages 1293–1297, 2010. ISBN
+978-0-7695-4109-9. doi: 10.1109/ICPR.2010.322.
+[3] F. M. Bianchi, L. Livi, A. Rizzi, and A. Sadeghian. A Granular Computing approach to the design of optimized graph
+classification systems. Soft Computing, 18(2):393–412, 2014. ISSN 1432-7643. doi: 10.1007/s00500-013-1065-z.
+[4] F. M. Bianchi, L. Livi, and A. Rizzi. Two density-based k-means initialization algorithms for non-metric data clustering.
+Pattern Analysis and Applications, pages 1–19, 2015. ISSN 1433-7541. doi: 10.1007/s10044-014-0440-4.
+[5] M. Bicego, V. Murino, and M. A. T. Figueiredo. Similarity-based classification of sequences using hidden Markov models.
+Pattern Recognition, 37(12):2281–2291, 2004. ISSN 0031-3203. doi: 10.1016/j.patcog.2004.04.005.
+[6] Y. Calaña, E. Reyes, M. Alzate, and R. P. W. Duin. Prototype Selection for Dissimilarity Representation by a Genetic
+Algorithm. In Proceedings of the 20th International Conference on Pattern Recognition, pages 177–180, Aug. 2010. doi:
+10.1109/ICPR.2010.52.
+[7] G. Del Vescovo and A. Rizzi. Automatic Classification of Graphs by Symbolic Histograms. In Proceedings of the 2007
+IEEE International Conference on Granular Computing, GRC ’07, pages 410–416. IEEE Computer Society, 2007. ISBN
+0-7695-3032-X. doi: 10.1109/GRC.2007.46.
+[8] G. Del Vescovo and A. Rizzi. Online Handwriting Recognition by the Symbolic Histograms Approach. In Proceedings of
+the 2007 IEEE International Conference on Granular Computing, GRC ’07, pages 686–700, Washington, DC, USA, 2007.
+IEEE Computer Society. ISBN 0-7695-3032-X. doi: 10.1109/GRC.2007.116.
+[9] K. A. Dill and J. L. MacCallum. The protein-folding problem, 50 years on. Science, 338(6110):1042–1046, 2012.
+[10] R. P. W. Duin and E. Pȩkalska. The dissimilarity space: Bridging structural and statistical pattern recognition. Pattern
+Recognition Letters, 33(7):826–832, 2012. ISSN 0167-8655. doi: 10.1016/j.patrec.2011.04.019.
+[11] H. Frauenfelder and P. Wolynes. Proteins: where physics of simplicity and complexity meet. Physics Today, 47:58–65,
+1994.
+[12] B. Gabrys and A. Bargiela. General Fuzzy Min-Max Neural Network for Clustering and Classification. IEEE Transactions
+on Neural Networks, 11(3):769–783, 2000.
+[13] A. Giuliani, R. Benigni, J. P. Zbilut, C. L. Webber Jr., P. Sirabella, and A. Colosimo. Nonlinear Signal Analysis Methods
+in the Elucidation of Protein Sequence—Structure Relationships. ChemInform, 33(28):1471–1492, 2002. ISSN 1522-2667.
+doi: 10.1002/chin.200228300.
+[14] A. O. Hero III, B. Ma, O. J. J. Michel, and J. Gorman. Applications of entropic spanning graphs. IEEE Signal Processing
+Magazine, 19(5):85–95, Sept. 2002. doi: 10.1109/MSP.2002.1028355.
+[15] A. Iosifidis, A. Tefas, and I. Pitas. Multidimensional Sequence Classification based on Fuzzy Distances and Discriminant
+Analysis. IEEE Transactions on Knowledge and Data Engineering, 99(PrePrints):1, 2012. ISSN 1041-4347. doi: 10.1109/
+TKDE.2012.223.
+[16] D. W. Jacobs, D. Weinshall, and Y. Gdalyahu. Classification with Nonmetric Distances: Image Retrieval and Class
+Representation. IEEE Transactions on Pattern Analysis and Machine Intelligence, 22(6):583–600, June 2000. ISSN
+0162-8828. doi: 10.1109/34.862197.
+[17] M. Lan, C. L. Tan, J. Su, and Y. Lu. Supervised and Traditional Term Weighting Methods for Automatic Text Categorization. IEEE Transactions on Pattern Analysis and Machine Intelligence, 31(4):721–735, Apr 2009. ISSN 0162-8828.
+doi: 10.1109/TPAMI.2008.110.
+
+8
+
+[18] L. Livi and A. Rizzi. The graph matching problem. Pattern Analysis and Applications, 16(3):253–283, 2013. ISSN
+1433-7541. doi: 10.1007/s10044-012-0284-8.
+[19] L. Livi, G. Del Vescovo, and A. Rizzi. Graph recognition by seriation and frequent substructures mining. In Proceedings
+of the First International Conference on Pattern Recognition Applications and Methods, volume 1, pages 186–191, Feb.
+2012. ISBN 978-989-8425-98-0. doi: 10.5220/0003733201860191.
+[20] L. Livi, F. M. Bianchi, A. Rizzi, and A. Sadeghian. Dissimilarity space embedding of labeled graphs by a clustering-based
+compression procedure. In Proceedings of the 2013 International Joint Conference on Neural Networks, pages 1646–1653,
+Aug 2013. ISBN 978-1-4673-6129-3. doi: 10.1109/IJCNN.2013.6706937.
+[21] L. Livi, G. Del Vescovo, and A. Rizzi. Combining graph seriation and substructures mining for graph recognition. In
+P. Latorre Carmona, J. S. Sánchez, and A. L. N. Fred, editors, Pattern Recognition - Applications and Methods, volume
+204 of Advances in Intelligent and Soft Computing, pages 79–91. Springer Berlin Heidelberg, 2013. ISBN 978-3-642-36529-4.
+doi: 10.1007/978-3-642-36530-0 7.
+[22] L. Livi, H. Tahayori, A. Sadeghian, and A. Rizzi. Aggregating α-planes for type-2 fuzzy set matching. In 2013 Joint IFSA
+World Congress and NAFIPS Annual Meeting (IFSA/NAFIPS), pages 860–865, 2013. doi: 10.1109/IFSA-NAFIPS.2013.
+6608513.
+[23] L. Livi, G. Del Vescovo, A. Rizzi, and F. M. Frattale Mascioli. Building pattern recognition applications with the SPARE
+library. ArXiv preprint arXiv:1410.5263, Oct 2014.
+[24] L. Livi, A. Rizzi, and A. Sadeghian. Optimized dissimilarity space embedding for labeled graphs. Information Sciences,
+266:47–64, 2014. ISSN 0020-0255. doi: 10.1016/j.ins.2014.01.005.
+[25] L. Livi, A. Rizzi, and A. Sadeghian. Designing labeled graph classifiers by exploiting the Rényi entropy of the dissimilarity
+representation. ArXiv preprint arXiv:1408.5286, Aug 2014.
+[26] L. Livi, H. Tahayori, A. Sadeghian, and A. Rizzi. Distinguishability of interval type-2 fuzzy sets data by analyzing upper and
+lower membership functions. Applied Soft Computing, 17:79–89, 2014. ISSN 1568-4946. doi: 10.1016/j.asoc.2013.12.020.
+[27] P. Melin and O. Castillo. A review on the applications of type-2 fuzzy logic in classification and pattern recognition. Expert
+Systems with Applications, 40(13):5413–5423, 2013.
+[28] P. Melin and O. Castillo. A review on type-2 fuzzy logic applications in clustering, classification and pattern recognition.
+Applied Soft Computing, 21:568–577, 2014.
+[29] P. Melin, J. Amezcua, F. Valdez, and O. Castillo. A new neural network model based on the lvq algorithm for multi-class
+classification of arrhythmias. Information Sciences, 279:483–497, 2014.
+[30] M. Moharrer, H. Tahayori, L. Livi, A. Sadeghian, and A. Rizzi. Interval type-2 fuzzy sets to model linguistic label perception
+in online services satisfaction. Soft Computing, 19(1):237–250, 2015. ISSN 1432-7643. doi: 10.1007/s00500-014-1246-4.
+[31] T. Niwa, B.-W. Ying, K. Saito, W. Jin, S. Takada, T. Ueda, and H. Taguchi. Bimodal protein solubility distribution revealed
+by an aggregation analysis of the entire ensemble of Escherichia coli proteins. Proceedings of the National Academy of
+Sciences, 106(11):4201–4206, 2009. doi: 10.1073/pnas.0811922106.
+[32] T. Niwa, T. Kanamori, T. Ueda, and H. Taguchi. Global analysis of chaperone effects using a reconstituted cell-free
+translation system. Proceedings of the National Academy of Sciences, 109(23):8937–8942, 2012. doi: 10.1073/pnas.
+1201380109.
+[33] W. Pedrycz, W. Lu, X. Liu, W. Wang, and L. Wang. Human-centric analysis and interpretation of time series: a perspective
+of granular computing. Soft Computing, pages 1–15, 2014. ISSN 1432-7643. doi: 10.1007/s00500-013-1213-5.
+[34] J. C. Prı́ncipe. Information Theoretic Learning: Renyi’s Entropy and Kernel Perspectives. Information Science and
+Statistics. Springer, 2010. ISBN 9781441915696.
+[35] K. Riesen and H. Bunke. Graph Classification and Clustering Based on Vector Space Embedding. Series in Machine
+Perception and Artificial Intelligence. World Scientific Pub Co Inc, 2010. ISBN 9789814304719.
+[36] A. Rizzi, M. Panella, and F. M. Frattale Mascioli. Adaptive resolution min-max classifiers. IEEE Transactions on Neural
+Networks, 13:402–414, Mar. 2002. ISSN 1045-9227.
+[37] A. Rizzi, G. Del Vescovo, L. Livi, and F. M. Frattale Mascioli. A new granular computing approach for sequences
+representation and classification. In Proceedings of the 2012 International Joint Conference on Neural Networks, pages
+2268–2275, June 2012. ISBN 978-1-4673-1489-3. doi: 10.1109/IJCNN.2012.6252680.
+
+9
+
+[38] A. Rizzi, L. Livi, H. Tahayori, and A. Sadeghian. Matching general type-2 fuzzy sets by comparing the vertical slices. In
+2013 Joint IFSA World Congress and NAFIPS Annual Meeting (IFSA/NAFIPS), pages 866–871, 2013. doi: 10.1109/
+IFSA-NAFIPS.2013.6608514.
+[39] A. Rizzi, F. Possemato, L. Livi, A. Sebastiani, A. Giuliani, and F. M. Frattale Mascioli. A dissimilarity-based classifier for
+generalized sequences by a Granular Computing approach. In Proceedings of the 2013 International Joint Conference on
+Neural Networks, pages 2397–2404, Aug 2013. ISBN 978-1-4673-6129-3. doi: 10.1109/IJCNN.2013.6707041.
+[40] A. Sadeghian. Nonlinear neuro-fuzzy prediction: methodology, design and applications. In The 10th IEEE International
+Conference on Fuzzy Systems, volume 3, pages 1022–1026, 2001. doi: 10.1109/FUZZ.2001.1009136.
+[41] T. Samak, D. Gunter, and Z. Wang. Prediction of protein solubility in E. coli. In 2012 IEEE 8th International Conference
+on E-Science (e-Science), pages 1–8, Oct 2012. doi: 10.1109/eScience.2012.6404416.
+[42] D. Sánchez and P. Melin. Optimization of modular granular neural networks using hierarchical genetic algorithms for
+human recognition using the ear biometric measure. Engineering Applications of Artificial Intelligence, 27:41–56, 2014.
+[43] M. Shtilerman, G. H. Lorimer, and S. Walter Englander. Chaperonin Function: Folding by Forced Unfolding. Science,
+284(5415):822–825, 1999. doi: 10.1126/science.284.5415.822.
+[44] P. Smialowski, A. J. Martin-Galiano, A. Mikolajka, T. Girschick, T. A. Holak, and D. Frishman. Protein solubility:
+sequence based prediction and experimental verification. Bioinformatics, 23(19):2536–2542, 2007.
+[45] C. Tappert, C. Suen, and T. Wakahara. The State of the Art in Online Handwriting Recognition. IEEE Transactions on
+Pattern Analysis and Machine Intelligence, 12(8):787–808, 1990. ISSN 0162-8828. doi: 10.1109/34.57669.
+[46] G. Taubes. Protein Chemistry: Misfolding the Way to Disease. Science, 271(5255):1493–1495, 1996. doi: 10.1126/science.
+271.5255.1493.
+[47] C. Trujillo-Pulgarı́n and M. Orozco-Alzate. Parzen classification in generalised dissimilarity spaces. Electronics Letters,
+49(3):192–193, 2013.
+[48] N. Xiaohui, S. Feng, H. Xuehai, X. Jingbo, and L. Nana. Predicting the protein solubility by integrating chaos games
+representation and entropy in information theory. Expert Systems with Applications, 41(4):1672–1679, 2014.
+[49] Z. Xing, J. Pei, and E. Keogh. A brief survey on sequence classification. SIGKDD Explorations Newsletter, 12:40–48, Nov.
+2010. ISSN 1931-0145. doi: 10.1145/1882471.1882478.
+
+10
+
+

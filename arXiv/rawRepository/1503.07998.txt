@@ -1,0 +1,980 @@
+Application Note
+Real-time multi-view deconvolution
+Benjamin Schmid 1,∗ and Jan Huisken 1,∗
+
+arXiv:1503.07998v1 [q-bio.QM] 27 Mar 2015
+
+1
+
+Max Planck Institute of Molecular Cell Biology and Genetics, 01307 Dresden, Germany
+
+ABSTRACT
+Summary: In light-sheet microscopy, overall image content and
+resolution are improved by acquiring and fusing multiple views of
+the sample from different directions. State-of-the-art multi-view (MV)
+deconvolution employs the point spread functions (PSF) of the
+different views to simultaneously fuse and deconvolve the images
+in 3D, but processing takes a multiple of the acquisition time and
+constitutes the bottleneck in the imaging pipeline. Here we show
+that MV deconvolution in 3D can finally be achieved in real-time by
+reslicing the acquired data and processing cross-sectional planes
+individually on the massively parallel architecture of a graphics
+processing unit (GPU).
+Availability: Source code and binaries are available on github
+(https://github.com/bene51/), native code under the repository
+’gpu deconvolution’, Java wrappers implementing Fiji plugins under
+’SPIM Reconstruction Cuda’.
+Contact: bschmid@mpi-cbg.de
+Supplementary information: Supplementary data are available at
+the end of this document.
+
+1
+
+INTRODUCTION
+
+MV imaging is particularly useful in light-sheet microscopy
+where consecutive views are acquired in short succession,
+allowing reconstruction of entire developing organisms without
+artifacts (Huisken et al., 2004). Due to the low photo-toxicity
+in light sheet microscopy, time-lapse experiments are oftentimes
+run over days and TBs of data accumulate quickly. MV fusion
+is therefore particularly desirable to be performed in real-time
+to eliminate redundant information from different views. Best
+fusion results, however, are achieved by combining fusion with
+3D deconvolution (Swoger et al., 2007; Verveer et al., 2007; Wu
+et al., 2013). Although efficient Bayesian MV deconvolution based
+on the Richardson-Lucy (RL) algorithm has been shown recently
+to outperform existing methods in terms of fusion quality and
+convergence speed, it is still too slow for real-time processing of
+typical data volumes (Preibisch et al., 2014).
+The RL deconvolution iterations consist only of convolutions
+and pixel-wise arithmetic operations and could therefore be
+significantly accelerated using dedicated hardware such as a
+GPU. The large memory requirements of MV deconvolution,
+however, exceed the limited resources of modern GPUs even for
+moderate data sizes (Supplementary Note 1). Previous attempts
+therefore required splitting the data into blocks of appropriate
+size. Each block then either had to be transferred to and from
+the GPU in each RL iteration (Preibisch et al., 2014), or blocks
+∗ to
+
+whom correspondence should be addressed
+
+needed to share a considerable amount of overlap to avoid
+border artifacts (Temerinac-Ott et al., 2011). Therefore, GPUbased implementations only achieved a three-times performance
+gain (Preibisch et al., 2014).
+
+2
+
+RESULTS
+
+The primary goal of MV fusion is the improvement of the poor
+axial resolution in a single 3D dataset using the superior lateral
+resolution of an additional, overlapping dataset, and not necessarily
+to improve resolution beyond the intrinsic lateral resolution. We
+therefore approximated the full 3D transfer function with a 2D
+PSF, neglecting one lateral component (along the rotation axis), and
+processed each plane orthogonal to the rotation axis independently
+(Fig. 1a). Memory requirements were thereby reduced by the
+number of lines read out from the camera chip, i.e. typically
+100-1000 fold (Fig. 1b). This allowed us to implement the entire
+MV deconvolution on a GPU. Taking advantage of three CUDA
+(Compute Unified Device Architecture) streams, we interleaved
+GPU computations with data transfers, such that not only expensive
+copying to and from GPU memory, but also reading and writing
+data from and to the hard drive came without additional cost
+(Supplementary Note 2). Compared to 3D MV deconvolution, with
+and without GPU support, we thereby reduced processing times by
+a factor of up to 25 and 75, respectively (Fig. 1c, Supplementary
+Table 1), while producing comparable results.
+We compared the results obtained by our plane-wise deconvolution
+to the methods commonly used in the light-sheet community, such
+as established 3D deconvolution (Preibisch et al., 2014), averaging
+and entropy-based fusion (Preibisch et al., 2010) (Fig. 1d-i). Both
+averaging and entropy-based fusion were blurry and showed crossshaped artifacts, originating from the elongated PSFs along the
+optical axes. 3D deconvolution as well as our plane-wise variant
+reduced artifacts and enhanced the contrast, thus truly improving the
+resolution in the fused data set. While our results were comparable
+to the slow full 3D deconvolution (Fig. 1h,i; Supplementary Fig. 1),
+processing times and memory requirements were heavily reduced
+so that the entire deconvolution could be performed in real time.
+We provide our software as a C library that can be directly
+linked to camera acquisition software for real-time processing. To
+also benefit from the increased performance in post-processing,
+we additionally created Java wrappers to provide plugins for the
+open source image processing software Fiji (Schindelin et al., 2012)
+(Supplementary material).
+
+1
+
+1000
+
+View 2
+Transformed &
+resliced
+
+Transformed &
+resliced
+
+vi
+
+Acquired
+
+Memory requirements (GB)
+
+Acquired
+View 1
+
+Plane-wise
+3D
+
+4
+
+b
+
+2
+
+a
+
+ew
+vi s
+ew
+s
+
+Schmid et al
+
+100
+10
+
+Typical GPU
+memory size
+(6 GB)
+
+1
+0.1
+2563
+
+Time per view and
+iteration (s)
+
+c
+
+10
+
+d
+
+f
+
+Original view 1
+
+e
+
+Original view 2
+
+Averaged
+
+g
+
+Entropy-weighted
+average
+
+5123 10243 20483
+Image size (pixels)
+
+Plane-wise (GPU)
+Plane-wise (CPU)
+3D (GPU)
+3D (CPU)
+
+50
+
+Deconvolved
+
+Typical host
+memory size
+(128 GB)
+
+h
+
+3D deconvolution
+
+i
+
+Plane-wise
+deconvolution
+
+xx
+5123 10243 20483
+Image size (pixels)
+
+Fig. 1. Plane-wise multi-view deconvolution concept and performance. (a) Concept of plane-wise deconvolution for two views. Each data set is resliced into
+planes orthogonal to the microscope’s rotation axis. Data sets are deconvolved plane-by-plane. (b) Memory requirements for traditional 3D and our plane-wise
+multi-view deconvolution, for various data sizes and numbers of views, on a logarithmic scale. (c) Execution times for plane-wise multi-view deconvolution,
+implemented on GPU and CPU, and 3D deconvolution, with and without GPU support. Memory requirements for 3D deconvolution timings for the 20483
+pixel data set were beyond the capabilities of our workstation. (d-i) Resulting images of a 9 hours post fertilization transgenic Tg(h2afva:h2afva-mCherry)
+zebrafish embryo, using different methods (view along the rotational axis, scale bar 100 µm, 10 µm in the inset): (d, e) acquired raw data, (f-i) fusion performed
+by (f) averaging, (g) entropy-weighted averaging, (h) 3D multi-view deconvolution and (i) plane-wise multi-view deconvolution (10 iterations). (Dell T6100,
+Intel E5-2630 @2.3 GHz 2 processors, 64 GB RAM; Graphics card: Nvidia GeForce GTX TITAN Black).
+
+3
+
+VALIDATION
+
+Our plane-wise deconvolution approximates 3D deconvolution by
+neglecting the contribution of the PSF along the rotation axis.
+Using artificial data (Supplementary Fig. 2), we found that the
+validity of this approximation is independent of the amount of noise
+(Supplementary Fig. 3), but depends on the lateral extents of the
+PSF. Keeping its axial standard deviation fixed at eight pixels, a
+typical value measured on our microscopes, we found that up to
+a lateral standard deviation of 2-3 pixels, results from plane-wise
+and 3D deconvolution are undistinguishable (Supplementary Fig. 4).
+The measured lateral standard deviation of the PSF was typically
+between 1.5 and 1.8 pixels on our microscopes.
+
+4
+
+CONCLUSION
+
+With the advent of first commercially available systems, lightsheet microscopy becomes more and more popular. Its photoefficiency enables long time-lapse imaging of living samples to
+study fundamental questions in developmental biology. However,
+the huge data rates and enormous amounts of data it produces
+also open new challenges for data processing and handling. A
+key problem in light-sheet microscopy is the fusion of data
+recorded from multiple angles. In this paper, we have presented a
+new method that performs MV deconvolution plane-wise, which
+reduces memory requirements compared to existing methods and
+thus permits an entirely GPU-based implementation. The achieved
+acceleration makes MV deconvolution for the first time applicable
+in real-time without the need for data cropping or resampling.
+
+2
+
+ACKNOWLEDGEMENT
+We thank all members of the Huisken lab for stimulating
+discussions.
+Conflict of interest: none declared.
+
+REFERENCES
+Huisken, J., Swoger, J., Del Bene, F., Wittbrodt, J., and Stelzer, E. H. (2004). Optical
+sectioning deep inside live embryos by selective plane illumination microscopy.
+Science, 305(5686), 1007–1009.
+Preibisch, S., Saalfeld, S., Schindelin, J., and Tomancak, P. (2010). Software for beadbased registration of selective plane illumination microscopy data. Nat. Methods,
+7(6), 418–419.
+Preibisch, S., Amat, F., Stamataki, E., Sarov, M., Singer, R. H., Myers, E., and
+Tomancak, P. (2014). Efficient Bayesian-based multiview deconvolution. Nat.
+Methods, 11(6), 645–648.
+Schindelin, J., Arganda-Carreras, I., Frise, E., Kaynig, V., Longair, M., Pietzsch, T.,
+Preibisch, S., Rueden, C., Saalfeld, S., Schmid, B., Tinevez, J. Y., White, D. J.,
+Hartenstein, V., Eliceiri, K., Tomancak, P., and Cardona, A. (2012). Fiji: an opensource platform for biological-image analysis. Nat. Methods, 9(7), 676–682.
+Swoger, J., Verveer, P., Greger, K., Huisken, J., and Stelzer, E. H. (2007). Multi-view
+image fusion improves resolution in three-dimensional microscopy. Opt Express,
+15(13), 8029–8042.
+Temerinac-Ott, M., Ronneberger, O., Nitschke, R., Driever, W., and Burkhardt, H.
+(2011). Spatially-variant Lucy-Richardson deconvolution for multiview fusion of
+microscopical 3D images.
+Verveer, P. J., Swoger, J., Pampaloni, F., Greger, K., Marcello, M., and Stelzer, E. H.
+(2007). High-resolution three-dimensional imaging of large specimens with light
+sheet-based microscopy. Nat. Methods, 4(4), 311–313.
+Wu, Y., Wawrzusin, P., Senseney, J., Fischer, R. S., Christensen, R., Santella, A., York,
+A. G., Winter, P. W., Waterman, C. M., Bao, Z., Colon-Ramos, D. A., McAuliffe,
+M., and Shroff, H. (2013). Spatially isotropic four-dimensional imaging with dualview plane illumination microscopy. Nat. Biotechnol., 31(11), 1032–1038.
+
+Real-time multi-view deconvolution
+
+Supplementary Material
+SUPPLEMENTARY NOTE 1: MEMORY REQUIREMENTS FOR MULTI-VIEW DECONVOLUTION
+The multi-view Richardson-Lucy deconvolution algorithm iteratively updates the current estimate of the true image by the following formula:
+ψ t+1 = ψ t
+
+φv
+∗ Pv∗
+ψ t ∗ Pv
+
+Y
+v∈V
+
+Assuming the two convolutions are performed in Fourier space, the memory required per pixel (of the isotropic fused dataset) is 22 ∗ v + 12
+bytes, where v is the number of views:
+
+description
+
+data type
+
+memory requirement
+(bytes/pixel)
+
+kernel spectrum FFT(Pv )
+inverted kernel spectrum FFT(Pv∗ )
+data φv
+weights
+estimate ψ
+estimate spectrum FFT(ψ)
+temporary buffer
+
+complex
+complex
+uint16
+float
+float
+float
+float
+
+8v
+8v
+2v
+4v
+4
+4
+4
+22 v + 12
+
+SUPPLEMENTARY NOTE 2: IMPLEMENTATION
+1. Summary of optimization methods
+Preibisch et al. (2014) derived a number of optimizations to make traditional Richardson-Lucy multi-view deconvolution more efficient.
+While the time required for one iteration remained unchanged, less iterations were required for achieving the same deblurring. The
+implemented variants all used the following formula, but replaced X with the expressions given below:
+ψ t+1 = ψ t
+
+Y
+v∈V
+
+φv
+∗X
+ψ t ∗ Pv
+
+• Independent:
+X = Pv∗
+• Efficient Bayesian:
+Y
+
+X = Pv∗
+
+Pv∗ ∗ Pw ∗ Pw∗
+
+w∈Wv
+
+• Optimization I:
+X = Pv∗
+
+Y
+
+Pv∗ ∗ Pw
+
+v∈Wv
+
+• Optimization II:
+X=
+
+Y
+
+Pv∗
+
+v,w∈Wv
+
+where ψ t is the estimate at iteration t, φv is the observed data of view v, Pv is the PSF of view v, and Pv∗ is the flipped PSF of view v.
+
+1
+
+Schmid et al
+
+2. Convergence and number of iterations
+The optimizations derived in Preibisch et al. (2014) and listed above reduce the number of iterations the algorithm requires to converge.
+Convergence behavior of the different optimization variants were extensively studied in Preibisch et al. (2014) and apply likewise to our
+implementation. In practice, choosing the number of iterations is a trade-off between achieved quality and computation time. We therefore
+leave it to the user, who needs to make this decision based on the particular situation (e.g. if deconvolution is performed in real-time, a
+reduced number of iterations might be preferred for an increase in overall acquisition speed). To facilitate the decision, we provide a tool for
+interactively investigating different numbers of iterations on a single cross-section (see also the Fiji plugin manual).
+
+3. CUDA workflow for plane-wise multi-view deconvolution
+Our plane-wise multi-view deconvolution implementation uses multiple CUDA streams to overlap GPU computations with data transfer,
+such that not only copies to and from the GPU, but also loading and saving data from and to hard-drive come without additional cost. The
+implemented workflow is outlined below. Here, all processing and CUDA calls are asynchronous, i.e. non-blocking. Synchronization is
+achieved by calls to cudaStreamSynchronize().
+
+Algorithm 1: Workflow to interleave disk I/O and memory transfers with data processing.
+nStreams = 3;
+for z ← 0 to nStreams do
+Initialize streams[z];
+Load plane z from hard-drive into main memory;
+end
+for z ← 0 to nStreams do
+stream = streams[z mod nStreams];
+if z >= nStreams then
+cudaStreamSynchronize(stream);
+Save deconvolved plane (z − nStreams) to hard-drive;
+Load plane z from hard-drive into main-memory;
+end
+Copy plane z from main memory to GPU;
+for it ← 0 to nIterations do
+Calculate Richardson-Lucy step on stream;
+end
+Copy plane z from GPU to main memory;
+end
+for z ← (nP lanes − nStreams + 1) to nP lanes do
+stream = streams[z mod nStreams];
+cudaStreamSynchronize(stream);
+Save deconvolved plane z to hard-drive;
+end
+
+4. Libraries and dependencies
+To efficiently calculate the Richardson-Lucy iteration step, convolutions were replaced by multiplications in Fourier domain. Fourier
+transformations were computed using the cuFFT library (https://developer. nvidia.com/cuFFT). Other arithmetic operations were
+implemented as custom CUDA kernel functions.
+The entire workflow was implemented in the C programming language, using the CUDA specific extensions. The Fiji plugin was
+implemented in the Java programming language (Oracle Corporation). The C program was interfaced from Java using JNI (Java Native
+Interface).
+The deployed plugin contains for each platform the corresponding binary library, which is statically linked agains the CUDA SDK.
+Additionally, the cuFFT library is bundled, which is required as a shared library.
+Requirements for execution are a Nvidia graphics card that supports CUDA.
+
+2
+
+Real-time multi-view deconvolution
+
+SUPPLEMENTARY TABLE 1: EXECUTION SPEEDS USING DIFFERENT GRAPHICS CARDS.
+Execution time (s)
+Graphics card
+Quadro K2000
+Tesla C2075
+GeForce GTX 680
+Tesla K40c
+GeForce Titan black
+
+5123 pixel
+
+10243 pixel
+
+20483 pixel
+
+12.0
+6.6
+7.8
+3.9
+4.0
+
+83.7
+48.2
+29.8
+19.4
+21.1
+
+683.8
+378.7
+238.5
+153.6
+152.3
+
+Table 1. Comparison of execution speed for plane-wise deconvolution using different graphics cards. 10 iterations have been performed deconvolving two
+views. Processing was performed on a Dell T6100 workstation (Intel E5-2630 @2.3 GHz 2 processors, 64 GB RAM). Data sizes correspond to the sizes
+padded for Fourier convolution, i.e. the sum of the actual data size and the size of PSF.
+
+SUPPLEMENTARY FIGURE 1: DECONVOLUTION RESULTS VIEWED ALONG THE DETECTION AXIS
+a
+
+acquired
+
+b
+
+3D deconvolution
+
+c
+
+PW deconvolution
+
+Supplementary Figure 1. Deconvolution results viewed along the detection axis. (a) Acquired data of the first view of a 9 hours post fertilization old
+Tg(h2afva:h2afva-mCherry) zebrafish embryo. (b,c) Multi-view deconvolution, performed (b) in full 3D and (c) plane-wise.
+
+3
+
+Schmid et al
+
+SUPPLEMENTARY FIGURE 2: COMPARISON OF VARIOUS FUSION METHODS USING A SIMULATED DATA
+SET
+a
+
+b
+
+c
+
+d
+
+e
+
+f
+
+view 1
+
+view 2
+
+average
+
+3D deconvolution
+
+PW deconvolution
+
+z
+x
+x
+y
+
+ground truth
+
+Supplementary Figure 2. Comparison of various fusion methods using a simulated data set. (a) Original data resembling a single nucleus of a
+Tg(h2afva:h2afva-mCherry) zebrafish embryo. (b, c) Simulated view 1 and view 2, generated by convolving the original data with an elongated PSF in
+z- and x-direction. Fusion by (d) averaging, (e) 3D multi-view deconvolution and (f) plane-wise multi-view deconvolution.
+
+4
+
+Real-time multi-view deconvolution
+
+SUPPLEMENTARY FIGURE 3: COMPARISON OF DECONVOLUTION RESULTS UNDER VARIOUS NOISE
+LEVELS
+
+400
+
+200
+
+200
+
+200
+-8
+
+0
+
+loc.[px]
+
+0
+
+Intensity
+
+0
+
+Intensity
+
+loc.[px]
+
+400
+
+200
+
+200
+
+200
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+Intensity
+
+0
+
+Intensity
+
+-8
+
+Intensity
+
+SNR = 10
+
+400
+
+400
+
+400
+
+200
+
+200
+
+200
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+Intensity
+
+0
+
+Intensity
+
+-8
+
+Intensity
+
+SNR = 3
+
+x
+
+0
+
+400
+
+400
+
+400
+
+400
+
+200
+
+200
+
+200
+
+0
+
+y
+
+-8
+
+400
+
+0
+
+x
+
+z profile
+
+400
+
+0
+
+z
+
+y profile
+
+400
+
+0
+
+x
+
+SNR = 100
+
+y
+
+x profile
+
+Intensity
+
+x
+
+PW dec.
+
+Intensity
+
+z
+
+3D dec.
+
+Intensity
+
+View 2
+
+Intensity
+
+SNR = ∞
+
+View 1
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+-8
+
+0
+
+loc.[px]
+
+-8
+
+0
+
+loc.[px]
+
+-8
+
+0
+
+loc.[px]
+
+Ground-truth
+View 1
+View 2
+3D deconvolution
+Plane-wise deconvolution
+
+Supplementary Figure 3. Comparison of deconvolution results under various noise levels. Different amounts of Gaussian noise were added to the simulated
+data from Supplementary Fig. 2. For each signal-to-noise ratio (SNR), both views and the deconvolution results from the 3D deconvolution and our plane-wise
+implementation are shown, along the rotation axis (top row) and along the detection axis of view 1 (bottom row). For each SNR value, line profiles are
+shown of the ground truth, the simulated data and the deconvolution results in all three dimensions. Throughout all tested SNR values, results of plane-wise
+deconvolution closely resemble the results of the original 3D implementation.
+
+5
+
+Schmid et al
+
+SUPPLEMENTARY FIGURE 4: COMPARISON OF DECONVOLUTION RESULTS USING DIFFERENT PSFS
+
+400
+
+200
+
+200
+
+200
+-8
+
+0
+
+loc.[px]
+
+0
+
+Intensity
+
+0
+
+Intensity
+
+loc.[px]
+
+400
+
+200
+
+200
+
+200
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+Intensity
+
+0
+
+Intensity
+
+-8
+
+Intensity
+
+σxy = 4
+
+400
+
+400
+
+400
+
+200
+
+200
+
+200
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+Intensity
+
+0
+
+Intensity
+
+-8
+
+Intensity
+
+σxy = 5
+
+x
+
+0
+
+400
+
+400
+
+400
+
+400
+
+200
+
+200
+
+200
+
+0
+
+y
+
+-8
+
+400
+
+0
+
+x
+
+z profile
+
+400
+
+0
+
+z
+
+y profile
+
+400
+
+0
+
+x
+
+σxy = 3
+
+y
+
+x profile
+
+Intensity
+
+x
+
+PW dec.
+
+Intensity
+
+z
+
+3D dec.
+
+Intensity
+
+View 2
+
+Intensity
+
+σxy = 2
+
+View 1
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+0
+
+-8
+
+0
+
+loc.[px]
+
+-8
+
+0
+
+loc.[px]
+
+-8
+
+0
+
+loc.[px]
+
+-8
+
+0
+
+loc.[px]
+
+Ground-truth
+View 1
+View 2
+3D deconvolution
+Plane-wise deconvolution
+
+Supplementary Figure 4. Comparison of deconvolution results using different PSFs. Simulated data were created as in Supplementary Fig. 2, using Gaussian
+PSFs with a fixed axial standard deviation σz of eight pixels, as determined empirically on our microscope. Different values were used for the lateral standard
+deviation σxy . For each value, both views and the deconvolution results from the 3D deconvolution and our plane-wise implementation are shown, along
+the rotation axis (top row) and along the detection axis of view 1 (bottom row). Line profiles are shown of the ground truth, the simulated data and the
+deconvolution results in all three dimensions. While the results obtained by plane-wise and original 3D deconvolution are similar for small values of σxy
+below a value of two, they start to diverge for higher values. σxy on our microscopes was typically between 1.5 and 1.8 pixels.
+
+REFERENCES
+Preibisch, S., Amat, F., Stamataki, E., Sarov, M., Singer, R.H., Myers, E. & Tomancak, P. Efficient Bayesian-based multiview deconvolution. Nat Meth 11, 645-648 (2014).
+
+6
+
+

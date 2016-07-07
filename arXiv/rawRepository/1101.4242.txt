@@ -1,0 +1,976 @@
+arXiv:1101.4242v1 [stat.CO] 21 Jan 2011
+
+Efficient Bayesian inference in stochastic chemical
+kinetic models using graphical processing units
+Jarad Niemi and Matthew Wheeler
+January 25, 2011
+Abstract
+A goal of systems biology is to understand the dynamics of intracellular systems. Stochastic chemical kinetic models are often utilized to accurately capture the stochastic nature of these systems due to low numbers
+of molecules. Collecting system data allows for estimation of stochastic
+chemical kinetic rate parameters. We describe a well-known, but typically
+impractical data augmentation Markov chain Monte Carlo algorithm for
+estimating these parameters. The impracticality is due to the use of rejection sampling for latent trajectories with fixed initial and final endpoints
+which can have diminutive acceptance probability. We show how graphical processing units can be efficiently utilized for parameter estimation
+in systems that hitherto were inestimable. For more complex systems,
+we show the efficiency gain over traditional CPU computing is on the order of 200. Finally, we show a Bayesian analysis of a system based on
+Michaelis-Menton kinetics.
+
+1
+
+Introduction
+
+The development of highly parallelized graphical processing units (GPUs) has
+largely been driven by the video game industry for faster and more accurate
+real-time 3D visualization. More recently the graphics card industry has introduced general purpose GPUs for scientific computing. Much of the focus of this
+work has been on building parallelized linear algebra routines since these applications are inherently amenable to parallelization [Galoppo et al., 2005, Volkov
+and Demmel, 2008, Krüger and Westermann, 2005]. More recently the biological scientific community has taken interest for applications such as leukocyte
+tracking [Boyer et al., 2009], cluster identification in flow cytometry [Suchard
+et al., 2010], and molecular dynamic simulation of intracellular processes [Li and
+Petzold, 2010].
+The statistics community has been slower to venture into this massively
+parallel area, but in the last couple of years a few papers have appeared using GPUs to provide efficient analyses of problems that would otherwise by
+computationally prohibitive. Topics of these papers include statistical phylogenetics [Suchard and Rambaut, 2009], slice sampling [Tibbits et al., 2010],
+1
+
+high-dimensional optimization [Zhou et al., 2010], simulation of Ising models
+[Preis et al., 2009], approximate Bayesian computation (ABC) [Liepe et al.,
+2010], estimating multivariate mixtures [Suchard et al., 2010], population-based
+Markov chain Monte Carlo (MCMC) and sequential Monte Carlo methods [Lee
+et al., 2009]. As the number of parallel cores increase, the presence of GPU
+computing will undoubtably grow.
+The use of parallel computing in the area of stochastic chemical kinetics is
+primarily focused on simulation of systems assuming known reaction parameters
+[Li and Petzold, 2010]. Some have used these simulations within an approximate
+Bayesian computation (ABC) framework for estimation of reaction parameters
+[Liepe et al., 2010]. The Bayesian approach presented here is a special-case
+of the ABC methodology and can be used as a gold-standard for comparing
+efficacy of the more general ABC methodology. This approach implements data
+augmentation MCMC (DA-MCMC) where the latent trajectories for chemical
+species are simulated at each iteration of the MCMC algorithm Marjoram et al.
+[2003]. Coupling this algorithm with GPU computing provides Monte Carlo
+estimates of parameter posteriors for sizeable systems in reasonable time frames.
+This article proceeds as follows. In section 2, we describe stochastic chemical
+kinetic models. In section 3, we introduce the DA-MCMC Bayesian approach to
+parameter inference in these models. Section 4 discusses modifications required
+or beneficial for using this inferential technique on GPUs. Section 5 provides a
+simulation study to determine the computational efficiency gain of using GPUs
+relative to CPUs as well as full Bayesian analysis of a Michaelis-Menton system.
+Finally, concluding remarks and future research plans are discussed in section
+6.
+
+2
+
+Stochastic chemical kinetic models
+
+Many biological phenomenon can be modeled using stochastic chemical kinetic
+models Wilkinson [2006]. These models are particularly useful when at least
+one species has a small number of molecules and therefore deterministic models
+provide poor approximations. In biology, this is common when considering intracellular populations such as the number of DNA, RNA, and protein molecules.
+Below we introduce the notation required for understanding these stochastic
+chemical kinetic models as well as methods used to simulate from them.
+Consider a spatially homogeneous biochemical system within a fixed volume
+at constant temperature. This system contains N species {S1 , . . . , SN } with
+state vector X(t) = (X1 (t), . . . , XN (t))0 describing the number of molecules of
+each species at time t. This state vector is updated through M reactions labeled
+R1 , . . . , RM . Reaction j ∈ {1, . . . , M } has a propensity aj (x) = θj hj (x) where
+θj is the unknown stochastic reaction rate parameter for reaction j and hj (x)
+is a known function of the system state x. Multiplying the propensity by an
+infinitesimal τ provides the probability of reaction j occurring in the interval
+[t, t + τ ). If reaction j fires, the state vector is updated to X(t + τ ) = X(t) + vj
+where vj = (v1j , . . . , vN j )0 describes the number of molecules of each species
+
+2
+
+that are consumed or produced in reaction j.
+The probability distribution for the state at time t, p(t, x), is the solution of
+the chemical master equation (CME):
+M
+X
+
+∂
+p(t, x) =
+aj (x − vm )p(t, x − vm ) − aj (x)p(t, x) .
+∂t
+j=1
+
+(1)
+
+This solution is only analytically tractable in the simplest of models. In more
+complicated models with discretely observed data, standard statistical methods
+for performing inference on the θj s are unavailable due to intractability of this
+probability distribution. This necessitates the use of analytical or numerical
+approximations such as approximate Bayesian computation [Marjoram et al.,
+2003].
+
+2.1
+
+Stochastic simulation algorithm
+
+The DA-MCMC algorithm described later requires forward simulation of the
+system from a known initial state which is accomplished using the stochastic
+simulation algorithm (SSA) [Gillespie, 1977]. The basis of this algorithm is the
+next reaction density function [Gillespie, 2001]:
+p(τ, J = j|xt ) =
+
+aj (xt )
+· a0 (xt )e−a0 (xt )τ
+a0 (xt )
+
+PM
+where a0 (xt ) =
+j=1 aj (xt ). Since the joint distribution is the product of
+the marginal probability mass function for the reaction indicator j and the
+probability density function for the next reaction time τ , the reaction indicator
+and reaction time are independent. SSA involves sampling the reaction indicator
+J = j with probability aj (xt )/a0 (xt ) and the reaction time τ ∼ Exp(a0 (xt )),
+where Exp(λ) is an exponential random variable with mean 1/λ. The state
+of the system is incremented according to the state change vector vj , time is
+incremented by τ , and the propensities are recalculated with the new system
+state. This process continues until the desired ending time is reached. Many
+speedups/approximations for SSA are available and the reader is referred to
+Gillespie [2007] for a review.
+
+3
+
+Bayesian inference
+
+Bayesian inference is a methodology that describes all uncertainty through probability. Let y denote any data observed from the system and θ = (θ1 , . . . , θM )0
+the vector of unknown parameters. The objective of a Bayesian analysis is the
+posterior distribution that can be found using Bayes’ rule
+p(θ|y) =
+
+p(y|θ)p(θ)
+∝ p(y|θ)p(θ)
+p(y)
+
+3
+
+(2)
+
+where p(y|θ) is the statistical model, often referred to as the likelihood, p(θ) is
+the prior distribution encoding information about the parameters available prior
+to the current experiment, and p(y) is the normalizing constant to make p(θ|y)
+a valid probability distribution. The second half of equation (2) indicates that it
+is rarely necessary to determine the normalizing constant p(y) when performing
+a Bayesian inference.
+
+3.1
+
+Complete observations
+
+In the unrealistic setting where the system is observed completely, i.e. y = X =
+X[0,T ] where X[a,b] indicates all values for X on the interval [a, b], stochastic
+reaction rates can be inferred easily. If we assume independent gamma priors
+ind
+for each of the stochastic reaction rates, i.e. θj ∼ Ga(αj , βj ), where the gamma
+αj −1
+distribution is proportional to θj
+exp(−θj βj ), then the posterior distribution
+under complete observations are independent gamma distributions
+ind
+
+θj |y ∼ Ga (αj + rj , βj + bj )
+
+(3)
+
+where rj is the number of times reaction j fired and bj is the integral of hj (·)
+over interval [0, T ]. Mathematically, we write
+rj =
+
+K
+X
+
+I(jk = j)
+
+k=1
+
+Z
+bj =
+
+T
+
+hj (Xt )dt =
+0
+
+K
+X
+
+(4)
+hj (Xtk−1 ) (tk − tk−1 )
+
+k=1
+
+where jk ∈ {1, . . . , M } is the reaction index for the k th reaction, I(x) is the
+indicator function that is 1 when x is true and 0 otherwise, tk is the time of
+the k th reaction, and a total of K reactions fired in the interval [0, T ]. The two
+values rj and bj are the sufficient statistics for parameter θj and are utilized in
+Section 4.3 to increase computational efficiency.
+
+3.2
+
+Discrete observations
+
+In the more realistic scenario of perfect but discrete observations of the system, the problem becomes analytically intractable and, even worse, numerical
+techniques are challenging [Wilkinson, 2006]. This challenge comes from the
+necessity to simulate paths from Xti−1 to Xti where ti−1 and ti are consecutive
+observation times [Boys et al., 2008]. These simulated paths are necessary when
+using a Gibbs sampling approach presented in the following section that alternates between 1) draws of parameters conditional on a trajectory and 2) draws
+of trajectories consistent with the data and conditional on parameters.
+We define the discrete observations as y = {Xti : i = 0, . . . , n} and update
+Bayes’ rule in equation (2) to include the unknown full latent trajectories X.
+
+4
+
+The desired posterior distribution is now the joint distribution for the underlying
+latent states and the unknown parameters
+p(θ, X|y) ∝ I(y0 = Xt0 )p(θ)
+
+n
+Y
+
+I(yi = Xti )p X(ti−1 ,ti ] |θ, Xti−1
+
+
+
+i=1
+
+= p(θ)
+
+n
+Y
+
+p X(ti−1 ,ti ) |θ, Xti−1 = yi−1 , Xti = yi
+
+
+
+i=1
+
+
+where p X(ti−1 ,ti ) |θ, Xti−1 = yi−1 , Xti = yi denotes the distribution for the latent state starting at yi−1 and ending at yi over the time interval (ti−1 , ti ), i.e.
+the distribution for a continuous-time Markov chain with fixed endpoints. Since
+this distribution is not analytic – even up to a proportionality constant – the
+distribution p(θ, X|y) is not analytic.
+
+3.3
+
+Markov chain Monte Carlo
+
+A widely used technique to overcome these intractabilities in Bayesian analysis
+is a tool called Markov chain Monte Carlo (MCMC). In particular, we utilize a
+special case of MCMC known as Gibbs sampling [Marjoram et al., 2003]. This
+iterative approach consists of two steps:
+1. draw θ(i) ∼ p(θ|X (i−1) , y) and
+2. draw X (i) ∼ p(X|θ(i) , y)
+where superscript (i) indicates that we use the draw from the ith iteration of the
+MCMC, p(θ|X (i−1) , y) is the distribution for the parameters based on complete
+trajectories, and p(X|θ(i) , y) is the distribution for the complete trajectory based
+on the current parameters. The joint draw θ(i) , X (i) defines an ergodic Markov
+chain with stationary distribution p(θ, X|y).
+In order to utilize this Gibbs sampling approach, samples from the full conditional distributions for θ and X are required, i.e. p(θ|X, y) and p(X|θ, y),
+respectively. Recognize that p(θ|X, y) = p(θ|X) since y ⊂ X due to X representing the entire latent trajectory at all time points as if we had complete
+observations. Under complete observations, this full conditional distribution
+was already provided in equation (3). Therefore, samples are obtained by calculating the sufficient statistics in equation (4) based on X rather than y and
+drawing independent gamma random variables for each reaction parameter.
+3.3.1
+
+Rejection sampling
+
+The full conditional distribution for X is, again, analytically intractable, but it
+is still possible to obtain samples from the distribution using rejection sampling
+[Robert and Casella, 2004, Ch. 2]. To accomplish this, we use Bayes’ rule on
+the full conditional for X:
+n
+Y
+
+p(X|θ, y) ∝
+p X(ti−1 ,ti ) |θ, Xti−1 = yi−1 , Xti = yi
+i=1
+
+5
+
+where p(θ) is subsumed in the proportionality constant. A rejection sampling
+approach consistent with this full conditional distribution can be performed
+independently for each interval (ti−1 , ti ) for i = 1, . . . , n as follows
+1. forward simulate X on the interval (ti−1 , ti ) via SSA using parameters θ
+with initial value Xti−1 = yi−1 , and
+2. accept the simulation if Xti is equal to yi otherwise return to step 1.
+As with any rejection sampling approach, the efficiency of this method is determined by the probability of forward simulation from Xti−1 = yi−1 using
+parameters θ resulting in Xti at time ti . For these stochastic kinetic models,
+this probability can be very low and therefore we aim to take advantage of the
+massively parallel nature of graphical processing units to forward simulate many
+trajectories in parallel until one trajectory succeeds.
+
+4
+
+Adaptation to graphical processing units
+
+Parallel processing is clearly only advantageous if the code is parallelizable. In
+the DA-MCMC algorithm, each step of the algorithm given in Section 3.3 can
+be parallelized. The first step involves a joint draw for all stochastic reaction
+rate parameters conditional on a simulated trajectory. These parameters can
+be sampled independently as shown in equation (3). We can conceptually send
+the sufficient statistics for each reaction off to its own thread to sample a new
+rate parameter for that reaction. The second step involves rejection sampling to
+find a trajectory that satisfies interval-endpoint conditions. Both of these steps
+are candidates for parallel processing.
+The theoretical maximum speed-up for parallel processing versus serial processing is bounded by Amdahl’s quantity 1/(1 − P + P/C) where P is the
+percentage of time spent in code that can be parallelized and C is the number
+of parallel cores available [Amdahl, 1967, Suchard et al., 2010]. The first step in
+the DA-MCMC can only be parallelized up to the minimum of M , the number
+of reactions, and C. With the chemical kinetic systems under consideration,
+M << C and therefore the gain from parallelizing this step is minimal. In
+contrast, the gain in parallelizing the rejection sampling step in DA-MCMC is
+entirely dependent on the acceptance rate. As the acceptance rate drops, P → 1
+and maximum performance gain from parallelization is achieved. In our application, the acceptance rate is often very low and therefore we focus on efficiency
+gained from parallelizing the rejection sampling step.
+Consider initially the goal of sampling a trajectory from some initial state
+x0 at time 0 given parameter θ to a final state x1 in time 1. Using SSA, the
+probability of simulating this trajectory by starting at x0 using parameter θ
+and attaining x1 has probability p, which is generally unknown. The number of simulations required before a successful attempt is a geometric random
+variable with expectation 1/p. Therefore as the probability decreases, the expected number of runs increases and the system becomes amenable to parallel
+processing.
+6
+
+A simple approach to parallelization is to have each computing thread attempt one simulation and determine whether that simulation was successful,
+i.e. the final state is x1 at time 1. If multiple threads are successful, then
+one of those simulations is sampled uniformly. The sufficient statistics for that
+simulation are calculated and the DA-MCMC can continue by sampling rate
+parameters based on those statistics. In the following subsections, we discuss
+the implementation details required to turn this simple idea into a an efficient
+reality.
+
+4.1
+
+Independent pseudo-random number streams
+
+Most current GPU-parallelized Monte Carlo algorithms know, prior to parallel
+kernel invocation, how many random numbers will be needed by each thread
+and can therefore use a “skip-ahead” technique [L’Ecuyer et al., 2002] for obtaining independent streams of pseudo-random numbers [Lee et al., 2009]. This
+technique relies on one long pseudo-random number stream. The key idea is
+to have the next thread skip over the n random numbers needed by the thread
+before it. Unfortunately, in the SSA algorithm the number of random numbers
+required for each thread is random and therefore this approach becomes infeasible unless we are willing to settle for n sufficiently large to ensure a minuscule
+probability of overlap in the sequences. Even then, we are inviting computational inefficiency since the “skip-ahead’ requires O(log n) operations [L’Ecuyer
+et al., 2002].
+Instead, we use dynamic creation of pseudo-random numbers Matsumoto
+and Nishimura [2000] which has already been used in the SSA context Li and
+Petzold [2010]. This method creates a set of pseudo-random number streams
+based on the Mersenne-Twister family of generators. A hypothesis concerning
+statistical independence of these streams is given in Matsumoto and Nishimura
+[2000]: ‘a set of PRNGs [pseudo-random number generators] based on linear
+recurrences is mutually “independent” if the characteristic polynomials are relatively prime to each other.’ These authors state that there are many PRNG
+researchers who agree with this hypothesis.
+To balance memory constraints (discussed in Section 4.4) with execution
+speed, we implement one “independent” Mersenne-Twister (MT) per warp,
+the set of threads that receive instructions simultaneously. Current generation
+GPUs have 32 threads per warp and, again balancing memory with execution,
+we have implemented MTs that utilize a set of 40 integers for calculation of
+pseudo-random numbers. Figure 1 depicts threads within a warp accessing one
+MT. Within a warp, the first 20 threads execute simultaneously followed by the
+remaining 12 in order to ensure proper updating of the MT. To update the MT,
+thread i records the MT state integers at locations i, i+1 modulo (mod) 40, i+20
+mod 40 (operations specific to this 40-integer MT) Matsumoto and Nishimura
+[2000]. The thread performs bit-wise operations on these integers and records
+the output as the updated state at location i Matsumoto and Nishimura [1998].
+After all threads have completed, they compute the pseudo-random number
+required for the SSA algorithm. For the following round of pseudo-random
+7
+
+numbers, the threads are shifted with respect to the MT state such that thread
+i is now aligned with MT state i+32 mod 40, a process that continues ad infinitum. After all threads within a warp have completed the SSA algorithm, the
+MT state plus the last used state index are written to global memory for use in
+the following kernel invocation.
+
+Figure 1: A depiction of threads (black boxes, thread 1 is greyed) within a warp
+accessing Mersenne-Twister states (red boxes). A) The first 20 threads (threads
+1 and 20 depicted) accessing states i, i + 1 mod 40, and i + 20 mod 40 where i
+is the tread id. B) These threads update their corresponding Mersenne-Twister
+state (filled red boxes). C-D) Threads 21 to 32 now perform steps A and B. E)
+For the next round of pseudo-random numbers, the threads shift so that thread
+1 starts at the next Mersenne-Twister state to be updated.
+
+4.2
+
+Bypass thread simulation
+
+Ideally once one thread is successful, current and future threads should be
+aborted. One aspect of GPU computing that varies from standard parallel
+processing is that no assumption can be made about the order in which threads
+occur. A statement such as ‘if all threads with global thread id less than i
+8
+
+have failed, then perform simulation’ cannot be made since it is unknown which
+threads have already made an attempt. Nonetheless, the same effect can arise
+by creating a global variable that indicates when a thread has been successful,
+but care is required.
+At any given time during the parallel execution of rejection sampling, threads
+can be placed into three categories: already-completed-and-failed, in-progress,
+and waiting-to-be-executed. Once an in-progress thread is successful, it writes
+to global memory indicating that it was successful and stores its pseudo-random
+number state. For already-completed-and-failed threads no efficiency gains are
+possible. For waiting-to-be-executed threads a simple check at the onset of simulation to the global success variable is sufficient to bypass the thread simulation
+if a thread has already been successful. Finally, in-progress threads could periodically check whether another thread has been successful, but this adds unnecessary overhead and, more importantly, could bias results. Instead, in-progress
+threads are allowed to complete even if another thread has been successful in the
+meantime. In the unlikely event that another thread is successful, it is added
+to the list of successful threads and at the completion of all threads one of the
+successful threads is sampled uniformly.
+
+4.3
+
+Sufficient statistics
+
+A naive approach to recording the SSA trajectory is to record the state and
+time when each reaction fires which requires N K + K integers/foats where
+K is the number of reactions that fired. A parsimonious way of representing a
+trajectory is to record the initial state vector as well as the times and identity of
+each reaction and recreating the trajectory when needed. The memory storage
+requirement for this approach is N + 2K integers/floats. In addition, K is
+random and therefore memory management is required to deal with varying
+array sizes.
+Recall that the full condition distribution for the rate parameters depends
+only on the sufficient statistics in equation (4). So rather than recording the
+entire trajectory, the sufficient statistics can be recorded which reduces the
+memory requirement down to 2M integers/floats where, often, M ≈ N and
+K >> M . If inference on the trajectories is required, then this can be accomplished after the DA-MCMC is complete by rerunning the rejection sampling
+for each (or a subset) of the MCMC iteration values for the rate parameters.
+A solution that reduces the memory requirements even further and does not
+require rerunning the rejection sampling is to record the initial PRNG state
+that resulted in a successful simulation in lieu of both the full trajectory and
+the sufficient statistics. The memory storage requirement is only 41 integers
+(40-integer MT state plus the last used state index) which clearly scales with
+N , M , and K. For calculation of sufficient statistics or any trajectory inference,
+the trajectory is re-simulated with parameters corresponding to that iteration
+in the MCMC and using the initial PRNG state that was previously successful.
+
+9
+
+Figure 2: The CUDA memory model.
+
+4.4
+
+Efficient memory usage
+
+A trade-off made for the massively parallel nature of the GPU is the amount of
+memory available for each thread. This is an overarching concern that has been
+covered elsewhere [Lee et al., 2009, Suchard et al., 2010], but we now discuss
+how this concern can be addressed in the parallel rejection sampling framework.
+Figure 2 provides a diagram of the CUDA memory model. Importantly, any
+access to memory below the threads (in green) is relatively slow and memory
+depicted above the threads is fast, but very limited.
+Table 1 provides hardware memory constraints on the Tesla T10 GPU and
+the algorithm memory allocation described here. Constant memory can be used
+for quantities that do not change during the GPU kernel execution and has an
+8k cache for efficient access [Kirk and Hwu, 2009, Ch. 5]. Therefore it is a
+convenient location for the stoichiometry matrix and reaction rate parameters
+(which only change outside of the GPU kernel) since these are common to
+all blocks and threads. Without considering efficient sparse matrix storage, the
+number of integers needed to store both the matrix and parameters is M (N + 1)
+which, given the systems of interest, easily fits within the constant memory
+cache.
+After constant memory, efficient memory access is achieved by utilizing registers and shared memory. Registers are restricted to automatic scalar variables,
+i.e. not arrays, that are unique to each thread [Kirk and Hwu, 2009, Ch. 5]. If
+10
+
+Table 1: Relevant hardware memory constraints in kilobits (integers) for the
+Tesla T10 GPU and algorithm memory allocation.
+Memory type
+Registers per block
+
+Amount (integers)
+32 × 512
+
+Algorithm allocation
+Thread system time
+Thread loop variables
+Shared per SM
+4 kb
+(8 × 512) Twister state during SSA simulation
+Thread system state †
+Thread reaction propensities †
+Local per thread
+16 kb
+(4096)
+Thread system state †
+Thread reaction propensities †
+Global
+4 Gb
+(≈ 109 )
+Success counter
+Successful twister state
+Twister states when not in use
+Constant
+64 kb
+(16,384) Reaction rate parameters
+Stoichiometry matrix
+† If shared memory is available, thread system state and reaction propensities
+are moved from local to shared memory.
+we are using the maximum number of threads per block of 512, then we are limited to 32 registers. Clear candidates for register storage are system time in the
+SSA simulation and simple loop variables. To determine the number of registers
+per thread compile using the nvcc compiler option --ptxas-options=-v. The
+SSA algorithm currently uses all 32 registers per thread and therefore allows us
+to use the maximum of 512 threads per block.
+Shared memory is fast-access memory that can be utilized by all threads
+within a block. In this implementation, we take advantage of the fast-access by
+storing pseudo random number generator states. Also, depending on the system
+size, we can store each thread’s SSA current system state, an N -integer array,
+and possibly even the M -float array containing the reaction propensities. The
+PRNGs take up 2560 bytes of shared memory per block leaving 13824 bytes
+left over to store the system state and/or the reaction propensities. Therefore,
+if N + M ≤ 6, then both the state and propensities can be stored, otherwise
+there is not enough memory available to store both. This limitation can be met
+by either decreasing the number of threads per block to increase the amount of
+available shared memory per thread or by using local or global memory. In our
+experience, the optimal method generally depends on the system being studied.
+Remaining variables are stored either in local or global memory depending
+on whether they are thread-specific or not. For example, two important global
+variables include the indicator of whether a thread has been successful and the
+array of successful MT states.
+
+11
+
+5
+
+Simulation example
+
+We compare the efficiency of a GPU implementation to conventional CPU implementation using the model Michaelis-Menton model. This widely known
+model is described by the following reaction graph:
+θ
+
+θ3
+1
+−*
+E+S )
+− ES −→ E + P
+
+(5)
+
+θ2
+
+where E is a protein enzyme, S is a substrate that is converted into a product P ,
+and ES is an intermediate species for this production. The propensities for the
+three reactions are a1 (X) = θ1 E · S, a2 (X) = θ2 ES, and a3 (X) = θ3 ES where
+X = (E, S, ES, P ). This system has two conservation of mass relationships:
+E0 = E + ES and S0 = S + ES + P .
+
+5.1
+
+GPU vs CPU
+
+For comparing GPU vs CPU timing, we considered only the rejection sampling
+step in Section 3.3.1 of the DA-MCMC algorithm rather than the entire MCMC
+algorithm. This was done since the probability of rejection is highly dependent
+on the current MCMC parameter draws and to obtain accurate timing a large
+quantity of MCMC iterations is required to eliminated timing bias due to exploration of the parameter posterior. Unfortunately, obtaining a reasonable
+quantity of MCMC iterations on the CPU is simply not feasible on a reasonable
+time scale. Therefore, we compare timing for the rejection sampling portion of
+the algorithm only, although we expect the efficiency gain for the GPU should
+be comparable if the entire MCMC timing could be analyzed.
+It is important to note that if the rejection sampling step had no rejections,
+then we would expect the CPU to perform comparable to the GPU and possibly
+even better if GPU overhead is considerable. Therefore it is of interest to study
+the efficiency gain as a function of the difficulty of the rejection sampling step.
+Figure 3 compares the efficiency of one core of a 2.66GHz Intel Xeon CPU vs one
+Tesla T10 GPU where increasing difficulty of rejection sampling is equivalent to
+increased expected draws. For high acceptance probability rejection sampling
+schemes, the efficiency gain is modest and may not be worth the trouble of converting code to GPU use. In contrast for low acceptance probability rejection
+sampling schemes, the efficiency gain is around 200, meaning the GPU version
+will perform 200 times faster than the CPU version. The efficiency gain appears to hit an asymptote around 200, for our algorithm implementation while
+the computation time involved appears to be exponentially increasing as the acceptance probability decreases. Therefore incredibly low acceptance probability
+rejection sampling schemes could still not be handled on a GPU, but may be
+suitable to simultaneous use of multiple GPUs.
+
+12
+
+0.1
+0.01
+4
+
+5
+
+6
+
+Expected samples (log10)
+
+Figure 3: The multiplicative increase in rejection sampling efficiency (black) and
+the GPU time for one iteration (red) with 95% intervals (dashed) for one core of a
+2.66GHz Intel Xeon CPU vs a Tesla T10 GPU. The effect of expected number of
+samples required for each acceptance was studied by holding constant θ2 = 0.001
+and θ3 = 0.1 while increasing θ1 from 0.001 to 0.00245 in the Michaelis-Menton
+system of equation 5.
+
+5.2
+
+Bayesian inference
+
+The ultimate goal of this Bayesian analysis is performing inference in stochastic
+chemical kinetic models on both the unknown reaction rate parameters and
+the latent trajectory between data points. The Michaelis-Mention system was
+simulated with true parameters θ1 = 0.001, θ2 = 0.2, and θ3 = 0.1 from time
+0 up to time 100. The data used are provided in Table 2 where both the EScomplex and product P are initialyl zero. Through the monotonic decrease in
+S, it is clear this system converts the substrate in the product. The enzyme
+quantity initially decreases drastically as it bonds to available substrate, but
+then as substrate is converted to product more unbound enzyme is available.
+Table 2: Measurements taken from a simulated Michaelis-Mention
+system with parameters θ1 = 0.001, θ2 = 0.2, and θ3 = 0.1.
+Time
+0
+10
+20
+30
+40 50 60
+70
+80
+90 100
+E
+120
+71
+76
+81
+80 90 90 104 103 109 109
+S
+301 219 180 150 108 86 61
+52
+35
+29
+22
+
+13
+
+GPU time per iteration (seconds)
+
+0.5
+
+200
+100
+50
+20
+10
+
+CPU/GPU system time
+
+3
+
+A non-informative independent prior is assumed for all reaction rate parameters, namely p(θ) ∝ (θ1 θ2 θ3 )−1 . This prior is found as the limit of the gamma
+priors when both the shape and rate parameters approach zero, but the gamma
+posterior of equation (3) is still proper with αj = βj = 0∀j if each reaction
+occurs at least once.
+The DA-MCMC algorithm was run for 10,000 burn-in iterations and then
+another 40,000 iterations were used for inference. Convergence was monitored
+informally via traceplots and formally using the Gelman-Rubin diagnostic [Gelman and Rubin, 1992, Brooks and Gelman, 1997]. While lack of convergence is
+detected, samples are discard as burn-in. Post burn-in, no lack of convergence
+was detected.
+Figure 4 provides posterior histograms for the reaction rate parameters based
+on the observations in Table 2. The bivariate contour plot of θ1 and θ2 indicate
+that the value θ1 + θ2 is estimable from the data, but the individual values for
+θ1 and θ2 are hard to estimate. This identifiability issue is common in systems
+biological parameter inference where equilibrium reactions abound.
+One advantage of Bayesian analyses is trivially obtained estimates and uncertainties for any function of the model parameters. Figure 4 provides posterior
+histograms for both KD = θ2 /θ1 and KM = [θ2 + θ3 ]/θ1 known as the dissociation constant and Michaelis constant, respectively. Although many methods
+have been developed to estimate the Michaelis constant, dating at least to the
+Lineweaver-Burk plot from 1934 Lineweaver and Burk [1934], few methods provide an uncertainty on the estimate. Based on the plot in Figure 4, there is 95%
+probability that the true is in the range 246 to 343.
+Figure 5 provides point-wise credible intervals for the four Michaelis-Menton
+system species. Due to mass conservation, we see that E and ES are mirror
+opposites of each other and S and P are very close to being mirror opposites
+of each other. The scientific questions of interest that are answered by these
+trajectories include when was the S → P conversion 90% complete? or what
+is the probability that ES crossed the 90 molecule threshold? Bayesian analyses
+can trivially answer these questions while it remains difficult for other statistical
+methods.
+
+6
+
+Discussion
+
+We presented a Bayesian analysis of stochastic chemical kinetic models that
+utilize a data augmented MCMC algorithm where the augmentation infers latent trajectories sampled via rejection sampling. This dramatic increase in
+efficiency when utilizing a GPU will allow for analysis of vastly larger systems
+in reasonable amounts of time. The timing comparison in this manuscript only
+compared rejection sampling and therefore the results are biased slightly in favor
+of the GPU. Further work is required to explore the efficiency gain of the entire
+MCMC, but we suspect the results to be very similar to the results presented
+here and the benefit of letting the CPU algorithm run for months is marginal.
+The observations in this manuscript were discrete but perfect. Clearly this
+
+14
+
+is an unrealistic scenario in practical applications since we rarely obtain perfect
+observations of the underlying system. Realistic models naturally incorporate
+error in one of two ways: 1) the true value is within a threshold of that observed
+or 2) all values are possible but values closer to that observed are more probable.
+In the first approach, everything discussed in this manuscript is still applicable
+since forward simulations that are consistent with the observations will still
+be needed. These simulations could easily be harder to obtain and therefore
+more amenable to parallelization. In the second approach, all trajectories are
+possibilities and therefore rejection sampling is not applicable. We are exploring
+the use of an independent Metropolis-Hastings proposal and methodologies that
+exploit creation of multiple independent proposals simultaneously.
+Approximate Bayesian computation approaches have already been implemented on a GPU in a package called ABC-SysBIO [Liepe et al., 2010]. This
+was implemented in Python utilizing the PyCUDA wrapper[Klöckner et al.,
+2009] to access the CUDA API. Since Liepe et al. [2010] devotes only two paragraphs relevant to this manuscript, it is unclear how PyCUDA implements the
+algorithm, e.g. random number generation, memory efficiency, etc., and whether
+it is competitive with the implementation discussed in this manuscript.
+The few papers discussing Bayesian inference on GPUs published to date
+have shown remarkable efficiency gains. Since this field is computation heavy,
+this increased efficiency should lead to Bayesian techniques being much more
+widely adopted than they are today as the capacity to solve highly complex
+problems in reasonable time frames increases.
+
+7
+
+Acknowledgements
+
+The authors gratefully acknowledge support from NSF IGERT Grant DGE0221715 and the Institute for Collaborative Biotechnologies through contract
+no. W911NF-09-D-0001 from the U.S. Army Research Office. The content of
+the information herein does not necessarily reflect the position or policy of the
+Government and no official endoresement should be inferred.
+
+References
+G.M. Amdahl. Validity of the single processor approach to achieving large scale
+computing capabilities. In Proceedings of the April 18-20, 1967, spring joint
+computer conference, pages 483–485. ACM, 1967.
+Michael Boyer, David Tarjan, Scott T. Acton, and Kevin Skadron. Accelerating
+leukocyte tracking using cuda: A case study in leveraging manycore coprocessors. Parallel and Distributed Processing Symposium, International, 0:1–12,
+2009. doi: http://doi.ieeecomputersociety.org/10.1109/IPDPS.2009.5160984.
+R. J. Boys, D. J. Wilkinson, and T. B. Kirkwood. Bayesian inference for
+a discretely observed stochastic kinetic model. Statistics and Computing,
+
+15
+
+18(2):125–135, 2008.
+s11222-007-9043-x.
+
+ISSN 0960-3174.
+
+doi: http://dx.doi.org/10.1007/
+
+Stephen P. Brooks and Andrew Gelman. General methods for monitoring convergence of iterative simulations. Journal of Computational and Graphical
+Statistics, 7(4):434–455, 1997.
+N. Galoppo, N.K. Govindaraju, M. Henson, and D. Manocha. LU-GPU: Efficient algorithms for solving dense linear systems on graphics hardware. In
+Proceedings of the 2005 ACM/IEEE conference on Supercomputing, page 3.
+IEEE Computer Society, 2005.
+Andrew Gelman and Donald B. Rubin. Inference from iterative simulation using
+multiple sequences. Statistical Science, 7(4):457–472, 1992. ISSN 08834237.
+URL http://www.jstor.org/stable/2246093.
+Daniel T. Gillespie. Exact stochastic simulation of coupled chemical reactions.
+Journal of Physical Chemistry, 81(25):2340–2361, 1977.
+Daniel T. Gillespie. Stochastic simulation of chemical kinetics. Annual Reviews
+in Physical Chemistry, 58:35–55, 2007.
+D.T. Gillespie. Approximate accelerated stochastic simulation of chemically
+reacting systems. The Journal of Chemical Physics, 115:1716, 2001.
+D. Kirk and W. Hwu. Programming massively parallel processors. Special
+Edition, page 92, 2009.
+A. Klöckner, N. Pinto, Y. Lee, B. Catanzaro, P. Ivanov, and A. Fasih. PyCUDA: GPU run-time code generation for high-performance computing.
+Arxiv preprint arXiv, 911, 2009.
+J. Krüger and R. Westermann. Linear algebra operators for GPU implementation of numerical algorithms. In ACM SIGGRAPH 2005 Courses, page 234.
+ACM, 2005.
+Pierre L’Ecuyer, Richard Simard, E. Jack Chen, and W. David Kelton. An
+object-oriented random-number package with many long streams and substreams. Operations Research, 50(6):pp. 1073–1075, 2002. ISSN 0030364X.
+URL http://www.jstor.org/stable/3088626.
+A. Lee, C. Yau, M.B. Giles, A. Doucet, and C.C. Holmes. On the utility of
+graphics cards to perform massively parallel simulation of advanced monte
+carlo methods. Preprint, 2009.
+H. Li and L. Petzold. Efficient parallelization of the stochastic simulation algorithm for chemically reacting systems on the graphics processing unit. International Journal of High Performance Computing Applications, 24(2):107,
+2010.
+
+16
+
+J. Liepe, C. Barnes, E. Cule, K. Erguler, P. Kirk, T. Toni, and M.P.H. Stumpf.
+ABC-SysBio–approximate Bayesian computation in Python with GPU support. Bioinformatics, 26(14):1797, 2010.
+H. Lineweaver and D. Burk. The determination of enzyme dissociation constants. Journal of the American Chemical Society, 56(3):658–666, 1934.
+P. Marjoram, J. Molitor, V. Plagnol, and S. Tavaré. Markov chain Monte Carlo
+without likelihoods. Proceedings of the National Academy of Sciences of the
+United States of America, 100(26):15324, 2003.
+M. Matsumoto and T. Nishimura. Mersenne twister: a 623-dimensionally
+equidistributed uniform pseudo-random number generator. ACM Transactions on Modeling and Computer Simulation (TOMACS), 8(1):3–30, 1998.
+ISSN 1049-3301.
+M. Matsumoto and T. Nishimura. Dynamic creation of pseudorandom number
+generators. In H. Niederreiter and J. Spanier, editors, Monte Carlo and QuasiMonte Carlo Methods 1998, pages 56–69. Springer-Verlag, Berlin, 2000.
+T. Preis, P. Virnau, W. Paul, and J.J. Schneider. GPU accelerated Monte Carlo
+simulation of the 2D and 3D Ising model. Journal of Computational Physics,
+228(12):4468–4477, 2009.
+Christian P. Robert and George Casella. Monte Carlo Statistical Methods.
+Springer Inc, 2 edition, 2004. ISBN 978-0-387-21239-5.
+M.A. Suchard and A. Rambaut. Many-core algorithms for statistical phylogenetics. Bioinformatics, 25(11):1370, 2009.
+M.A. Suchard, Q. Wang, C. Chan, J. Frelinger, A. Cron, and M. West. Understanding GPU programming for statistical computation: Studies in massively
+parallel massive mixtures. Journal of Computational and Graphical Statistics,
+19(2):419–438, 2010.
+Matthew Tibbits, Murali Haran, and John Liechty. Parallel multivariate slice
+sampling. Statistics and Computing, pages 1–16, 2010. ISSN 0960-3174.
+URL http://dx.doi.org/10.1007/s11222-010-9178-z. 10.1007/s11222010-9178-z.
+V. Volkov and J.W. Demmel. Benchmarking GPUs to tune dense linear algebra.
+In Proceedings of the 2008 ACM/IEEE conference on Supercomputing, pages
+1–11. IEEE Press, 2008.
+Darren J. Wilkinson. Stochastic Modelling for Systems Biology. Chapman &
+Hall/CRC, London, 2006.
+H. Zhou, K. Lange, and M.A. Suchard. Graphics processing units and highdimensional optimization. Arxiv preprint arXiv:1003.3272, 2010.
+
+17
+
+0.004
+
+0.006
+
+1500
+500
+0
+
+1000
+0
+
+0
+
+0.002
+
+1000
+
+p(θ3|y)
+
+3000
+2000
+
+p(θ2|y)
+
+4000
+
+2000
+
+5000
+
+2500
+
+8000
+6000
+4000
+2000
+
+p(θ1|y)
+
+0.000
+
+0.0
+
+0.5
+
+1.0
+
+1.5
+
+2.0
+
+0.07
+
+0.09
+
+0.11
+
+θ3
+
+θ2
+
+800
+400
+
+500
+
+200
+
+0.5
+
+0.003
+
+0.005
+
+0.007
+
+0
+
+0
+
+0.0
+
+x
+
+0.001
+
+600
+
+p(KM|y)
+
+p(KD|y)
+
+1.0
+
+θ2
+
+1000
+
+1000
+
+1.5
+
+1200
+
+2.0
+
+1500
+
+θ1
+
+0
+
+50
+
+150
+
+θ1
+
+KD
+
+250
+
+250
+
+300
+
+350
+
+400
+
+KM
+
+Figure 4: Posterior histograms for stochastic reaction rate parameters as well
+as the stochastic dissociation and Michaelis constants, KD = θ2 /θ1 and KM =
+[θ2 + θ3 ]/θ1 respectively, and a bivariate contour plot (quantiles: 2.5%, 25%,
+50%, 75%, and 95%) for the joint posterior of θ1 and θ2 with true values (red)
+based on the data in Table 2 and using the DA-MCMC algorithm.
+
+18
+
+300
+
+Substrate
+
+0
+
+Product
+
+120
+
+Time
+Enzyme
+
+0
+
+0
+
+ES−complex
+
+100
+
+Figure 5: Posterior 95% point-wise credible intervals (black) and three random
+draws from the posterior (colored) for the state trajectory.
+
+19
+
+

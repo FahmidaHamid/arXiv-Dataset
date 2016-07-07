@@ -1,0 +1,1786 @@
+arXiv:1112.1281v1 [physics.bio-ph] 6 Dec 2011
+
+The stochastic evolution of a protocell.
+The Gillespie algorithm in a dynamically varying volume.
+by T. Carletti and A. Filisetti
+Report naXys-22-2011
+
+6 12 2012
+
+Namur Center for Complex Systems
+University of Namur
+8, rempart de la vierge, B5000 Namur (Belgium)
+http://www.naxys.be
+
+THE STOCHASTIC EVOLUTION OF A PROTOCELL.
+THE GILLESPIE ALGORITHM IN A DYNAMICALLY VARYING VOLUME.
+T. CARLETTI AND A. FILISETTI
+
+Abstract. In the present paper we propose an improvement of the Gillespie algorithm allowing
+us to study the time evolution of an ensemble of chemical reactions occurring in a varying
+volume, whose growth is directly related to the amount of some specific molecules, belonging to
+the reactions set.
+This allows us to study the stochastic evolution of a protocell, whose volume increases because
+of the production of container molecules. Several protocells models are considered and compared
+with the deterministic models.
+
+1. Introduction
+All known life forms are composed of basic units called cells; this holds true from the single-cell
+prokaryote bacterium to the highly sophisticated eucaryotes, whose existence is the result of the
+coordination, in term of self-organization and emergence, of the behavior of each single basic unit.
+While present day cells are endowed with highly sophisticated regulatory mechanisms, that
+represent the outcome of almost four billion-years of evolution, it is generally believed that the
+first life-forms were much simpler. Such primordial life-bricks, the protocells, were most probably
+exhibiting only few simplified functionalities, that required a primitive embodiment structure, a
+protometabolism and a rudimentary genetics, so to guarantee that offsprings were “similar” to
+their parents [1, 15, 17].
+Intense research programs are being established aiming at obtaining protocells capable of growth
+and duplication, endowed with some limited form of genetics [12, 13, 14, 17]. Despite all efforts,
+artificial protocells have not yet been reproduced in laboratory and it is thus extremely important to develop reference models [3, 10, 14, 16] that capture the essence of the first protocells
+appeared on Earth and enable to monitor their subsequent evolution. Due to the uncertainties
+about the details, high-level abstract models are particularly relevant. Quoting Kaneko [7] it is
+necessary to consider “simplified models able to capture universal behaviors, without carefully
+adding complicating details”.
+Most of the models present in the literature are based on deterministic differential equations
+governing the evolution of the concentrations of the involved reacting molecules. Even if the
+results are worth discussing and provide important insights, it should be stressed that the former
+assumptions are rarely satisfied in a cell [5]. Firstly, the number of involved molecules is small
+and should be counted by integer numbers, hence the use of the concentrations can be questioned;
+secondly, the presence of the thermal noise introduces in the system a degree of stochasticity than
+cannot be trivially encoded by a differential equation, mostly because this makes the time evolution
+a stochastic process. One possible way to overcome such difficulties is to use the Chemical Master
+equation: given the present state of the system, namely the number of available molecules for each
+species, and the possible reactions among them, one can compute the transition probabilities to
+reach and leave the given state and thus get a partial differential equation describing the time
+evolution of the probability distribution of having a given number of molecules at any future
+times [5, 6].
+Analytically solving the resulting equation is normally a very hard task, one should thus resort
+to use numerical methods. A particularly suitable one is the algorithm presented by Gillespie [5, 6],
+allowing to determine, as a function of the present state of the system, the most probable reaction
+and the most probable reaction time, i.e. the time at which such reaction will occur.
+Date: December 7, 2011.
+1
+
+2
+
+T. CARLETTI AND A. FILISETTI
+
+Let us however observe that in the setting we are hereby interested in, the chemical reactions
+occur in a varying volume, because of the protocell growth; we thus need to adapt the Gillespie
+method to account for this factor. To the best of our knowledge, there are in the literature very
+few papers dealing with the Gillespie algorithm in a varying volume [8, 9]. Moreover in all these
+papers, the volume variation can be considered as an exogenous factor, not being directly related to
+the number of lipids forming the protocell membrane. So our main contribution is to improve the
+Gillespie algorithm taking into account the protocell varying volume which is moreover consistent
+with the increase of the number of lipids constituting the protocell membrane.
+The paper is organized as follow. In Section 2 we briefly recall the Surface Reaction Models
+of protocell, that would be used to compare our stochastic numerical scheme. Then in Sections 3
+and 4 we will present our implementation of the Gillespie algorithm in a dynamically varying
+volume. Finally in Section 5 we will present some applications of our method.
+2. Surface Reaction Models
+Among the available models for protocells, a particularly interesting one is the Surface Reactions
+Model [3, 16], SRM for short, and its applicability to the synchronization problem. Such model
+is roughly inspired by the Los Alamos bug hypothesis [14, 15] but which, due to its abstraction
+level, the SRM can be applied to a wider set of protocell hypotheses.
+The SRM is build on the assumption that a protocell should comprise at least one kind of
+“container” molecule (typically a lipid or amphiphile), hereby called C molecule, and one kind
+of replicator molecule - loosely speaking “genetic material”, hereafter called Genetic Memory
+Molecule, GMM for short, and named with the letter X. There are therefore two kinds of reactions
+which are crucial for the working of the protocell: those which synthesize the container molecules
+Eq. (1) and those which synthesize the GMM replicators Eq. (2)
+αi
+(1)
+Xi + Li GGGGGA Xi + C ,
+
+(2)
+
+Mij
+Xi + Pj GGGGGGGA Xi + Xj .
+
+In both cases Li and Pj are the buffered precursors, respectively of container molecules and of the
+j–th GMM, while αi and Mij are the reaction kinetic constants.
+A second main assumption of the SRM, is that such reactions occur on the surface of the
+protocell, exposed to the external medium where precursors are free to move. Hence, as long as
+container molecules are produced, they are incorporated in the membrane that thus increases its
+size, until a critical point at which, due to physical instabilities, the membrane splits and two
+offsprings are obtained, each one getting half of the mother’s GMMs and whose size is roughly
+half that of the mother just before the division.
+Under the previous assumptions and in the deterministic setting, one can prove [3, 16] that the
+number of membrane molecules and the number of GMMs evolve in time according to:
+β−1
+⎧
+⎪
+⃗
+⎪
+α
+⃗⋅X
+⎪Ċ = ( Cρ )
+(3)
+⎨
+˙
+⎪
+β−1
+⃗
+⃗
+⎪
+⎪
+⎩X = C M ⋅ X ,
+⃗ = (X1 , . . . , XN ) represents the amount of each GMM, α
+where X
+⃗ = (α1 , . . . , αN ) is the vector
+of the reaction constants responsible for the production of C molecules from the X molecules
+plus some appropriate precursor. (Mij ) denotes the reaction constant at which Xi is produced
+by Xj plus some precursor. β ∈ [2/3, 1] is a geometrical shape factor that relates the surface to
+the volume of the protocell and ρ is the lipid density (for more details the interested reader can
+consult [3, 16]). Let us observe that in this setting the precursors are assumed to be buffered and
+thus their amount to be constant, hence the latter can be incorporated into the constants α and
+M.
+⃗ 0) = X
+⃗0,
+So starting with a initial value of container molecules, C(t0 ) = C0 , and of GMMs, X(t
+the protocell will grow until some time t0 + ∆T1 at which the amount of C molecules has doubled
+with respect to the initial value, C(t0 + ∆T1 ) = 2C0 and thus the protocell undergoes a division.
+
+STOCHASTIC EVOLUTION OF A PROTOCELL.
+
+⃗ (1) =
+Each offspring will get half of the GMMs the mother protocell had just before the division, X
+⃗ 0 +∆T1 )/2. And the protocell cycle starts once again. One can prove [3, 16] that under suitable
+X(t
+⃗ (n) tends to a constant value once n goes to infinity, implying thus the emergence of
+conditions X
+synchronization of growth and information production.
+3. The method
+Let us now improve the previous scheme by introducing a probabilistic setting à la Gillespie.
+We thus consider a protocell made by a lipidic vesicle and containing a well stirred mixture of N
+GMMs, X1 , . . . , XN , that may react through m elementary reaction channels Rµ , µ = 1, . . . , m,
+running within the volume V (t) of the protocell.
+Let us observe that because of the protocell growth the volume is an increasing function of
+time. Actually one can relate the volume to the amount of container molecules via their density
+V = C/ρ where C denotes the integer number of molecules forming the lipidic membrane. We
+will hereby use the same symbol Xi to denote both the i–th GMM and the integer number of
+molecules of type Xi in the system.
+For each reaction channel Rµ assume that there exists a scalar rate cµ such that cµ dt + o(dt) is
+the probability that a random combination of molecules from channel Rµ will react in the interval
+[t, t + dt) within the volume V (t).
+Let hµ (Y ) be the total number of possible distinct combinations of molecules for a channel
+Rµ when the system is in state Y = (X1 , . . . , XN , C), then we can define the propensity [9] of the
+reaction Rµ to be aµ (Y ) = hµ (Y )cµ .
+One can prove [5] that for a binary reaction the rate cµ can be written in the form cµ = kµ /V ,
+where kµ is a fixed constant. Similarly one can prove that for a reaction involving n different
+species, we get: cµ = kµ /V n−1 . And thus for a single molecule reaction, i.e. a decay, we get
+cµ = kµ , namely independently from the volume.
+Let us now assume that among the m reactions, Q1 involve one single molecule, Q2 are binary
+reactions, Q3 are ternary reactions and so on. Of course Q1 + Q2 + ⋅ ⋅ ⋅ + QN +1 = m. We recall that
+we have N GMMs and the container type molecule C, hence N + 1 species. For short we will
+denote Q1 the set of indices µ for mono molecule reactions, and by Q the remaining ones. Let us
+observe that in this way some coefficient aµ , will depend both on the system state Y and on the
+time via the volume V (t): aµ (Y, t) for µ ∈ Q.
+More precisely to study the time evolution of the system we need to determine the probability
+Pµ (τ ∣Y, t)dτ , that given the system in the state Y = (X1 , . . . , Xn , C) at time t, then the next
+reaction will occur in the infinitesimal time interval (t + τ, t + τ + dτ ) and it will be the reaction
+Rµ . This probability will be computed as
+(4)
+
+Pµ (τ ∣Y, t)dτ = Pnot (τ ∣Y, t) × aµ (Y, t + τ )dτ ,
+
+where Pnot (τ ∣Y, t) is the probability that no reaction occurs in (t, t + τ ) given the state Y at time
+t, whereas the rightmost term denotes the probability to have a reaction Rµ in (t + τ, t + τ + dτ )
+given the state Y at time t + τ .
+To compute the first term Pnot , let us take s ∈ [t, t + τ ] and observe that:
+⎛
+⎞
+Pnot (s + ds∣Y, t) = Pnot (s∣Y, t)Pnot (ds∣Y, t + s) = Pnot (s∣Y, t) 1 − ∑ aµ (Y, t + s)ds ,
+⎝
+⎠
+µ
+
+being 1 − ∑µ aµ (Y, t + s)ds the probability that no reaction will occur in (t + s, t + s + ds) once
+we are in state Y at time t + s. Thus rewriting the previous difference equation as a differential
+equation, passing to the limit ds → 0, and observing that Pnot (0∣Y, t) = 1, we get the solution:
+(5)
+
+where
+
+Pnot (τ ∣Y, t) = exp [−AQ1 (Y )τ − ∫
+
+0
+
+τ
+
+AQ (Y, s + t) ds] ,
+
+AQ1 (Y ) = ∑ aµ (Y ) and AQ (Y, s + t) = ∑ aµ (Y, s + t) .
+µ∈Q1
+
+µ∈Q
+
+The apparent asymmetry in the exponential term in (5) is easily recovered by observing that
+τ
+AQ1 (Y )τ = ∫0 AQ1 (Y )ds.
+
+3
+
+4
+
+T. CARLETTI AND A. FILISETTI
+
+We can thus conclude that
+Pµ (τ ∣Y, t)dτ = exp [−AQ1 (Y )τ − ∫
+
+(6)
+
+t+τ
+t
+
+AQ (Y, s) ds] aµ (Y, t + τ )dτ .
+
+Let us observe that the rightmost term is correctly aµ (Y, t + τ ), namely the system is still in the
+state Y at time t + τ , because no reaction has been produced in (t, t + τ ).
+Let us recall that the volume enters in the previous relation via the function AQ , more explicitely
+one has
+hµ (Y )kµ
+hµ (Y )kµ
+hµ (Y )kµ
++ ∑
++ ⋅⋅⋅ + ∑
+,
+(7)
+AQ (Y, s) = ∑
+2
+N
+V
+(s)
+(V
+(s))
+µ∈Q3
+µ∈QN +1 (V (s))
+µ∈Q2
+
+that can be rewritten in terms of C molecules using the relation C = ρV . So our method applies
+to a different problem with respect to the one considered in [9], in fact in our case the volume
+growth is not imposed a priori but dynamically evolves accordingly to the reaction scheme, if C is
+produced then V increases otherwise it will keep a constant value, while in [9] the volume growth
+is an exogenous variable.
+4. The stochastic simulation algorithm in a growing volume
+Once we have the probability function Pµ (τ ∣Y, t) we can build an algorithm that reproduces
+the time evolution given by the model defined above.
+Given the system in some state Y at time t, we must determine the interval of time τ and
+the reaction channel Rµ according to the probability distribution function Pµ (τ ∣Y, t), and finally
+update the state Y → Y + νµ , where νµ is a stoichiometric vector representing the increase and
+decrease of molecular abundance due to the reaction Rµ . This will be accomplished following the
+standard approach by Gillespie [5] but taking care of the time dependence of the propensities. We
+will thus need to compute the cumulative probability distribution function and then make use of
+the inversion method [6], to determine the channel µ and the next reaction time τ , distributed
+according to Pµ (τ ∣Y, t).
+From (6) we can compute the cumulative distribution function
+F (τ ∣Y, t) = ∫
+
+(8)
+
+τ
+0
+
+∑ Pµ (s∣Y, t) ds ,
+µ
+
+providing the probability that any reaction will occur in (t, t + τ ) starting from the state Y at time
+t. The function F (τ ∣Y, t) can be explicitely computed by
+Proposition 4.1. Under the above assumptions we have
+F (τ ∣Y, t) = 1 − exp [−AQ1 (Y )τ − ∫
+
+(9)
+
+t+τ
+t
+
+AQ (Y, s) ds] .
+
+Proof. The first step is to use (6) and perform a sum over all the channels µ to rewrite (8) as
+F (τ ∣Y, t) = ∫
+
+τ
+0
+
+(AQ1 (Y ) + AQ (Y, t + s)) exp [−AQ1 (Y )s − ∫
+
+t
+
+Then we can observe that
+t+s
+∂
+(exp [−AQ1 (Y )s − ∫
+AQ (Y, r) dr]) =
+∂s
+t
+and thus
+
+= − (AQ1 (Y ) + AQ (Y, t + s)) exp [−AQ1 (Y )s − ∫
+
+F (τ ∣Y, t)
+
+t+s
+
+= −∫
+
+τ
+0
+
+t+s
+t
+
+AQ (Y, r) dr] ds .
+
+AQ (Y, r) dr] ,
+
+t+s
+∂
+(exp [−AQ1 (Y )s − ∫
+AQ (Y, r) dr]) ds
+∂s
+t
+
+= 1 − exp [−AQ1 (Y )τ − ∫
+
+t
+
+t+τ
+
+AQ (Y, r) dr] .
+
+
+
+STOCHASTIC EVOLUTION OF A PROTOCELL.
+
+Once we have the cumulative distribution function we can obtain the value τ by drawing a
+radom number u1 from an uniform distribution in [0, 1] and then solve with respect to τ the
+implicit equation:
+u1 = 1 − exp [−AQ1 (Y )τ − ∫
+
+(10)
+
+t+τ
+
+t
+
+AQ (Y, s) ds] .
+
+Let us stress once again that this is not as straightforward as for the original Gillespie [5] scheme,
+or the simplified one presented in [9], because of the time dependence of AQ via the volume. One
+can nevertheless found suitable approximation for the integral, this will be the goal of the next
+sections.
+4.1. The adiabatic assumption. Let assume that τ is very small, or which is equivalent, that
+the time scale of the chemical reactions involving the GMMs is much faster than the production
+of container molecules, hence the volume growth is very slow compared with the production of the
+chemicals Xi .
+Under this hypothesis one can assume that in the interval (t, t + τ ) the volume doesn’t vary and
+thus one can made the following approximation
+∫
+
+(11)
+
+t+τ
+
+t
+
+AQ (Y, s) ds ∼ AQ (Y, t)τ .
+
+One can thus explicitely solve equation (10) to get:
+τGill = −
+
+(12)
+
+1
+log(1 − u1 ) ,
+AQ1 (Y ) + AQ (Y, t)
+
+that is the standard Gillespie result except now that AQ (Y, t) depends on time and as long the
+volume increases, then the contribution arising form AQ (Y, t) mights become smaller because
+AQ ∼ 1/V .
+4.2. The next order correction. One can obtain a somehow better estimate valid in the case
+of comparable time scales for the reactions involving GMM and the container growth. The idea
+is to compute the integral in Eq. (10) using the following approximation:
+∫
+
+t+τ
+
+t
+
+AQ (Y, s) ds
+
+=
+
+∫
+
+0
+
+τ
+
+AQ (Y, t + s) ds = ∫
+
+0
+
+τ
+
+(AQ (Y, t) +
+
+∂AQ (Y, t)
+s + . . . ) ds
+∂t
+
+∂AQ (Y, t) τ 2
++ O(τ 3 ) .
+∂t
+2
+where ∂AQ (Y, t)/∂t can be obtained using the definition (7) and expressing the volume in terms
+of C = V (t)ρ, namely:
+(13)
+
+=
+
+AQ (Y, t)τ +
+
+hµ (Y )kµ ⎞
+hµ (Y )kµ
+∂AQ (Y, t)
+hµ (Y )kµ
+Ċ ⎛
+=−
++2 ∑
++ ⋅⋅⋅ + N ∑
+.
+∑
+2
+N
+∂t
+C ⎝µ∈Q2 C(t)
+(C(t))
+µ∈Q3
+µ∈QN +1 (C(t)) ⎠
+
+To compute Ċ/C we make the assumption that in a very short time interval, as the one we are
+interested in, the deterministic growth of the container is a good approximation for the stochastic
+underlying mechanism; this implies that we can use (3)
+β−1
+
+C(t)
+Ċ
+=(
+)
+C
+ρ
+
+⃗
+α
+⃗ ⋅ X(t)
+.
+C(t)
+
+Inserting the previous result into (13) and finally solving (10) with respect to τ , we can compute
+the next reaction time up to correction of the order of τ 3 , as:
+√
+−(AQ1 (Y ) + AQ (Y, t)) + (AQ1 (Y ) + AQ (Y, t))2 − 2 log(1 − u1 )ȦQ (Y, t)
+,
+(14)
+τGill =
+ȦQ (Y, t)
+
+where we wrote for short ȦQ (Y, t) = ∂AQ (Y, t)/∂t and we selected the positive square root in such
+a way in the limit ȦQ (Y, t) → 0 we recover the previous solution (12).
+
+5
+
+6
+
+T. CARLETTI AND A. FILISETTI
+
+Remark 4.2 (On the existence of τGill ). In the case of variable volume a new phenomenon can
+arise: the volume growth can be so fast that no reaction can occur in the interval (t, t + τ + dτ ) for
+any τ . Mathematically this translates into a sign condition for the term under square root in (14),
+if:
+log(1 − u1 ) < (AQ1 (Y ) + AQ (Y, t))2 /(2ȦQ (Y, t)) ,
+
+(15)
+
+then equation (10) has no real solution.
+This can be geometrically interpreted as follows. The relation (10) determines τGill as the
+intersection of the parabola −AQ1 (Y ) − AQ (Y, t)τ − ȦQ (Y, t)τ 2 /2 with the horizontal line log(1 −
+u1 ), which is negative because u1 ∈ (0, 1). Such parabola intersect the y-axis at τ1 = 0 and τ2 =
+−2(AQ1 (Y ) + AQ (Y, t))/ȦQ (Y, t) > 0 and it is concave. Then its absolute (negative) minimum
+is reached at the vertex τV = (t1 + t2 )/2 and its value is (AQ1 (Y ) + AQ (Y, t))2 /(2ȦQ (Y, t)) and
+it is negative because ȦQ (Y, t) is negative. Hence if the horizontal line is below this value, i.e.
+condition (15) is verified, the parabola and the line do not have any real intersections (see Fig. 1).
+0.06
+
+0.06
+
+0.04
+
+0.04
+
+0.02
+
+0
+
+0.02
+
+τ1
+
+τGill
+
+0
+
+τ2
+
+(τ1 + τ2 )/2
+
+−0.02
+
+−0.02
+
+−0.04
+
+−0.04
+
+−0.06
+
+τ1
+
+τ2
+
+(τ1 + τ2 )/2
+
+−0.06
+
+−0.08
+
+−0.08
+
+log(1 −
+u1 )
+
+−0.1
+
+−0.1
+
+−0.12
+
+−0.12
+
+−0.14
+−0.2
+
+−0.14
+−0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+1.2
+
+log(1 −
+u1 )
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1
+
+1.2
+
+Figure 1. Geometrical interpretation of the existence of the next reaction time
+τGill . Left panel : τGill is the smallest intersection between the parabola and the
+horizontal line log(1 − u1 ). Right panel τGill doesn’t exist, the horizontal line is
+located below the minimum of the parabola.
+Let us also observe that, whenever it exists, τGill is always positive as it should be. In the case
+of a protocell the non existence of such next reaction time could be translated into the death by
+dilution of the protocell.
+4.3. The next reaction channel. Whenever the next reaction time does exist, the next reaction
+channel is determined using the classical Gillespie method, namely by drawing a second uniformly
+distributed random number u2 ∈ [0, 1] and fix the channel µ such that:
+µ
+
+µ−1
+
+∑ aν (Y, t + τ ) ≤ u2 a0 (Y, t + τ ) ≤ ∑ aν (Y, t + τ ) ,
+
+(16)
+
+ν=1
+
+where a0 (Y, t + τ ) = AQ1 (Y ) + AQ (Y, t + τ ) =
+
+ν=1
+m
+∑ν=1 aν (Y, t + τ ).
+
+Remark 4.3. Let us observe that if all the reactions involve the same number of chemicals,
+then the determination of which reaction channel µ will be activated in the next reaction, doesn’t
+depend on the volume which factorizes out from (16). In fact assuming all the reactions to involve
+p chemical, we obtain by definition
+hν (Y )kν
+aν (Y, t + τ ) =
+∀ν ∈ {1, . . . , m} ,
+p
+[V (t + τ )]
+and thus (16) rewrites:
+
+µ−1
+
+∑
+
+ν=1
+
+µ
+m
+hν (Y )kν
+hν (Y )kν
+hν (Y )kν
+≤
+u
+≤
+∑
+∑
+2
+p
+p
+p ,
+[V (t + τ )]
+[V
+(t
++
+τ
+)]
+[V
+(t + τ )]
+ν=1
+ν=1
+
+which is clearly independent of the volume value V .
+
+STOCHASTIC EVOLUTION OF A PROTOCELL.
+
+7
+
+5. Some applications
+The aim of this section is to provide some applications of the previous algorithm to the study
+of the evolution of a protocell.
+5.1. One single Genetic Memory Molecule. The simplest model is the one where only one
+GMM specie is present in the protocell [16] and thus only two chemical channels are active:
+η
+channel 1, R1 ∶
+X + P1 GGGGA 2X
+channel 2, R2
+
+(17)
+
+α
+X + L1 GGGGGA X + C ,
+
+∶
+
+where P1 and L1 are, respectively, precursors of GMM, i.e. nucleotide, and precursors of amphiphiles.
+One can thus compute the propensities in the state Y = (X, C) at time t:
+a1 (X, C, t) = h1 (X, C)
+
+(18)
+
+η
+P1 X
+=η
+V (t)
+V (t)
+
+and a2 (X, C, t) = h2 (X, C)
+
+α
+L1 X
+=α
+;
+V (t)
+V (t)
+
+let us observe that we assume that precursors are buffered and thus they are constant.
+Because system (17) contains only bimolecular reactions, all the propensities are time dependent, hence AQ1 = 0 and AQ = a1 (X, C, t) + a2 (X, C, t) = (P1 η + L1 α)X/V (t), thus (10) simplifies
+into
+u1 = 1 − exp [− ∫
+
+t+τ
+
+t
+
+AQ (Y, s) ds] ,
+
+whose second order solution (14) is given by
+√
+−AQ (Y, t) + (AQ (Y, t))2 − 2 log(1 − u1 )ȦQ (Y, t)
+,
+τGill =
+ȦQ (Y, t)
+
+and
+
+∂AQ (X, C, t)
+∂t
+
+= −
+
+So we can finally obtain
+τGill
+provided
+
+V̇ (t) P1 ηX L1 αX
+C β−1 ρL1 αX 2
+(
++
+)∣
+= −( )
+(P1 η + L1 α) .
+V (t) V (t)
+V (t) V (t)=C(t)/ρ
+ρ
+C2
+
+¿
+2
+C
+ρ β−1 Á
+ρ β−1
+C2
+C
+Á
+À
+=
+( )
+−
+( ) ] +2
+log(1 − u1 ) ,
+[
+L1 αX C
+L1 αX C
+L1 αρX 2 (P1 η + L1 α)
+
+ρ ρ 2(β−1)
+( )
+(P1 η + L1 α) .
+2α c
+Which reaction channel µ will active in the time interval [t, t + τ ] can be obtained according to
+log(1 − u1 ) ≥ −
+
+:
+
+(P1 η + L1 α)X P1 ηX
+P1 η
+≤
+namely 0 ≤ u2 ≤ P1 η+L
+then µ = 1
+1α
+V
+V
+P1 ηX
+(P1 η + L1 α)X (P1 η + L1 α)X
+P1 η
+if
+< u2
+≤
+namely P1 η+L
+< u2 ≤ 1 then µ = 2 .
+1α
+V
+V
+V
+Let us observe that according to remark 4.3, the choice of µ doesn’t depend on the volume,
+because only binary reactions are present.
+Let C0 be the initial amount of container molecules, then we assume that once C(t̄) = 2C0 the
+protocell splits into two offspring, almost halving the GMM amount. More precisely we assume
+that the first offspring will get a number of GMMs drawn according to a Binomial distribution
+with parameter p = 1/2 and n = X(t̄). From this step, for technical reason, only one randomly
+chosen offspring will be studied during each generation.
+In Fig. 2 we report a comparison between the deterministic (3) and the stochastic dynamics,
+under the adiabatic assumption for τGill , corresponding to the continuous growth phase of the
+container between two successive divisions. As one should expect, a system composed by a large
+if u2
+
+8
+
+T. CARLETTI AND A. FILISETTI
+
+number of molecules exhibits small stochastic fluctuations whose average is not too far from the
+dynamics described by the deterministic model.
+
+1500
+
+2000
+
+1000
+
+Stochastic Integ
+ODE
+
+1800
+
+Stochastic Integ
+ODE
+
+C
+
+X1
+
+1600
+1400
+500
+1200
+0
+0
+
+2
+
+4
+
+time
+
+6
+
+1000
+0
+
+8
+
+2
+
+−3
+
+x 10
+
+4
+
+6
+
+time
+
+8
+−3
+
+x 10
+
+b
+
+Figure 2. Stochastic vs ODE SRM protocell (3). Case of one GMM, left panel
+the time evolution of the amount of GMM, right panel the time evolution of the
+amount of C. Parameters are : η = 1, α = 1, L1 = 500, P 1 = 600, X1 (0) = 100,
+C(0) = 1000, ρ = 200 and β = 2/3.
+In Fig. 3 we report the amount of GMM, X (k) (panel a), at the beginning of each protocell cycle
+and the duplication time (panel b), namely the interval of time needed to double the amount of C
+molecules, for both the stochastic and deterministic models. Once again one can clearly observe the
+small fluctuations of the stochastic system around the value obtained by the numerical integration
+of the deterministic description, Eq. (3). Let us observe that these fluctuations are due to the
+stochastic integrator scheme and also on the division mechanism.
+
+−3
+
+1400
+
+3.5
+
+x 10
+
+1300
+1200
+
+Stochastic Integ
+ODE
+
+3
+∆T
+
+1
+
+k
+
+X(k)
+
+1100
+1000
+
+2.5
+
+900
+
+Stochastic Integ
+ODE
+
+800
+
+2
+
+700
+600
+0
+
+20
+
+40
+60
+generation number (k)
+
+80
+
+100
+
+(a)
+
+1.5
+0
+
+20
+
+40
+60
+generation number (k)
+
+80
+
+100
+
+(b)
+
+Figure 3. Stochastic vs ODE SRM protocell (3). Case of one GMM, left panel
+the amount of GMM at the beginning of each division cycle, right panel the
+division time as a function of the number of elapsed divisions. Parameters are :
+η = 1, α = 1, L1 = 500, P 1 = 600, X1 (0) = 100, C(0) = 1000, ρ = 200 and β = 2/3.
+We are now interested in studying the fluctuations dependence on the amount of molecules.
+We already know that for a sufficiently large number of molecules the stochastic dynamics follows
+closely the deterministic one and thus the fluctuations are small. On the other hand, one should
+expect that when the number of molecules decreases, then the fluctuation will rise and the system
+behavior could not be completely described by means of a deterministic approach. This is confirmed by Fig. 4 and Fig. 5, where we can observe that a model composed by a small number of
+initial molecules, 20 times lesser than in the model presented in Fig. 2 exhibits larger stochastic
+fluctuations.
+
+STOCHASTIC EVOLUTION OF A PROTOCELL.
+
+80
+
+100
+
+70
+
+X1
+
+60
+
+9
+
+Stochastic Integ
+ODE
+
+90
+
+Stochastic Integ
+ODE
+
+50
+
+80
+C
+
+40
+30
+20
+
+70
+60
+
+10
+0
+0
+
+0.5
+
+1
+
+1.5
+time
+
+2
+
+2.5
+
+3
+
+50
+0
+
+0.5
+
+1
+
+1.5
+
+2
+
+2.5
+
+−3
+
+3
+−3
+
+x 10
+
+x 10
+
+Figure 4. Stochastic vs ODE SRM protocell (3). Case of one GMM, left panel
+the time evolution of the amount of GMM, right panel the time evolution of the
+amount of C. Parameters are : η = 1, α = 1, L1 = 500, P 1 = 600, X1 (0) = 5,
+C(0) = 50, ρ = 200 and β = 2/3.
+−4
+
+100
+
+14
+
+Stochastic Integ
+ODE
+
+90
+
+70
+
+10
+
+60
+
+∆Tk
+
+(k)
+
+Stochastic Integ
+ODE
+
+12
+
+80
+
+X1
+
+x 10
+
+8
+
+50
+40
+
+6
+30
+20
+0
+
+20
+
+40
+60
+generation number (k)
+
+80
+
+100
+
+4
+0
+
+20
+
+40
+60
+generation number (k)
+
+80
+
+100
+
+Figure 5. Stochastic vs ODE SRM protocell (3). Case of one GMM, left panel
+the amount of GMM at the beginning of each division cycle, right panel the
+division time as a function of the number of elapsed divisions. Parameters are :
+η = 1, α = 1, L1 = 500, P 1 = 600, X1 (0) = 5, C(0) = 50, ρ = 200 and β = 2/3.
+In Fig. 6 we summarize the results of several protocell models each one with a different amount
+of initial molecules, in order to appreciate the influence of the latter on the stochastic fluctuations.
+To compare with, we also report the case of the deterministic model. Because the kinetic constants
+are kept constant, the analytical theory for the deterministic model ensures that the division time
+doesn’t vary [3]. Nevertheless the fewer is the initial amount of X0 and C0 , the larger are the
+fluctuations present in the stochastic integration.
+
+To get a more complete understanding of the fluctuations dependence, we decided to measure
+them using the standard deviation of the protocell division time (after a sufficiently long transient
+phase). In Fig. 7 we report the standard deviation of the division time ∆T as a function of the
+initial amount of molecules. As expected the fluctuations strength decreases rapidly as soon as
+the number of molecules increases and the relation can be very well approximated by a power law
+distribution with exponent −0.54 ± 0.03 (linear best fit).
+
+5.2. Two non–interacting Genetic Memory Molecules. A slightly more sophisticated model
+can be obtained by considering two linear non interacting GMMs. The system can be described
+by the following chemical reactions:
+
+10
+
+T. CARLETTI AND A. FILISETTI
+−3
+
+4.5
+
+x 10
+
+X =1, C =10
+0
+
+4
+
+0
+
+X =10, C =100
+0
+0
+
+0
+
+X =100, C =1000
+
+3
+∆ Tk
+
+0
+
+X =50, C =500
+
+3.5
+
+0
+
+0
+
+ODE
+
+2.5
+2
+1.5
+1
+0.5
+0
+
+20
+
+40
+60
+generation number (k)
+
+80
+
+100
+
+Figure 6. Fluctuation dependence on the initial conditions. We report the division times as a function of the number of elapsed divisions, for 5 different protocells
+models. Protocell ○ : X1 (0) = 5, C(0) = 10, protocell ◻: X1 (0) = 10, C(0) = 100,
+protocell ▽: X1 (0) = 50, C(0) = 500, protocell △: X1 (0) = 100, C(0) = 1000. The
+black line denotes the deterministic protocell. All the remaining parameters have
+been fixed to: η = 1, α = 1, L1 = 500, P 1 = 600, ρ = 100 and β = 1.
+−3
+
+std(∆ T)
+
+10
+
+Fluctuations
+Power Law
+
+−4
+
+10
+
+−5
+
+10
+
+0
+
+1
+
+10
+
+10
+
+2
+
+X0
+
+10
+
+3
+
+10
+
+Figure 7. Fluctuation dependence on the initial conditions. We report the standard deviation of the protocell division time as a function of the initial amount of
+molecules X0 (●) and a linear best fit, whose slope is = −0.54 ± 0.03. Parameters
+are: X(0) = 2n with n = 0, ..., 10, C(0) = 10X(0), η = 1, α = 1, L1 = 500, P 1 = 600,
+ρ = 100 and β = 1.
+
+channel 1, R1
+
+∶
+
+η1
+X1 + P1 GGGGGA 2X1
+
+channel 2, R2
+
+∶
+
+α1
+X1 + L1 GGGGGGA X1 + C
+
+channel 3, R3
+
+∶
+
+η2
+X2 + P2 GGGGGA 2X2
+
+channel 4, R4
+
+∶
+
+α2
+X2 + L2 GGGGGGA X2 + C ,
+
+where Pi and Li are, respectively, precursors of the i–th GMM, i.e. nucleotide, and precursors of
+amphiphiles used by the i–th GMM to build a C molecule.
+As previously done, we compare the stochastic and the deterministic models. Results are
+reported in Figure 8 and one can still observe that in presence of a large number of molecules the
+
+STOCHASTIC EVOLUTION OF A PROTOCELL.
+
+11
+
+deterministic dynamics well approximates the stochastic model. On the other hand, the protocell
+division time exhibits large fluctuations around the deterministic value even in presence of a quite
+large number of molecules (see right panel Fig. 9).
+The parameters have been set in such a way only one GMM will survive according to the
+analytical theory for the deterministic model. One can observe that, despite the fluctuations, the
+same fate is obtained for the stochastic model (see right panel Fig. 9).
+
+450
+
+2000
+1900
+
+400
+
+Stochatic Integ (X1)
+
+1800
+
+Stochatic Integ (X2)
+350
+
+EDO (X1)
+
+Stochastic Integ
+ODE
+
+1700
+
+EDO (X2)
+
+1600
+
+C
+
+Xi
+
+300
+
+250
+
+1500
+1400
+1300
+
+200
+
+1200
+150
+1100
+100
+0
+
+0.5
+
+1
+
+1.5
+
+2
+
+2.5
+
+3
+
+time
+
+3.5
+
+4
+
+4.5
+
+1000
+0
+
+0.5
+
+1
+
+1.5
+
+2
+
+−3
+
+x 10
+
+2.5
+
+3
+
+time
+
+3.5
+
+4
+
+4.5
+−3
+
+x 10
+
+Figure 8. Stochastic vs ODE SRM protocell (3). Case of two GMMs, left panel
+the time evolution of the amount of GMM during a division cycle, right panel
+the time evolution of the amount of C molecules. Parameters are : η1 = η2 = 1,
+α1 = α2 = 2, L1 = 500, L2 = 600, P 1 = 600, P2 = 670, X1 (0) = X2 (0) = 100,
+C(0) = 1000, ρ = 200 and β = 2/3.
+
+−3
+
+700
+
+3
+
+x 10
+
+600
+2.8
+Stochastic Integ
+ODE
+
+500
+2.6
+400
+
+∆Tk
+
+Xi
+
+Stochastic Integ (X1)
+Stochastic Integ (X2)
+
+300
+
+2.4
+
+EDO (X1)
+EDO (X2)
+
+2.2
+
+200
+
+2
+
+100
+
+0
+0
+
+20
+
+40
+
+60
+
+generation number (k)
+
+80
+
+100
+
+1.8
+0
+
+20
+
+40
+
+60
+
+generation number (k)
+
+80
+
+100
+
+Figure 9. Stochastic vs ODE SRM protocell (3). Case of two GMMs, left panel
+the amount of GMM at the beginning of each division cycle, right panel the
+division time as a function of the number of elapsed divisions. Parameters are :
+η1 = η2 = 1, α1 = α2 = 2, L1 = 500, L2 = 600, P 1 = 600, P2 = 670, X1 (0) = X2 (0) =
+100, C(0) = 1000, ρ = 200 and β = 2/3.
+Once we reduce the number of involved molecules, the stochastic fluctuations dramatically
+increase (see Fig. 10 and Fig. 11).
+As in the case of only one GMM, when two non interacting linear GMMs are present the size
+of the stochastic fluctuations as a function of the initial number of molecules follows a power law
+distribution with exponent −0.51 ± 0.05 (linear best fit), see Fig. 12: the fewer are the molecules
+in the system, the larger are the fluctuations around the deterministic dynamics.
+
+12
+
+T. CARLETTI AND A. FILISETTI
+
+30
+
+110
+Stochastic Integ (X1)
+
+25
+
+100
+
+Stochastic Integ (X2)
+
+Stochastic Integ
+ODE
+
+EDO (X1)
+EDO (X2)
+
+90
+
+15
+
+C
+
+Xi
+
+20
+
+80
+
+10
+
+70
+
+5
+
+60
+
+0
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+time
+
+1
+
+1.2
+
+1.4
+
+50
+0
+
+1.6
+
+0.2
+
+0.4
+
+0.6
+
+−3
+
+x 10
+
+0.8
+
+time
+
+1
+
+1.2
+
+1.4
+
+1.6
+−3
+
+x 10
+
+Figure 10. Stochastic vs ODE SRM protocell (3). Case of two GMMs, left panel
+the time evolution of the amount of GMM during a division cycle, right panel the
+time evolution of the amount of C molecules. Parameters are : η1 = η2 = 1,
+α1 = α2 = 2, L1 = 500, L2 = 600, P 1 = 450, P2 = 670, X1 (0) = X2 (0) = 5,
+C(0) = 50, ρ = 200 and β = 2/3.
+−4
+
+45
+
+14
+
+x 10
+
+Stochastic Integ
+ODE
+
+40
+12
+
+35
+30
+
+10
+
+∆Tk
+
+X(k)
+i
+
+25
+20
+Stocastic Integ (X1)
+
+15
+
+6
+
+Stocastic Integ (X2)
+
+10
+
+EDO (X1)
+
+4
+
+EDO (X2)
+
+5
+0
+0
+
+8
+
+20
+
+40
+
+60
+
+generation number (k)
+
+80
+
+100
+
+2
+0
+
+20
+
+40
+
+60
+
+division number (k)
+
+80
+
+100
+
+Figure 11. Stochastic vs ODE SRM protocell (3). Case of two GMMs, left
+panel the amount of GMM at the beginning of each division cycle, right panel
+the division time as a function of the number of elapsed divisions. Parameters
+are : η1 = η2 = 1, α1 = α2 = 2, L1 = 500, L2 = 600, P 1 = 450, P2 = 670,
+X1 (0) = X2 (0) = 5, C(0) = 50, ρ = 200 and β = 2/3.
+A new phenomenon arises in the case of two GMMs modeled by a stochastic process. There
+can be a breaking of the symmetry emerging in systems composed of two identical GMMs (i.e
+equal kinetic constants, equal initial amounts and availability of precursors) present with a few
+initial amount of each one. Although adopting a deterministic approach the dynamics of the
+two replicators would be perfectly the same, a small fluctuation in the very first instants of the
+protocell evolution entails the dilution of one of the two replicators and thus a different fate for the
+protocell. Let us observe that the probability to have a large fluctuation is never zero, thus waiting
+for a sufficiently long time, a specie can always disappear from the system and thus giving rise
+to the the breaking of the symmetry phenomenon. See Fig. 13 where we report, as a function of
+the initial amount of molecules Xi (0), i = 1, 2, the proportion of simulations where the symmetry
+breaking has been observed repeating 50 times each simulation with the same set of parameters
+and initial conditions during 100 generations.
+
+6. Conclusion
+In this paper we presented a new stochastic integration algorithm based on the one introduced
+by Gillespie. Our contribution is devoted to the explicit introduction of the volume variation in
+
+STOCHASTIC EVOLUTION OF A PROTOCELL.
+
+−3
+
+std(∆ T)
+
+10
+
+Fluctuations
+Power Low
+
+−4
+
+10
+
+−5
+
+10
+
+0
+
+1
+
+10
+
+2
+
+10
+
+3
+
+10
+
+X
+
+10
+
+0
+
+Figure 12. Fluctuation dependence on the initial conditions. We report the
+standard deviation of the protocell division time as a function of the initial amount
+of molecules Xi (0), i = 1, 2, (●) and a linear best fit, whose slope is = −0.51 ± 0.05.
+Parameters are: X1 (0) = X2 (0) = 2n with n = 0, ..., 10, C(0) = 10X1 (0), η1 = η2 =
+1, α1 = α2 = 2, L1 = 500, L2 = 500, P 1 = 500, P2 = 600, ρ = 100 and β = 1.
+
+Ratio of broken symmetry simulations
+
+1
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0
+0
+
+10
+
+20
+
+X0
+
+30
+
+40
+
+50
+
+Figure 13. Symmetry breaking phenomenon. Each point denotes the fraction of runs exhibiting the symmetry breaking phenomenon, during 100 generations, over 50 identical replicas. Parameters are: X1 (0) = X2 (0) =
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 25, 50], C(0) = 10X, η1 = η2 = 1, α1 = α2 = 2, L1 =
+500, L2 = 500, P 1 = 600, P2 = 600, ρ = 100 and β = 1.
+the algorithm, which moreover is directly related to the amount of contained molecules, and thus
+it evolves in a self-consistent way.
+This algorithm straightforwardly adapts to the study of the evolution of a protocell, simplified
+form of cells, where an ensemble of chemical reactions occurs in a varying volume, the volume of
+the protocell, that in turn increases because of the production of container molecules.
+We presented several protocell models and we compare them with the analogous deterministic
+protocell models, namely solved using the ODE. In this preliminary study, we emphasized the
+role of the fluctuations and their dependence on the initial amount of molecules. The dynamics
+is richer than the deterministic one and thus it is worth studying, in particular we deserve to
+future investigations the case where several molecules interact in a linear way but including cross
+catalysis, i.e. the interaction matrix is not diagonal, or they interact in a non-linear way. Also
+the study of the emergence of time-periodic patterns due to the fluctuations, will be analyzed.
+An analytical treatment of the latter case could be possible using some recent technics developed
+by [11, 4], see also [2] where the space is also taken into account.
+
+13
+
+14
+
+T. CARLETTI AND A. FILISETTI
+
+Acknowledgment The work of TC has been partially supported by the FNRS grant “Mission
+Scientifique 2010-2011”. TC would like also to thank the European Center for Living Technology in Venice (Italy) for the warm hospitality during a short visiting stay that originates this
+collaboration.
+References
+[1] Alberts B. et al., Molecular Biology of the Cell, (Garland, New York) 2002.
+[2] Anna P. et al., Spatial model of autocatalytic reactions, PRE, 81, (2010), pp. 056110
+[3] T. Carletti et al, Sufficient conditions for emergent synchronization in protocell models, J. Theor. Biol., 254,
+(2008), pp. 741.
+[4] T. Dauxois et al, Enhanced stochastic oscillations in autocatalytic reactions, PRE, 79, (2009), pp. 036112
+[5] D.T. Gillespie, Exact stochastic simulation of coupled chemical reactions, J. of Phys Chem, 81, 25, (1977), pp.
+2340.
+[6] D.T. Gillespie, Markov Processes: An Introduction for Physical Scientists, Academic Press, Boston, (1992).
+[7] Kaneko, K., Life : An introduction to complex system biology, Springer, The Netherlands, (2006)
+[8] A.M. Kierzek, STOKS: STOChastic Kinetic Simulations of biochemical systems with Gillespie algorithm, 18,
+(3), Bioinformatics, (2002), pp. 470-481.
+[9] T. Lu, D. Volfson, L. Tsimring and J. Hasty, Cellular growth and division in the Gillespie algorithm, Syst.
+Biol., 1, 1, (2004), pp. 121.
+[10] Luisi P. L., Ferri F. and Stano P, Naturwissenschaften, 93, (2006), pp. 1.
+[11] A.J. McKane and T.J. Newman, Predator-Prey Cycles from Resonant Amplification of Demographic Stochasticity, PRL, 94, (2005), pp. 218102.
+[12] Mansy, S.S. et al., Template-directed synthesis of a genetic polymer in a model protocell, Nature Letters,
+(2008), doi:10.1038/nature07018
+[13] Oberholzer, T. et al., Enzymatic RNA replication in selfreproducing vesicles: an approach to a minimal cell,
+Biochemical and Biophysical Research Communications, 207, (1995), pp. 250257.
+[14] Rasmussen S., Chen L., Stadler B. and Stadler P., Proto-Organisim kinetics: evolutionary dynamics of lipid
+aggregates with genes and metabolism, Origins Life Evol. Biosphere, 34, (2004), pp. 171.
+[15] Rasmussen S. et al., Transitions from non living to living matter, Science, 303, (2004), pp. 963-965.
+[16] R. Serra et al., , A. Life, 13, (2007), pp. 123.
+[17] Szostak D., Bartel P. B. and Luisi P. L., Synthesizing life, Nature, 409, (2001), pp. 387-390.
+(Timoteo Carletti) naXys, Namur Center for Complex Systems and University of Namur, Namur,
+Belgium 5000
+(Alessandro Filisetti) CIRI, Energy and Environment Interdipartimental Center for Industrial Research, University of Bologna and European Centre for Living Technology, University Cá Foscari of
+Venice
+
+

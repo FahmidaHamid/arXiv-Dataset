@@ -1,0 +1,3504 @@
+Bayesian field theoretic reconstruction of bond potential and bond mobility in
+single molecule force spectroscopy
+Joshua C. Chang,1, ∗ Pak-Wing Fok,2, † and Tom Chou3, ‡
+1
+
+Mathematical Biosciences Institute, The Ohio State University
+Department of Mathematical Sciences, University of Delaware
+3
+Departments of Biomathematics and Mathematics, University of California Los Angeles
+2
+
+arXiv:1502.06415v1 [physics.data-an] 23 Feb 2015
+
+Quantifying the forces between and within macromolecules is a necessary first step in understanding the mechanics of molecular structure, protein folding, and enzyme function and performance.
+In such macromolecular settings, dynamic single-molecule force spectroscopy (DFS) has been used
+to distort bonds. The resulting responses, in the form of rupture forces, work applied, and trajectories of displacements, have been used to reconstruct bond potentials. Such approaches often
+rely on simple parameterizations of one-dimensional bond potentials, assumptions on equilibrium
+starting states, and/or large amounts of trajectory data. Parametric approaches typically fail at
+inferring complex-shaped bond potentials with multiple minima, while piecewise estimation may
+not guarantee smooth results with the appropriate behavior at large distances. Existing techniques,
+particularly those based on work theorems, also do not address spatial variations in the diffusivity
+that may arise from spatially inhomogeneous coupling to other degrees of freedom in the macromolecule, thereby presenting an incomplete picture of the overall bond dynamics. To solve these
+challenges, we have developed a comprehensive empirical Bayesian approach that incorporates data
+and regularization terms directly into a path integral. All experiemental and statistical parameters
+in our method are estimated empirically directly from the data. Upon testing our method on simulated data, our regularized approach requires fewer data and allows simultaneous inference of both
+complex bond potentials and diffusivity profiles. Crucially, we show that the accuracy of the reconstructed bond potential is sensitive to the spatially varying diffusivity and accurate reconstruction
+can be expected only when both are simultaneously inferred. Moreover, after providing a means
+for self-consistently choosing regularization parameters from data, we derive posterior probability
+distributions, allowing for uncertainty quantification.
+PACS numbers: 87.64.Dz,34.20.Gj,02.30.Zz,87.15.-v
+
+∗
+†
+‡
+
+chang.1166@mbi.osu.edu; http://iamjoshchang.com
+pakwing@udel.edu
+tomchou@ucla.edu
+
+2
+I.
+
+INTRODUCTION
+
+Inverse problems involving random walks are encountered throughout the sciences. In these problems,
+one seeks to reconstruct one or more functions that describe the dynamics of the random process, from
+measurements of trajectories or first-exit times. Examples include the reconstruction of absorption and
+scattering profiles in diffuse optical tomography [1] and inference of stochastic volatility in finance [2, 3].
+Such inverse problems also arise in molecular biophysics, in which one wishes to infer molecular energy
+landscapes [4–15] relevant to protein interactions [16–18], chromosome and DNA structure [19–22], biorecognition [16, 20, 21], and cellular structure [23–26]. In these applications, dynamic force spectroscopy (DFS)
+is typically used to pull apart molecules or bonds along one direction in a complex high-dimensional energy
+landscape (see Fig. 1). Much of the existing literature on this inverse problem has focused on recovery
+of the underlying molecular bond potential based on rupture force statistics [6, 8, 27–31]. While such approaches allow reconstruction of simple parametric forms of the bond potential, they require careful tuning
+of experimental parameters. For example, the pulling device cannot be too stiff if a transient barrier and
+rupturing behavior is desired [32]. Moreover, event-based reconstruction requires pulling over a range of
+carefully tuned speeds. Most importantly, reconstruction based on rupture forces also ignores the full wealth
+of information contained in measurements of the individual displacements.
+Indeed, there exists extensive literature on drift recovery for random walks using trajectory measurements
+and/or work theorems [14, 15, 33–35]. These approaches typically involve discretization of the solution domain [36–38], where piecewise-constant solutions are obtained through binwise Bayesian inference, maximum
+likelihood, or moment-matching as in the case of work theorems [15, 39, 40]. Not only do these approaches
+require sufficient sampling of distributions of displacements or work, but they also cannot be easily adapted
+to simultaneous reconstructions of functions such as diffusivity.
+In fact, the diffusivity cannot be independently extracted using work theorem-based reconstructions. However, spatial variations in diffusivity are intertwined with displacement trajectory-based recovery of the underlying bond potential. Variations in diffusivity are associated with varying landscape “roughness” [41],
+which ultimately arises from projections of higher-dimensional trajectories onto the path defined by the
+external pulling [42]. Thus, spatially varying diffusivity contains information on how a high-dimensional
+system projects down to form a one-dimensional potential profile.
+Regardless of inversion method, samples of Brownian trajectories are taken pointwise, meaning that the
+recovery of continuous functions governing Brownian motion is ill-posed. Since numerical inversion of the drift
+or diffusion functions will be at best ill-conditioned [43], inference on random walks is typically performed
+at a certain spatial resolution wherein averaging of observations occurs [36–38, 44]. However, this type of
+procedure does not guarantee stability or smoothness of the reconstructed functions.
+Recently, Bayesian path integral-based approaches have been developed for the recovery of mathematically
+continuous solutions, where candidate reconstructions are weighted by properties encoded in a distribution
+that reflects a priori knowledge. In this vein, Lemm, Uhlig, and Weiguny [45] demonstrated such an approach
+for the recovery of potential functions from paths observed in quantum systems. We will show that using this
+type of approach in the DFS setting naturally incorporates the simultaneous reconstruction of both diffusivity
+and bond potential. Bayesian theory then provides a procedure for inference, uncertainty quantification, and
+parameter identification. The application of Bayesian theory in this way also defines the inverse problem in
+its more-natural continuum representation using partial differential equations (PDEs). Any discretization
+used in solving the PDEs is independent of the problem formulation.
+Here, we develop a path integral-based empirical Bayesian procedure to reconstruct both bond forces and
+diffusivities directly from trajectory measurements. Our method is general in that we need make no assumption about the pulling protocol or device spring constant; the only assumption made is applicability of the
+Brownian motion. We provide an efficient numerical procedure, test our approach on simulated trajectories,
+and show that very reasonable numbers of trajectories are sufficient to simultaneously reconstruct complex
+multi-minima bond potentials and diffusivities. The sensitivity of bond-force reconstruction to the diffusivity
+profile is also explored and a physical interpretation of our regularization discussed.
+
+II.
+
+METHODS
+
+Problem set-up Figure 1 shows a schematic of DFS in which a bond is pulled apart along the spatial
+direction x, while the bond displacement ξ(t) is measured and recorded. We assume that the bond coordinate
+is an over-damped random variable and that is well-described by a stochastic differential equation of the
+form
+
+3
+(a)
+
+x
+
+(b)
+L(t)
+
+d(t)
+
+L(t)
+
+d max
+
+ξ(t)
+
+ξ(t)
+d(t)
+
+0
+
+t
+
+FIG. 1. Dynamic Force Spectroscopy (DFS) setup and measurement. (a) Schematic of a DFS pulling
+experiment. A pulling device with spring constant K and reference control position L(t) is attached to one end
+of a bond. As the device is lifted, it deflects by amount d, but also stretches the observed bond coordinate ξ,
+which is a mesurement of the underlying true bond coordinate X. (b) Schematic of trajectories for L(t), d(t), and
+ξ(t) ≡ L(t) − d(t). In reconstructions based on rupture forces, the maximum value dmax determines the force at
+rupture, indicated by the sharp increase in ξ(t).
+
+dξ = A(ξ, t)dt +
+
+p
+
+2D(ξ)dW,
+
+(1)
+
+where W is a Wiener white noise process, D(x) is the space-dependent diffusivity function, and A(x, t)
+is the spatially varying drift. Interpreting Eq. 1 using Itô calculus we find that the drift takes the form
+A(x, t) ≡ −D(x)∂x Φ(x, t) + ∂x D(x), where Φ(x, t) is the total potential. The motion described by this
+drift term results from forces arising from a potential gradient and a diffusivity gradient. This definition of
+A(x, t) yields the expected Fokker-Planck equation (FPE) for the probability distribution function P (x, t):
+Ṗ (x, t) − ∂x (P D(x)∂x Φ) = ∂x (D(x)∂x P ) [40].
+The total dimensionless (normalized by kB T ) potential Φ(x, t) is composed of the molecular bond potential
+U (x) and a moving harmonic potential arising from the pulling device (typically an optical trap or AFM
+cantilever, as shown in Fig. 1). The origin L(t) of the harmonic potential is controlled by the pulling device.
+Together, the effective potential takes the form
+K
+Φ(x, t) = U (x) + (x − L(t))2 ,
+| {z } |2
+{z
+}
+bond
+
+(2)
+
+harmonic
+
+where K is the device spring constant. After differentiating Eq. 2 one finds
+F
+
+}|a
+{
+z
+
+A(x, t) = D(x) F (x) + K(L(t) − x) + D0 (x)
+
+(3)
+
+where F (x) = −dU (x)/dx is the intermolecular bond force, and Fa is the force applied by the pulling
+apparatus. In practice, the pulling device is moved at a constant velocity V starting from an initial position
+L0 : L(t) = L0 + V t. Eq. 3 shows that pulling (increasing L(t)) increases the drift thereby encouraging
+displacement of the bond coordinate away from x = L0 . The goal of such experiments is to infer properties
+of the bond potential U (x), from how the bond coordinate responds as L(t) is increased.
+The bond force F (x) will be assumed to be a smooth continuous function that will be decomposed in the
+form
+F (x) = Fd (x) + f (x),
+
+(4)
+
+where Fd (x) = κx−ν (κ ≥ 0, ν > 1) is the most divergent component of the force associated with the
+divergent part of the potential U (x) ∼ x−ν (ν > 1) as x → 0. At large separations, we assume the total force
+vanishes and f (x → ∞) → 0. The behavior of F near x = 0 is not particularly interesting, so we will make
+the simplifying assumption that Fd (x) = 6(x/2)−7 , and restrict our recovery problem to the region [L0 , ∞).
+Ultimately, our reconstruction for the potential and diffusivity for x > L0 will not be too sensitive to the
+exact form of the divergence; there will be very few trajectories that sample the strongly repulsive region
+where x is small. The smooth function f (x) captures all other features of the intermolecular bond force we
+wish to reconstruct. We impose vanishing boundary conditions at x = 0 and x → ∞, but do not assume
+f (x) obeys any particular parametric form. In our subsequent inverse problem, since Fd (x) is specified, and
+molecular forces are conservative, the reconstruction of f (x) will be equivalent to reconstruction of F (x)
+and, up to an additive constant, the molecular potential U (x).
+
+4
+Empirical Bayes formulation - Since the recovery of continuous f (x) directly from discrete data is
+ill-posed, we now describe a path integral-based Bayesian interpretation of the so-called Tikhonov regularization [45–51]. The key feature this method is the usage of a smoothness penalty to select solutions from
+particular well-behaved function spaces. The choice of function space and smoothing is considered prior
+knowledge and is determined either from physical considerations or estimated directly from the data. The
+inverse problem is then investigated through the evaluation of a partition function, using a path integral
+over the given function space. A general form of Tikhonov regularization manifests itself through a prior
+probability density on f (x) of the form
+
+
+Z
+1 ∞
+f (y)Rf (−∆)f (y)dy ,
+π(f |θ) = Zf−1 exp −
+2 0
+
+(5)
+
+where ∆ is the Laplacian operator, Rf is a self-adjoint pseudo-differential regularization operator containing
+some parameters θ, and Zf is a normalization factor. We assume for now that we know Rf,g and their
+associated parameters θ. A more thorough discussion on their choice is presented in the next section.
+To enforce the positivity of D(x), we express diffusivity in terms of the log-diffusivity
+D(y)
+D0
+
+g(y) = log
+
+(6)
+
+where D0 > 0, a uniform background diffusivity, can be estimated directly from the data (see Eq. S16 given
+in the Supplemental Methods). We assume a similar prior distribution on the log-diffusivity g(y) of the
+form
+
+π(g|θ) =
+
+Zg−1
+
+
+
+1
+exp −
+2
+
+∞
+
+Z
+
+
+g(y)Rg (−∆)g(y)dy .
+
+(7)
+
+0
+
+The normalization factors Zf , Zg do not affect the inference of f (x) and g(x), but are important when one
+wishes to self-consistently determine a specific form of regularization Rf,g . Eqs. 5 and 7 enforce that the
+prior probability distributions are over a collection of functions f (x) and g(x) that have Gaussian spatial
+auto-correlations. These auto-correlations are determined by the Green’s functions of the pseudo-differentialoperators Rf and Rg , which can be thought of as kernels encoding certain magnitude and scale information
+about the spatial variability in the set of functions f and g.
+Experimentally, a trajectory is composed of measurements of bond displacements, ξ ≡ (ξ1 , ξ2 , . . . , ξN ),
+taken at times t1 , t2 , . . . tN . If the force F (x) = Fd (x) + f (x) and diffusivity D(x) = D0 eg(x) are given,
+the likelihood or probability of observing a given trajectory
+ξj (0 ≤ j ≤ N ) can be formulated in terms
+Q
+of the product of transition probabilities π(ξ|f, g) = j Pr(ξj+1 |ξj , f, g). In the limit as δt → 0, the
+transition probabilities, interpreted using Itô rules, are themselves Gaussian with mean A(ξj , tj )δt and
+variance 2D(ξj )δt (see Supplemental Eq. S11 and the Supplemental Methods for the derivation). We
+have assumed that measurement times ti and displacements ξi are precisely measured (the error remains
+small relative to 2Dδt), and that the sampling frequency is sufficiently high (δt = tj+1 − tj is small).
+Given a collection of M independently measured trajectories Ξ = {ξ (α) }, (1 ≤ α ≤ M ), one can write the
+total likelihood function for observing the entire collection of trajectories as a product of the likelihoods of
+the individual trajectories,
+Y
+π(Ξ|f, g) =
+π(ξ (α) |f, g)
+α
+
+(
+= exp
+
+−
+
+" (α)
+#)
+(α)
+(α)
+X (ξj+1
+− ξj − A(ξj , tj )δt)2
+(α)
+
+4D(ξj )δt
+
+j,α
+
+×
+
+Y
+
+s
+
+1
+(α)
+
+j,α
+
+.
+
+(8)
+
+4πD(ξj )δt
+
+Using Bayes rule, the posterior probability distribution for f and g, given observation of Ξ and regularization
+parameters θ is
+π(f, g|Ξ, θ) =
+
+π(Ξ|f, g)π(f |θ)π(g|θ)
+e−H[f,g|Ξ,θ]
+≡
+,
+π(Ξ)
+Z
+
+(9)
+
+5
+where Z is a dimensionless normalization constant and H is an information Hamiltonian given by
+H [f, g | Ξ, θ] =
+Z
+Z
+1 ∞
+1 ∞
+f (y)Rf (−∆)f (y)dy +
+g(y)Rg (−∆)g(y)dy
+2 0
+2 0
+
+2
+(α)
+(α)
+(α)
+ξ
+−
+ξ
+−
+A(ξ
+,
+t
+)δt
+X
+X
+j
+j+1
+j
+j
+1
+(α)
++
+,
+log D(ξj ) +
+(α)
+2 α,j
+4D(ξ )δt
+α,j
+
+(10)
+
+j
+
+where the last two terms arise from taking the logarithm of the likelihood given in Eq. 8. As a reminder, we
+have assumed that measurement noise is neglible relative to the inherent stochastic noise of the Brownian
+motion at time scale δt. Relaxation of this assumption would require the evaluation of an additional pathintegral in ξ, as performed in Masson et al. [37, 52].
+The most-probable reconstructions for f (x), g(x), minimize Eq. 10. These reconstructions constitute the
+maximum-a-posterior solution, or the specific choice of force F (x) = Fd (x) + f (x) and diffusivity D(x) =
+D0 eg(x) that minimizes Eq. 10. They are found by solving the coupled system of Euler-Lagrange equations
+δH
+δH
+= 0 and
+= 0,
+δf
+δg
+
+(11)
+
+and constitute the mean-field or classical solution. The main difficulty in solving these equations lie in inverting a large matrix of rank equal to the number of observed trajectory positions. A computational method
+for approximating the solution about interpolation points is presented in the Supplemental Methods.
+In this method, “sufficient statistics” of the data are computed only a single time, after which optimization
+occurs in a lower-dimensional space. Furthermore, the sufficient statistics are independent of the regularization parameters, allowing an arbitrary number of candidate solutions to be computed without re-processing
+the data.
+Regularization parameters and uncertainty quantification - Up to this point, we have assumed that
+one knows what to use for the operators Rf (−∆) and Rg (−∆). Since these operators can be thought of
+as prior information, their choice can be motivated from physical considerations whenever such information
+is available [46]. Typically, the uncertainty in the reconstructed functions arise from the mathematical illposedness of the inverse problem. However, in the DFS problem, the 1D bond potential is a projection from
+a high-dimensional macromolecular stochastic process and the effective bond potential will suffer physical
+thermal fluctuations that also contribute to its uncertainty. Therefore, it is desirable to choose Rf,g directly
+from the data, which may shed light on how “orthogonal” modes are thermally coupled to to the 1D bond
+potential.
+Note that if Rf,g (−∆) = 1 is chosen as the regularization operator, the corresponding Green’s function
+is the Dirac δ−distribution. This situation corresponds to the spatially unregularized inverse problem.
+Numerically, if this inverse problem is solved over a discrete lattice, then solution is the recovery of piecewise
+constant force and diffusivity. For a more physically realistic and better-behaved inversion, it is convenient
+to restrict Rf,g (−∆) to a family of operators that impose spatial regularity. Henceforth, we will assume f
+and g are infinitely-differentiable and use operators of the form
+Rf (−∆) =
+
+e−γf ∆/2
+p
+,
+βf 2πγf
+
+Rg (−∆) =
+
+e−γg ∆/2
+p
+.
+βg 2πγg
+
+(12)
+
+Using the operators in Eq. 12, one need only determine two parameters for each field: the spatial scale γ and
+the inverse temperature β. Assuming that no information is known about these parameters, one may utilize
+any number of available information theory-based methods, such as Bayesian model comparison or maximum
+marginal likelihood (Empirical Bayes). Here, we describe the application of approximate maximum marginal
+likelihood to the problem of choosing regularization parameters.
+As its name implies, maximum marginal likelihood estimation seeks to determine unknown parameters
+θ = (βf , βg , γf , γg ) by maximizing the marginal likelihood function
+ZZ
+π(Ξ|θ) =
+Df Dg π(Ξ|f, g)π(f |θ)π(g|θ)
+(13)
+with respect to θ. This expression can be interpreted as the probability of obtaining the observed data
+given the regularization parameters θ. The optimization of this quantity requires the evaluation of the path
+
+6
+integrals with respect to both fields f and g. These integrals can be approximated using the semiclassical
+approximation [46] in which the Hamiltonian (Eq. 10) is expanded about its extremal points f ? , g ? to
+quadratic order
+ZZ
+1
+ϕ(y)t Σ−1 ϕ(z)dydz.
+(14)
+H[f, g|Ξ, θ] ≈ H[f ? , g ? |Ξ, θ] +
+2
+The difference of the functions from their classical solution is defined by the new field
+
+
+f (x) − f ? (x)
+ϕ(x) =
+,
+g(x) − g ? (x)
+and the semiclassical Hessian Σ−1 matrix is
+"
+Σ
+
+−1
+
+=
+
+δ2 H
+δf (y)δf (z)
+δ2 H
+δg(y)δf (z)
+
+δ2 H
+δf (y)δg(z)
+δ2 H
+δg(y)δg(z)
+
+#
+.
+
+(15)
+
+f ? ,g ?
+
+The probability distribution over the functions f (x) and g(x) has a spread defined by Σ, which encodes
+the distribution of f (x) and g(x) about their most likely values f ∗ (x) and g ∗ (x), thereby providing an
+estimate Rof the errors in the estimates f ∗ (x) and g ∗ (x). Performing the resulting Gaussian path integral
+Zf−1 Zg−1 Dϕe−H[ϕ|Ξ,θ] yields the semiclassical approximation to the negative of the marginal likelihood
+function
+− log π(Ξ|θ) = const + H[f ? , g ? |Ξ, θ]
++ Tr log Σ − Tr log Gf (x, y) − Tr log Gg (x, y),
+
+(16)
+
+where the additive constant is independent of the regularization parameters and the Tr log Gf and Tr log Gg
+terms come from the normalization terms Zf and Zg . Note that an implicit θ−dependence arises in all
+terms involving Rf,g , and the data-derived f ? and g ? . In the Supplemental Methods, we show that the
+computation of Eq. 16 is equivalent to the computation of the eigenvalues of a finite-dimensional matrix –
+alowing for quick evaluation of Eq. 16 for use in standard optimization routines.
+Reconstruction Procedure - Summarizing, our general procedure for simultaneous force and diffusivity
+reconstruction is:
+1. If unknown, estimate the background diffusivity D0 and the spring constant K directly from data using
+Supplemental Eqs. S15-S16.
+2. For each choice of regularization parameters βf,g , γf,g :
+(a) Solve for the maximum a posteriori solution f ? , g ? by solving Eqs. 11 using the method outlined
+in the Supplemental Methods.
+(b) Compute the semiclassical variance matrix Σ by inverting the matrix in Eq. 15.
+(c) Compute the negative log-marginal likelihood given by Eq. 16
+3. Choose regularization parameters that minimize Eq. 16.
+
+III.
+
+RESULTS
+
+To demonstrate our method, we first simulated data from DFS pulling experiments using two different bond
+potentials and diffusivities. Fig. 2 shows representative examples of simulated trajectories. Although the
+dynamics are governed by complex bond potentials and spatially varying diffusivities, individual trajectories
+are rather featureless. The distributions that solve the associated FPE are also qualitatively generic and
+featureless. However, data across multiple trajectories can be aggregated as shown on the right of Fig. 2.
+Next, discrete measurements were extracted from our simulated trajectories and used within our inference
+scheme in order to recover the bond force and diffusivities that were used to generate the simulated data
+in the first place. We implemented our inference method in Python 2.7.5 using the SciPy 0.14.0 library for
+numerical optimization. The source code for our implementation is publicly available at https://github.
+com/joshchang/dfsinference. In all of the following examples, functions were recovered within the interval
+
+ξ
+
+ξ
+
+7
+
+40 (a)
+35
+30
+25
+20
+15
+10
+5
+0
+40 (b)
+35
+30
+25
+20
+15
+10
+5
+00
+1
+
+2
+
+t
+
+3
+
+4
+
+5
+
+FIG. 2. Trajectory data. Simulations using bond force and diffusivity given by (a) Supplemental Eqs. S1, S2, and
+(b) Supplemental Eqs. S3. Three individual simulated trajectories (out of 103 ) are shown in black. Each trajectory
+represented a different pulling experiment of duration 5s, sampled at 10kHz, with V = 20, K = 0.15. The shaded
+region is compactly supported and represents the intensity of all 103 trajectories through each space-time point.
+While these trajectories are rather featureless, the histogram of positions observed across all trajectories (up to time
+5s) is shown on the right and contains more features. Each point in the histogram represents a single instance in
+which a position is sampled. Thus, each trajectory can sample a specific position many times. The total number of
+sample points is 103 trajectories × 10kHz ×5s = 5 × 107 . These data can be aggregated across different experimental
+conditions and contain sufficient information with which to simultaneously reconstruct f (x) and g(x).
+
+FIG. 3. Failure to account for diffusivity variations. Molecular bond force F ? (x) = f ? (x) + F d (x) derived from
+unregularized (thin black) and regularized (solid blue) reconstruction data simulated using a given “ground truth”
+force field (dashed red). For reconstruction purposes, a constant diffusivity D0? estimated from Supplemental Eq. S16
+was assumed. Although regularization allows for smoother and more stable reconstructions, the neglect of spatial
+structure in D(x) leads to inaccurate results. For example, the reconstructions in (a) cannot accurately determine
+the position of the minima, while those in (b) miss the minima entirely. The errors are especially apparent in regions
+where the diffusivity is significantly different from the constant value (a) D0? = 1.0042 (b) D0? = 0.9995.
+
+from about x = 4 to x = 32, where L0 = 4 was assumed to be the starting point for the bond coordinate.
+In this interval, 200 evenly spaced interpolation points were chosen.
+Fig. 3 shows reconstruction from trajectories simulated under dynamics determined by two examples of
+the pair of functions (F (x), D(x)). These functions are explicitly given by Supplemental Eqs. S1–S3 in the
+Supplemental Methods. The bond force shown in Fig. 3 corresponds to the F (x) and D(x) used to
+generate the trajectories shown in Fig. 2. Although D(x) is spatially varying, we first use a constant D0? obtained from Supplemental Eq. S16 in our reconstruction. Note that regularized reconstruction (blue, dashed
+curves) results in smoother and more stable recovery of F (x) = Fd (x) + f (x) compared to unregularized
+recovery (thin, red curves). However, regardless of regularization, neglecting the true spatial dependence of
+D(x) results in poor reconstruction of the true bond force.
+Fig. 4 demonstrates regularized reconstruction where diffusivity variations are taken into account. It also
+shows how reconstructions change as the number of observed trajectories increases. Uncertainty quantification is also provided, where the approximate 95% posterior credible interval is shown by the yellow-shaded
+region. Using physically reasonable values, we see that a reasonable number experiments (∼ 102 − 103 ) is
+
+8
+
+1 trajectory
+
+D(x)
+
+F(x)
+
+6
+4
+2
+0
+2
+4
+6
+1.28
+1.0
+0.8
+0.6
+0.4
+0.24
+
+6
+
+6
+4
+2
+0
+2
+4
+6
+1.28
+1.0
+0.8
+0.6
+0.4
+8 10 12 14 16 18 200.24
+
+spatial position x
+
+10 trajectories
+
+6
+
+6
+4
+2
+0
+2
+4
+6
+1.28
+1.0
+0.8
+0.6
+0.4
+8 10 12 14 16 18 200.24
+
+spatial position x
+
+100 trajectories
+
+6
+
+6
+4
+2
+0
+2
+4
+6
+1.28
+1.0
+0.8
+0.6
+0.4
+8 10 12 14 16 18 200.24
+
+spatial position x
+
+1000 trajectories
+
+6
+
+8 10 12 14 16 18 20
+
+spatial position x
+
+FIG. 4. Regularized reconstruction with variable number of trajectories. Reconstruction of the bond
+force and diffusivity given in Supplemental Eqs. S3. Shaded yellow: 95% semiclassical posterior confidence interval.
+Grey: Unregularized bin-wise reconstruction. Blue: Regularized reconstructions. Optimal parameters used at 1000
+trajectories: D0∗ = 0.9995, βf = 19884, γf = 2.28, βg = 28, γg = 1.02.
+
+sufficient for simultaneous recovery of D(x) and complex potentials.
+
+IV.
+
+DISCUSSION AND CONCLUSION
+
+We have developed a non-parametric Bayesian approach to the simultaneous reconstruction of spatially
+varying bond force and diffusivity functions directly from stochastic displacement trajectories measured in
+DFS experiments. Our approach introduces both a path integral with explicit data terms in the energy
+and a Tikhonov regularization term in the form of a prior distribution over the functions to be recovered.
+As only weak regularity conditions based on the notion of L2 integrability are used, the method is flexible
+in the range of functions that can be recovered. Moreover, the regularization provides a formal basis for
+uncertainty quantification of the reconstructed functions. The approach presented here is versatile in that
+it is nonparametric, allows a broad class of functions to be stably reconstructed, is based on the statistically
+optimal principle of Bayesian inference, and can allow aggregation of data sets from experiments performed
+under different conditions (such as pulling speed V , device spring constant K, and temperature).
+Our method directly uses the inherently stochastic nature of bond trajectories to provide a likelihood
+formulation for use in Bayesian inference. Hence, we are able to simultaneously and self-consistently reconstruct two functions: the bond force and the diffusivity. In our example recoveries of Fig. 3, spatially varying
+diffusivity is not included, and qualitatively incorrect reconstruction of the bond force arises. Potentials
+reconstructed using constant diffusivity can yield minima in the wrong position or miss them altogether. To
+the best of our knowledge, prior methods for extracting information from DFS experiments, including those
+that exploit work theorems [14, 15, 33, 40], are not able to reconstruct diffusivity profiles. For this reason,
+they provide an incomplete picture of the bond dynamics.
+Simultaneous bond potential and diffusivity reconstruction provides added insight into the molecular
+physics of the bond. Although our test data are generated by simulations using a fixed, static ground
+truth molecular potential U (x) and bond force F (x) = −dU (x)/dx, real molecules contain many coupled
+degrees of freedom. The effective potential along the direction of bond pulling is a potential of mean
+force (PMF). Coupling of bond displacements to other modes of the molecule collectively contributes to a
+transverse restoring force, creating a confined “channel” that varies in thickness. Such a picture of the highdimensional potential naturally leads to axial variations in diffusivity [41, 42]. Even though our simulations
+were generated from a fixed PMF U (x), real data are derived from pulling bonds that are subject to temporal
+fluctuations from thermal coupling to other modes of the molecule. Thus, both axially varying diffusivity
+and thermal fluctuations are naturally subsumed in our reconstruction of both F (x) and D(x) from real
+data.
+Our approach further complements those using work theorems since approaches using statistics of work
+data can be used to recover only the mean-field solution f ? (x). Moreover, our approach also does not rely
+on an initial equilibrium distribution. The regularization operator, determined from data, incorporates the
+inherent uncertainty arising from the ill-posedness of the static inverse problem as well as the physical thermal
+fluctuations of the function to be reconstructed. As the amount of data increases (i.e., if more experimental
+trajectories are collected), the posterior distribution for f and g will reflect more of the physical uncertainty
+arising from the thermal fluctuations. Our empirically determined regularization, along with the spatially
+
+9
+varying “channel” diffusivity representation of the high-dimensional molecular bond, provides a picture that
+complements the notion of a one-dimensional PMF.
+Another feature of our methodology is the inclusion of uncertainty quantification, which provides a handle
+for optimizing pulling protocols and improving recoveries. When full trajectories are observed and sampled,
+one has access to displacements in a vicinity about any particular spatial location x. The reconstruction of
+the functions at x utilizes trajectory measurements observed in the neighborhood of that location, weighted
+√
+by distance relative to a characteristic length-scale γ (see Supplemental Eq. S86 in the Supplemental
+√
+Methods). Typically, γ spans more than one local data bin, and self-consistent reconstructions using
+significantly less experimental data are possible. Theoretically, the recovery error of the bond force is a
+function of the number of locally observed displacements, the local diffusivity, and the net drift (Supplemental
+Eq. S86). In particular, the error is at a minimum when the net drift is zero, or when the pulling force is
+equal and opposite to the intrinsic bond force.
+In Fig. 4, we empirically investigated the recovery error as a function of the number of pulling trajectories
+performed. These plots demonstrate that features of the two functions can already be seen with a single
+trajectory, are qualitatively similar to the ground truth at 100 trajectories, and are quantitatively accurate
+at 1000 trajectories. Examining Fig. 4 in the context of Fig. 2, one sees that spatial regions that are more
+heavily sampled are recovered with fewer pulling experiments. By directly observing trajectories ξ, one may
+extract information content after a few pulls to determine optimal adjustments in K and V . For example,
+K and V can be modified in order to better probe undersampled regions of the spatial coordinate and data
+from experiments using different parameters can be aggregated and used towards the final reconstruction.
+In this manuscript, we have used the regularization operator guaranteeing infinite differentiability of the
+reconstructions. If infinite differentiability is not desired, other choices are possible [46]. We note, however,
+that the commonly used Laplacian (−∆) operator is not appropriate because its corresponding Green’s
+function in R1 does not have the correct decay characteristics that one would expect of the bond force.
+Ideally, one chooses regularization in order to represent one’s prior knowledge of the functions. For instance,
+one may know that the functions should have no variations below a certain spatial scale. In practice, this
+type of knowledge may not be available. We have utilized an empirical Bayesian approach, thereby using
+the data to estimate the regularization parameters. Reconstruction given the “optimal” parameters within
+the empirical Bayesian approach is shown by the blue curves in Fig. 4. Our work can be extended to a
+full Bayesian treatment through use of priors on these parameters – albeit at higher computational cost.
+Another simple extension of this work is to case of non-neglible observation noise, by approximation of an
+additional path integral as in Masson et al. [37, 52].
+The ease of simultaneous reconstruction of F (x) and D(x) also suggests that our analysis can be extended to reconstruct potential landscapes in a few higher dimensions [15, 53], such as those arising in catch
+bonds [54, 55]. Our approach can be readily adapted to reconstructing energy and internal mobility profiles
+in extended biopolymers and multimolecular assemblies that exhibit complex multi-minimum energy and
+diffusivity profiles [11, 19, 56, 57].
+
+V.
+
+ACKNOWLEDGMENTS
+
+This material is based upon work supported by the National Science Foundation under Agreement No.
+0635561 (JC) and DMS-1021818 (TC, JC), PHY11-25915 (KITP/UCSB), and the Army Research Office
+58386MA (TC,JC).
+
+[1] Arridge, S. R., 1999. Optical tomography in medical imaging. Inverse Problems 15:R41.
+[2] Coleman, T. F., Y. Li, and A. Verma, 1998. Reconstructing the unknown volatility function. Technical report,
+Cornell University.
+[3] Renò, R., 2008. Nonparametric estimation of the diffusion coefficient of stochastic volatility models. Econometric
+Theory 24:1174–1206.
+[4] Evans, E., K. Ritchie, and R. Merkel, 1995. Sensitive force technique to probe molecular adhesion and structural
+linkages at biological interfaces. Biophysical Journal 68:2580–2587.
+[5] Heymann, B., and H. Grubmüller, 2000. Dynamic force spectroscopy of molecular adhesion bonds. Physical
+Review Letters 84:6126.
+[6] Merkel, R., P. Nassoy, A. Leung, K. Ritchie, and E. Evans, 1999. Energy landscapes of receptor–ligand bonds
+explored with dynamic force spectroscopy. Nature 397:50–53.
+[7] Neuman, K. C., and A. Nagy, 2008. Single-molecule force spectroscopy: optical tweezers, magnetic tweezers and
+atomic force microscopy. Nature methods 5:491.
+
+10
+[8] Lang, M. J., P. M. Fordyce, A. M. Engh, K. C. Neuman, and S. M. Block, 2004. Simultaneous, coincident optical
+trapping and single-molecule fluorescence. Nature Methods 1:133–139.
+[9] Hinterdorfer, P., and Y. F. Dufrêne, 2006. Detection and localization of single molecular recognition events using
+atomic force microscopy. Nature methods 3:347–355.
+[10] Rawicz, W., B. Smith, T. McIntosh, S. Simon, and E. Evans, 2008. Elasticity, strength, and water permeability
+of bilayers that contain raft microdomain-forming lipids. Biophysical journal 94:4725–4736.
+[11] Koch, S. J., and M. D. Wang, 2003. Dynamic force spectroscopy of protein-DNA interactions by unzipping DNA.
+Physical Review Letters 91:028103.
+[12] Jobst, M. A., C. Schoeler, K. Malinowska, and M. A. Nash, 2013. Investigating Receptor-ligand Systems of the
+Cellulosome with AFM-based Single-molecule Force Spectroscopy. JoVE (Journal of Visualized Experiments)
+e50950–e50950.
+[13] Maitra, A., and G. Arya, 2010. Model accounting for the effects of pulling-device stiffness in the analyses of
+single-molecule force measurements. Physical Review Letters 104:108301.
+[14] Hummer, G., and A. Szabo, 2001. Free energy reconstruction from nonequilibrium single-molecule pulling
+experiments. Proceedings of the National Academy of Sciences 98:3658–3661.
+[15] Hummer, G., and A. Szabo, 2010. Free energy profiles from single-molecule pulling experiments. Proceedings of
+the National Academy of Sciences 107:21441–21446.
+[16] Rief, M., F. Oesterhelt, B. Heymann, and H. E. Gaub, 1997. Single molecule force spectroscopy on polysaccharides
+by atomic force microscopy. Science 275:1295–1297.
+[17] Puchner, E. M., and H. E. Gaub, 2009. Force and function: probing proteins with AFM-based force spectroscopy.
+Current opinion in structural biology 19:605–614.
+[18] Fernandez, J. M., and H. Li, 2004. Force-clamp spectroscopy monitors the folding trajectory of a single protein.
+Science 303:1674–1678.
+[19] Dobrovolskaia, I. V., and G. Arya, 2012. Dynamics of forced nucleosome unraveling and role of nonuniform
+histone-DNA interactions. Biophysical Journal 103:989–998.
+[20] Ros, R., R. Eckel, F. Bartels, A. Sischka, B. Baumgarth, S. D. Wilking, A. Pühler, N. Sewald, A. Becker, and
+D. Anselmetti, 2004. Single molecule force spectroscopy on ligand–DNA complexes: from molecular binding
+mechanisms to biosensor applications. Journal of biotechnology 112:5–12.
+[21] Rief, M., J. Pascual, M. Saraste, and H. E. Gaub, 1999. Single molecule force spectroscopy of spectrin repeats:
+low unfolding forces in helix bundles. Journal of molecular biology 286:553–561.
+[22] Clausen-Schaumann, H., M. Seitz, R. Krautbauer, and H. E. Gaub, 2000. Force spectroscopy with single biomolecules. Current Opinion in Chemical Biology 4:524–530.
+[23] Helenius, J., C.-P. Heisenberg, H. E. Gaub, and D. J. Muller, 2008. Single-cell force spectroscopy. Journal of
+Cell Science 121:1785–1791.
+[24] Anselmetti, D., N. Hansmeier, J. Kalinowski, J. Martini, T. Merkle, R. Palmisano, R. Ros, K. Schmied, A. Sischka, and K. Tönsing, 2007. Analysis of subcellular surface structure, function and dynamics. Analytical and
+Bioanalytical Chemistry 387:83–89.
+[25] Benoit, M., D. Gabriel, G. Gerisch, and H. E. Gaub, 2000. Discrete interactions in cell adhesion measured by
+single-molecule force spectroscopy. Nature Cell Biology 2:313–317.
+[26] Evans, E. A., and D. A. Calderwood, 2007. Forces and bond dynamics in cell adhesion. Science 316:1148–1153.
+[27] Dudko, O. K., G. Hummer, and A. Szabo, 2008. Theory, analysis, and interpretation of single-molecule force
+spectroscopy experiments. Proceedings of the National Academy of Sciences 105:15755–15760.
+[28] Dudko, O. K., 2009. Single-molecule mechanics: New insights from the escape-over-a-barrier problem. Proceedings
+of the National Academy of Sciences 106:8795–8796.
+[29] Freund, L., 2009. Characterizing the resistance generated by a molecular bond as it is forcibly separated.
+Proceedings of the National Academy of Sciences 106:8818–8823.
+[30] Fuhrmann, A., D. Anselmetti, R. Ros, S. Getfert, and P. Reimann, 2008. Refined procedure of evaluating
+experimental single-molecule force spectroscopy data. Physical Review E 77:031912.
+[31] Evstigneev, M., and P. Reimann, 2003. Dynamic force spectroscopy: optimized data analysis. Physical Review
+E 68:045103.
+[32] Shapiro, B. E., and H. Qian, 1997. A quantitative analysis of single protein-ligand complex separation with the
+atomic force microscope. Biophysical chemistry 67:211–219.
+[33] Hummer, G., and A. Szabo, 2005. Free energy surfaces from single-molecule force spectroscopy. Accounts of
+Chemical Research 38:504–513.
+[34] Balsera, M., S. Stepaniants, S. Izrailev, Y. Oono, and K. Schulten, 1997. Reconstructing potential energy
+functions from simulated force-induced unbinding processes. Biophysical Journal 73:1281–1287.
+[35] Woodside, M. T., and S. M. Block, 2014. Reconstructing Folding Energy Landscapes by Single-Molecule Force
+Spectroscopy. Annual Review of Biophysics 43:19–39.
+[36] Türkcan, S., A. Alexandrou, and J.-B. Masson, 2012. A Bayesian inference scheme to extract diffusivity and
+potential fields from confined single-molecule trajectories. Biophysical Journal 102:2288–2298.
+[37] Masson, J.-B., P. Dionne, C. Salvatico, M. Renner, C. G. Specht, A. Triller, and M. Dahan, 2014. Mapping
+the energy and diffusion landscapes of membrane proteins at the cell surface using high-density single-molecule
+imaging and Bayesian Inference: application to the multiscale dynamics of glycine receptors in the neuronal
+membrane. Biophysical Journal 106:74–83.
+[38] Schuss, Z., 2011. Nonlinear filtering and optimal phase tracking, volume 180. Springer.
+
+11
+[39] Alemany, A., A. Mossa, I. Junier, and F. Ritort, 2012. Experimental free-energy measurements of kinetic
+molecular states using fluctuation theorems. Nature Physics 8:688–694.
+[40] Seifert, U., 2012. Stochastic thermodynamics, fluctuation theorems and molecular machines. Reports on Progress
+in Physics 75:126001.
+[41] Zwanzig, R., 1988. Diffusion in a rough potential. Proceedings of the National Academy of Sciences 85:2029–2030.
+[42] Best, R. B., and G. Hummer, 2010. Coordinate-dependent diffusion in protein folding. Proceedings of the National
+Academy of Sciences 107:1088–1093.
+[43] Fok, P.-W., and T. Chou, 2010. Reconstruction of potential energy profiles from multiple rupture time distributions. Proceedings of the Royal Society A: Mathematical, Physical and Engineering Science 466:3479–3499.
+[44] Schuss, Z., 2009. Theory and applications of stochastic processes: an analytical approach, volume 170. Springer.
+[45] Lemm, J., J. Uhlig, and A. Weiguny, 2000. Bayesian approach to inverse quantum statistics. Physical review
+letters 84:2068.
+[46] Chang, J. C., V. M. Savage, and T. Chou, 2014. A Path-Integral Approach to Bayesian Inference for Inverse
+Problems Using the Semiclassical Approximation. Journal of Statistical Physics 157:582–602.
+[47] Enßlin, T. A., M. Frommert, and F. S. Kitaura, 2009. Information field theory for cosmological perturbation
+reconstruction and nonlinear signal analysis. Physical Review D 80:105005.
+[48] Cotter, S., M. Dashti, J. Robinson, and A. Stuart, 2009. Bayesian inverse problems for functions and applications
+to fluid mechanics. Inverse Problems 25:115008.
+[49] Heuett, W. J., B. V. Miller III, S. B. Racette, J. O. Holloszy, C. C. Chow, and V. Periwal, 2012. Bayesian
+Functional Integral Method for Inferring Continuous Data from Discrete Measurements. Biophysical Journal
+102:399–406.
+[50] Farmer, C., 2007. Bayesian field theory applied to scattered data interpolation and inverse problems. Algorithms
+for Approximation 147–166.
+[51] Stuart, A., 2010. Inverse problems: a Bayesian perspective. Acta Numerica 19:451–559.
+[52] Masson, J.-B., D. Casanova, S. Türkcan, G. Voisinne, M.-R. Popoff, M. Vergassola, and A. Alexandrou, 2009.
+Inferring maps of forces inside cell membrane microdomains. Physical review letters 102:048103.
+[53] Suzuki, Y., and O. K. Dudko, 2010. Single-molecule rupture dynamics on multidimensional landscapes. Physical
+Review Letters 104:048101.
+[54] Marshall, B. T., M. Long, J. W. Piper, T. Yago, R. P. McEver, and C. Zhu, 2003. Direct observation of catch
+bonds involving cell-adhesion molecules. Nature 423:190–193.
+[55] Pereverzev, Y. V., O. V. Prezhdo, W. E. Thomas, and E. V. Sokurenko, 2005. Distinctive features of the
+biological catch bond in the jump-ramp force regime predicted by the two-pathway model. Physical Review E
+72:010903.
+[56] Hinczewski, M., J. C. M. Gebhardt, M. Reif, and D. Thirumalai, 2013. From mechanical folding trajectories to
+intrinsic energy landscapes of biopolymers. Proceedings of the National Academy of Sciences 110:4500–4505.
+[57] Rico, F., L. Gonzalez, I. Casuso, M. Puig-Vidal, and S. Scheuring, 2013. High-Speed Force Spectroscopy Unfolds
+Titin at the Velocity of Molecular Dynamics Simulations. Science 342:741–743.
+
+1
+SUPPLEMENTAL METHODS
+Supplemental Methods 1.
+
+FUNCTIONS USED IN OUR EXAMPLES
+
+In our examples we used two feature-rich pairs of diffusivity D and bond force F = Fd + f . In all cases
+−6
+. The trajectories shown in Fig. 2 were generated using
+Fd (x) = x2
+D(x) = 1 −
+
+
+
+x2
+(x − 10)2
+exp −
+,
+400
+8
+
+(S1)
+
+
+
+
+
+
+
+√
+3 x
+(x − 10)2
+x2 (5 − x)
+(x − 5)2
+x2 (2 − x)
+(x − 2)2
+f (x) =
+exp −
+−
+exp −
++
+exp −
+10
+12
+35
+14
+10
+16
+
+
+
+
+
+
+8x
+(x − 2)2
+2x
+(x − 5)2
+x3/2 (10 − x)
+(x − 10)2
++
+exp −
+−
+exp −
++
+exp −
+.
+5
+16
+5
+14
+30
+12
+
+(S2)
+
+These forms were also used in the reconstruction of F (x) shown in Fig. 3(a). Fig. S1 shows simultaneous
+reconstructions of D(x) and F (x) defined in Eqs. S1 and S2.
+In Figs. 3(b) and 4, we considered a different diffusivity profile and a more complex potential:
+
+
+(x − 10)4
+x2
+exp −
+, f (x) = 10 sin(x2 /5) exp(−x2 /45).
+(S3)
+D(x) = 1 −
+100
+8
+Supplemental Methods 2.
+
+TRANSITION PROBABILITIES
+
+Assuming Itô calculus, the Brownian motion is described through the SDE
+p
+dX = A(X, t)dt + 2D(X)dW
+
+(S4)
+
+where W is the Wiener white noise process, D(x) is the diffusivity, and
+A(x, t) = D(x)∂x (−Φ(x, t) + log D(x))
+
+(S5)
+
+In order to compute this quantity we first consider the short-time solution of the SDE using Itô rules. Let
+h → 0 be a small timestep. Then, we have
+Z t=t0 +h
+dx = X(t0 + h) − X(t0 )
+t=t0
+
+Z t=t0 +h p
+2D(X)dW
+A(X(t), t)dt +
+t=t0
+t=t0
+p
+= A(X(t0 ), t0 )h + z 2D(X(t0 ))h + O(h3/2 ),
+Z
+
+t=t0 +h
+
+=
+
+1 trajectory
+
+D(x)
+
+F(x)
+
+4
+3
+2
+1
+0
+1
+2
+3
+4
+1.05
+1.00
+0.95
+0.90
+0.85
+0.80
+0.75
+0.70 5
+
+10
+
+15
+
+20
+
+25
+
+spatial position x
+
+4
+3
+2
+1
+0
+1
+2
+3
+4
+1.05
+1.00
+0.95
+0.90
+0.85
+0.80
+0.75
+30 0.70 5
+
+10 trajectories
+
+10
+
+15
+
+20
+
+25
+
+spatial position x
+
+4
+3
+2
+1
+0
+1
+2
+3
+4
+1.05
+1.00
+0.95
+0.90
+0.85
+0.80
+0.75
+30 0.70 5
+
+100 trajectories
+
+10
+
+15
+
+20
+
+25
+
+spatial position x
+
+4
+3
+2
+1
+0
+1
+2
+3
+4
+1.05
+1.00
+0.95
+0.90
+0.85
+0.80
+0.75
+30 0.70 5
+
+(S6)
+
+1000 trajectories
+
+10
+
+15
+
+20
+
+25
+
+spatial position x
+
+30
+
+FIG. S1. Regularized reconstruction with variable number of trajectories. Reconstruction of the bond
+force and diffusivity given in Eqs. S1, S2. Shaded yellow: 95% semiclassical posterior confidence interval. Grey:
+Unregularized bin-wise reconstruction.
+
+2
+where z is a standard normal random variable. In the limit as h → 0, we can write
+
+
+X(t0 + h) ∼ N X(t0 ) + A(X(t0 ), t0 )h, 2D(X(t0 ))h ,
+
+(S7)
+
+which implies that as h → 0,
+
+ 
+
+Pr X(t0 + h)X(t0 ) =
+
+
+1
+4πD(X(t0 ))h
+
+1/2
+
+ h
+ i2 
+
+ X(t0 + h) − x(t0 ) − A X(t0 ), t0 h 
+
+exp −
+.
+
+
+4D(X(t0 ))h
+
+
+
+(S8)
+
+In practice, observations of the trajectory positions are taken with noise. Assuming that the noise is i.i.d.
+Gaussian with zero mean and variance σ 2 , the likelihood of observing a particular trajectory ξ = ξ0 , ξ1 , . . .
+sampled at time increments of width δt given a particular choice of f, g is the product of the probabilities of
+observing each of the transitions, or
+Z
+Y
+π(ξ|f, g) = Pr(ξ0 , X0 )dX0
+Pr(ξj+1 , Xj+1 |f, g, Xj , σ 2 )dXj+1
+j=0
+
+
+
+
+ 1 X  (ξ
+2
+−
+ξ
+−
+A(ξ
+,
+t
+)δt)
+j+1
+j
+j j
++ log(4πD(ξj )δt)
+,
+≈ exp −
+
+ 2
+2D(ξ
+)δt
+j
+j
+
+(S9)
+
+where the integrals with respect to Xj have been evaluated using Laplace’s approximation under the assumption that
+σ2
+ 1,
+2D(x)δt
+
+∀x.
+
+(S10)
+
+In the case where there are multiple independent trajectories Ξ = {ξ (α) },
+
+"
+#
+ 1 X (ξ (α) − ξ (α) − A(ξ (α) , tj )δt)2
+
+j+1
+j
+j
+(α)
+π(Ξ|f, g) = exp −
++
+log(4πD(ξ
+)δt)
+.
+j
+(α)
+ 2
+
+2D(ξj )δt
+j,α
+Supplemental Methods 3.
+
+(S11)
+
+EMPIRICAL ESTIMATION OF THE BACKGROUND DIFFUSIVITY
+AND CANTILEVER STIFFNESS CONSTANT
+
+If the background diffusivity D0 is unknown, it can be estimated directly from observations of the Brownian
+motion. Similarly, the cantilever spring constant K, usually determined by one of several procedures, can
+be refined.
+The observed displacements in the trajectories originating at position x at time t are normally distributed
+with mean A(x, t)δt and variance 2D(x)δt. In the large x limit, A(x, t) → D0 K(L(t) − x), and D(x) → D0 .
+One may then simply estimate the background diffusivity D0 and spring constant K using the displacements
+from all trajectories that extend past a critical cutoff separation xc . The negative log-likelihood function for
+these observations is
+(
+)
+(α)
+(α)
+(α)
+[ξj+1 − ξj − D0 K(L(tj ) − ξj )δt]2
+1 X
+L ≡ − log π({ξ≥xc }) =
+log (4πD0 δt) +
+.
+(S12)
+2 (α)
+2D0 δt
+≥xc
+
+ξj
+
+The optimal parameters D0 and K can be found through maximization of Eq. S12. This procedure is
+accomplished by solving the system of equations
+
+
+(α)
+(α)
+(α)
+X (ξj+1
+− ξj )(L(tj ) − ξj )
+∂L
+ D0 δt X
+(α) 
+=K
+(L(tj ) − ξj )2  −
+=0
+(S13)
+∂K
+2 (α)
+2
+(α)
+ξj
+
+X
+∂L
+=
+∂D0 (α)
+ξj
+
+(
+
+≥xc
+
+(
+−
+
+X
+
+(α)
+
+ξj
+
+≥xc
+
+≥xc
+
+ξj
+
+(α)
+
+(α)
+
+≥xc
+
+(α)
+
+(α)
+
+1 − K(L(tj ) − ξj )(ξj+1 − ξj − D0 K(L(tj ) − ξj )δt)
+2D0
+(α)
+
+(α)
+
+(ξj+1 − ξj
+
+(α)
+
+− D0 K(L(tj ) − ξj )δt)2
+4D02 δt
+
+)
+
+)
+= 0.
+
+(S14)
+
+3
+The maximum likelihood estimates for D0 and K are
+
+
+
+
+,
+(α)
+(α)
+(α)
+∗
+X
+X
+(ξj+1 − ξj )(L(tj ) − ξj ) 
+
+ D0 δt
+(α) 
+(L(tj ) − ξj )2  ,
+K∗ = 
+
+
+2
+2 (α)
+(α)
+≥xc
+
+ξj
+
+
+
+
+v
+X
+u 2 X (α) X (α)
+∗
+D0 = u
+K∗
+(dj )2
+(ηj )2 + (
+1)2
+t
+
+
+(α)
+(α)
+(α)
+
+ξ
+≥xc
+ξ
+≥xc
+ξ
+≥xc
+j
+
+(α)
+
+where dj
+iteration.
+
+(α)
+
+j
+
+(α)
+
+= (L(tj ) − ξj ) and ηj
+
+j
+
+(α)
+
+(S15)
+
+≥xc
+
+ξj
+
+
+ ,"
+#
+
+X 
+X (α) 2
+∗2
+−
+1
+δtK
+(dj ) ,
+
+
+(α)
+(α)
+
+ξ
+≥xc
+ξ
+≥xc
+j
+
+(S16)
+
+j
+
+(α)
+
+= ξj+1 − ξj . These equations can be solved by Newton-Raphson
+
+Supplemental Methods 4.
+A.
+
+INFERENCE
+
+Euler-Lagrange equations
+
+The Euler-Lagrange equations for the Information Hamiltonian are obtained by computing variational
+derivatives with respect to the functions f (y), g(y) and setting them to zero. Using the Dirac delta function
+we rewrite the Information Hamiltonian in the integral form
+H [f, g | Ξ] =
+
+1
+2
+
+∞
+
+Z
+0
+
+f (y)Rf (−∆)f (y)y. +
+
+1
+2
+
+Z
+0
+
+∞
+
+g(y)Rg (−∆)g(y)y.
+
+2
+
+(α)
+(α)
+Z
+Z
+ξj+1 − ξj − A(y, tj )δt
+X
+1X
+(α)
+(α)
+δ(y − ξj )
++
+δ(y − ξj ) log D(y)y. +
+y..
+2 α,j
+4D(y)δt
+α,j
+
+(S17)
+
+To calculate the variational derivatives, the following relations
+∂g D = D
+
+∂g A = A
+
+∂g 0 A = D
+
+∂f A = D
+
+(S18)
+
+will prove useful. Using these identities, we straightforwardly take variations of H with respect to both f (y)
+and g(y) to find
+i
+h
+δH
+1X
+(α)
+(α)
+= Rf (−∆)f (y) −
+δ(y − ξjα ) ξj+1 − ξj − A(y, t)δt
+δf (y)
+2 α,j
+i
+δH
+1X ∂ h
+(α)
+(α)
+(α)
+= Rg (−∆)g(y) +
+δ(y − ξj )(ξj+1 − ξj − A(y, tj )δt)
+δg(y)
+2 α,j ∂y
+(
+)
+(α)
+(α)
+(ξj+1 − ξj )2 − A2 (y, tj )(δt)2
+1X
+(α)
++
+δ(y − ξj ) 1 −
+.
+2 α,j
+2D(y)δt
+
+(S19)
+
+(S20)
+
+Equations S19 and S20, set to zero, yield the Euler-Lagrange equations. We solve these equations using
+their corresponding
+The operators Rf,g have the associated free-space Green’s function
+ Greens functions.
+
+G∞ (x, y) = β exp −(x − y)2 /(2γ) . The parameter β > 0 acts like an inverse temperature and controls the
+magnitude of the variability found in a field. The parameter γ > 0 is a spatial scale parameter, strongly
+√
+penalizing variations at length scales at or smaller than O( γ). Since recovery is over the positive part of
+the real line, and we are fixing the function values for f and g to zero at x = 0, we enforce the condition
+that variations in the functions f and g are not correlated to f (0) and g(0), respectively. Hence, we use
+the method of images to enforce an absorbing boundary condition at x = 0 and for f and g write the full
+Green’s function as
+
+
+
+
+(x − y)2
+(x + y)2
+G(x, y) = β exp −
+− β exp −
+.
+2γ
+2γ
+
+(S21)
+
+The Green’s function for the regularization operator defines the a priori spatial variation in the functions
+that make up the space of functions described by the distributions π(f ), π(g).
+
+4
+The solution to the Euler-Lagrange equations can be formally written as a linear equation for f (y)
+" (α)
+#
+(α)
+
+
+ξj+1 − ξj
+1X
+(α)
+(α)
+(α)
+(α)
+0 (α)
+Gf (y, ξj )
+− D(ξj ) f (ξj ) + m(ξj , tj ) − D (ξj ) δt,
+0 = f (y) −
+2 α,j
+δt
+
+(S22)
+
+and a nonlinear equation for g(y)
+#
+
+"
+1X ∂
+(α)
+(α)
+(α)
+(α)
+Gg (y, ξj ) ξj+1 − ξj − A(ξj , tj )δt
+0 = g(y) −
+2 α,j ∂z
+(
+)
+(α)
+(α)
+(α)
+(ξj+1 − ξj )2 − A2 (ξj , tj )(δt)2
+1X
+(α)
+Gg (y, ξj ) 1 −
++
+(α)
+2 α,j
+2D(ξj )δt
+
+(S23)
+
+where Gf is the Green’s function for Rf (−∆) and Gg is the Green’s function for Rg (−∆), and
+m(y, t) ≡ Fd (y) + K(L(t) − y).
+
+(S24)
+
+Both functions f (y) and g(y) are completely determined by their values at the observed trajectory positions.
+(α)
+(α)
+These functions are solved by self-consistently determining f (ξj ) and g(ξj ) for all j and α, which is
+essentially a high (though finite)-dimensional root identification problem.
+To emphasize this point, and to simplify the root problem, we rewrite Eq. S22 and Eq. S23, grouping
+terms by how they depend on f and g. Eq. S22 becomes
+0 = f (y) −
+
+"
+#
+1X
+(α)
+(α)
+(α)
+(α)
+(α)
+(α)
+(α)
+(α)
+Gf (y, ξj ) ξj+1 − ξj − D(ξj )f (ξj )δt − D(ξj )m(ξj , tj )δt − D0 (ξj )δt ,
+2 α,j
+
+(S25)
+
+and Eq. S23 becomes
+#
+"
+(α)
+∂Gg (y, ξj ) (α)
+1X
+(α)
+(α)
+Gg (y, ξj ) −
+(ξj+1 − ξj )
+0 = g(y) +
+2 α,j
+∂z
+#
+!
+(
+"
+(α)
+(α)
+(α)
+Gg (y, ξj ) 2 (α)
+∂Gg (y, ξj )
+∂Gg (y, ξj )
+δt X
+(α)
+(α)
+(α)
+(α)
+0 (α)
++
+D(ξj )
+m(ξj , tj ) +
+m (ξj , tj ) + D (ξj )
++ Gg (y, ξj )m(ξj , tj )
+2 α,j
+∂z
+2
+∂z
+#
+!2
+"
+(α)
+(α)
+(α)
+(α)
+∂Gg (y, ξj )
+Gg (y, ξj ) ξj+1 − ξj
+1
+(α)
+(α)
+(α)
+(α)
++ D(ξj )f (ξj )
++ Gg (y, ξj )m(ξj , tj ) −
+(α)
+∂z
+2
+δt
+D(ξj )
+)
+(α)
+(α)
+(α)
+(α)
+(α)
+0 (α) Gg (y, ξj )
+2 (α) Gg (y, ξj )
+0 (α)
+0 (α)
++ g (ξj )D (ξj )
++ D(ξj )f (ξj )
++ D (ξj )f (ξj )Gg (y, ξj ) .
+(S26)
+2
+2
+
+B.
+
+Approximate solution
+
+In both Eqs S25 and S26, we have underlined the terms which we need to evaluate. The size of this
+problem is two times the number of observed positions, which in practice is a very large number. Solving
+this problem exactly yields a very high resolution recovery of the desired functions f , and g, however, since
+the solution is regularized, such resolution is unnecessary. Instead of solving these equations exactly, we
+(α)
+(α)
+approximate the terms f (ξj ) and g(ξj ) about evenly spaced control points yk separated by gaps of length
+√
+δy  γ (γ = γf,g are regularization parameters defining the correlations lengths of f and g). Using these
+(α)
+(α)
+points, we approximate quantities like f (ξj ) by Taylor expansion about the nearest yk to ξj , and its two
+nearest neighbors yk−1 and yk+1 yielding the approximation
+(α)
+f (ξj )
+
+≈ f (yk ) +
+
+(α)
+(ξj
+
+
+
+df (y) 
+− yk )
+
+y. 
+
+(α)
+
++
+yk
+
+(ξj
+
+
+− yk )2 d2 f (y) 
+
+2
+y.2 
+yk
+
+f (yk+1 ) − f (yk−1 )
+2δy
+(α)
+2 f (yk+1 ) − 2f (yk ) + f (yk−1 )
++ (ξj − yk )
+.
+2(δy)2
+(α)
+
+≈ f (yk ) + (ξj
+
+− yk )
+
+(S27)
+
+5
+Grouping the terms in Eq. S27 by f (yk ) yields
+(α)
+
+(α)
+
+(α)
+
+(α)
+
+f (ξj ) = aj f (yk−1 ) + bj f (yk ) + cj f (yk+1 )
+
+(S28)
+
+where
+"
+(α)
+aj
+
+=
+
+(α)
+
+(α)
+
+(ξj
+
+ξj − yk
+− yk ) 2
+−
+2
+2(δy)
+2δy
+(α)
+
+"
+(α)
+bj
+
+"
+(α)
+cj
+
+=
+
+= 1−
+
+(ξj
+
+− yk )2
+(δy)2
+
+#
+(S29)
+
+#
+(S30)
+
+(α)
+
+(ξj
+
+#
+(α)
+− yk )2
+ξj − yk
++
+.
+2(δy)2
+2δy
+
+(S31)
+
+For D(y) = D0 eg(y) , we choose to define our approximation directly on the values D(yk ) = D0 eg(yk ) rather
+than on Taylor expansions for g:
+(α)
+
+(α)
+
+(α)
+
+(α)
+
+D(ξj ) ≈ aj D(yk−1 ) + bj D(yk ) + cj D(yk+1 )
+h
+i
+(α)
+(α)
+(α)
+= D0 aj eg(yk−1 ) + bj eg(yk ) + cj eg(yk+1 ) .
+
+(S32)
+
+We use this approximation because it results in only pairwise products like f (ym )D(yn ) when used in Eqs. S22
+and S23 rather than higher order terms that would result if one defined D using Taylor expansions in g.
+Similarly, we will use the approximation for 1/D,
+1
+(α)
+D(ξj )
+
+1
+1
+1
+(α)
+(α)
++ bj
++ cj
+D(yk−1 )
+D(yk )
+D(yk+1 )
+i
+1 h (α) −g(yk−1 )
+(α)
+(α)
+=
+aj e
++ bj e−g(yk ) + cj e−g(yk+1 ) .
+D0
+(α)
+
+≈ aj
+
+(S33)
+
+With these substitutions in place, one may evaluate Eqs. S22-S23 given values f (yk ), g(yk ), g 0 (yk ), D(yk ),
+1/D(yk ). The coefficients in front of each of these terms is data dependent and need only be evaluated a
+(α) (α)
+single time for a given choice of control points. We also approximate the kernel values like Gf (ξj , ξk )
+by evaluating the kernels about the nearest control points. The resulting root problem of Eqs. S25, S26 is
+solved using scipy.optimize.root in our implementation available at https://github.com/joshchang/
+dfsinference.
+Supplemental Methods 5.
+
+SEMICLASSICAL APPROXIMATION
+
+We will denote the partial derivative of a kernel with respect to its left coordinate as ∂y , and with respect
+to the right coordinate as ∂z . To construct the semiclassical approximation to the Hamiltonian, one needs
+to evaluate the second variational derivatives. We begin with the Hessian of the Hamiltonian with respect
+to f ,
+"
+#
+1X
+δ2 H
+(α)
+= Rf (−∆) +
+δ(z − ξj )D(z)δt δ(y − z).
+δf (y)δf (z)
+2 α,j
+
+(S34)
+
+We wish to compute the operator inverse
+
+Hf f (y, z) ≡
+
+δ2 H
+δf (y)δf (z)
+
+−1
+
+which obeys the relationship
+Z
+
+δ2 H
+Hf f (x, z)dx = δ(y − z).
+δf (y)δf (x)
+
+(S35)
+
+6
+Applying this relationship, and convolving both sides by the Greens function Gf for Rf yields
+known
+
+unknown
+}|
+{z
+z
+}|
+{
+δt X
+(α)
+(α)
+Gf (y, ξj )D(ξj ) (Hf f (y, z))y=ξ(α) .
+Hf f (y, z) = Gf (y, z) −
+j
+2 j,α
+
+(S36)
+
+Eq. S36 can be determined analytically by solving an equivalent linear system for the unknown term in the
+sum. In practice, the solution of this system is prohibitive due to large size. In the same spirit as in inference,
+we approximate the inversion using function evaluations interpolated about the same control points yk that
+we have used before. For the sake of simplicity, we will utilize a leading-order approximation for each of the
+unknown functions as opposed to the higher-order scheme that we used for inference.
+Our problem is then transformed into the smaller problem of solving for each control point the equation
+unknown
+
+Hf f (ym , z) ≈ Gf (ym , z) −
+
+X
+
+z }| {
+Gf (ym , yk )nk D(yk ) Hf f (yk , z),
+
+(S37)
+
+k
+
+where nk is the number of trajectory positions that are nearest to yk . Eq. S37 has a solution that can be
+represented as
+Hf f = (I + d)−1 M−1
+f
+
+(S38)
+
+where (Hf f )mn = Hf f (ym , yn ) is a matrix of values on the left hand side of Eq. S37, Mf is a matrix of
+values (M−1 )mn = Gf (ym , yn ), and d is a matrix of values (G(yk , ym )nm D(m ))km .
+We undertake the same procedure for the Hessian with respect to g. After some algebra, we find that
+" (α)
+#
+(α)
+(ξj+1 − ξj )2 + A(z, tj )2 δt2
+1X
+δ2 H
+(α)
+= Rg (−∆)δ(y − z) +
+δ(y − z)δ(z − ξj )
+δg(y)δg(z)
+2 j,α
+2D(z)δt
+
+
+
+
+1 ∂ X
+1 ∂
+∂δ(y − z)
+(α)
+(α)
+− δ(y − z)
+δ(z − ξj )A(z, tj ) δt −
+δ(z − ξj ) δt.
+D(z)
+2 ∂z j,α
+2 ∂z
+∂z
+
+(S39)
+
+Inversion of this operator is slightly more involved than the previous operator due to the presence of
+derivatives. Let us write
+δ2 H
+Hgg (y, z) ≡
+δg(y)δg(z)
+
+
+−1
+.
+
+(S40)
+
+After convolving an appropriate Greens function Gg , the inverse operator satisfies the relationship
+Hgg (y, z) = Gg (y, z)
+(
+)
+(α)
+(α) 2
+(α)
+(α)
+(α)
+2 2
+X
+δt∂z Gg (y, ξj )A(ξj , tj )
+(α) (ξj+1 − ξj ) + A(ξj , tj ) δt
+(α)
+−
+Gg (y, ξj )
++
+Hgg (ξj , z)
+(α)
+2
+4D(ξj )δt
+j,α
+"
+#
+o ∂Hgg (ξ (α) , z)
+δt X n
+j
+(α)
+(α)
+(α)
+(α)
+−
+Gg (y, ξj )A(ξj , tj ) + ∂z Gg (y, ξj )D(ξj )
+.
+(S41)
+2 j,α
+∂y
+(α)
+
+(α)
+
+It is evident that Hgg is known self-consistently if Hgg (ξj , z), and ∂y Hgg (ξj , z) are all known. Differentiating Eq. S41, one finds
+∂y Hgg (y, z) = ∂y Gg (y, z)
+(
+)
+(α)
+(α) 2
+(α)
+(α)
+(α)
+2 2
+X
+δt∂y ∂z Gg (y, ξj )A(ξj , tj )
+(α) (ξj+1 − ξj ) + A(ξj , tj ) δt
+(α)
+−
+∂y Gg (y, ξj )
++
+Hgg (ξj , z)
+(α)
+2
+4D(ξj )δt
+j,α
+"
+#
+o ∂Hgg (ξ (α) , z)
+δt X n
+j
+(α)
+(α)
+(α)
+(α)
+−
+∂y Gg (y, ξj )A(ξj , tj ) + ∂y ∂z Gg (y, ξj )D(ξj )
+.
+(S42)
+2 j,α
+∂y
+
+7
+Eqs. S41 and S42 can be solved together at the control points by solving an associated linear system
+Λ1 = M1 − A1 Λ1 − A2 Λ2
+Λ2 = M2 − A3 Λ1 − A4 Λ2
+
+(S43)
+(S44)
+
+where the vectors Λ1 , Λ2 contain entries Hgg (ym , yn ) and ∂y Hgg (ym , yn ) respectively. The vectors M1 , M2
+contain entries Gg (ym , yn ) and ∂y Gg (ym , yn ) respectively, and all of the A(·) terms are matrices.
+Finally, we have the mixed term
+"
+#
+
+
+δH
+1X
+(α)
+0
+δ(y − z)δ(z − ξj ) D (z) + D(z) f (z) + m(z, t) δt
+=
+δf (y)δg(z)
+2 α,j
+i
+1X ∂ h
+(α)
+−
+δ(y − z)δ(z − ξj )D(z) δt.
+2 α,j ∂z
+
+(S45)
+
+Using these expressions, we can approximate the semiclassical posterior variance in both f and g. For f ,
+we have
+
+
+
+Σf f ≡ (f (y) − f ? (y)) (f (z) − f ? (z))
+#−1
+"
+
+−1
+δ2 H
+δ2 H
+δ2 H
+δ2 H
+−
+=
+δf (y)δf (z) δf (y)δg(z) δg(y)δg(z)
+δg(y)δf (z)
+(S46)
+and similarly an estimate for g
+
+
+
+Σgg ≡ (g(y) − g ? (y)) (g(z) − g ? (z))
+"
+#−1
+
+−1
+δ2 H
+δ2 H
+δ2 H
+δ2 H
+−
+.
+δg(y)δg(z) δg(y)δf (z) δf (y)δf (z)
+δf (y)δg(z)
+
+(S47)
+
+From these expressions, it is evident that the recovery errors of f and g are coupled. Given the error for g,
+one can approximate the pointwise error in the recovery of D(y) as
+hD2 (y)i − hD(y)i2 = hD02 e2g(y) i − hD0 eg(y) i2
+"∞
+#2
+∞
+X
+X hD0 g n (y)i
+hD02 2n g n (y)i
+=
+−
+n!
+n!
+n=0
+n=0
+∼ D02 hg 2 (x)i.
+
+(S48)
+
+The expectation values with respect to g can be computed to higher orders using Feynman diagrams.
+Supplemental Methods 6.
+
+POSTERIOR COVARIANCES
+
+Our goal is to compute Σf f and Σgg which will involve terms which we have computed via Eqs. S39, S34.
+A.
+
+Posterior covariance of f
+
+For Σf f ,
+"
+
+δ2 H
+δ2 H
+−
+Σf f (y, z) =
+δf (y)δf (z) δf (y)δg(z)
+
+
+
+δ2 H
+δg(y)δg(z)
+
+−1
+
+δ2 H
+δg(y)δf (z)
+
+#−1
+
+where
+
+
+X
+X
+1
+1 ∂ 
+δ2 H
+(α)
+(α)
+= δ(y − z)
+δ(z − ξj )A(z, tj )δt −
+δ(y − z)
+δ(z − ξj )D(z) δt
+δf (y)δg(z)
+2
+2 ∂z
+j,α
+j,α
+
+8
+and its adjoint is
+X
+X
+1
+1 ∂
+δ2 H
+(α)
+(α)
+= δ(y − z)
+δ(z − ξj )A(z, tj )δt +
+δ(y − z)
+δ(z − ξj )D(z)δt.
+δg(y)δf (z)
+2
+2
+∂z
+j,α
+j,α
+Recalling that
+
+Hgg (y, z) ≡
+
+δ2 H
+δg(y)δg(z)
+
+−1
+.
+
+We compute first
+
+−1
+δ2 H
+δ2 H
+δf (y)δg(z) δg(y)δg(z)
+
+
+ 
+Z 
+
+X
+X
+1
+1 ∂ 
+(α)
+(α)
+=
+δ(y − z)
+δ(z − ξj )A(z, tj )δt −
+δ(y − z)
+δ(z − ξj )D(z) δt Hgg (z, u)z.
+2
+
+2 ∂z
+j,α
+j,α
+
+
+  X
+
+X
+δt
+(α)
+(α)
+=
+δ(y − ξj )A(y, tj )Hgg (y, u) +
+δ(y − ξj )D(y)∂y Hgg (y, u)
+
+2 
+j,α
+
+=
+
+δt X
+2
+
+j,α
+
+(α)
+
+δ(y − ξj ) [A(y, tj )Hgg (y, u) + D(y)∂y Hgg (y, u)] .
+
+(S49)
+
+j,α
+
+Now we can compute
+
+−1
+δ2 H
+δ2 H
+δ2 H
+δf (y)δg(z) δg(y)δg(z)
+δg(y)δf (z)
+Z
+X
+δt
+(α)
+=
+δ(y − ξj ) [A(y, tj )Hgg (y, u) + D(y)∂y Hgg (y, u)]
+2 j,α
+
+
+X
+X
+1
+1
+∂
+(α)
+(β)
+×  δ(u − z)
+δ(z − ξj )A(z, tj )δt +
+δ(u − z)
+δ(z − ξk )D(z)δt u.
+2
+2
+∂z
+j,α
+k,β
+
+
+=
+
+δt
+2
+
+
++
+
+2 X
+
+(α)
+
+δ(y − ξj )
+
+j,α
+
+δt
+2
+
+X
+
+(β)
+
+δ(z − ξk ) [A(y, tj )Hgg (y, z) + D(y)∂y Hgg (y, z)] A(z, tk )
+
+k,β
+
+2 X
+
+(α)
+
+δ(y − ξj )
+
+j,α
+
+X
+
+(β)
+
+δ(z − ξk ) [A(y, tj )∂z Hgg (y, z) + D(y)∂z ∂y Hgg (y, z)] D(z).
+
+(S50)
+
+k,β
+
+Now we have
+
+Σf f (y, z) = Gf (y, z) −
+
++
+
++
+
+δt
+2
+
+2 X
+
+δt
+2
+
+2 X
+
+j,α
+
+j,α
+
+δt X
+(α)
+(α)
+(α)
+Gf (y, ξj )D(ξj )Σf f (ξj , z)
+2 j,α
+
+(α)
+
+Gf (y, ξj )
+
+i
+Xh
+(α)
+(α) (β)
+(α)
+(α) (β)
+(β)
+(α)
+A(ξj , tj )Hgg (ξj , ξk ) + D(ξj )∂y Hgg (ξj , ξk ) A(ξk , tk )Σf f (ξk , z)
+k,β
+
+i
+Xh
+(α)
+(α)
+(α) (β)
+(α)
+(α) (β)
+(β)
+(α)
+Gf (y, ξj )
+A(ξj , tj )∂z Hgg (ξj , ξk ) + D(ξj )∂z ∂y Hgg (ξj , ξk ) D(ξk )Σf f (ξk , z).
+k,β
+
+(S51)
+This equation can be solved in the same manner as Eq. S42 by solving a linear system similar to that found
+in Eq. S37.
+
+9
+B.
+
+Posterior covariance of g
+
+For computing Σgg , we use compute the operator inverse
+"
+#−1
+
+−1
+δ2 H
+δ2 H
+δ2 H
+δ2 H
+Σgg (y, z) =
+−
+.
+δg(y)δg(z) δg(y)δf (z) δf (y)δf (z)
+δf (y)δg(z)
+Recalling that
+
+Hf f (y, z) ≡
+
+δ2 H
+δf (y)δf (z)
+
+−1
+.
+
+
+−1
+δ2 H
+δ2 H
+δg(y)δf (z) δf (y)δf (z)
+
+
+Z
+X
+X
+1
+1
+∂
+(α)
+(α)
+=  δ(y − z)
+δ(z − ξj )A(z, tj )δt +
+δ(y − z)
+δ(z − ξj )D(z)δt Hf f (z, u)z.
+2
+2
+∂z
+j,α
+j,α
+
+
+
+X
+∂
+δt
+(α)
+(α)
+=
+δ(y − ξj )A(y, tj )Hf f ((y, u) −
+δ(y − ξj )D(y)Hf f (y, u) .
+2 j,α
+∂y
+
+(S52)
+
+(S53)
+
+
+−1
+δ2 H
+δ2 H
+δ2 H
+δg(y)δf (z) δf (y)δf (z)
+δf (y)δg(z)
+ 2 Z X 
+
+∂ 
+δt
+(α)
+(α)
+δ(y − ξj )A(y, tj )Hf f (y, u) −
+=
+δ(y − ξj )D(y)Hf f (y, u)
+2
+∂y
+j,α
+
+
+
+
+
+X
+X
+∂ 
+(β)
+(β)
+× δ(u − z)
+δ(z − ξk )A(z, tk ) −
+δ(u − z)
+δ(z − ξk )D(z) u.
+
+
+∂z
+k,β
+
+k,β
+
+
+2
+ X
+∂ 
+δt X
+(α)
+(α)
+(β)
+δ(y − ξj )A(y, tj )Hf f (y, z) −
+=
+δ(y − ξj )D(y)Hf f (y, z)
+δ(z − ξk )A(z, tk )
+2
+∂y
+j,α
+k,β
+ 2 X
+X
+δt
+(α)
+(β)
+δ(y − ξj )A(y, tj )∂z (Hf f (y, z)
+δ(z − ξk )D(z))
+−
+2
+j,α
+k,β
+
+
+ 2
+X
+∂ ∂ X
+δt
+(α)
+(β)
+δ(y − ξj )D(y)Hf f (y, z)
+δ(z − ξk )D(z) .
+(S54)
++
+2
+∂y ∂z j,α
+
+
+k,β
+
+Σgg (y, z) = Gg (y, z)
+(α)
+
+(α)
+
+(α)
+
+(ξj+1 − ξj )2 + A(ξj , tj )2 δt2
+
+1X
+(α)
+(α)
+(α)
+∂z Gg (y, ξj )A(ξj , tj )Σgg (ξj , z)δt
+2
+j,α
+j,α
+"
+#
+"
+#
+(α)
+(α)
+∂Σgg (ξj , z)
+∂Σgg (ξj , z)
+1X
+1X
+(α)
+(α)
+(α)
+(α)
+Gg (y, ξj )A(ξj , tj )
+δt −
+∂z Gg (y, ξj )D(ξj )
+δt
+−
+2 j,α
+∂y
+2 j,α
+∂y
+ 2 X X h
+i
+δt
+(α)
+(α)
+(α) (β)
+(α)
+(α)
+(α) (β)
+(β)
+(β)
++
+Gg (y, ξj )A(ξj , tj )Hf f (ξj , ξk ) + ∂z Gg (y, ξj )D(ξj )Hf f (ξj , ξk ) A(ξk , tk )Σgg (ξk , z)
+2
+j,α k,β
+ 2 X X
+δt
+(α)
+(α)
+(α) (β)
+(β)
+(β)
++
+Gg (y, ξj )A(ξj , tj )Hf f (ξj , ξk )D(ξk )∂y Σgg (ξk , z)
+2
+j,α k,β
+ 2 X X
+δt
+(α)
+(α)
+(α) (β)
+(β)
+(β)
++
+∂z Gg (y, ξj )D(ξj )Hf f (ξj , ξk )D(ξk )∂y Σgg (ξk , z).
+(S55)
+2
+j,α
+−
+
+X
+
+(α)
+
+Gg (y, ξj )
+
+(α)
+4D(ξj )δt
+
+(α)
+
+Σgg (ξj , z) −
+
+k,β
+
+This equation can be solved in the same manner as Eq. S42 by solving a linear system similar to that
+found in Eqs. S43, S44.
+
+10
+Supplemental Methods 7.
+
+COMPUTING THE MARGINAL LIKELIHOOD
+
+To compute the marginal likelihood function (Eq. 16) given a choice of regularization parameters, there are
+several quantities that need to be computed. Here we give detailed computations for each of these quantities.
+First, we need to evaluate the Hamiltonian at the saddle solutions. This calculation requires first the norms
+Z
+Z
+h
+i
+1X
+(α)
+(α)
+f ∗ Rf (−∆)f ∗ y. = f ∗ (x)
+δ(y − ξjα ) ξj+1 − ξj − A(y, t)δt y.
+2 α,j
+i
+1 X ∗ (α) h (α)
+(α)
+(α)
+f (ξj ) ξj+1 − ξj − A(ξj , t)δt
+(S56)
+=
+2 α,j
+and
+(
+Z
+Z
+i
+X ∂ h
+1
+(α)
+(α)
+(α)
+(α)
+∗
+∗
+∗
+δ(y − ξj )(ξj+1 − ξj − A(ξj , tj )δt)
+g Rg (−∆)g y. = −
+g
+2
+∂y
+α,j
+"
+#)
+(α)
+(α)
+X
+(ξj+1 − ξj )2 − A2 (y, tj )(δt)2
+(α)
++
+δ(y − ξj ) 1 −
+y.
+2D(y)δt
+α,j
+"
+#
+(α)
+(α) 2
+2 (α)
+2
+i 1X
+(ξ
+−
+ξ
+)
+−
+A
+(ξ
+,
+t
+)(δt)
+1 X h ∗0 (α) (α)
+j
+j+1
+j
+j
+(α)
+(α)
+(α)
+g ∗ (ξj ) 1 −
+=
+g (ξj )(ξj+1 − ξj − A(ξj , tj )δt) −
+.
+(α)
+2 α,j
+2 α,j
+2D(ξ )δt
+j
+
+(S57)
+Altogether, the Hamiltonian portion of the marginal likelihood is
+i
+1 X ∗ (α) h (α)
+(α)
+(α)
+H[f ∗ , g ∗ ] =
+f (ξj ) ξj+1 − ξj − A(ξj , t)δt
+4 α,j
+i
+1 X h ∗0 (α) (α)
+(α)
+(α)
+g (ξj )(ξj+1 − ξj − A(ξj , tj )δt)
++
+4 α,j
+"
+#
+(α)
+(α)
+(α)
+(ξj+1 − ξj )2 − A2 (ξj , tj )(δt)2
+1 X ∗ (α)
+1X
+(α)
+−
+g (ξj ) 1 −
++
+log D∗ (ξj )
+(α)
+∗
+4 α,j
+2
+2D (ξj )δt
+α,j
+
+2
+(α)
+(α)
+(α)
+X ξj+1 − ξj − A(ξj , tj )δt
++
+.
+(α)
+4D∗ (ξj )δt
+α,j
+The other component of the marginal likelihood is the term
+tr log Σ − tr log Gf − tr log Gg .
+
+(S58)
+
+We note now that this expression is equivalent to
+−1
+− tr log Σ−1 − tr log Gf − tr log Gg = − log det Σ−1
+f f Gf − log det Σgg Gg .
+
+(S59)
+
+−1
+Σ−1
+f f is the upper left quadrant of the semiclassical Hessian matrix, and Σgg is the lower right quadrant of
+the Hessian matrix. These determinants can be calculated exactly through the solution of an eigenvalue
+problem. First we compute the (right) eigenfunctions ϕn and eigenvalues λn of the operator
+
+Σ−1
+f f Gf = δ(y − z) +
+
+δt X
+(α)
+G(y, z)D(y)δ(y − ξj ).
+2 j,α
+
+(S60)
+
+They satisfy the relationship
+(1 − λn )ϕn (z) +
+(α)
+
+Plugging in each of the ξj
+
+δt X
+(α)
+(α)
+(α)
+D(ξj )Gf (ξj , z)ϕn (ξj ) = 0.
+2 j,α
+
+(S61)
+
+in for z yields the condition
+[GD − (λn − 1)I] ϕ = 0,
+
+(S62)
+
+11
+(1)
+
+(1)
+
+where ϕ = [ϕn (ξ1 ) ϕn (ξ2 ) . . .] is a vector and GD is a matrix
+
+
+(1)
+(1) (1)
+(1)
+(1) (2)
+(M )
+(1) (M )
+D(ξ1 )Gf (ξ1 , ξ1 ) D(ξ2 )Gf (ξ1 , ξ1 ) · · · D(ξN )Gf (ξ1 , ξN )
+
+(1)
+(1) (1)
+(1)
+(1) (2)
+(M )
+(1) (M ) 
+D(ξ1 )Gf (ξ2 , ξ1 ) D(ξ2 )Gf (ξ2 , ξ2 ) · · · D(ξN )Gf (ξ2 , ξN )
+
+δt 
+D(ξ1(1) )Gf (ξ3(1) , ξ1(1) )
+
+···
+GD =
+
+
+2 
+(1)
+(1) (1)
+
+D(ξ
+)G
+(ξ
+,
+ξ
+)
+·
+·
+·
+f 4
+1
+1
+
+
+..
+.
+
+(S63)
+
+From Eq. S62, it is evident that the eigenvalues of the operator Σ−1
+f f Gg can be computed by taking the
+eigenvalues of GD and adding one to each of them. Knowing the eigenvalues of the operator, we have
+X
+log det Σ−1
+log λn .
+(S64)
+f f Gf =
+n
+
+Σ−1
+f f Gg .
+
+We do the same for the other operator
+We proceed as before. First we compute the operator
+" (α)
+#
+(
+Z
+(α)
+(ξj+1 − ξj )2 + A(z, tj )2 δt2
+1X
+(α)
+−1
+δ(y − z)δ(z − ξj )
+Σf f Gg =
+Rg (−∆)δ(y − z) +
+2 j,α
+2D(z)δt
+
+
+
+ )
+1 ∂ X
+1 ∂
+∂δ(y − z)
+(α)
+(α)
+
+− δ(y − z)
+δ(z − ξj )A(z, tj ) δt −
+D(z)
+δ(z − ξj ) δt Gg (z, u)u.
+2 ∂z j,α
+2 ∂z
+∂z
+" (α)
+#
+(α)
+(ξj+1 − ξj )2 + A(y, tj )2 δt2
+1X
+(α)
+G(y, u)δ(y − ξj )
+= δ(y − u) +
+2 j,α
+2D(y)δt
+
+i δt X ∂ 
+∂ h
+δt X
+∂G(y, u)
+(α)
+(α)
+G(y, u)
+δ(y − ξj )A(y, tj ) −
+δ(y − ξj ) .
+(S65)
+−
+D(y)
+2 j,α
+∂y
+2 j,α ∂y
+∂y
+This operator has left eigenfunctions φn corresponding to eigenvalues νn satisfying the relationship
+" (α)
+#
+(α)
+(α)
+(ξj+1 − ξj )2 + A(ξj , tj )2 δt2
+1X
+(α)
+(α)
+(νn − 1)φn (z) =
+Gg (ξj , z)
+φn (ξj )
+(α)
+2 j,α
+2D(ξ )δt
+j
+
+δt X
+(α)
+(α)
+(α)
++
+∂y Gg (ξj , z)A(ξj , tj )φn (ξj )
+2 j,α
++
+
+δt X
+δt X
+(α)
+(α)
+(α)
+(α)
+(α)
+(α)
+Gg (ξj , z)A(ξj , tj )φ0n (ξj ) +
+∂y Gg (ξj , z)D(ξj )φ0n (ξj ).
+2 j,α
+2 j,α
+
+(S66)
+(α)
+
+The eigenfunctions are determined by their values and derivatives at the observed positions ξj . The
+derivatives of the eigenfunctions satisfy the relationship
+" (α)
+#
+(α)
+(α)
+(ξj+1 − ξj )2 + A(ξj , tj )2 δt2
+1X
+(α)
+(α)
+0
+(νn − 1)φn (z) =
+∂z Gg (ξj , z)
+φn (ξj )
+(α)
+2 j,α
+2D(ξ )δt
+j
+
+δt X
+(α)
+(α)
+(α)
++
+∂z ∂y Gg (ξj , z)A(ξj , tj )φn (ξj )
+2 j,α
++
+
+δt X
+δt X
+(α)
+(α)
+(α)
+(α)
+(α)
+(α)
+∂z Gg (ξj , z)A(ξj , tj )φ0n (ξj ) +
+∂z ∂y Gg (ξj , z)D(ξj )φ0n (ξj ).
+2 j,α
+2 j,α
+
+(S67)
+
+(α)
+
+Eqs. S66 and S67, can be solved by solving them simultaneously for each ξj . This solution is found by
+solving the linear system
+
+
+
+ 
+ A B
+(νn − 1) φn φ0n = φn φ0n
+,
+(S68)
+C D
+(α)
+
+(α)
+
+where φn = [. . . , φn (ξj ), . . .], φ0n = [. . . , φn (ξj ), . . .], A is a matrix representing the terms that multiply
+φn in Eq. S66, B is a matrix of terms that multiply φ0n in Eq. S66, C is a matrix of terms that multiply φn
+in Eq. S67, and D is a matrix of terms that multiply φ0n in Eq. S67. It is evident that the eigenvalues νn
+are simply the eigenvalues of the matrices A and D, plus one. One then may proceed to minimize Eq. 16
+through a search algorithm, for instance through the usage of the Python package hyperopt.
+
+12
+Supplemental Methods 8.
+
+ANALYSIS OF REGULARIZATION
+
+The estimation of D0? , the functions f ? (x) and g ? (x), and the appropriate regularization parameters all
+hinge on a sufficient number of trajectory measurements. Related to the question of uncertainty quantification is the question how the experiments should be pulled in order to most-efficiently yield a precise
+reconstruction of the bond force and diffusivity.
+To examine these issues, we consider the semiclassical Hessian matrix Σ−1 in the situation where we wish
+to estimate the functions f and g at a position y, given n trajectory position measurements taken at a
+single position x; i.e, we are assuming that we are observing n independent trajectory displacements {dj }nj=1
+originating from x. The j index will be used to identify the incidental force applied by the pulling apparatus.
+For this situation, we can rewrite the Hessian matrix
+
+Rf (−∆)δ(y − z) + nδt
+2 δ(z − x)δ(y − z)
+
+
+Σ−1 (y, z) = 
+nδt
+
+2 δ(y−z)δ(z−x)A(z,tj )
+∂
++ nδt
+2 ∂z δ(y−z)δ(z−x)D(z)
+
+nδt
+2 δ(y−z)δ(z−x)A(z,tj )
+∂
+∂z [δ(y−z)δ(z−x)D(z)]
+
+
+
+− nδt
+2
+
+Rg (−∆)δ(y−z)+ nδt
+2 δ(y−z)δ(z−x)
+
+
+
+2
+d2
+j +A(z,tj ) δt
+2D(z)δt
+
+
+
+
+
+
+2
+
+− nδt
+2 [δ(y−z)∂z (δ(z−x)A(z,tj ))+∂z (D(z)∂z δ(y−z)δ(z−x))]
+
+(S69)
+and use it to approximate the posterior variance in the estimator in the large-n limit. The inverse of the
+upper right quadrant of this matrix can be computed by solving a system of two equations for Hf f (y, z) and
+Hf f (x, z) to find
+
+Hf f (y, z) = Gf (y, z) −
+
+nδt
+2 Gf (y, x)Gf (x, z)D(x)
+1 + nδt
+2 Gf (x, x)D(x)
+
+1
+Gf (y, x)Gf (x, z)
+Gf (x, x)
+1 + (nδtGf (x, x)D(x)/2)−1
+
+
+Gf (y, x)Gf (x, z)
+2
+∼ Gf (y, z) −
+1−
+Gf (x, x)
+nδtGf (x, x)D(x)
+
+= Gf (y, z) −
+
+as n → ∞.
+
+(S70)
+
+We also solve the lower right quadrant in the same manner. For shorthand, let us denote
+1X
+A(x, tj )
+n
+X
+1
+A2 (x, tj )
+A2 (x) =
+n j
+A(x) =
+
+1X 2
+d
+n " j
+#
+"
+#
+nβδt d2 + A2 (x)(δt)2
+nδt
+d2 + A2 (x)(δt)2
+A1 (x) =
+Gg (x, x)
++ ∂z Gg (x, x)A(x) ≈
+2
+2D(x)(δt)2
+2
+2D(x)(δt)2
+d2 =
+
+ nβδt
+nδt 
+Gg (x, x)A(x) + ∂z G(x, x)D(x) ≈
+A(x)
+2 "
+2
+#
+nδt
+d2 + A2 (x)(δt)2
+nβδt
+∂y Gg (x, x)
++ ∂y ∂z Gg (x, x)A(x) ≈
+A3 (x) =
+A(x)
+2
+2
+2D(x)(δt)
+2γ
+
+A2 (x) =
+
+A4 (x) =
+
+ nβδt
+nδt 
+∂y Gg (x, x)A(x) + ∂y ∂z G(x, x)D(x) ≈
+D(x).
+2
+2γ
+
+(S71)
+(S72)
+(S73)
+(S74)
+(S75)
+(S76)
+(S77)
+
+Where in the approximations we have assumed that x is sufficiently far from x = 0 so that the boundary condition of the Greens function is insignificant (exp(−2x2 /γ)  1). This simplification implies that
+2
+G(x, x) = β, ∂y G(x, x) = ∂z G(x, x) = 0, and ∂yz
+G(x, x) = β/γ. Eqs. S41 and S42, written in terms of these
+expressions, is
+Hgg (x, z) = Gg (x, z) − A1 (x)Hgg (x, z) − A2 (x)∂y Hgg (x, z)
+∂y Hgg (x, z) = ∂y Gg (x, z) − A3 (x)Hgg (x, z) − A4 (x)∂y Hgg (x, z).
+
+(S78)
+(S79)
+
+13
+We solve this system of intermediate linear equations to obtain
+Gg (x, z)(1 + A4 (x)) − A2 (x)∂y Gg (x, z)
+(1 + A1 (x))(1 + A4 (x)) − A2 (x)A3 (x)
+
+
+∂y Gg (x, z)
+A3 (x)
+Gg (x, z)(1 + A4 (x)) − A2 (x)∂y Gg (x, z)
+∂y Hgg (x, z) =
+−
+.
+1 + A4 (x)
+1 + A4 (x) (1 + A1 (x))(1 + A4 (x)) − A2 (x)A3 (x)
+Hgg (x, z) =
+
+(S80)
+(S81)
+
+Using Eq. S80 and S81 we may compute the desired quantity
+#
+"
+d2 + A2 (x)(δt)2
+nδt
+Gg (y, x)
++ ∂z G(y, x)A(x) Hgg (x, z)
+Hgg (y, z) = Gg (y, z) −
+2
+2D(x)(δt)2
+−
+
+
+nδt 
+Gg (y, x)A(x) + ∂z G(y, x)D(x) ∂y Hgg (x, z).
+2
+
+(S82)
+
+Now we may compute the posterior variance in f , first by computing
+nδt
+Σf f (x, z) = Gf (x, z) −
+Gf (x, x)D(x)Σf f (x, z)
+2
+
+2
+i
+h
+nδt
+2
+Hgg (x, x) Σf f (x, z).
++
+Gf (x, x) A(x)A(x)Hgg (x, x) + D2 (x)∂yz
+2
+
+(S83)
+
+It is now straightforward to find that
+(
+
+nδt
+Σf f (x, z) ≈ Gf (x, z) 1 +
+βD(x) −
+2
+
+
+
+nδt
+2
+
+)
+2 h
+i −1
+2
+2
+β A(x)A(x)Hgg (x, x) + D (x)∂yz Hgg (x, x)
+.
+
+(S84)
+
+We may substitute this expression into Eq. S51 to find that
+(
+#)
+
+2 "
+nδt
+nδt
+2
+2
+Σf f (y, z) = Gf (y, z) − Gf (y, x)
+D(x) −
+A(x)A(x)Hgg (x, x) + D (x)∂yz Hgg (x, x) Σf f (x, z).
+2
+2
+(S85)
+We wish to find the leading order n → ∞ behavior of Σf f (y, y). We must proceed with some caution though
+because the terms A1 , A2 , A3 , A4 embedded in Hgg are all O(nδt/2), making Hgg effectively O(2/nδt).
+
+
+G2f (y, x)
+2
+Σf f (y, y) ∼ Gf (y, y) −
+1−
+,
+Gf (x, x)
+nβδt(D(x) − Q(x))
+
+(S86)
+
+where
+
+
+nδt
+2
+
+"
+
+
+
+nδt
+2
+
+
+
+Q(x) =
+
+=
+
+#
+
+2
+
+2
+A (x)Hgg (x, x) + D2 (x)∂yz
+Hgg (x, x)
+2
+
+β(1 + A4 (x))(A (x) + D2 (x)/γ)
+(1 + A1 (x))(1 + A4 (x)) − A2 (x)A3 (x)
+
+2
+
+∝
+
+A (x) + D2 (x)/γ
+1 + A1 (x) −
+
+A2 (x)A3 (x)
+1+A4 (x)
+
+(S87)
+
+is an O(1) term with respect to n. To minimize Eq. S86, one must minimize Q(x) with respect to pulling.
+The effect of pulling is encoded in the variable A(x), which we decompose as
+A(x) = D(x)[F (x) + Fa (x)],
+
+(S88)
+
+where F (x) is the mean molecular bond force and Fa is the force applied by the puling apparatus. Q(x) is
+minimized with A = 0, or when the applied drift exactly cancels out the bond drift and diffusivity drift.
+
+

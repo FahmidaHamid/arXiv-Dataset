@@ -1,0 +1,813 @@
+Toggling a Genetic Switch Using Reinforcement Learning
+Aivar Sootla1 , Natalja Strelkowa2 , Mauricio Barahona3 , Damien Ernst4 , Guy-Bart Stan1
+
+arXiv:1303.3183v2 [cs.SY] 25 Feb 2015
+
+1
+
+Centre for Synthetic Biology and Innovation and the Department of Bioengineering, Imperial College
+London, UK {a.sootla, g.stan}@imperial.ac.uk
+2
+
+Boehringer-Ingelheim Pharma GmbH & Co KG., Germany
+natalja.strelkowa@boehringer-ingelheim.com
+
+3
+
+Department of Mathematics, Imperial College London, UK m.barahona@imperial.ac.uk
+4
+
+Montefiore Institute, University of Liège, Belgium dernst@ulg.ac.be.
+
+Abstract : In this paper, we consider the problem of optimal exogenous control of gene regulatory networks. Our approach consists in adapting an established reinforcement learning algorithm called the fitted
+Q iteration. This algorithm infers the control law directly from the measurements of the system’s response
+to external control inputs without the use of a mathematical model of the system. The measurement data set
+can either be collected from wet-lab experiments or artificially created by computer simulations of dynamical models of the system. The algorithm is applicable to a wide range of biological systems due to its ability
+to deal with nonlinear and stochastic system dynamics. To illustrate the application of the algorithm to a
+gene regulatory network, the regulation of the toggle switch system is considered. The control objective of
+this problem is to drive the concentrations of two specific proteins to a target region in the state space.
+
+1 Introduction
+Synthetic biology aims at the (re-)design of biological functions in living organisms for their use in various
+applications such as bioengineering, bioremediation and energy (Purnick & Weiss (2009)). This is typically
+realised via the insertion of foreign genes inside a host cell (e.g., a bacterium E. coli). The expression of
+the foreign genes inside the host cells imposes de facto a burden on the native processes of the host cells.
+A high burden induces severe intracellular perturbations and can decrease cellular growth rate. This in turn
+disrupts the intended behaviour of synthetic biology gene networks (Tan et al. (2009)). Hence, it is highly
+desirable to develop means for controlling gene networks so as to efficiently enable the designed behaviour
+while simultaneously minimising the burden induced by this behaviour on the host cells.
+The current biotechnology state-of-the-art allows us to quantitatively measure and interact with gene regulatory networks. Quantitative in vivo estimates of gene networks’ states (outputs) can be obtained via fluorescent
+markers (Cai et al. (2006); Bennett & Hasty (2009)) (e.g., green fluorescent protein, GFP or red fluorescent
+protein, mCherry). A typical input is a targeted induction of the gene expression, which can be achieved by,
+e.g., conditional gene knock outs (Ivanova et al. (2006); Liu et al. (2007)), heat shocks (Mettetal et al. (2008))
+or monochromatic light pulses (Shimizu-Sato et al. (2002); Levskaya et al. (2009)). This means that feedback
+control is technologically feasible in vivo. The objective of the control method can be minimal time control
+(i.e., driving the system as fast as possible to a target region in the state-space), minimal burden control (minimal expression of heterologous proteins), or a trade-off between the two, as considered in this paper. The
+control method must reach the objective, while maintaining the designed functions of a synthetic gene regulatory network.
+Some control problems in gene regulatory networks were successfully addressed (Menolascina et al. (2011);
+Uhlendorf et al. (2012); Milias-Argeitis et al. (2011)). In all those papers, the authors used classical control
+methods, which infer the control law (or the control policy) based on a mathematical model of the system. One
+of the bottlenecks of these approaches is the modelling part, which for large gene regulatory networks is an
+
+JFPDA 2014
+Control of the genetic toggle switch
+Learning and
+Control
+algorithm
+
+Light stimuli
+
+Real System
+Optimisation
+objective
+min/max
+
+Input measurements
+
+1
+
+2
+
+GFP and mCherry RFP Read-outs
+Output measurements
+
+Figure 1: A schematic depiction of the exogenously controlled genetic toggle switch. The green circle represents
+the lacI gene and the red circle represents the tetR gene. The arrows with flat ends represent repression of one
+gene by another. In the steady-state only one of the genes can be upregulated (or switched on). The goal is to
+toggle one of the genes, i.e., drive this gene from its downregulated mode to its upregulated one.
+
+extremely hard and lengthy process. Moreover, there are other challenges such as stochasticity. Stochasticity is expressed in the form of the intrinsic and extrinsic noise during gene expression (Swain et al. (2002)).
+Transcription and translation processes typically involve a few randomly interacting molecules, thus adding
+thermodynamic stochasticity to biochemical interactions.
+The problems with modelling and stochasticity point towards the use of reinforcement learning methods
+(Sutton & Barto (1998); Buşoniu et al. (2010)), which infer the control policy based solely on interactions with
+the real system. These methods do not require a physical model. Moreover, very few assumptions on the
+structure of the controlled system are made. However, the major advantage of the reinforcement learning
+methods is to some extent their drawback. Indeed, these methods require interactions with the real system,
+which implies numerous costly and lengthy wet-lab experiments. A solution would be a reinforcement learning
+method, which learns the policy using a single experiment. For systems relevant to this paper, however, such
+a method will not be efficient. Indeed, a control policy, which tries to learn and control such systems in a
+single experiment, is generally not better than a random control policy (Castronovo et al. (2012)). In order to
+address these concerns, a hybrid approach is proposed. First, an initial control policy is computed using past
+experimental data and/or a mathematical model. After that the control policy is updated during the experiment
+using reinforcement learning methods. This approach will be applied to the regulation of the toggle switch
+system schematically depicted in Figure 1. The control objective of this problem is to drive the concentrations
+of two specific proteins to a target set in the state space and remain in this set.
+The initial policy is obtained by the Fitted Q Iteration algorithm (Ernst et al. (2005)). The algorithm requires
+only one-step system transitions to infer the control policy. A one-step system transition is a triplet {n, a, n+ },
+where n+ denotes a successor state of the system in state n subjected to input a. Fitted Q Iteration can also
+handle nonlinear and stochastic systems and it is sample efficient. One-step transitions can be obtained by
+simulating the mathematical model of the system or using past experimental data. Afterwards the policy is
+updated by mixing the online measurements with past observations. The Exploration/Exploitation trade-off is
+addressed using an ε-greedy policy.
+This paper is organised as follows. Mathematical preliminaries are described in Section 2. In order to make
+the paper self contained, the fitted Q algorithm is sketched and different aspects of modelling in gene regulatory
+networks are discussed. The problem of controlling the toggle switch is formulated and discussed in detail
+in Section 3. Finally, the simulation results are presented in Section 4. Reference trajectory tracking for the
+generalised repressilator system is the subject of our previous publication (Sootla et al. (2013)).
+
+2 Preliminaries
+2.1 Modelling in Biology
+The following approach to chemical reaction modelling is described in detail in (Gillespie (1977)). Consider
+a well-stirred system of k species in a constant volume Ω and a thermal equilibrium. Assume the species are
+interacting through m reactions. Let N i (t) be the number of molecules of species i and νij (t) be the change
+in the molecular concentration of species i at time t if the reaction j occurs. The bold symbols will be used
+to denote vectors, e.g., n stands for the vector with elements N i . Finally, let aj (n)dt be the probability of
+reaction j occurring in the next infinitesimal interval [t, t + dt], if the number of molecules at time t, N (t),
+is equal to n. The functions aj (·) are called propensity functions. At the cellular level chemical reactions
+depend on thermodynamical principles, since molecules must collide before a reaction can start. Therefore
+chemical reactions inside living organisms are modelled using stochastic calculus. The time evolution of the
+concentration of species can be modelled by a Markov stochastic process, for which:
+m
+
+∂ Pr(n, t|n0 , t0 ) X
+aj (n − ν j ) Pr(n − ν j , t|n0 , t0 ) − aj (n) Pr(n, t|n0 , t0 )
+=
+∂t
+j=1
+
+(1)
+
+where the probability Pr(n, t|n0 , t0 ) stands for Pr(N (t) = n|N (t0 ) = n0 ). This equation is called the
+Chemical Master Equation. The propensity functions aj depend also on the volume Ω. It can be shown that for
+large volumes Ω the CME (1) becomes a deterministic equation
+m
+
+dn(t) X
+ν j ãj (n(t)),
+=
+dt
+j=1
+
+(2)
+
+where the propensities ãj are independent of the volume Ω. For small volumes Ω, the stochastic model (1)
+describes better the behaviour of the cells than the deterministic model (2). Hence, in synthetic biology setting
+using a stochastic model is preferable. Nevertheless the deterministic model can be still useful for small volumes
+in order to provide some idea of the system behaviour, since stochastic models are harder to simulate and
+analyse.
+
+2.2 Formulation of the Optimal Control Problem
+Consider a deterministic discrete-time dynamical system
+nt+1 = f (nt , at )
+
+(3)
+
+where at is the control input at time t, which belongs to a compact set A for every t. In the stochastic case,
+Markov decision processes (MDPs) are typically employed, for which
+
+
+
+
+
+
+
+
+Pr nt+1 ∈ N t+1 {nk }tk=0 , {ak }tk=0 = Pr nt+1 ∈ N t+1 nt , at .
+
+The above relationship means that the probability of the state nt+1 belonging to the set N t+1 does not depend
+on the entire history of the realisation of the states {nk }tk=0 and control signals {ak }tk=0 , but depends only on
+the current values nt and at . Under the above Markovian assumption, dynamical stochastic systems can be
+modelled as
+Z
+
+
+
+
+f (nt , at , x) dx,
+Pr nt+1 ∈ N t+1 nt , at =
+N t+1
+
+or in a compact form
+
+nt+1 ∼ f (nt , at , ·).
+Here, we slightly abuse the notation by using again the symbol f as in the deterministic system (3). This is
+done, in order to signify that these functions describe the dynamics of the system whether it is stochastic or
+deterministic.
+
+JFPDA 2014
+
+In both cases, consider an optimal control problem, which is defined through the minimisation of an infinite
+sum of discounted costs c(n, a). In the deterministic case the problem is defined as
+V (nt ) =
+
+min
+
+π(·): π(ni )=ai
+
+∞
+X
+
+γ i−t c(ni , ai )
+
+i=t
+
+and in the stochastic case as
+V (nt ) =
+
+min
+
+lim Ent+1 ∼f (nt ,at ,·)
+
+π(·): π(ni )=ai K→∞
+
+K
+X
+
+γ i−t c(nt , at )
+
+i=t
+
+where V (nt ) is called the value function and π(·) is a mapping from n to a, which is called the control policy.
+The cost function c specifies the objective of the control problem, which in our case is driving the system to a
+specific region in the state-space. In our setting, the control policy should be inferred based only on realisations
++
+of one-step system transitions {nl , al , n+
+l }, where nl is a successor state of the system in the state nl and
+subjected to the input al (in the deterministic case, if the function f (·, ·) is known n+
+l is equal to f (nl , al )).
+For the purpose of this paper, the function c(·, ·) is assumed to be known in advance.
+
+2.3 Fitted Q Iteration
+A central object of the fitted Q algorithm is the Q function, which is introduced as follows:
+Q(nt , at ) = c(nt , at ) + min
+π(·)
+
+∞
+X
+
+γ i−t c(ni , π(ni ))
+
+i=t
+
+Once a Q function is computed, the optimal feedback control policy is given as:
+π ∗ (n) = argmin Q(n, a)
+a∈A
+
+Under certain conditions, the Q function can be obtained as the unique solution of the following iterative
+procedure:
+Qk (n, a) = c(n, a) + γ min
+Qk−1 (f (n, a), a′ )
+(4)
+a′ ∈A
+where Q0 is equal to c. However, (4) is hard to solve in general, especially if only the triplets F are given.
+Therefore an approximation Q̂ of the Q function is computed using an iterative procedure. Let Q̂0 = c and for
+every (nl , al , n+
+l ) in F compute:
+Q̂1 (nl , al ) = c(nl , al ) + γ min Q̂0 (n+
+l , a)
+a∈A
+
+This expression gives Q̂1 only for nl , al in F , while the entire function Q̂1 (·, ·) is estimated by a regression
+algorithm (e.g., EXTRA Trees by Geurts et al. (2006)). This can be generalised to an iterative procedure, which
+can be used to obtain a near-optimal control policy as outlined in Algorithm 1. The stopping criterion can
+be simply the maximum number of iterations Nit , which is chosen such that the number γ Nit is sufficiently
+small and the values Q̂k (nl , al ) are not modified significantly for k larger than Nit . Other criteria are described
+in (Ernst et al. (2005)). Note that Algorithm 1 can be extended to handle the stochastic case as well (Ernst et al.
+(2005)).
+
+3 System Description and Problem Setting
+3.1 Models
+First, we briefly describe our benchmark problem - regulation of the toggle switch system (Gardner et al.
+(2000)). The original genetic toggle switch system consists of the lacI and tetR genes mutually repressing
+
+Algorithm 1 Fitted Q iteration algorithm
+#F
+Inputs: Set of triplets F = {nl , al , n+
+l }l=1 , stopping criterion, cost function c(·, ·)
+∗
+Outputs: Policy π̂ (n)
+k←0
+Q̂0 (·, ·) ← c(·, ·)
+repeat
+k ←k+1
+In order to obtain the values of Q̂k (·, ·) for all {nl , al } in F compute:
+
+Q̂k (nl , al ) = c(nl , al ) + γ min Q̂k−1 (n+
+l , a)
+a∈A
+
+(5)
+
+Estimate the function Q̂k (n, a) using a regression algorithm with input pairs (nl , al ) and function values
+Q̂k (nl , al ).
+until the stopping criterion is satisfied
+Compute π̂ ∗ (n) = argmin Q̂k (n, a)
+a∈A
+
+each other (see Figure 1). We consider a generic toggle switch model; therefore, we will use numeric references
+for genes and proteins, that is, gene 1 and 2 instead of lacI and tetR genes. We will refer to the protein products
+of genes 1 and 2 as proteins 1 and 2, respectively. We assume that for both genes the protein concentrations
+are given as readouts via fluorescent markers. We also assume that the control inputs are implemented as light
+pulses activating a photo-sensitive promoter controlling the expression of gene 1 (Shimizu-Sato et al. (2002)).
+When this photo-sensitive promoter is activated through a light pulse the concentration of protein 1 is increased
+by a small amount through the expression of gene 1.
+Basic mass-action kinetics of the toggle switch result in a high-order model, which is typically reduced to a
+two state model using quasi steady state approximation (Guantes & Poyatos (2006)). This can be done because
+most of the reactions (including the mRNA dynamics and the light-induction of the promoter) occur on a fast
+time scale (order of seconds) in comparison with the gene expression time scale (order of minutes or even hours).
+The reduced order model of the toggle switch system has two states, which are the two protein concentrations:
+c1
+− c2 n1t + but
+1 + (n2t )α2
+c3
+− c4 n2t
+= β2 +
+1 + (n1t )α1
+
+n1t+1 = β1 +
+n2t+1
+
+(6)
+
+where nit is the concentration of protein i at time t, c1 and c2 are the effective rate of synthesis of the repressors,
+αi is the cooperativity coefficient of the repressor i, c2 and c4 are the degradation rates of proteins, βi models
+leaky transcription during the gene expression of the gene i, and b is the increase in protein concentration
+produced per unit of time as a result of one light pulse. We approximate the action of light induction ut as a
+discrete variable in the set U = {0, 1}. A more realistic model would also have a time-delayed control action.
+Such an extension requires simple modifications of our control algorithm, but makes the results less transparent
+and harder to analyse. In our simulations we use a training model and a validation model.
+
+n1t+1
+n2t+1
+
+Training model
+30
+= 0.1 +
+− n1t + 20ut
+1 + (n2t )2
+60
+= 0.1 +
+− n2t
+1 + (n1t )2
+
+n1t+1
+n2t+1
+
+Validation model
+60
+= 0.1 +
+− n1t + 20ut
+1 + (n2t )2
+30
+= 0.1 +
+− n2t
+1 + (n1t )2
+
+(7)
+
+Both models are bi-stable toggle switches with quantitatively different behaviours. Moreover, the steady states
+of the validation model are relatively far from the steady states of the training model. The stable steady states
+
+JFPDA 2014
+
+
+of the training model are approximately at se1 = 0.11 29.26 and se2 = 59.4 0.17 concentration units,
+
+while the stable steady states of the validation model are at se1 = 59.4 0.17 and se2 = 0.11 29.26 .
+Such a situation is possible in biological applications, for example, due to different cell behaviours within a
+population of cells. Moreover, even for a single cell, different experiments may produce values of parameters
+with a large variation.
+
+3.2 Control Algorithm
+Our goal is to develop a control algorithm, which learns how to near-optimally control the toggle switch system
+in a single experiment. Toggling the switch can be done experimentally in a couple of hours and the fastest
+measurement sampling is in the order of one minute. This gives at most 200 samples in a single trajectory.
+Learning a near-optimal control policy for toggling the switch with such limited amount of data is an extremely
+hard problem to solve. To tackle this issue, we propose to first learn a “rough approximation” of the control
+policy obtained by applying Algorithm 1 to one-step system transitions F artificially generated from simulations
+of a mathematical model of a genetic toggle switch. Afterwards the policy is fine-tuned by mixing the online
+measurements with past observations F . The Exploration/Exploitation trade-off is addressed using an ε-greedy
+policy.
+Our approach is outlined in Algorithm 2. Let Q̂Alg 1 (·, ·) be the approximation of the Q function obtained
+by Algorithm 1. This will be the initial Q function denoted as Q̃cur . Then we assume that Tupdate direct
+interactions with the real system are performed by computing actions using Q̃cur and new input-output samples
+are collected in Fnew . Given the set Fnew , the approximation Q̃cur of the Q function is updated as prescribed
+in Algorithm 2. After that the new set Fnew is formed and new samples are collected.
+The major challenge of Algorithm 2 is appropriately choosing the function h(·, ·), which combines the sets
+Fcur and Fnew . As an example, we consider h(Fcur , Fnew ) = Fcur ∪Fnew . Such a choice has some drawbacks.
+If the initial set F contains many samples, then the updates in (8) will not result in significant changes in the
+policy. This happens because the algorithm appreciates equally the samples in F and the new sets Fnew , even
+though the samples in F are artificially generated using a mathematical model and the samples in Fnew are
+obtained from the real system.
+An important task of such a learning algorithm is a trade-off between exploration and exploitation during
+the generation of the set Fnew . Exploration is required, since the real system is essentially unknown to the
+algorithm and the exploratory actions will provide new information. The trade-off policy between exploration
+and exploitation is defined as follows:
+(
+argmina′ ∈A Q̃k (nt , a′ ) with probability 1 − εt
+at =
+random action
+with probability εt
+where nt is the state measured at time t and Q̃k (·, ·) is a current approximation of the Q function. In our
+experiment εt is a decreasing function of t between zero and one. During the first time samples, the need for
+new information is typically higher, and thus a high value of εt should be chosen.
+
+3.3 Parameters of the Algorithm
+The structure of the instantaneous cost c(n, a) is chosen as follows:
+
+
+c(n1 , n2 , u) = max n1 /α1 , n2 /α2 − min n1 /α1 , n2 /α2 + αu u
+
+where α1 , α2 , αu are non-negative constants. The function
+
+
+max n1 /α1 , n2 /α2 − min n1 /α1 , n2 /α2
+
+
+appears in studies on consensus theory as a Tsitsiklis Lyapunov function. The vector α1 α2 can be seen as
+the target point of the control algorithm and the function itself can be viewed as a metric. Since only the ratio
+
+Algorithm 2 Online learning algorithm
+#F
+Inputs: Set F = {nl , al , n+
+l }l=1 , cost function c(·, ·), function Q̂Alg 1 (·, ·), number of iterations N , function
+h(·, ·)
+Q̃cur (·, ·) ← Q̂Alg 1 (·, ·)
+Fcur ← F
+while new data is received do
+π(n) = min
+Q̃cur (n, a′ )
+′
+a ∈A
+
+k←1,i←1
+while i ≤ Tupdate do
+compute ai = π(ni )
+observe the successor state ni+1 for the state-action pair (ni , ai ).
+i←i+1
+end while
+Tupdate
+Collect a set of new samples Fnew = {nm , am , n+
+m }m=1
+Fcur ← h(Fcur , Fnew )
+while k ≤ N do
+In order to obtain the values of Q̃k+1 (·, ·) for all {nl , al } in Fcur compute:
+Q̃k+1 (n, a) = c(n, a) + γ min
+Q̃k (n+ , a′ )
+′
+a ∈A
+
+(8)
+
+Estimate the function Q̃k+1 (n, a) using a regression algorithm with input pairs (nl , al ) and function
+values Q̃k+1 (nl , al ).
+k ←k+1
+end while
+Q̃cur (·, ·) ← Q̃k (·, ·)
+end while
+
+between the protein concentrations and the constants αi appears in the cost, the algorithm is robust towards
+changes in αi , which are within one order of magnitude of αi . The major requirement is that α1 is much larger
+than α2 , which forces the protein concentration n1 to be much larger than the protein concentration n2 . Note
+that instead of a Tsitsiklis Lyapunov function other functions can be used, for example, a distance in lp , a linear
+Lyapunov function n1 /α1 + n2 /α2 etc. However, the main concern of this work is evaluating the performance
+of the online algorithm; therefore, the choice of the cost function will be addressed in future work. The term
+αu u penalises the control signal and therefore attempts to minimise the burden associated with light-induced
+gene expression. The choice of αu dictates the trade-off that exists between toggling the switch fast and toggling
+the switch with a reduced gene expression burden. We choose parameters αu and γ by tuning. The parameter
+αu is equal to one in the simulations, and the discount factor γ is set to 0.75.
+Computing the control actions is a cheap procedure; however, performing the updates of the Q function
+is a computationally harder problem. Therefore, the online algorithm performs 10 iterations of the fitted Q
+algorithm every 10 time samples, in order to emulate computationally constrained controllers. The number of
+input-output samples used for computing the initial policy for the online algorithm is small in comparison with
+the purely offline algorithm. There are two reasons for such an assumption: (a) it is more realistic to assume
+sparse input data, if we consider input-output data from previous experiments; (b) fewer input-output samples
+imply computationally cheaper updates of the Q function; (c) a large amount of samples can limit the ability of
+the online algorithm to update the policy and the Q function efficiently.
+For the results in Figures 2 and 3(a), we generated 1000 trajectories with 100 one-step transitions in each
+trajectory. For the simulation of the online update algorithm we generated 100 trajectories with 100 one-step
+transitions in each trajectories. The policy is updated every 10 time samples. The stochastic simulation is
+performed using the direct Gillespie stochastic simulation algorithm. At every time instance t, one hundred
+
+JFPDA 2014
+Simulation results for the algorithm without
+online updates applied to the training model
+Protein concentrations (a.u.)
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+0
+
+50
+
+100
+
+150
+
+200
+
+Time (a.u.)
+
+Figure 2: “Ideal” control of the toggle switch system. The policy is computed from the input-output data
+of a system and then applied to control the same system. This setting is unrealistic; however, it illustrates the
+robustness of our control objective towards errors in the choice of the expected target point. Differently coloured
+trajectories correspond to the different input target points for the steady state concentration of protein 1. We
+choose the target points with 15, 30, 45, 60, 90 units, while the real upregulated steady state is approximately 60
+units (the cyan dashed line). These simulations show, that a considerable error can be made in the specification
+of the input target point without significant effect on the performance of the control algorithm. The schedule
+of light pulses is not shown due to overlapping trajectories, but all the pulses occur when the concentration of
+protein 1 is smaller than 10 units.
+trajectories starting at nt are computed until the next time instance t + 1, and the value nt+1 is then averaged
+over these trajectories. The average over these trajectories represents the average value of protein concentrations
+in a population of cells, which is much easier to measure .
+Finally, the trade-off between exploration and exploitation is decided by choosing the εt function as follows:
+εt = ε ·
+
+1
+Nupdate + 1
+
+where Nupdate is the number of times the policy was updated online. We update the policy after 10 time
+samples; therefore, Nupdate is equal to O(t) for large t.
+
+4 Results and Discussion
+As an illustration of the benefits of the proposed approach, we investigate how it handles model uncertainty.
+In order to do so, we specify a training model and a validation model as in (7). Both models are bi-stable
+toggle switches with quantitatively different behaviours. Moreover, the steady states of the validation model
+are relatively far from the steady statesof the training model. The stable steady states of the training model are
+approximately at se1 = 0.11 29.26 and se2 = 59.4 0.17 concentration units,
+ while the stable steady
+states of the validation model are at se1 = 59.4 0.17 and se2 = 0.11 29.26 . The goal is to compute
+a control policy (control law), which will steer the model from the stable steady state se1 to the stable steady
+state se2 . A control policy is a binary function of a current measurement computing the current action, which
+is the presence or the absence of a light pulse. Due to the systems’ dynamics, a larger amount of light pulses is
+typically required to switch from se1 to se2 in the validation model in comparison with the training model. We
+are going to test our online control algorithm by computing the initial control policy from the data generated
+by the training model and apply this policy to the validation model. One of the challenges for an efficient
+
+Simulation results for the algorithm with
+online updates applied t	 
+ 
+	 odel
+
+60
+
+60
+
+Protein concentrations (a.u.)
+
+Protein concentrations (a.u.)
+
+Simulation results for the algorithm without
+online updates applied to   ot odel
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+0
+
+50
+
+100
+
+150
+
+200
+
+Time (a.u.)
+(a) Simulation results without online updates. The red curve
+corresponds to the protein concentration obtained with the input target point 15, the green curve corresponds to the input
+target point 30, the blue curve to the input target point 45.
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+0
+
+50
+
+100
+
+150
+
+200
+
+Time (a.u.)
+(b) Simulation results with online updates. The red curve corresponds to the simulation of our algorithm with online updates
+with ε equal to 0.5, the blue curve corresponds to the trajectory
+with ε equal to 0.25, and the green curve to ε equal to 0.1.
+
+Figure 3: Simulation results of the validation model with an initial control policy computed using the inputoutput data generated by the training model. In the left panel no online updates are performed, in the right
+panel the policy is updated using the measured input-output data. In all the simulations of the algorithm without
+online updates the switch is not toggled (the left panel), while in the simulations of the algorithm with online
+updates the switch is successfully toggled (the right panel). In both panels, the upregulated steady concentration
+of protein 1 is approximately equal to 30 (the cyan dashed line). The algorithm with online updates has two
+phases: exploration and exploitation. The trade-off between these two phases is decided by the parameter ε,
+larger values of which imply more aggressive exploration and faster learning of the system.
+
+control algorithm is that not only the dynamics change, but also the target steady state. This setting mimics the
+experimental setup, when the trajectories of the model used for the policy computation (or the training model)
+do no match exactly the trajectories of the real system (or the validation model).
+We first consider the deterministic case and study the robustness of our algorithm towards errors in the choice
+of the target steady state, that is, the presumed and a priori specified value of the upregulated steady state
+concentration of protein 1. Therefore, we evaluate the proximity of five trajectories obtained with different
+target points, while the control policies are learned from and applied to the training model. In this case, we use
+the control algorithm without online updates. Figure 2 depicts the obtained trajectories of the concentration of
+protein 1 associated with the gene being upregulated. The red curve corresponds to the protein concentration
+obtained with the input target point equal to 15 units, the green curve corresponds to the input target point of
+30 units, the blue curve to the input target point 45, the orange curve to 60, and the purple curve to 90. The
+upregulated steady state concentration of protein 1 is approximately equal to 60 units (the cyan dashed line). All
+the curves are very close to each other and hardly distinguishable, which indicates that our algorithm is robust
+to some perturbations in the choice of the target point. Note that all the light pulses occur when the protein
+concentration is smaller than 10 concentration units. Hence, the policy essentially defines a threshold in the
+concentration of protein 1, below which light pulses are applied and above which light pulses are not necessary
+since the trajectories will eventually converge to the upregulated state due to the unforced system dynamics1 .
+This threshold can be adjusted by modifying the parameters of the algorithm according to the control goal:
+faster control or smaller burden.
+However, the setting when the policy is learned from a system and then used to control the same system is
+1 The optimal policy is more complicated than a simple threshold; however, the approximation of the policy by a threshold provides a
+general idea about the shape of the control policy
+
+JFPDA 2014
+Stochastic simulation results of the aglorithm with online updates applied t  n del
+60
+
+Protein concentrations (a.u.)
+
+Protein concentrations (a.u.)
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+0
+
+50
+
+100
+
+Time (a.u.)
+
+150
+
+200
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+0
+
+50
+
+100
+
+150
+
+200
+
+Time (a.u.)
+
+Figure 4: Stochastic simulation results of the algorithm with online updates applied to the validation model. In
+the simulations in the right panel, the penalty on the amount of light pulses is twice larger than in the simulations
+in the left panel. The red lines correspond to the value of ε equal to 0.5, the blue lines corresponds to the value
+of ε equal to 0.25, and the green lines to ε equal to 0.1.
+
+not entirely realistic. Typically, some model parameter variations are present. Here we model the case when the
+validation system has a considerable difference in parameter values in comparison with the training system. In
+Figure 3(a), we depict the simulated trajectories in such a situation. We run the algorithm with three different
+target points: 15 (the red curve), 30 (the green curve), and 45 (the blue curve). The actual upregulated protein
+concentration is approximately equal to 30. In all the simulations the algorithm without online updates cannot
+force the system into the upregulated state (the cyan dashed line). This occurs because the threshold required to
+ensure the switch in the validation model is higher than the one computed using the training model.
+In Figure 3(b), we present simulation results of the proposed algorithm with online updates. The algorithm
+collects new input-output samples and updates the policy at certain time intervals. The algorithm alternates
+between two phases: exploration and exploitation. In the exploitation phase the algorithm steers the system
+towards the specified goal using the control policy computed so far. In the exploration phase the algorithm
+generates data by randomly choosing “to apply a light pulse” or “do nothing”. Due to these random choices,
+data generated during the exploration phase is not correlated with the past samples. A major challenge in this
+algorithm is deciding the trade-off between the exploitation and exploration phases. A simple heuristic for
+tackling this trade-off is as follows. At time t, with a probability εt explore the system, and with a probability
+1 − εt exploit the system. There is a bigger need in exploration in the beginning of the experiment; therefore,
+εt should be larger for small t and decrease with time. Hence, we choose εt as ε · σ(t), where ε is a positive
+constant smaller than one and σ(t) is a monotonically decreasing function of t such that ε · σ(t) is always larger
+than zero and smaller than one. Larger values of ε indicate more aggressive exploration and faster learning.
+In these simulations, the input target point for the concentration of protein 1 is equal to 15. In Figure 3(b),
+the red curve corresponds to the simulation of our algorithm with online updates with ε equal to 0.5, the blue
+curve corresponds to the trajectory with ε equal to 0.25, and the green curve to ε equal to 0.1. The cyan dashed
+line represents the upregulated steady state concentration of protein 1. In all the simulations the switch is
+successfully toggled for the validation model, even if the initial policy is obtained by learning from the training
+model.
+One of the biggest advantages of our approach is the ability to handle stochastic dynamics without any modifications of the algorithm. Moreover, behaviours of the controlled toggle switches in the stochastic case are
+qualitatively similar to the deterministic case. We present the simulation results with online updates for a similar
+setting as in the deterministic case in the left panel of Figure 4. Additionally, we present the simulation results
+in the setting with a twice as large penalty on the amount of applied light pulses in the right panel of Figure 4.
+
+In both figures, the red curves correspond to the simulation of our online algorithm with ε equal to 0.5, the blue
+curves correspond to ε equal to 0.25, and the green curves to ε equal to 0.1. It is noticeable that toggling the
+switch takes longer with a larger penalty on the amount of light pulses. However, the main outcome of these
+simulations is that our algorithm can be applied to systems with stochastic dynamics, and as a consequence can
+potentially handle wet-lab data efficiently.
+Our algorithm, however, does not take into account the a priori knowledge that it is being applied to a
+different, but structurally similar system. A correct exploitation of structural similarity between the learned from
+and applied to systems may significantly improve the performance of the presented algorithm. This constitutes
+one of the main directions for future work that is currently under investigation.
+As a final remark, we have shown that the presented framework can efficiently control a (stochastic) model of
+the genetic toggle switch with a parametric uncertainty. The major feature of our control algorithm is its learning
+nature. The algorithm computes an initial control policy using input-output data obtained from simulations of
+a training model, and after that updates the policy by using the input-output data obtained from the validation
+model (or the real system). In the presented example, despite the fact that the training and validation models
+had quite different quantitative behaviours the control objective was always reached using our online control
+method. This indicates a potential for a generalisation of this data-based control method to more complex gene
+regulatory networks.
+
+Acknowledgement
+Aivar Sootla and Guy-Bart Stan acknowledge the support of EPSRC through the project EP/J014214/1 and the
+EPSRC Science and Innovation Award EP/G036004/1. Damien Ernst acknowledges support of the Belgian
+Network DYSCO (Dynamical Systems, Control, and Optimization), funded by the Interuniversity Attraction
+Poles Programme, initiated by the Belgian State, Science Policy Office.
+
+References
+B ENNETT M. R. & H ASTY J. (2009). Microfluidic devices for measuring gene network dynamics in single
+cells. Nat Rev Genet, 10(9), 628–638.
+B UŞONIU L., BABU ŠKA R., D E S CHUTTER B. & E RNST D. (2010). Reinforcement Learning and Dynamic
+Programming Using Function Approximators. CRC Pr I Llc.
+C AI L., F RIEDMAN N. & X IE X. S. (2006). Stochastic protein expression in individual cells at the single
+molecule level. Nature, 440, 358–362.
+C ASTRONOVO M., M AES F., F ONTENEAU R. & E RNST D. (2012). Learning exploration/exploitation strategies for single trajectory reinforcement learning. In Proc. Eur. Workshop Reinforcement Learn.
+E RNST D., G EURTS P. & W EHENKEL L. (2005). Tree-based batch mode reinforcement learning. J Mach
+Learn Res, 6, 503–556.
+G ARDNER T., C ANTOR C. R. & C OLLINS J. J. (2000). Construction of a genetic toggle switch in escherichia
+coli. Nature, 403, 339–342.
+G EURTS P., E RNST D. & W EHENKEL L. (2006). Extremely randomized trees. Machine Learning, 63(1),
+3–42.
+G ILLESPIE D. (1977). Exact stochastic simulation of coupled chemical reactions. The journal of physical
+chemistry, 81(25), 2340–2361.
+G UANTES R. & P OYATOS J. F. (2006). Dynamical principles of two-component genetic oscillators. PLoS
+Comput Biol, 2(3), e30.
+I VANOVA N., D OBRIN R., L U R., KOTENKO I., L EVORSE J., D E C OSTE C., S CHAFER X., L UN Y. & L EMIS CHKA I. R. (2006). Dissecting self-renewal in stem cells with rna interference. Nature, 442, 533–538.
+L EVSKAYA A., W EINER O. D., L IM W. A. & VOIGT C. A. (2009). Spatiotemporal control of cell signalling
+using a light-switchable protein interaction. Nature, 461, 997–1001.
+L IU Y., A SAKURA M., I NOUE H., NAKAMURA T., S ANO M., N IU Z., C HEN M., S CHWARTZ R. J. &
+S CHNEIDER M. D. (2007). Sox17 is essential for the specification of cardiac mesoderm in embryonic stem
+cells. Proc Natl Acad Sci USA, 104(10), 3859–3864.
+
+JFPDA 2014
+
+M ENOLASCINA F., D I B ERNARDO M. & D I B ERNARDO D. (2011). Analysis, design and implementation
+of a novel scheme for in-vivo control of synthetic gene regulatory networks. Automatica, Special Issue on
+Systems Biology, 47(6), 1265–1270.
+M ETTETAL J. T., M UZZEY D., G OMEZ -U RIBE C. & VAN O UDENAARDEN A. (2008). The Frequency Dependence of Osmo-Adaptation in Saccharomyces cerevisiae. Science, 319(5862), 482–484.
+M ILIAS -A RGEITIS A., S UMMERS S., S TEWART-O RNSTEIN J., Z ULETA I., P INCUS D., E L -S AMAD H.,
+K HAMMASH M. & LYGEROS J. (2011). In silico feedback for in vivo regulation of a gene expression
+circuit. Nature biotechnology.
+P URNICK P. E. M. & W EISS R. (2009). The second wave of synthetic biology: from modules to systems. Nat.
+Rev. Mol. Cell Biol., 10(6), 410–422.
+S HIMIZU -S ATO S., H UQ E., T EPPERMAN J. M. & Q UAIL P. H. (2002). A light-switchable gene promoter
+system. Nat Biotech, 20(10), 1041–1044.
+S OOTLA A., S TRELKOWA N., E RNST D., BARAHONA M. & S TAN G.-B. (2013). On reference tracking
+using reinforcement learning with application to gene regulatory networks. In Conf. Decision Control, p.
+4086–4091, Florence, Italy.
+S UTTON R. & BARTO A. (1998). Reinforcement Learning, an Introduction. MIT Press.
+S WAIN P. S., E LOWITZ M. B. & S IGGIA E. D. (2002). Intrinsic and extrinsic contributions to stochasticity in
+gene expression. Proc Natl Acad Sci USA, 99(20), 12795–12800.
+TAN C., M ARGUET P. & YOU L. (2009). Emergent bistability by a growth-modulating positive feedback
+circuit. Nat. Chem. Biol., 5(11), 842–848.
+U HLENDORF J., M IERMONT A., D ELAVEAU T., C HARVIN G., FAGES F., B OTTANI S., BATT G. & H ERSEN
+P. (2012). Long-term model predictive control of gene expression at the population and single-cell levels.
+Proc. Nat. Academy Sciences, 109(35), 14271–14276.
+
+
