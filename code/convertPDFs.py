@@ -27,5 +27,5 @@ for f in onlyfiles:
     print(x)
     y = writePath + '/'+ f2
     print(y)
-    cmd = 'python ' + x + ' ' + y  
+    cmd = 'pdftotext ' + x + ' ' + y  
     os.system(cmd)
